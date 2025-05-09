@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 2️⃣ Leaflet map setup
-  const map = L.map('map').setView([20, 0], 2);
+  const map = L.map('leaflet-map').setView([20, 0], 2);
   setTimeout(() => map.invalidateSize(), 0);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
@@ -93,36 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
   
-  // — Globals & DOM refs —
-  let points = [],
-      marker = null,
-      trailPolyline = null,
-      elevationChart = null,
-      cumulativeDistance = [],
-      speedData = [],
-      breakPoints = [],
-      playInterval = null,
-      fracIndex = 0,
-      speedHighlightLayer = null,
-      selectedSpeedBins = new Set(),
-      accelData = [];
-
-
-
-  const FRAME_DELAY_MS = 50;  // 20 fps
-  const distanceEl  = document.getElementById('distance');
-  const durationEl  = document.getElementById('duration');
-  const rideTimeEl  = document.getElementById('ride-time');
-  const elevationEl = document.getElementById('elevation');
-  const slider      = document.getElementById('replay-slider');
-  const playBtn     = document.getElementById('play-replay');
-  const summaryBtn  = document.getElementById('download-summary');
-  const videoBtn    = document.getElementById('export-video');
-  const speedSel    = document.getElementById('playback-speed');
-  const uploadInput = document.getElementById('gpx-upload');
-
-  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
-
+ 
   // — Speed‐filter bins & UI —
   const speedBins = [
     { label: '50–80',   min: 50,  max:  80 },
