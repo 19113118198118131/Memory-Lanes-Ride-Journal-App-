@@ -148,14 +148,16 @@
     window.supabase = supabase;
 
     // Redirect if already logged in
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      const selectedRideId = localStorage.getItem('selectedRideId');
-      // If a ride is selected, don't redirect to dashboard
-      if (user && !selectedRideId) {
-        window.location.href = 'dashboard.html';
-      }
-    });
-  </script>
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    const selectedRideId = localStorage.getItem('selectedRideId');
+    if (user && !selectedRideId) {
+      console.log('🔁 Redirecting to dashboard — no ride selected');
+      window.location.href = 'dashboard.html';
+    } else {
+      console.log('✅ Staying on index.html to load selected ride');
+    }
+  });
+</script>
 
   <!-- Your non-module scripts -->
   <script src="script.js"></script>
