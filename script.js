@@ -71,6 +71,54 @@ document.getElementById('signup-btn').addEventListener('click', async () => {
 const selectedRideId  = localStorage.getItem('selectedRideId');
   const selectedRideUrl = localStorage.getItem('selectedRideUrl');
 
+ // Helper to fetch & render GPX from a URL
+  async function loadAndDisplayGPX(url) {
+    try {
+      console.log('Loading GPX from', url);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.statusText);
+      const text = await res.text();
+      const gpxLayer = omnivore.gpx.parse(text);
+      if (window.currentGPX) map.removeLayer(window.currentGPX);
+      window.currentGPX = gpxLayer.addTo(map);
+      map.fitBounds(gpxLayer.getBounds());
+      if (typeof renderChartsFromGPXText === 'function') {
+        renderChartsFromGPXText(text);
+      }
+    } catch (err) {
+      console.error('GPX load error:', err);
+    }
+  }
+
+  // Auto‑load a ride if we came from dashboard
+  const selectedRideId = localStorage.getItem('selectedRideId');
+  if (selectedRideId) {
+    console.log('Auto-loading ride id', selectedRideId);
+    localStorage.removeItem('selectedRideId');
+
+    const { data, error } = await supabase
+      .from('ride_logs')
+      .select('title, distance_km, duration_min, elevation_m, gpx_url')
+      .eq('id', selectedRideId)
+      .single();
+
+    if (error) {
+      console.error('Failed to load ride metadata:', error);
+    } else if (data) {
+      // Populate UI fields
+      document.getElementById('ride-title').value = data.title;
+      document.getElementById('save-ride-form').style.display = 'block';
+      document.getElementById('distance').textContent = `${data.distance_km.toFixed(2)} km`;
+      document.getElementById('duration').textContent = `${data.duration_min} min`;
+      document.getElementById('elevation').textContent = `${data.elevation_m} m`;
+      // Render the GPX on map
+      if (data.gpx_url) {
+        await loadAndDisplayGPX(data.gpx_url);
+      }
+    }
+  }
+  // ← INSERT END
+  
   if (selectedRideId) {
     // clear so it only runs once
     localStorage.removeItem('selectedRideId');
