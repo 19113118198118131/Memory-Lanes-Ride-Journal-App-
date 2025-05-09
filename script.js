@@ -179,8 +179,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // GPX load & parsing
   uploadInput.addEventListener('change', e => {
-    // ... existing file reader & parsing logic ...
+    console.log('⚙️ upload handler fired, loadGPX is', typeof loadGPX);
+    const file = e.target.files[0];
+    if (!file) return;
+    // reset any previous playback
+    if (playInterval) clearInterval(playInterval);
+    if (marker) map.removeLayer(marker);
+    if (trailPolyline) map.removeLayer(trailPolyline);
+    points = []; breakPoints = [];
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const xml = new DOMParser().parseFromString(ev.target.result, 'application/xml');
+      const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
+        lat:+tp.getAttribute('lat'),
+        lng:+tp.getAttribute('lon'),
+        ele:+tp.getElementsByTagName('ele')[0]?.textContent||0,
+        time:new Date(tp.getElementsByTagName('time')[0]?.textContent)
+      })).filter(p => p.lat && p.lng && p.time instanceof Date);
+      if (!trkpts.length) return alert('No valid trackpoints found');
+
+      // (existing decimation, distance, speed, elevation calculations…)
+      // build points[], cumulativeDistance[], speedData[], breakPoints[]…
+      // then:
+      trailPolyline = L.polyline(points.map(p=>[p.lat,p.lng]),{color:'#007bff',weight:3,opacity:0.7}).addTo(map).bringToBack();
+      map.fitBounds(trailPolyline.getBounds(),{padding:[30,30],animate:false});
+      setupChart();
+      renderSpeedFilter();
+      [slider,playBtn,summaryBtn,videoBtn,speedSel].forEach(el=>el.disabled=false);
+      if(window.Analytics) Analytics.initAnalytics(points,speedData,cumulativeDistance);
+    };
+    reader.readAsText(file);
   });
+
 
   // Play/Pause, slider, summary, save handlers
   playBtn.addEventListener('click', () => { /* ... */ });
