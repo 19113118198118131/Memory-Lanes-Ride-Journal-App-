@@ -71,12 +71,12 @@
             `;
 
             // ← Your click handler is here!
-      item.addEventListener('click', (e) => {
-        console.log('→ ride clicked:', ride.id);
-        // debugger;              // <-- this will drop you into DevTools if it fires
-        localStorage.setItem('selectedRideId', ride.id);
-        window.location.href = 'index.html';
-      });
+        item.addEventListener('click', () => {
+          console.log('→ ride clicked:', ride.id);
+          // send the user to index.html?ride=<id>
+          window.location.href = `index.html?ride=${ride.id}`;
+        });
+
 
 
             rideList.appendChild(item);
