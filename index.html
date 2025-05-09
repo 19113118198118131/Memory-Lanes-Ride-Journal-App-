@@ -145,22 +145,24 @@
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   window.supabase = supabase;
 
-  supabase.auth.getUser().then(({ data:{ user } }) => {
-    // 1) not logged in → stay on the login form
-    if (!user) return;
+  // Guarded redirect: only send logged-in users with no intent back to the dashboard
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (!user) {
+      // not logged in → stay on upload/login page
+      return;
+    }
 
-    // 2) ride click? check URL param
     const params = new URLSearchParams(window.location.search);
-    const rideId = params.get('ride');
-    console.log('🏷️ index sees ?ride=', rideId);
+    if (params.has('ride') || params.has('home')) {
+      // replaying a ride or clicked New Ride → remain here
+      return;
+    }
 
-    // if they clicked one, let your script.js load it
-    if (rideId) return;
-
-    // otherwise, no param → go to dashboard
+    // otherwise, user is logged in with no intent → send to dashboard
     window.location.href = 'dashboard.html';
   });
 </script>
+
 
 
 
