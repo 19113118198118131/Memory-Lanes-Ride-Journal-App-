@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (userError || !user) {
     console.error('Not logged in', userError);
     document.getElementById('save-ride-form').style.display = 'none';
-    // Optionally: window.location.href = 'index.html';
+    // Optionally redirect: window.location.href = 'index.html';
   }
 
   // — Leaflet map setup —
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Auto‑load a ride if we came from the dashboard
+  // Auto‑load a ride if navigated from dashboard
   const selectedRideId = localStorage.getItem('selectedRideId');
   if (selectedRideId) {
     console.log('Auto-loading ride id', selectedRideId);
@@ -93,10 +93,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const uploadInput = document.getElementById('gpx-upload');
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
 
-  // … rest of your existing handlers & functions (uploadInput.onchange, playBtn.onclick, etc.) …
+  // … rest of existing handlers & functions (uploadInput.onchange, playBtn.onclick, etc.) …
 });
 
-  
   
   // — Globals & DOM refs —
   let points = [],
