@@ -9,53 +9,59 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const rideList = document.getElementById('ride-list');
 const logoutBtn = document.getElementById('logout-btn');
 
-// Auto-execute async init
+// Main init
 (async () => {
+  // Ensure user is authenticated
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) {
     window.location.href = 'index.html';
     return;
   }
 
-  // Load rides for this user
+  // Fetch rides for this user
   const { data: rides, error: fetchError } = await supabase
     .from('ride_logs')
-    .select('id, title, distance_km, duration_min, elevation_m, gpx_url, created_at')
+    .select('id, title, distance_km, duration_min, elevation_m, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
-  rideList.innerHTML = ''; // clear loading text
+  // Clear loading state
+  rideList.innerHTML = '';
 
   if (fetchError) {
     rideList.textContent = '❌ Failed to load rides.';
-  } else if (!rides.length) {
-    rideList.textContent = 'No rides found.';
-  } else {
-    rides.forEach(ride => {
-      const item = document.createElement('div');
-      item.className = 'ride-entry';
-      item.innerHTML = `
-        <div class="ride-card">
-          <div class="ride-title">${ride.title}</div>
-          <div class="ride-details">
-            <span>📍 ${ride.distance_km.toFixed(1)} km</span>
-            <span>⏱ ${ride.duration_min} min</span>
-            <span>⛰️ ${ride.elevation_m} m</span>
-            <span>📅 ${new Date(ride.created_at).toLocaleDateString()}</span>
-          </div>
-        </div>
-      `;
-      item.addEventListener('click', () => {
-        localStorage.setItem('selectedRideId', ride.id);
-        localStorage.setItem('selectedRideUrl', ride.gpx_url);
-        window.location.href = 'index.html';
-      });
-      rideList.appendChild(item);
-    });
+    return;
   }
+
+  if (!rides.length) {
+    rideList.textContent = 'No rides found.';
+    return;
+  }
+
+  // Render each ride entry
+  rides.forEach(ride => {
+    const item = document.createElement('div');
+    item.className = 'ride-entry';
+    item.innerHTML = `
+      <div class="ride-card">
+        <div class="ride-title">${ride.title}</div>
+        <div class="ride-details">
+          <span>📍 ${ride.distance_km.toFixed(1)} km</span>
+          <span>⏱ ${ride.duration_min} min</span>
+          <span>⛰️ ${ride.elevation_m} m</span>
+          <span>📅 ${new Date(ride.created_at).toLocaleDateString()}</span>
+        </div>
+      </div>
+    `;
+    item.addEventListener('click', () => {
+      localStorage.setItem('selectedRideId', ride.id);
+      window.location.href = 'index.html';
+    });
+    rideList.appendChild(item);
+  });
 })();
 
-// Logout button
+// Logout
 logoutBtn.addEventListener('click', async () => {
   await supabase.auth.signOut();
   window.location.href = 'index.html';
