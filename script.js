@@ -16,6 +16,20 @@ supabase.auth.getUser().then(({ data: { user } }) => {
   }
 });
 
+// If redirected back with a hash, complete the session
+supabase.auth.getSessionFromUrl().then(({ data, error }) => {
+  if (error) {
+    console.error('Auth redirect error:', error.message);
+    document.getElementById('auth-status').textContent = 'Error during confirmation: ' + error.message;
+  } else if (data.session) {
+    document.getElementById('auth-status').textContent = '✅ Email confirmed and logged in!';
+  }
+});
+
+// Clean up URL hash if redirected from confirmation
+if (window.location.hash.includes('access_token')) {
+  history.replaceState({}, document.title, window.location.pathname);
+}
 
 document.getElementById('login-btn').addEventListener('click', async () => {
   const email = document.getElementById('auth-email').value;
