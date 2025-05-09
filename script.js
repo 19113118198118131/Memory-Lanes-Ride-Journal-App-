@@ -1,15 +1,26 @@
 // script.js
 
 console.log('script.js loaded');
-
-// Expose updatePlayback globally for analytics interaction
 window.updatePlayback = null;
 
-
-
-
-document.addEventListener('DOMContentLoaded', () => {
-  
+document.addEventListener('DOMContentLoaded', async () => {
+  const selectedRideId = localStorage.getItem('selectedRideId');
+  if (selectedRideId) {
+    localStorage.removeItem('selectedRideId');
+    const { data, error } = await supabase
+      .from('ride_logs')
+      .select('*')
+      .eq('id', selectedRideId)
+      .single();
+    if (data) {
+      document.getElementById('ride-title').value = data.title;
+      document.getElementById('save-ride-form').style.display = 'block';
+      document.getElementById('distance').textContent = `${data.distance_km.toFixed(2)} km`;
+      document.getElementById('duration').textContent = `${data.duration_min} min`;
+      document.getElementById('elevation').textContent = `${data.elevation_m} m`;
+    }
+  }
+ 
 supabase.auth.getUser().then(({ data: { user } }) => {
   if (!user) {
     document.getElementById('save-ride-form').style.display = 'none';
