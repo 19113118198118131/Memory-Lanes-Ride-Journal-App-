@@ -1,6 +1,7 @@
 // analytics.js
 
 // 1) Compute turn angles & acceleration
+type ChartModule = typeof Chart;
 export function computeAnalytics(points, speedData) {
   const angleDegs = Array(points.length).fill(0);
   const accelData = [0];
@@ -37,7 +38,7 @@ export function renderCornerChart(angleDegs, speedData) {
   });
 
   const ctx = document.getElementById('cornerChart').getContext('2d');
-  new Chart(ctx, {
+  window.cornerChart = new Chart(ctx, {
     type: 'scatter',
     data: {
       datasets: [
@@ -60,7 +61,7 @@ export function renderCornerChart(angleDegs, speedData) {
   });
 }
 
-// 3) Smooth helper
+// 3) Smoothing helper
 export function smoothArray(data, windowSize = 15) {
   const smoothed = [];
   for (let i = 0; i < data.length; i++) {
@@ -85,7 +86,10 @@ export function renderAccelChart(accelData, cumulativeDistance, speedData, selec
     data: { labels, datasets: [{ label: 'Accel', data: dataWithIdx }] },
     options: {
       interaction: { mode: 'nearest', axis: 'xy', intersect: true },
-      scales: { x:{ title:{display:true,text:'Distance (km)'}}, y:{title:{display:true,text:'Acceleration (m/s²'}} },
+      scales: {
+        x: { title: { display: true, text: 'Distance (km)' } },
+        y: { title: { display: true, text: 'Acceleration (m/s²)' } }
+      },
       onClick(evt, elements) {
         if (!elements.length) return;
         const idx = elements[0].index;
@@ -95,7 +99,19 @@ export function renderAccelChart(accelData, cumulativeDistance, speedData, selec
   });
 }
 
-// Expose cleanup and globals
-window.setupChart        = () => {}; // placeholder if needed
-window.renderSpeedFilter = () => {};
-window.Analytics = { computeAnalytics, renderCornerChart, renderAccelChart };
+// 5) Chart setup and filter UI
+export function setupChart() {
+  // Reinitialize elevation/speed chart or other shared charts
+}
+
+export function renderSpeedFilter() {
+  // Reproduce speed filter buttons behavior
+}
+
+// 6) Expose globally
+window.computeAnalytics   = computeAnalytics;
+window.renderCornerChart  = renderCornerChart;
+window.renderAccelChart   = renderAccelChart;
+window.smoothArray        = smoothArray;
+window.setupChart         = setupChart;
+window.renderSpeedFilter  = renderSpeedFilter;
