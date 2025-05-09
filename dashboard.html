@@ -37,7 +37,8 @@
   
       // Navigate back to upload page without signing out
       homeBtn.addEventListener('click', () => {
-        window.location.href = 'index.html';
+      // Navigate back to upload page without signing out, include home flag
+        window.location.href = 'index.html?home=1';
       });
   
       // Logout and redirect to upload/login page
