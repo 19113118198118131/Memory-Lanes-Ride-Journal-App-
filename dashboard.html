@@ -23,16 +23,17 @@
     (async () => {
       console.log('⚡ dashboard module start');
 
+      // ── Supabase setup ──
       const SUPABASE_URL      = 'https://vodujxiwkpxaxaqnwkdd.supabase.co';
       const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvZHVqeGl3a3B4YXhhcW53a2RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NTgwOTQsImV4cCI6MjA2MjMzNDA5NH0.k4NeZ3dgqe1QQeXmkmgThp-X_PwOHPHLAQErg3hrPok';
       const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      window.supabase = supabase;
 
+      // ── DOM refs ──
       const rideList  = document.getElementById('ride-list');
       const logoutBtn = document.getElementById('logout-btn');
 
       try {
-        // 1) Auth check
+        // 1️⃣ Auth check
         console.log('→ checking auth');
         const { data: { user }, error: authErr } = await supabase.auth.getUser();
         if (authErr) throw authErr;
@@ -42,7 +43,7 @@
         }
         console.log('✔ logged in as', user.email);
 
-        // 2) Fetch rides
+        // 2️⃣ Fetch rides
         console.log('→ fetching rides');
         const { data: rides, error: fetchErr } = await supabase
           .from('ride_logs')
@@ -68,11 +69,14 @@
                 <span>⛰️ ${ride.elevation_m} m</span>
               </div>
             `;
+
+            // ← Your click handler is here!
             item.addEventListener('click', () => {
               console.log('→ ride clicked:', ride.id);
               localStorage.setItem('selectedRideId', ride.id);
               window.location.href = 'index.html';
             });
+
             rideList.appendChild(item);
           });
         }
@@ -81,7 +85,7 @@
         rideList.textContent = '⚠️ Error loading rides. Check console.';
       }
 
-      // 3) Logout
+      // 3️⃣ Logout
       logoutBtn.addEventListener('click', async () => {
         console.log('→ signing out');
         await supabase.auth.signOut();
