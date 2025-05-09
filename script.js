@@ -14,6 +14,11 @@ window.updatePlayback = null;
 
 // Preload block for dashboard-to-viewer flow
 (async () => {
+  // Ensure session is loaded
+  const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+  if (sessionErr) console.warn('Session error:', sessionErr);
+  console.log('🔐 session =', session);
+
   const urlParams     = new URLSearchParams(window.location.search);
   const preloadRideId = urlParams.get('ride');
   console.log('▶ script.js sees rideId=', preloadRideId);
@@ -29,21 +34,22 @@ window.updatePlayback = null;
   document.getElementById('timeline').style.display            = 'block';
   document.getElementById('analytics-container').style.display = 'block';
 
-  // Fetch ride metadata
+  // Fetch ride metadata including GPX path
   const { data: rides, error } = await supabase
     .from('ride_logs')
     .select('id, title, gpx_path, distance_km, duration_min, elevation_m')
-    .eq('id', preloadRideId);
+    .eq('id', preloadRideId)
+    .single();
 
-  if (error || !rides.length) {
+  if (error || !rides) {
     console.error('Error loading ride:', error);
     return;
   }
-  const ride = rides[0];
+  const ride = rides;
   console.log('✔ Preloading ride:', ride);
 
   // Get public URL for GPX file
-  const { data: { publicUrl }, error: urlErr } = supabase
+  const { data: storageData, error: urlErr } = supabase
     .storage
     .from('gpx-files')
     .getPublicUrl(ride.gpx_path);
@@ -51,7 +57,7 @@ window.updatePlayback = null;
   if (urlErr) {
     console.error('Error getting GPX URL:', urlErr);
   } else {
-    loadGPX(publicUrl);
+    loadGPX(storageData.publicUrl);
   }
 
   // Populate save form
@@ -96,7 +102,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const password = document.getElementById('auth-password').value;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     const statusEl = document.getElementById('auth-status');
-    statusEl.textContent = error ? 'Login failed: ' + error.message : 'Login successful! Redirecting…';
+    statusEl.textContent = error
+      ? 'Login failed: ' + error.message
+      : 'Login successful! Redirecting…';
     if (!error) setTimeout(() => window.location.href = 'dashboard.html', 1000);
   });
 
@@ -178,5 +186,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   playBtn.addEventListener('click', () => { /* ... */ });
   slider.addEventListener('input', () => { /* ... */ });
   summaryBtn.addEventListener('click', () => { /* ... */ });
-  document.getElementById('save-ride-btn').addEventListener('click', async () => { /* ... */ });
+  document.getElementById('save-ride-btn').addEventListener('click', async () => {
+    const file = uploadInput.files[0];
+    if (!file) return;
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) {
+      document.getElementById('save-status').textContent = 'User not logged in!';
+      return;
+    }
+    const filename = `${user.id}/${Date.now()}-${file.name}`;
+
+    // 1) Upload to Storage
+    const { error: uploadErr } = await supabase
+      .storage.from('gpx-files')
+      .upload(filename, file);
+    if (uploadErr) {
+      return document.getElementById('save-status').textContent =
+        '❌ Upload failed: ' + uploadErr.message;
+    }
+
+    // 2) Save metadata + path in ride_logs
+    const { data: insertData, error: insertErr } = await supabase
+      .from('ride_logs')
+      .insert([{ user_id: user.id, title: document.getElementById('ride-title').value, distance_km: parseFloat(distanceEl.textContent), duration_min: parseInt(durationEl.textContent), elevation_m: parseInt(elevationEl.textContent), gpx_path: filename }])
+      .select();
+    if (insertErr) {
+      return document.getElementById('save-status').textContent =
+        '❌ Save failed: ' + insertErr.message;
+    }
+
+    document.getElementById('save-status').textContent = '✅ Ride saved!';
+  });
 });
