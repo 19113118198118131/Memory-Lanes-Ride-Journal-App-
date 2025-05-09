@@ -226,20 +226,163 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   window.updatePlayback = updatePlayback;
 
-  function setupChart() {...}  // existing chart setup code
+function setupChart(){
+    const ctx=document.getElementById('elevationChart').getContext('2d');
+    if(elevationChart) elevationChart.destroy();
+    elevationChart=new Chart(ctx,{type:'line',data:{datasets:[
+      {label:'Elevation',data:points.map((p,i)=>({x:cumulativeDistance[i]/1000,y:p.ele})),"borderColor":'#64ffda',"backgroundColor":(()=>{const g=ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,'rgba(100,255,218,0.5)');g.addColorStop(1,'rgba(10,25,47,0.1)');return g;})(),borderWidth:2,tension:0.3,pointRadius:0,fill:true,yAxisID:'yElevation'},
+      {label:'Position',type:'scatter',data:[{x:0,y:points[0]?points[0].ele:0}],pointRadius:5,pointBackgroundColor:'#fff',showLine:false,yAxisID:'yElevation'},
+      {label:'Breaks',type:'scatter',data:breakPoints.map(i=>({x:cumulativeDistance[i]/1000,y:points[i].ele})),pointRadius:3,pointBackgroundColor:'rgba(150,150,150,0.6)',showLine:false,yAxisID:'yElevation'},
+      {label:'Speed (km/h)',data:points.map((p,i)=>({x:cumulativeDistance[i]/1000,y:speedData[i]})),borderColor:'#ff6384',backgroundColor:'rgba(255,99,132,0.1)',borderWidth:2,tension:0.3,pointRadius:0,fill:true,yAxisID:'ySpeed'}
+    ]},options:{responsive:true,animation:false,interaction:{mode:'nearest',intersect:false,axis:'x'},onClick:(evt,elems)=>{if(elems.length)updatePlayback(elems[0].index);},scales:{x:{type:'linear',title:{display:true,text:'Distance (km)'},grid:{color:'#223'},ticks:{callback:v=>v.toFixed(2)}},yElevation:{display:true,position:'left',title:{display:true,text:'Elevation (m)'},grid:{color:'#334'}},ySpeed:{display:true,position:'right',title:{display:true,text:'Speed (km/h)'},grid:{drawOnChartArea:false}}},plugins:{legend:{display:true},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw.y.toFixed(1)}`}}}}});
+    document.querySelectorAll('input[name="chartMode"]').forEach(radio=>radio.addEventListener('change',()=>{
+      const mode=document.querySelector('input[name="chartMode"]:checked').value;
+      elevationChart.data.datasets.forEach(ds=>{ds.hidden=(ds.label==='Elevation'||ds.label==='Breaks')?mode==='speed':ds.label==='Speed (km/h)'?mode==='elevation':false;});
+      elevationChart.options.scales.yElevation.display=mode!=='speed';
+      elevationChart.options.scales.ySpeed.display=mode!=='elevation';
+      elevationChart.update();
+    }));
+  }
 
   // GPX load & parsing
-  uploadInput.addEventListener('change', e => {...});  
+  uploadInput.addEventListener('change',e=>{
+    document.getElementById('save-ride-form').style.display='block';
+    const file=e.target.files[0];if(!file)return;
+    if(playInterval)clearInterval(playInterval);
+    if(marker)map.removeLayer(marker);
+    if(trailPolyline)map.removeLayer(trailPolyline);
+    points=[];breakPoints=[];
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const xml=new DOMParser().parseFromString(ev.target.result,'application/xml');
+      const trkpts=Array.from(xml.getElementsByTagName('trkpt')).map(tp=>({lat:+tp.getAttribute('lat'),lng:+tp.getAttribute('lon'),ele:+tp.getElementsByTagName('ele')[0]?.textContent||0,time:new Date(tp.getElementsByTagName('time')[0]?.textContent)})).filter(p=>p.lat&&p.lng&&p.time instanceof Date);
+      if(!trkpts.length) return alert('No valid trackpoints found');
+      const SAMPLE=5;let lastTime=trkpts[0].time,lastLL=L.latLng(trkpts[0].lat,trkpts[0].lng);
+      points.push(trkpts[0]);
+      for(let i=1;i<trkpts.length;i++){const pt=trkpts[i];const dt=(pt.time-lastTime)/1000;const moved=lastLL.distanceTo(L.latLng(pt.lat,pt.lng));
+        if(dt>=SAMPLE){if(dt>180&&moved<20)breakPoints.push(points.length);
+        else{points.push(pt);lastTime=pt.time;lastLL=L.latLng(pt.lat,pt.lng);}}
+      }
+      if(points.at(-1).time!==trkpts.at(-1).time) points.push(trkpts.at(-1));
+      cumulativeDistance=[0];speedData=[0];
+      for(let i=1;i<points.length;i++){const a=L.latLng(points[i-1].lat,points[i-1].lng),b=L.latLng(points[i].lat,points[i].lng),d=a.distanceTo(b),t=(points[i].time-points[i-1].time)/1000;cumúla
 
-  // Play/Pause
-  playBtn.addEventListener('click', () => {...});
 
-  // Slider scrub
-  slider.addEventListener('input', () => {...});
+// Play/Pause
+playBtn.addEventListener('click', () => {
+  if (!points.length) return;
+  // if already playing, stop
+  if (playInterval) {
+    clearInterval(playInterval);
+    playInterval = null;
+    playBtn.textContent = '▶️ Play';
+    return;
+  }
+  // if we’re at the end, reset to start
+  if (playBtn.textContent === '🔁 Replay') {
+    slider.value = 0;
+    updatePlayback(0);
+    fracIndex = 0;
+  } else {
+    // resume from current slider position
+    fracIndex = Number(slider.value);
+  }
+  playBtn.textContent = '⏸ Pause';
+  const speedMultiplier = parseFloat(speedSel.value) || 1;
+  playInterval = setInterval(() => {
+    fracIndex += speedMultiplier;
+    const idx = Math.floor(fracIndex);
+    if (idx >= points.length) {
+      clearInterval(playInterval);
+      playInterval = null;
+      playBtn.textContent = '🔁 Replay';
+      return;
+    }
+    updatePlayback(idx);
+  }, FRAME_DELAY_MS);
+});
 
-  // Download summary
-  summaryBtn.addEventListener('click', () => {...});
+// Slider scrub
+slider.addEventListener('input', () => {
+  if (playInterval) {
+    clearInterval(playInterval);
+    playInterval = null;
+    playBtn.textContent = '▶️ Play';
+  }
+  updatePlayback(Number(slider.value));
+});
 
-  // Save ride
-  document.getElementById('save-ride-btn').addEventListener('click', async () => {...});
+// Download summary
+summaryBtn.addEventListener('click', () => {
+  const txt = 
+    `Distance: ${distanceEl.textContent}\n` +
+    `Total Duration: ${durationEl.textContent}\n` +
+    `Ride Time: ${rideTimeEl.textContent}\n` +
+    `Elevation Gain: ${elevationEl.textContent}`;
+  const blob = new Blob([txt], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ride-summary.txt';
+  a.click();
+});
+
+// Save ride
+document.getElementById('save-ride-btn').addEventListener('click', async () => {
+  const title = document.getElementById('ride-title').value;
+  const distance_km = parseFloat(distanceEl.textContent);
+  const [h, m] = document.getElementById('duration')
+                   .textContent.match(/(\d+)h\s*(\d+)m/)
+                   .slice(1).map(Number);
+  const duration_min = h*60 + m;
+  const elevation_m = parseInt(elevationEl.textContent, 10);
+
+  // ensure user is logged in
+  const { data: { user }, error: userErr } = await supabase.auth.getUser();
+  if (userErr || !user) {
+    return document.getElementById('save-status')
+           .textContent = 'User not logged in!';
+  }
+
+  // grab the GPX file
+  const file = document.getElementById('gpx-upload').files[0];
+  if (!file) {
+    return document.getElementById('save-status')
+           .textContent = 'No GPX file to save!';
+  }
+
+  // upload to storage
+  const timestamp = Date.now();
+  const filename = `${user.id}/${timestamp}-${file.name}`;
+  const { error: uploadErr } = await supabase
+    .storage
+    .from('gpx-files')
+    .upload(filename, file, { cacheControl: '3600', upsert: false });
+  if (uploadErr) {
+    document.getElementById('save-status')
+      .textContent = '❌ Upload failed: ' + uploadErr.message;
+    return;
+  }
+
+  // insert metadata
+  const { error: insertErr } = await supabase
+    .from('ride_logs')
+    .insert([{
+      user_id:     user.id,
+      title,
+      distance_km,
+      duration_min,
+      elevation_m,
+      gpx_path:    filename
+    }]);
+  
+  document.getElementById('save-status').textContent = insertErr
+    ? '❌ Save failed: ' + insertErr.message
+    : '✅ Ride saved successfully!';
+
+  if (!insertErr) {
+    document.getElementById('save-ride-form').style.display = 'none';
+    document.getElementById('ride-title').value = '';
+  }
+});
+
 });
