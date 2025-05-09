@@ -270,7 +270,9 @@ function highlightSpeedBin(binIndex) {
 
   // GPX load & parsing
   uploadInput.addEventListener('change', e => {
-    const file = e.target.files[0]; if (!file) return;
+    // Show title input
+document.getElementById('save-ride-form').style.display = 'block';
+const file = e.target.files[0]; if (!file) return;
     if (playInterval) clearInterval(playInterval);
     if (marker) map.removeLayer(marker);
     if (trailPolyline) map.removeLayer(trailPolyline);
@@ -340,3 +342,44 @@ function highlightSpeedBin(binIndex) {
   });
 
 });
+
+document.getElementById('save-ride-btn').addEventListener('click', async () => {
+  const title = document.getElementById('ride-title').value;
+  const distance_km = parseFloat(distanceEl.textContent); // already shown in UI
+  const duration_text = durationEl.textContent; // e.g. '1h 35m'
+  const duration_min = parseInt(duration_text.split('h')[0]) * 60 + parseInt(duration_text.split('h')[1]); 
+  const elevation_m = parseInt(elevationEl.textContent); 
+
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    document.getElementById('save-status').textContent = 'User not logged in!';
+    return;
+  }
+
+const saveBtn = document.getElementById('save-ride-btn');
+saveBtn.disabled = true;
+
+const { error } = await supabase.from('ride_logs').insert([{
+  user_id: user.id,
+  title,
+  distance_km,
+  duration_min,
+  elevation_m
+}]);
+
+saveBtn.disabled = false;
+
+
+  document.getElementById('save-status').textContent = error
+    ? '❌ Failed to save: ' + error.message
+    : '✅ Ride saved successfully!';
+
+  if (!error) {
+    document.getElementById('save-ride-form').style.display = 'none';
+    document.getElementById('ride-title').value = '';
+  }
+});
+
