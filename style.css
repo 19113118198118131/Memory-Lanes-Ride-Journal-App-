@@ -250,6 +250,28 @@ footer a {
 .leaflet-overlay-pane svg .pulse-line {
   animation: line-pulse 2.5s ease-in-out infinite;
 }
+.ride-entry {
+  background: #132033;
+  border: 1px solid #1c2c45;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.ride-entry:hover {
+  background: #1a2a44;
+}
+.ride-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #64ffda;
+  margin-bottom: 0.3rem;
+}
+.ride-details span {
+  margin-right: 1rem;
+  color: #ccc;
+  font-size: 0.95rem;
+}
 
 /* Mobile adjustments */
 @media (max-width: 600px) {
