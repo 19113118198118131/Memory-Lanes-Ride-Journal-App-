@@ -140,7 +140,7 @@
   <script>
       const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
       const SUPABASE_ANON_KEY = 'your-anon-key';
-      const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   </script>
   <script src="script.js"></script>
   <script src="analytics.js"></script>
