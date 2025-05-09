@@ -119,34 +119,6 @@ const selectedRideId  = localStorage.getItem('selectedRideId');
   }
   // ← INSERT END
   
-  if (selectedRideId) {
-    // clear so it only runs once
-    localStorage.removeItem('selectedRideId');
-    localStorage.removeItem('selectedRideUrl');
-
-    // fetch the ride record (must include gpx_url)
-    const { data, error } = await supabase
-      .from('ride_logs')
-      .select('title, distance_km, duration_min, elevation_m, gpx_url')
-      .eq('id', selectedRideId)
-      .single();
-
-    if (data) {
-      // populate your form & stats
-      document.getElementById('ride-title').value             = data.title;
-      document.getElementById('save-ride-form').style.display = 'block';
-      document.getElementById('distance').textContent         = `${data.distance_km.toFixed(2)} km`;
-      document.getElementById('duration').textContent         = `${data.duration_min} min`;
-      document.getElementById('elevation').textContent        = `${data.elevation_m} m`;
-
-      // then fetch & render the GPX on the map:
-      if (data.gpx_url) {
-        await loadAndDisplayGPX(data.gpx_url);
-      }
-    } else if (error) {
-      console.error('Failed to load ride metadata:', error);
-    }
-  }
   
   // — Globals & DOM refs —
   let points = [],
