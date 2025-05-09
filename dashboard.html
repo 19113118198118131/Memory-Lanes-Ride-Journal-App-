@@ -14,25 +14,34 @@
 
   <main>
     <h2>Your Rides</h2>
-    <div id="ride-list">Loading...</div>
+    <div id="ride-list">Loading rides…</div>
   </main>
 
-  <!-- Use only the module-based Supabase import -->
+  <!-- Inline module to handle auth, fetch, render & click logic -->
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-    const SUPABASE_URL = 'https://vodujxiwkpxaxaqnwkdd.supabase.co';
+    // — Initialize Supabase —
+    const SUPABASE_URL     = 'https://vodujxiwkpxaxaqnwkdd.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvZHVqeGl3a3B4YXhhcW53a2RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NTgwOTQsImV4cCI6MjA2MjMzNDA5NH0.k4NeZ3dgqe1QQeXmkmgThp-X_PwOHPHLAQErg3hrPok';
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabase = supabase;
 
-    const rideList = document.getElementById('ride-list');
+    console.log('⚡ dashboard.html module loaded');
+
+    // DOM refs
+    const rideList  = document.getElementById('ride-list');
     const logoutBtn = document.getElementById('logout-btn');
 
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (!user) {
-      window.location.href = 'index.html';
+    // — 1) Auth check —
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.warn('Not logged in, redirecting…');
+      return window.location.href = 'index.html';
     }
+    console.log('Logged in as:', user.email);
 
+    // — 2) Fetch rides —
     const { data: rides, error: fetchError } = await supabase
       .from('ride_logs')
       .select('*')
@@ -42,6 +51,7 @@
     rideList.innerHTML = '';
 
     if (fetchError) {
+      console.error('Error fetching rides:', fetchError);
       rideList.textContent = '❌ Failed to load rides.';
     } else if (!rides.length) {
       rideList.textContent = 'No rides found.';
@@ -50,21 +60,29 @@
         const item = document.createElement('div');
         item.className = 'ride-entry';
         item.innerHTML = `
-          <strong>${ride.title}</strong><br/>
-          📍 ${ride.distance_km.toFixed(1)} km – ⏱ ${ride.duration_min} min – ⛰️ ${ride.elevation_m} m
+          <div class="ride-title">${ride.title}</div>
+          <div class="ride-details">
+            <span>📍 ${ride.distance_km.toFixed(1)} km</span>
+            <span>⏱ ${ride.duration_min} min</span>
+            <span>⛰️ ${ride.elevation_m} m</span>
+          </div>
         `;
+
+        // ← **Click handler**: queue ride and go back to index.html
         item.addEventListener('click', () => {
-          console.log('Ride clicked:', ride.id);
+          console.log('→ ride clicked:', ride.id);
           localStorage.setItem('selectedRideId', ride.id);
           window.location.href = 'index.html';
         });
-      
+
         rideList.appendChild(item);
       });
     }
 
+    // — 3) Logout logic —
     logoutBtn.addEventListener('click', async () => {
       await supabase.auth.signOut();
+      console.log('Signed out');
       window.location.href = 'index.html';
     });
   </script>
