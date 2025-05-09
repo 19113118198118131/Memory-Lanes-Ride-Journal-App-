@@ -3,6 +3,31 @@
 console.log('script.js loaded');
 window.updatePlayback = null;
 
+// 1) Import & init Supabase
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const SUPABASE_URL     = 'https://vodujxiwkpxaxaqnwkdd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvZHVqeGl3a3B4YXhhcW53a2RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NTgwOTQsImV4cCI6MjA2MjMzNDA5NH0.k4NeZ3dgqe1QQeXmkmgThp-X_PwOHPHLAQErg3hrPok';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.supabase = supabase;
+
+// 2) On load, check whether the user is logged in
+;(async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    // hide login form, show upload/save sections
+    document.getElementById('auth-section').style.display   = 'none';
+    document.getElementById('upload-section').style.display = 'block';
+  } else {
+    // not logged in: hide upload, show login
+    document.getElementById('upload-section').style.display = 'none';
+    document.getElementById('map-section').style.display    = 'none';
+    document.getElementById('summary-section').style.display= 'none';
+    document.getElementById('timeline').style.display       = 'none';
+    document.getElementById('analytics-container').style.display = 'none';
+  }
+})();
+
+
 // 0️⃣ Preload-from-URL block
 ;(async () => {
   const params = new URLSearchParams(window.location.search);
