@@ -33,9 +33,13 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   const password = document.getElementById('auth-password').value;
   const { error, data } = await supabase.auth.signInWithPassword({ email, password });
 
-  document.getElementById('auth-status').textContent = error
-    ? 'Login failed: ' + error.message
-    : 'Login successful!';
+if (error) {
+  document.getElementById('auth-status').textContent = 'Login failed: ' + error.message;
+} else {
+  document.getElementById('auth-status').textContent = 'Login successful! Redirecting...';
+  setTimeout(() => window.location.href = 'dashboard.html', 1000);
+}
+
 });
 
 document.getElementById('signup-btn').addEventListener('click', async () => {
