@@ -5,6 +5,27 @@ console.log('script.js loaded');
 // Expose updatePlayback globally for analytics interaction
 window.updatePlayback = null;
 
+document.getElementById('login-btn').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+
+  document.getElementById('auth-status').textContent = error
+    ? 'Login failed: ' + error.message
+    : 'Login successful!';
+});
+
+document.getElementById('signup-btn').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  const { error, data } = await supabase.auth.signUp({ email, password });
+
+  document.getElementById('auth-status').textContent = error
+    ? 'Signup failed: ' + error.message
+    : 'Signup successful! Please check your email.';
+});
+
+
 document.addEventListener('DOMContentLoaded', () => {
   // — Leaflet map setup —
   const map = L.map('map').setView([20, 0], 2);
