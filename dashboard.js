@@ -9,6 +9,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const rideList = document.getElementById('ride-list');
 const logoutBtn = document.getElementById('logout-btn');
 
+// Auto-execute async init
 (async () => {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) {
@@ -44,7 +45,6 @@ const logoutBtn = document.getElementById('logout-btn');
           </div>
         </div>
       `;
-      item.style.cursor = 'pointer';
       item.addEventListener('click', () => {
         localStorage.setItem('selectedRideId', ride.id);
         window.location.href = 'index.html';
