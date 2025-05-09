@@ -4,15 +4,22 @@ console.log('script.js loaded');
 window.updatePlayback = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('✅ script.js loaded');
+
   const selectedRideId = localStorage.getItem('selectedRideId');
   if (selectedRideId) {
+    console.log('🔍 Loading ride ID from localStorage:', selectedRideId);
     localStorage.removeItem('selectedRideId');
     const { data, error } = await supabase
       .from('ride_logs')
       .select('*')
       .eq('id', selectedRideId)
       .single();
-    if (data) {
+
+    if (error) {
+      console.error('❌ Failed to load ride from Supabase:', error.message);
+    } else if (data) {
+      console.log('✅ Ride loaded successfully:', data);
       document.getElementById('ride-title').value = data.title;
       document.getElementById('save-ride-form').style.display = 'block';
       document.getElementById('distance').textContent = `${data.distance_km.toFixed(2)} km`;
@@ -20,12 +27,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('elevation').textContent = `${data.elevation_m} m`;
     }
   }
- 
-supabase.auth.getUser().then(({ data: { user } }) => {
-  if (!user) {
-    document.getElementById('save-ride-form').style.display = 'none';
-  }
-});
+
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (!user) {
+      document.getElementById('save-ride-form').style.display = 'none';
+    }
+  });
+
 
 if (window.location.hash.includes('type=signup')) {
   document.getElementById('auth-status').textContent = '✅ Email confirmed! Please log in now.';
@@ -414,6 +422,8 @@ document.getElementById('save-ride-btn').addEventListener('click', async () => {
   if (!error) {
     document.getElementById('save-ride-form').style.display = 'none';
     document.getElementById('ride-title').value = '';
+
+
   }
 });
 });
