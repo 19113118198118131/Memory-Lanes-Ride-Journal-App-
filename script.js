@@ -1,31 +1,31 @@
 // script.js
-
 import supabase from './supabaseClient.js';
 
 console.log('script.js loaded');
 window.updatePlayback = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Ensure user is authenticated
+  // 1️⃣ Auth check: kick out to login if not signed in
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
-    console.error('Not logged in', userError);
+    console.error('Not logged in:', userError);
+    // hide ride form and redirect
     document.getElementById('save-ride-form').style.display = 'none';
-    // Optionally redirect: window.location.href = 'index.html';
+    return window.location.href = 'index.html';
   }
 
-  // — Leaflet map setup —
+  // 2️⃣ Leaflet map setup
   const map = L.map('map').setView([20, 0], 2);
   setTimeout(() => map.invalidateSize(), 0);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
-  // Helper to fetch & render GPX from a URL
+  // 3️⃣ Helper to fetch & render GPX
   async function loadAndDisplayGPX(url) {
     try {
       console.log('Loading GPX from', url);
-      const res = await fetch(url);
+      const res  = await fetch(url);
       if (!res.ok) throw new Error(res.statusText);
       const text = await res.text();
       const gpxLayer = omnivore.gpx.parse(text);
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Auto‑load a ride if navigated from dashboard
+  // 4️⃣ Auto-load a ride if navigated from dashboard
   const selectedRideId = localStorage.getItem('selectedRideId');
   if (selectedRideId) {
     console.log('Auto-loading ride id', selectedRideId);
@@ -55,19 +55,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (error) {
       console.error('Failed to load ride metadata:', error);
     } else if (data) {
-      // Populate UI fields
-      document.getElementById('ride-title').value = data.title;
+      // populate UI
+      document.getElementById('ride-title').value   = data.title;
       document.getElementById('save-ride-form').style.display = 'block';
-      document.getElementById('distance').textContent = `${data.distance_km.toFixed(2)} km`;
-      document.getElementById('duration').textContent = `${data.duration_min} min`;
+      document.getElementById('distance').textContent  = `${data.distance_km.toFixed(2)} km`;
+      document.getElementById('duration').textContent  = `${data.duration_min} min`;
       document.getElementById('elevation').textContent = `${data.elevation_m} m`;
 
-      // Render the GPX on the map
+      // render on map
       if (data.gpx_url) {
         await loadAndDisplayGPX(data.gpx_url);
       }
     }
   }
+
 
   // — Globals & DOM refs —
   let points = [], marker = null, trailPolyline = null;
