@@ -4,34 +4,29 @@ console.log('script.js loaded');
 window.updatePlayback = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+
   async function loadAndDisplayGPX(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(res.statusText);
-  const text = await res.text();
-  const xml = new DOMParser().parseFromString(text, 'application/xml');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(res.statusText);
+    const text = await res.text();
+    // you can reuse your existing parsing logic here,
+    // or use omnivore/toGeoJSON as shown
+    const gpxLayer = omnivore.gpx.parse(text);
+    if (window.currentGPX) map.removeLayer(window.currentGPX);
+    window.currentGPX = gpxLayer.addTo(map);
+    map.fitBounds(gpxLayer.getBounds());
+    renderChartsFromGPXText(text);
+  }
 
-  // parse trackpoints just like your FileReader code…
-  // you can even refactor your existing reader.onload logic into a helper
-  // or use omnivore/toGeoJSON here:
-
-  const gpxLayer = omnivore.gpx.parse(text);
-  if (window.currentGPX) map.removeLayer(window.currentGPX);
-  window.currentGPX = gpxLayer.addTo(map);
-  map.fitBounds(gpxLayer.getBounds());
-  
-  // re-render your stats and charts if needed
-  renderChartsFromGPXText(text);
-}
-
-  
   const selectedRideId  = localStorage.getItem('selectedRideId');
   const selectedRideUrl = localStorage.getItem('selectedRideUrl');
 
   if (selectedRideId) {
+    // clear so it only runs once
     localStorage.removeItem('selectedRideId');
     localStorage.removeItem('selectedRideUrl');
 
-    // fetch the ride record (including gpx_url)
+    // fetch the ride record (must include gpx_url)
     const { data, error } = await supabase
       .from('ride_logs')
       .select('title, distance_km, duration_min, elevation_m, gpx_url')
@@ -40,16 +35,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (data) {
       // populate your form & stats
-      document.getElementById('ride-title').value   = data.title;
+      document.getElementById('ride-title').value             = data.title;
       document.getElementById('save-ride-form').style.display = 'block';
-      document.getElementById('distance').textContent = `${data.distance_km.toFixed(2)} km`;
-      document.getElementById('duration').textContent = `${data.duration_min} min`;
-      document.getElementById('elevation').textContent = `${data.elevation_m} m`;
+      document.getElementById('distance').textContent         = `${data.distance_km.toFixed(2)} km`;
+      document.getElementById('duration').textContent         = `${data.duration_min} min`;
+      document.getElementById('elevation').textContent        = `${data.elevation_m} m`;
 
-      // **NEW** automatically pull down and render the stored GPX
+      // then fetch & render the GPX on the map:
       if (data.gpx_url) {
         await loadAndDisplayGPX(data.gpx_url);
       }
+    } else if (error) {
+      console.error('Failed to load ride metadata:', error);
     }
   }
  
