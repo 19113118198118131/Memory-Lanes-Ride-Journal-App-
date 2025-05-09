@@ -5,6 +5,18 @@ console.log('script.js loaded');
 // Expose updatePlayback globally for analytics interaction
 window.updatePlayback = null;
 
+
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  
+supabase.auth.getUser().then(({ data: { user } }) => {
+  if (!user) {
+    document.getElementById('save-ride-form').style.display = 'none';
+  }
+});
+
+
 document.getElementById('login-btn').addEventListener('click', async () => {
   const email = document.getElementById('auth-email').value;
   const password = document.getElementById('auth-password').value;
@@ -24,10 +36,7 @@ document.getElementById('signup-btn').addEventListener('click', async () => {
     ? 'Signup failed: ' + error.message
     : 'Signup successful! Please check your email.';
 });
-
-
-document.addEventListener('DOMContentLoaded', () => {
-  // — Leaflet map setup —
+// — Leaflet map setup —
   const map = L.map('map').setView([20, 0], 2);
   setTimeout(() => map.invalidateSize(), 0);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -339,16 +348,16 @@ const file = e.target.files[0]; if (!file) return;
     a.href = URL.createObjectURL(blob);
     a.download='ride-summary.txt';
     a.click();
-  });
 
 });
-
+   
 document.getElementById('save-ride-btn').addEventListener('click', async () => {
   const title = document.getElementById('ride-title').value;
-  const distance_km = parseFloat(distanceEl.textContent); // already shown in UI
-  const duration_text = durationEl.textContent; // e.g. '1h 35m'
-  const duration_min = parseInt(duration_text.split('h')[0]) * 60 + parseInt(duration_text.split('h')[1]); 
-  const elevation_m = parseInt(elevationEl.textContent); 
+  const distance_km = parseFloat(distanceEl.textContent);
+  const duration_text = durationEl.textContent;
+  const duration_parts = duration_text.match(/(\d+)h\s*(\d+)m/);
+  const duration_min = parseInt(duration_parts[1]) * 60 + parseInt(duration_parts[2]);
+  const elevation_m = parseInt(elevationEl.textContent);
 
   const {
     data: { user },
@@ -359,19 +368,18 @@ document.getElementById('save-ride-btn').addEventListener('click', async () => {
     return;
   }
 
-const saveBtn = document.getElementById('save-ride-btn');
-saveBtn.disabled = true;
+  const saveBtn = document.getElementById('save-ride-btn');
+  saveBtn.disabled = true;
 
-const { error } = await supabase.from('ride_logs').insert([{
-  user_id: user.id,
-  title,
-  distance_km,
-  duration_min,
-  elevation_m
-}]);
+  const { error } = await supabase.from('ride_logs').insert([{
+    user_id: user.id,
+    title,
+    distance_km,
+    duration_min,
+    elevation_m
+  }]);
 
-saveBtn.disabled = false;
-
+  saveBtn.disabled = false;
 
   document.getElementById('save-status').textContent = error
     ? '❌ Failed to save: ' + error.message
@@ -382,4 +390,5 @@ saveBtn.disabled = false;
     document.getElementById('ride-title').value = '';
   }
 });
+
 
