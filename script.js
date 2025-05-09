@@ -420,44 +420,61 @@ const file = e.target.files[0]; if (!file) return;
 });
    
 document.getElementById('save-ride-btn').addEventListener('click', async () => {
-  const title = document.getElementById('ride-title').value;
-  const distance_km = parseFloat(distanceEl.textContent);
-  const duration_text = durationEl.textContent;
-  const duration_parts = duration_text.match(/(\d+)h\s*(\d+)m/);
-  const duration_min = parseInt(duration_parts[1]) * 60 + parseInt(duration_parts[2]);
-  const elevation_m = parseInt(elevationEl.textContent);
+  const title        = document.getElementById('ride-title').value;
+  const distance_km  = parseFloat(distanceEl.textContent);
+  const [h, m]       = document.getElementById('duration').textContent.match(/(\d+)h\s*(\d+)m/).slice(1).map(Number);
+  const duration_min = h*60 + m;
+  const elevation_m  = parseInt(elevationEl.textContent, 10);
 
-  const {
-    data: { user },
-    error: userError
-  } = await supabase.auth.getUser();
-  if (userError || !user) {
-    document.getElementById('save-status').textContent = 'User not logged in!';
+  // get current user
+  const { data: { user }, error: userErr } = await supabase.auth.getUser();
+  if (userErr || !user) {
+    return document.getElementById('save-status').textContent = 'User not logged in!';
+  }
+
+  // 1) Grab the original GPX file from the input
+  const file = document.getElementById('gpx-upload').files[0];
+  if (!file) {
+    return document.getElementById('save-status').textContent = 'No GPX file to save!';
+  }
+
+  // 2) Upload to Storage
+  const timestamp = Date.now();
+  const filename  = `${user.id}/${timestamp}-${file.name}`;
+  const { error: uploadErr } = await supabase
+    .storage
+    .from('gpx-files')    // your bucket name
+    .upload(filename, file, { cacheControl: '3600', upsert: false });
+
+  if (uploadErr) {
+    document.getElementById('save-status').textContent = '❌ Upload failed: ' + uploadErr.message;
+    saveBtn.disabled = false;
     return;
   }
 
-  const saveBtn = document.getElementById('save-ride-btn');
-  saveBtn.disabled = true;
-
-  const { error } = await supabase.from('ride_logs').insert([{
-    user_id: user.id,
-    title,
-    distance_km,
-    duration_min,
-    elevation_m
-  }]);
+  // 3) Insert metadata + gpx_path into ride_logs
+  const { error: insertErr } = await supabase
+    .from('ride_logs')
+    .insert([{
+      user_id:     user.id,
+      title,
+      distance_km,
+      duration_min,
+      elevation_m,
+      gpx_path:    filename
+    }]);
 
   saveBtn.disabled = false;
-
-  document.getElementById('save-status').textContent = error
-    ? '❌ Failed to save: ' + error.message
+  document.getElementById('save-status').textContent = insertErr
+    ? '❌ Save failed: ' + insertErr.message
     : '✅ Ride saved successfully!';
-
-  if (!error) {
+  
+  // Optionally clear the form
+  if (!insertErr) {
     document.getElementById('save-ride-form').style.display = 'none';
     document.getElementById('ride-title').value = '';
   }
 });
-});
+
 
 
