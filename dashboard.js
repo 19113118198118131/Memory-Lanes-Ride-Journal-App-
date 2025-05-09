@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     rideList.textContent = '⚠️ Please log in to view your dashboard.';
     return;
   }
+  
+setTimeout(() => {
+  window.location.href = 'index.html';
+}, 1500);
 
   const { data, error } = await supabase
     .from('ride_logs')
