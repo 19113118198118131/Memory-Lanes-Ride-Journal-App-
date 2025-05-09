@@ -137,21 +137,32 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+<!-- Guarded redirect: only go to dashboard if no ride is queued -->
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-    const SUPABASE_URL = 'https://vodujxiwkpxaxaqnwkdd.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvZHVqeGl3a3B4YXhhcW53a2RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NTgwOTQsImV4cCI6MjA2MjMzNDA5NH0.k4NeZ3dgqe1QQeXmkmgThp-X_PwOHPHLAQErg3hrPok'; // anon key
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const SUPABASE_URL     = 'https://vodujxiwkpxaxaqnwkdd.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…'; 
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Make supabase globally accessible
-    window.supabase = supabase;
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (!user) {
+      // not logged in → stay on this page
+      return;
+    }
 
-    // Redirect if already logged in
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) window.location.href = 'dashboard.html';
-    });
-  </script>
+    const rideId = localStorage.getItem('selectedRideId');
+    if (rideId) {
+      // a ride was clicked → let script.js handle loading it
+      console.log('▶ Loading ride', rideId);
+      return;
+    }
+
+    // logged in & no ride queued → go to dashboard
+    window.location.href = 'dashboard.html';
+  });
+</script>
+
 
   <!-- Your non-module scripts -->
   <script src="script.js"></script>
