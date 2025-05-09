@@ -214,5 +214,8 @@ function initAnalytics(points, speedData, cumulativeDistance) {
 
 }
 
+// analytics.js
+window.loadGPX = loadGPX;
+
 // expose globally
 window.Analytics = { initAnalytics, renderAccelChart };
