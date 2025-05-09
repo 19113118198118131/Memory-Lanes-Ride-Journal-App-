@@ -19,6 +19,15 @@
   </header>
 
   <main>
+<div id="save-ride-form" style="display:none; margin-top:1rem;">
+  <h3>Log this Ride</h3>
+  <label for="ride-title">Ride Title:</label>
+  <input type="text" id="ride-title" placeholder="Enter a title for this ride" />
+  <button id="save-ride-btn">Save Ride</button>
+  <p id="save-status"></p>
+</div>
+
+
     <section id="upload-section">
       <input type="file" id="gpx-upload" accept=".gpx" />
       <button id="download-summary" disabled>📁 Download Summary</button>
