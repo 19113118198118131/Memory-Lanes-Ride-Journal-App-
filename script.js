@@ -482,6 +482,5 @@ document.getElementById('save-ride-btn').addEventListener('click', async () => {
     document.getElementById('ride-title').value = '';
   }
 });
-});
 
 
