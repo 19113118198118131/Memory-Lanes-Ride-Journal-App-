@@ -45,10 +45,11 @@ const logoutBtn = document.getElementById('logout-btn');
           </div>
         </div>
       `;
-      item.addEventListener('click', () => {
-        localStorage.setItem('selectedRideId', ride.id);
-        window.location.href = 'index.html';
-      });
+    item.addEventListener('click', () => {
+      console.log('➡️ Ride clicked, redirecting with ID:', ride.id);
+      localStorage.setItem('selectedRideId', ride.id);
+      window.location.href = 'index.html';
+    });
       rideList.appendChild(item);
     });
   }
