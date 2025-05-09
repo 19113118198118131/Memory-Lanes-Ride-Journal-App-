@@ -53,6 +53,12 @@
           <strong>${ride.title}</strong><br/>
           📍 ${ride.distance_km.toFixed(1)} km – ⏱ ${ride.duration_min} min – ⛰️ ${ride.elevation_m} m
         `;
+        item.addEventListener('click', () => {
+          console.log('Ride clicked:', ride.id);
+          localStorage.setItem('selectedRideId', ride.id);
+          window.location.href = 'index.html';
+        });
+      
         rideList.appendChild(item);
       });
     }
