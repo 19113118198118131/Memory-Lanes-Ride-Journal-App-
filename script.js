@@ -16,15 +16,12 @@ supabase.auth.getUser().then(({ data: { user } }) => {
   }
 });
 
-// If redirected back with a hash, complete the session
-supabase.auth.getSessionFromUrl().then(({ data, error }) => {
-  if (error) {
-    console.error('Auth redirect error:', error.message);
-    document.getElementById('auth-status').textContent = 'Error during confirmation: ' + error.message;
-  } else if (data.session) {
-    document.getElementById('auth-status').textContent = '✅ Email confirmed and logged in!';
-  }
-});
+if (window.location.hash.includes('type=signup')) {
+  document.getElementById('auth-status').textContent = '✅ Email confirmed! Please log in now.';
+  // Clean up the URL
+  history.replaceState({}, document.title, window.location.pathname);
+}
+
 
 // Clean up URL hash if redirected from confirmation
 if (window.location.hash.includes('access_token')) {
