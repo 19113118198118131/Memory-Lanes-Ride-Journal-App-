@@ -149,7 +149,11 @@
 
     // Redirect if already logged in
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) window.location.href = 'dashboard.html';
+      const selectedRideId = localStorage.getItem('selectedRideId');
+      // If a ride is selected, don't redirect to dashboard
+      if (user && !selectedRideId) {
+        window.location.href = 'dashboard.html';
+      }
     });
   </script>
 
