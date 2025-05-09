@@ -1,77 +1,32 @@
 // script.js
 
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// Supabase config
+const SUPABASE_URL = 'https://vodujxiwkpxaxaqnwkdd.supabase.co';
+const SUPABASE_ANON_KEY = '<eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvZHVqeGl3a3B4YXhhcW53a2RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NTgwOTQsImV4cCI6MjA2MjMzNDA5NH0.k4NeZ3dgqe1QQeXmkmgThp-X_PwOHPHLAQErg3hrPok'; // replace with your ANON key
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 console.log('script.js loaded');
 window.updatePlayback = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-
-  async function loadAndDisplayGPX(url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(res.statusText);
-    const text = await res.text();
-    // you can reuse your existing parsing logic here,
-    // or use omnivore/toGeoJSON as shown
-    const gpxLayer = omnivore.gpx.parse(text);
-    if (window.currentGPX) map.removeLayer(window.currentGPX);
-    window.currentGPX = gpxLayer.addTo(map);
-    map.fitBounds(gpxLayer.getBounds());
-    renderChartsFromGPXText(text);
-  }
-
-  
- 
-supabase.auth.getUser().then(({ data: { user } }) => {
-  if (!user) {
+  // Ensure user is authenticated
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    console.error('Not logged in', userError);
     document.getElementById('save-ride-form').style.display = 'none';
+    // Optionally: window.location.href = 'index.html';
   }
-});
 
-if (window.location.hash.includes('type=signup')) {
-  document.getElementById('auth-status').textContent = '✅ Email confirmed! Please log in now.';
-  // Clean up the URL
-  history.replaceState({}, document.title, window.location.pathname);
-}
-
-
-// Clean up URL hash if redirected from confirmation
-if (window.location.hash.includes('access_token')) {
-  history.replaceState({}, document.title, window.location.pathname);
-}
-
-document.getElementById('login-btn').addEventListener('click', async () => {
-  const email = document.getElementById('auth-email').value;
-  const password = document.getElementById('auth-password').value;
-  const { error, data } = await supabase.auth.signInWithPassword({ email, password });
-
-if (error) {
-  document.getElementById('auth-status').textContent = 'Login failed: ' + error.message;
-} else {
-  document.getElementById('auth-status').textContent = 'Login successful! Redirecting...';
-  setTimeout(() => window.location.href = 'dashboard.html', 1000);
-}
-
-});
-
-document.getElementById('signup-btn').addEventListener('click', async () => {
-  const email = document.getElementById('auth-email').value;
-  const password = document.getElementById('auth-password').value;
-  const { error, data } = await supabase.auth.signUp({ email, password });
-
-  document.getElementById('auth-status').textContent = error
-    ? 'Signup failed: ' + error.message
-    : 'Signup successful! Please check your email.';
-});
-// — Leaflet map setup —
+  // — Leaflet map setup —
   const map = L.map('map').setView([20, 0], 2);
   setTimeout(() => map.invalidateSize(), 0);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
-const selectedRideId  = localStorage.getItem('selectedRideId');
-  const selectedRideUrl = localStorage.getItem('selectedRideUrl');
-
- // Helper to fetch & render GPX from a URL
+  // Helper to fetch & render GPX from a URL
   async function loadAndDisplayGPX(url) {
     try {
       console.log('Loading GPX from', url);
@@ -90,7 +45,7 @@ const selectedRideId  = localStorage.getItem('selectedRideId');
     }
   }
 
-  // Auto‑load a ride if we came from dashboard
+  // Auto‑load a ride if we came from the dashboard
   const selectedRideId = localStorage.getItem('selectedRideId');
   if (selectedRideId) {
     console.log('Auto-loading ride id', selectedRideId);
@@ -111,13 +66,36 @@ const selectedRideId  = localStorage.getItem('selectedRideId');
       document.getElementById('distance').textContent = `${data.distance_km.toFixed(2)} km`;
       document.getElementById('duration').textContent = `${data.duration_min} min`;
       document.getElementById('elevation').textContent = `${data.elevation_m} m`;
-      // Render the GPX on map
+
+      // Render the GPX on the map
       if (data.gpx_url) {
         await loadAndDisplayGPX(data.gpx_url);
       }
     }
   }
-  // ← INSERT END
+
+  // — Globals & DOM refs —
+  let points = [], marker = null, trailPolyline = null;
+  let elevationChart = null, cumulativeDistance = [], speedData = [];
+  let breakPoints = [], playInterval = null, fracIndex = 0;
+  let speedHighlightLayer = null, selectedSpeedBins = new Set(), accelData = [];
+
+  const FRAME_DELAY_MS = 50;
+  const distanceEl = document.getElementById('distance');
+  const durationEl = document.getElementById('duration');
+  const rideTimeEl = document.getElementById('ride-time');
+  const elevationEl = document.getElementById('elevation');
+  const slider = document.getElementById('replay-slider');
+  const playBtn = document.getElementById('play-replay');
+  const summaryBtn = document.getElementById('download-summary');
+  const videoBtn = document.getElementById('export-video');
+  const speedSel = document.getElementById('playback-speed');
+  const uploadInput = document.getElementById('gpx-upload');
+  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
+
+  // … rest of your existing handlers & functions (uploadInput.onchange, playBtn.onclick, etc.) …
+});
+
   
   
   // — Globals & DOM refs —
