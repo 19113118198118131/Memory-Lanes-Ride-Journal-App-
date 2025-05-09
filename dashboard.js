@@ -20,7 +20,7 @@ const logoutBtn = document.getElementById('logout-btn');
   // Load rides for this user
   const { data: rides, error: fetchError } = await supabase
     .from('ride_logs')
-    .select('*')
+    .select('id, title, distance_km, duration_min, elevation_m, gpx_url, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -47,6 +47,7 @@ const logoutBtn = document.getElementById('logout-btn');
       `;
       item.addEventListener('click', () => {
         localStorage.setItem('selectedRideId', ride.id);
+        localStorage.setItem('selectedRideUrl', ride.gpx_url);
         window.location.href = 'index.html';
       });
       rideList.appendChild(item);
