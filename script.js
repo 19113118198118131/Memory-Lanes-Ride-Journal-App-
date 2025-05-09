@@ -3,6 +3,48 @@
 console.log('script.js loaded');
 window.updatePlayback = null;
 
+// 0️⃣ Preload-from-URL block
+;(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const rideId = params.get('ride');
+  if (!rideId) return;  // no ride param → skip
+
+  // hide the bare upload UI, show your map & save form
+  document.getElementById('auth-section').style.display      = 'none';
+  document.getElementById('upload-section').style.display    = 'none';
+  document.getElementById('save-ride-form').style.display    = 'block';
+  document.getElementById('map-section').style.display       = 'block';
+  document.getElementById('summary-section').style.display   = 'block';
+  document.getElementById('timeline').style.display          = 'block';
+  document.getElementById('analytics-container').style.display = 'block';
+
+  try {
+    // fetch that ride’s metadata (including the gpx_path you saved)
+    const { data: ride, error } = await supabase
+      .from('ride_logs')
+      .select('gpx_path, title')
+      .eq('id', rideId)
+      .single();
+    if (error) throw error;
+
+    // stash the title in your save-form
+    document.getElementById('ride-title').value = ride.title;
+
+    // get a public URL for the GPX file in storage
+    const { data: { publicUrl }, error: urlErr } = supabase
+      .storage
+      .from('gpx-files')
+      .getPublicUrl(ride.gpx_path);
+    if (urlErr) throw urlErr;
+
+    // finally hand it off to your loader
+    loadGPX(publicUrl);
+
+  } catch (e) {
+    console.error('⚠️ preload failed:', e);
+  }
+})();
+
 document.addEventListener('DOMContentLoaded', async () => {
   const selectedRideId = localStorage.getItem('selectedRideId');
   if (selectedRideId) {
