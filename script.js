@@ -1,101 +1,111 @@
-// script.js 
+// script.js
 import supabase from './supabaseClient.js';
 
+// ————————————————————————————————
 // 0️⃣ Reusable GPX parser + renderer
+// ————————————————————————————————
 function parseAndRenderGPX(gpxText) {
+  // Parse XML → trackpoints
+  const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
+  const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
+    lat: +tp.getAttribute('lat'),
+    lng: +tp.getAttribute('lon'),
+    ele: +tp.getElementsByTagName('ele')[0]?.textContent || 0,
+    time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
+  })).filter(p => p.lat && p.lng && p.time instanceof Date);
 
-  // 🆕 GPX File Upload and Ride Analytics Loader
-  uploadInput.addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    saveForm.style.display = 'block';
+  if (!trkpts.length) return alert('No valid trackpoints found');
 
-    if (playInterval) clearInterval(playInterval);
-    if (marker) map.removeLayer(marker);
-    if (trailPolyline) map.removeLayer(trailPolyline);
-    points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
+  // ↓ Build points[], detect breaks, sample every 5s ↓
+  const SAMPLE = 5;
+  points = [trkpts[0]];
+  breakPoints = [];
+  let lastTime = trkpts[0].time;
+  let lastLL   = L.latLng(trkpts[0].lat, trkpts[0].lng);
 
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const xml = new DOMParser().parseFromString(ev.target.result, 'application/xml');
-      const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
-        lat: +tp.getAttribute('lat'),
-        lng: +tp.getAttribute('lon'),
-        ele: +tp.getElementsByTagName('ele')[0]?.textContent || 0,
-        time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
-      })).filter(p => p.lat && p.lng && p.time instanceof Date);
-
-      if (!trkpts.length) return alert('No valid trackpoints found');
-
-      const SAMPLE = 5;
-      let lastTime = trkpts[0].time;
-      let lastLL = L.latLng(trkpts[0].lat, trkpts[0].lng);
-      points.push(trkpts[0]);
-      for (let i = 1; i < trkpts.length; i++) {
-        const pt = trkpts[i];
-        const dt = (pt.time - lastTime) / 1000;
-        const moved = lastLL.distanceTo(L.latLng(pt.lat, pt.lng));
-        if (dt >= SAMPLE) {
-          if (dt > 180 && moved < 20) {
-            breakPoints.push(points.length);
-          } else {
-            points.push(pt);
-            lastTime = pt.time;
-            lastLL = L.latLng(pt.lat, pt.lng);
-          }
-        }
+  for (let i = 1; i < trkpts.length; i++) {
+    const pt    = trkpts[i];
+    const dt    = (pt.time - lastTime) / 1000;
+    const moved = lastLL.distanceTo(L.latLng(pt.lat, pt.lng));
+    if (dt >= SAMPLE) {
+      if (dt > 180 && moved < 20) {
+        breakPoints.push(points.length);
+      } else {
+        points.push(pt);
+        lastTime = pt.time;
+        lastLL   = L.latLng(pt.lat, pt.lng);
       }
-      if (points.at(-1).time !== trkpts.at(-1).time) {
-        points.push(trkpts.at(-1));
-      }
+    }
+  }
+  if (points.at(-1).time !== trkpts.at(-1).time) {
+    points.push(trkpts.at(-1));
+  }
 
-      cumulativeDistance = [0];
-      speedData = [0];
-      accelData = [0];
-      for (let i = 1; i < points.length; i++) {
-        const a = L.latLng(points[i - 1].lat, points[i - 1].lng);
-        const b = L.latLng(points[i].lat, points[i].lng);
-        const d = a.distanceTo(b);
-        const t = (points[i].time - points[i - 1].time) / 1000;
-        const v = t > 0 ? (d / t) * 3.6 : 0;
-        const dv = v - speedData[i - 1];
-        cumulativeDistance[i] = cumulativeDistance[i - 1] + d;
-        speedData[i] = v;
-        accelData[i] = t > 0 ? (dv / t) : 0;
-      }
+  // ↓ Compute cumulativeDistance, speedData, accelData ↓
+  cumulativeDistance = [0];
+  speedData          = [0];
+  accelData          = [0];
+  for (let i = 1; i < points.length; i++) {
+    const a = L.latLng(points[i-1].lat, points[i-1].lng);
+    const b = L.latLng(points[i].lat,   points[i].lng);
+    const d = a.distanceTo(b);
+    const t = (points[i].time - points[i-1].time) / 1000;
+    const v = t > 0 ? (d / t) * 3.6 : 0;
+    cumulativeDistance[i] = cumulativeDistance[i-1] + d;
+    speedData[i]          = v;
+    accelData[i]          = t > 0 ? (v - speedData[i-1]) / t : 0;
+  }
 
-      const totalMs = points.at(-1).time - points[0].time;
-      const totMin = Math.floor(totalMs / 60000);
-      const rideSec = points.reduce((sum, _, i) => i > 0 && !breakPoints.includes(i)
-        ? sum + ((points[i].time - points[i - 1].time) / 1000)
-        : sum, 0);
-      const rideMin = Math.floor(rideSec / 60);
+  // ↓ Update summary UI ↓
+  const totalMs = points.at(-1).time - points[0].time;
+  const totMin  = Math.floor(totalMs / 60000);
+  distanceEl.textContent = `${(cumulativeDistance.at(-1) / 1000).toFixed(2)} km`;
+  durationEl.textContent = `${Math.floor(totMin / 60)}h ${totMin % 60}m`;
+  const rideSec = points.reduce((sum, _, i) =>
+    i > 0 && !breakPoints.includes(i)
+      ? sum + ((points[i].time - points[i-1].time) / 1000)
+      : sum, 0);
+  const rideMin = Math.floor(rideSec / 60);
+  rideTimeEl.textContent   = `${Math.floor(rideMin / 60)}h ${rideMin % 60}m`;
+  elevationEl.textContent  = `${points.reduce((sum, p, i) =>
+    i>0 && p.ele>points[i-1].ele ? sum + (p.ele - points[i-1].ele) : sum, 0).toFixed(0)} m`;
 
-      durationEl.textContent = `${Math.floor(totMin / 60)}h ${totMin % 60}m`;
-      rideTimeEl.textContent = `${Math.floor(rideMin / 60)}h ${rideMin % 60}m`;
-      distanceEl.textContent = `${(cumulativeDistance.at(-1) / 1000).toFixed(2)} km`;
-      elevationEl.textContent = `${points.reduce((sum, p, i) =>
-        i > 0 && p.ele > points[i - 1].ele ? sum + (p.ele - points[i - 1].ele) : sum
-      , 0).toFixed(0)} m`;
+  // ↓ Draw map trail and fit bounds ↓
+  if (trailPolyline) map.removeLayer(trailPolyline);
+  trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
+    color: '#007bff', weight: 3, opacity: 0.7
+  }).addTo(map).bringToBack();
+  map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: false });
 
-      trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
-        color: '#007bff', weight: 3, opacity: 0.7
-      }).addTo(map).bringToBack();
-      map.fitBounds(trailPolyline.getBounds(), { padding: [30, 30], animate: false });
+  // ↓ Build charts & enable controls ↓
+  setupChart();
+  renderSpeedFilter();
+  renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
+  slider.min = 0; slider.max = points.length - 1; slider.value = 0;
+  playBtn.textContent = '▶️ Play';
 
-      setupChart();
-      renderSpeedFilter();
-      renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
-      [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
-      slider.min = 0; slider.max = points.length - 1; slider.value = 0;
-      playBtn.textContent = '▶️ Play';
-      if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
-    };
-    reader.readAsText(file);
-  });
-
-  
+  if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
 }
+
+
+// ————————————————————————————————
+// 1️⃣ Wire up file‐upload to use the parser
+// ————————————————————————————————
+uploadInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  saveForm.style.display = 'block';
+
+  if (playInterval) clearInterval(playInterval);
+  if (marker)       map.removeLayer(marker);
+  if (trailPolyline) map.removeLayer(trailPolyline);
+  points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
+
+  const reader = new FileReader();
+  reader.onload = ev => parseAndRenderGPX(ev.target.result);
+  reader.readAsText(file);
+});
 
 console.log('script.js loaded');
 window.updatePlayback = null;
