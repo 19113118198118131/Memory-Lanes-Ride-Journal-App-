@@ -199,6 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
 
+
   function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     const ctx = document.getElementById('accelChart')?.getContext('2d');
     if (!ctx) return;
@@ -211,7 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const overlays = selectedBins.map(binIdx => {
       const bin = bins[binIdx];
       const points = dist.map((x, i) => (speed[i] >= bin.min && speed[i] < bin.max)
-        ? { x: x / 1000, y: speed[i] }
+        ? { x: x / 1000, y: accelData[i] }
         : null).filter(p => p);
       if (!points.length) return null;
       return {
@@ -221,7 +222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         pointRadius: 3,
         pointBackgroundColor: '#ff6384',
         showLine: false,
-        yAxisID: 'ySpeed'
+        yAxisID: 'yAccel'
       };
     }).filter(Boolean);
 
@@ -256,8 +257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         plugins: { legend: { display: true } },
         scales: {
           x: { title: { display: true, text: 'Distance (km)' } },
-          yAccel: { title: { display: true, text: 'Acceleration (m/s²)' }, position: 'left' },
-          ySpeed: { title: { display: true, text: 'Speed (km/h)' }, position: 'right', grid: { drawOnChartArea: false } }
+          yAccel: { title: { display: true, text: 'Acceleration (m/s²)' }, position: 'left' }
         }
       }
     });
