@@ -161,41 +161,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.updatePlayback = updatePlayback;
   function setupChart()     { /*…*/ }
 
-    // — GPX upload & parsing (blob‐URL → omnivore) —
-    uploadInput.addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return alert('No GPX file selected');
-    
-      // show “Save Ride” UI
-      saveForm.style.display = 'block';
-    
-      // clear any old replay state
-      if (marker)        map.removeLayer(marker);
-      if (trailPolyline) map.removeLayer(trailPolyline);
-      if (playInterval)  clearInterval(playInterval);
-      points = [];
-      breakPoints = [];
-    
-      // make a blob URL and hand it to omnivore
-      const url = URL.createObjectURL(file);
-      const gpxLayer = omnivore.gpx(url)
-        .on('ready', e => {
-          map.fitBounds(e.target.getBounds());
-          // (re)draw charts if you need them:
-          fetch(url)
-            .then(r => r.text())
-             .then(text => {
-               if (typeof renderChartsFromGPXText === 'function') {
-                 renderChartsFromGPXText(text);
-               }
-             })
-            .catch(err => console.warn('Chart render failed', err));
-          URL.revokeObjectURL(url);
-        });
-    
-      if (window.currentGPX) map.removeLayer(window.currentGPX);
-      window.currentGPX = gpxLayer.addTo(map);
-    });
+// — GPX upload & parsing (text → parse) —
+uploadInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) {
+    return alert('No GPX file selected');
+  }
+
+  // show “Save Ride” UI
+  saveForm.style.display = 'block';
+
+  // clear any old replay state
+  if (marker)        map.removeLayer(marker);
+  if (trailPolyline) map.removeLayer(trailPolyline);
+  if (playInterval)  clearInterval(playInterval);
+  points = [];
+  breakPoints = [];
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const gpxText = ev.target.result;
+
+    console.log('GPX text loaded (first 100 chars):', gpxText.slice(0, 100));
+
+    // parse & add to map
+    // omnivore.gpx.parse takes the raw GPX string and returns a layer
+    const gpxLayer = omnivore.gpx.parse(gpxText);
+    console.log('Parsed GPX layer:', gpxLayer);
+
+    if (window.currentGPX) {
+      map.removeLayer(window.currentGPX);
+    }
+    window.currentGPX = gpxLayer.addTo(map);
+
+    try {
+      map.fitBounds(gpxLayer.getBounds());
+    } catch (err) {
+      console.warn('Couldn’t fit bounds:', err);
+    }
+
+    // redraw charts if you have that function
+    if (typeof renderChartsFromGPXText === 'function') {
+      renderChartsFromGPXText(gpxText);
+    }
+  };
+  reader.readAsText(file);
+});
+
 
 
 
