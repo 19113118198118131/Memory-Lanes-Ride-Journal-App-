@@ -37,9 +37,9 @@ const speedBins = [
     { label: '160–200', min: 160, max: 200 },
     { label: '200+', min: 200, max: Infinity }
   ];
+    let selectedSpeedBins = new Set();
+    let speedHighlightLayer = null;
   
-
-
   function renderSpeedFilter() {
     const container = document.getElementById('speed-bins');
     container.innerHTML = '';
@@ -178,8 +178,7 @@ const speedBins = [
       updatePlayback(idx);
     }
   window.fracIndex = 0;
-  let speedHighlightLayer = null;
-  let selectedSpeedBins = new Set();
+ 
 
     
   
