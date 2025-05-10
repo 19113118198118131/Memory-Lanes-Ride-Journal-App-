@@ -381,37 +381,6 @@ if (posAccelDs) {
     renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
   }
 
-  window.updatePlayback = idx => {
-    const p = points[idx];
-    if (!marker) {
-      marker = L.circleMarker([p.lat, p.lng], { radius: 6, color: '#007bff', fillColor: '#007bff', fillOpacity: 0.9 }).addTo(map);
-    } else {
-      marker.setLatLng([p.lat, p.lng]);
-    }
-    trailPolyline.setLatLngs(points.slice(0, idx + 1).map(pt => [pt.lat, pt.lng]));
-    map.panTo([p.lat, p.lng], { animate: false });
-
-    const distKm = (cumulativeDistance[idx]/1000).toFixed(2);
-    const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'elevation';
-    const posDs = elevationChart.data.datasets.find(d => d.label === 'Position');
-    posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'yElevation';
-    posDs.data[0] = { x: parseFloat(distKm), y: mode === 'speed' ? speedData[idx] : p.ele };
-    elevationChart.update('none');
-
-    if (window.accelChart) {
-      const accelCursor = window.accelChart.data.datasets.find(d => d.label === 'Point in Ride');
-      if (accelCursor) {
-        accelCursor.data[0] = { x: parseFloat(distKm), y: accelData[idx] };
-        window.accelChart.update('none');
-      }
-    }
-
-    slider.value = idx;
-    document.getElementById('telemetry-elevation').textContent = `${p.ele.toFixed(0)} m`;
-    document.getElementById('telemetry-distance').textContent = `${distKm} km`;
-    document.getElementById('telemetry-speed').textContent = `${speedData[idx].toFixed(1)} km/h`;
-  };
-
 
   function setupChart() {
     const ctx = document.getElementById('elevationChart').getContext('2d');
