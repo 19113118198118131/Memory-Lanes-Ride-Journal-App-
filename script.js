@@ -353,14 +353,20 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
   animation: false,
   interaction: { mode: 'nearest', intersect: false },
   onClick: function(evt) {
-    const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+    const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
     if (!elements.length) return;
-    const dataObj = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-    if (window.updatePlayback && typeof dataObj.idx === 'number') {
-      updatePlayback(dataObj.idx);
-      slider.value = dataObj.idx;
+    const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+    if (dataPoint && typeof dataPoint.idx === 'number') {
+      if (playInterval) {
+        clearInterval(playInterval);
+        playInterval = null;
+        playBtn.textContent = '▶️ Play';
+      }
+      updatePlayback(dataPoint.idx);
+      slider.value = dataPoint.idx;
     }
   },
+
   ...
 scales: {
         x: {
@@ -551,15 +557,20 @@ if (posAccelDs) {
         responsive: true,
         animation: false,
         interaction: { mode: 'nearest', intersect: false, axis: 'x' },
-        onClick: function(evt) {
-          const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
-          if (!elements.length) return;
-          const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-          if (dataPoint && typeof dataPoint.idx === 'number') {
-            updatePlayback(dataPoint.idx);
-            slider.value = dataPoint.idx;
-          }
-        },
+    onClick: function(evt) {
+      const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+      if (!elements.length) return;
+      const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+      if (dataPoint && typeof dataPoint.idx === 'number') {
+        if (playInterval) {
+          clearInterval(playInterval);
+          playInterval = null;
+          playBtn.textContent = '▶️ Play';
+        }
+        updatePlayback(dataPoint.idx);
+        slider.value = dataPoint.idx;
+      }
+    },
         scales: {
           x: {
             type: 'linear',
