@@ -205,55 +205,63 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     window.accelChart.destroy();
   }
 
-  // Clean main acceleration line
   const accel = dist.map((x, i) => {
     const y = accelData[i];
     return Number.isFinite(y) ? { x: x / 1000, y } : null;
   }).filter(Boolean);
 
-  // Single scatter dataset for all selected bins
+  // Combine all highlighted points into one dataset
   const highlightPoints = dist.map((x, i) => {
     const y = accelData[i];
-    const isInBin = selectedBins.some(binIdx =>
-      speed[i] >= bins[binIdx].min && speed[i] < bins[binIdx].max
-    );
-    return isInBin && Number.isFinite(y) ? { x: x / 1000, y } : null;
+    const inBin = selectedBins.some(binIdx => speed[i] >= bins[binIdx].min && speed[i] < bins[binIdx].max);
+    return inBin && Number.isFinite(y) ? { x: x / 1000, y } : null;
   }).filter(Boolean);
+
+  const datasets = [
+    {
+      label: 'Acceleration',
+      data: accel,
+      borderColor: '#00b4d8',
+      borderWidth: 2,
+      pointRadius: 0,
+      fill: false
+    }
+  ];
+
+  if (highlightPoints.length > 0) {
+    datasets.push({
+      label: 'Highlighted Speeds',
+      data: highlightPoints,
+      type: 'scatter',
+      pointRadius: 4,
+      pointBackgroundColor: '#ffbe0b',
+      showLine: false
+    });
+  }
 
   window.accelChart = new Chart(ctx, {
     type: 'line',
-    data: {
-      datasets: [
-        {
-          label: 'Acceleration (m/s²)',
-          data: accel,
-          borderColor: 'rgba(255,255,255,0.3)',
-          pointRadius: 0,
-          borderWidth: 1.2,
-          fill: false,
-          tension: 0.25,
-          yAxisID: 'yAccel'
-        },
-        {
-          label: 'Highlighted Speeds',
-          type: 'scatter',
-          data: highlightPoints,
-          pointRadius: 3,
-          pointBackgroundColor: '#ff6384',
-          showLine: false,
-          yAxisID: 'yAccel'
-        }
-      ]
-    },
+    data: { datasets },
     options: {
+      responsive: true,
       animation: false,
-      plugins: { legend: { display: true } },
+      interaction: { mode: 'nearest', intersect: false },
       scales: {
         x: {
-          title: { display: true, text: 'Distance (km)' }
+          type: 'linear',
+          title: { display: true, text: 'Distance (km)' },
+          ticks: { callback: v => v.toFixed(2) },
+          grid: { color: '#223' }
         },
-        yAccel: {
-          title: { display: true, text: 'Acceleration (m/s²)' }
+        y: {
+          title: { display: true, text: 'Acceleration (m/s²)' },
+          grid: { color: '#334' }
+        }
+      },
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.y.toFixed(2)}` }
         }
       }
     }
