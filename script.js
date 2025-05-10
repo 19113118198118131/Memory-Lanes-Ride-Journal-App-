@@ -211,8 +211,8 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
   }).filter(Boolean);
 
   const highlightPoints = dist.map((x, i) => {
-    const y = accelData[i];
-    const inBin = selectedBins.some(binIdx => speed[i] >= bins[binIdx].min && speed[i] < bins[binIdx].max);
+    const y = speed[i];
+    const inBin = selectedBins.some(binIdx => y >= bins[binIdx].min && y < bins[binIdx].max);
     return inBin && Number.isFinite(y) ? { x: x / 1000, y } : null;
   }).filter(Boolean);
 
@@ -223,7 +223,8 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       borderColor: '#8338EC',
       borderWidth: 2,
       pointRadius: 0,
-      fill: false
+      fill: false,
+      yAxisID: 'y'  // Acceleration on left axis
     },
     {
       label: 'Highlighted Speeds',
@@ -233,7 +234,8 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       pointBackgroundColor: '#8338EC',
       borderColor: '#8338EC',
       borderWidth: 1,
-      showLine: false
+      showLine: false,
+      yAxisID: 'ySpeed' // Speeds on right axis
     }
   ];
 
@@ -253,7 +255,13 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
         },
         y: {
           title: { display: true, text: 'Acceleration (m/s²)' },
+          position: 'left',
           grid: { color: '#334' }
+        },
+        ySpeed: {
+          title: { display: true, text: 'Speed (km/h)' },
+          position: 'right',
+          grid: { drawOnChartArea: false }
         }
       },
       plugins: {
