@@ -224,6 +224,16 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       fill: false,
       yAxisID: 'y'  // Acceleration on left axis
     },
+  {
+    label: 'Point in Ride',
+    data: [{ x: 0, y: 0 }],
+    type: 'scatter',
+    pointRadius: 5,
+    pointBackgroundColor: '#ffffff',
+    borderColor: '#ffffff',
+    showLine: false,
+    yAxisID: 'y'  // This will be dynamically reassigned
+  },
     {
       label: 'Highlighted Speeds',
       data: highlightPoints,
@@ -234,17 +244,7 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       borderWidth: 1,
       showLine: false,
       yAxisID: 'ySpeed' // Speeds on right axis
-    },
-  {
-    label: 'Point in Ride',
-    data: [{ x: 0, y: 0 }],
-    type: 'scatter',
-    pointRadius: 5,
-    pointBackgroundColor: '#ffffff',
-    borderColor: '#ffffff',
-    showLine: false,
-    yAxisID: 'y'  // This will be dynamically reassigned
-  }
+    }
   ];
 
   window.accelChart = new Chart(ctx, {
