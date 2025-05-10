@@ -47,6 +47,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // Clear any old errors (like "must be logged in")
+  statusEl.textContent = '';  
+
+  // Show success message
   statusEl.innerHTML = '✅ Login successful! <button id="go-dashboard" style="margin-left:10px;">Go to Dashboard</button>';
   statusEl.style.display = 'block';
   statusEl.style.color = '#64ffda';
@@ -57,7 +61,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   statusEl.style.borderRadius = '5px';
   statusEl.style.marginTop = '1rem';
 
+  // THEN hide the rest of the login form
   document.getElementById('auth-section').style.display = 'none';
+
+  // Show ride form
+  document.getElementById('save-ride-form').style.display = 'block';
+
   document.getElementById('save-ride-form').style.display = 'block';
 
   setTimeout(() => {
