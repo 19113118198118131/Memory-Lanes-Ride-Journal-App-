@@ -51,21 +51,15 @@ function renderCornerChart(angleDegs, speedData) {
     responsive: true,
     animation: false,
     interaction: { mode: 'nearest', intersect: false },
-    onClick: function(evt) {
-      const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
-      if (!elements.length) return;
-      const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-      if (dataPoint && typeof dataPoint.idx === 'number') {
-        if (playInterval) {
-          clearInterval(playInterval);
-          playInterval = null;
-          playBtn.textContent = '▶️ Play';
-        }
-        slider.value = dataPoint.idx;
-        window.fracIndex = dataPoint.idx;
-        updatePlayback(dataPoint.idx);
-      }
-    },
+onClick: function(evt) {
+  const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+  if (!elements.length) return;
+  const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+  if (dataPoint && typeof dataPoint.idx === 'number') {
+    window.jumpToPlaybackIndex(dataPoint.idx);
+  }
+},
+
       plugins: {
         tooltip: {
           callbacks: {
@@ -180,36 +174,14 @@ window.accelChart = new Chart(ctx, {
     responsive: true,
     animation: false,
     interaction: { mode: 'nearest', intersect: false },
-    onClick: function(evt) {
-      const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
-      if (!elements.length) return;
-      const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-      if (dataPoint && typeof dataPoint.idx === 'number') {
-        if (playInterval) {
-          clearInterval(playInterval);
-          playInterval = null;
-          playBtn.textContent = '▶️ Play';
-        }
-        slider.value = dataPoint.idx;
-        window.fracIndex = dataPoint.idx;
-        updatePlayback(dataPoint.idx);
-      }
-    },
-  onClick: function(evt) {
-    const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
-    if (!elements.length) return;
-    const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-    if (dataPoint && typeof dataPoint.idx === 'number') {
-      if (playInterval) {
-        clearInterval(playInterval);
-        playInterval = null;
-        playBtn.textContent = '▶️ Play';
-      }
-      slider.value = dataPoint.idx;
-      window.fracIndex = dataPoint.idx; // ✅ this line
-      updatePlayback(dataPoint.idx);
-    }
-  },
+onClick: function(evt) {
+  const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+  if (!elements.length) return;
+  const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+  if (dataPoint && typeof dataPoint.idx === 'number') {
+    window.jumpToPlaybackIndex(dataPoint.idx);
+  }
+},
       plugins: {
         tooltip: {
           callbacks: {
