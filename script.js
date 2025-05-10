@@ -73,6 +73,41 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // [Previous content preserved...]
 
+  // 🔁 Playback Control
+  playBtn.addEventListener('click', () => {
+    if (!points.length) return;
+    if (playInterval) {
+      clearInterval(playInterval);
+      playInterval = null;
+      playBtn.textContent = '▶️ Play';
+      return;
+    }
+    fracIndex = Number(slider.value);
+    playBtn.textContent = '⏸ Pause';
+    const mult = parseFloat(speedSel.value) || 1;
+    playInterval = setInterval(() => {
+      fracIndex += mult;
+      const idx = Math.floor(fracIndex);
+      if (idx >= points.length) {
+        clearInterval(playInterval);
+        playInterval = null;
+        playBtn.textContent = '🔁 Replay';
+        return;
+      }
+      updatePlayback(idx);
+    }, FRAME_DELAY_MS);
+  });
+
+  slider.addEventListener('input', () => {
+    if (playInterval) {
+      clearInterval(playInterval);
+      playInterval = null;
+      playBtn.textContent = '▶️ Play';
+    }
+    updatePlayback(Number(slider.value));
+  });
+
+
   // 🆕 GPX File Upload and Ride Analytics Loader
   uploadInput.addEventListener('change', e => {
     const file = e.target.files[0];
