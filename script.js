@@ -543,7 +543,7 @@ if (posAccelDs) {
           },
           {
             label: 'Speed (km/h)',
-            data: points.map((p, i) => ({ x: cumulativeDistance[i]/1000, y: speedData[i] })),
+            data: points.map((p, i) => ({ x: cumulativeDistance[i]/1000, y: speedData[i], idx: i })),
             borderColor: '#ff6384',
             backgroundColor: 'rgba(255,99,132,0.1)',
             borderWidth: 2,
