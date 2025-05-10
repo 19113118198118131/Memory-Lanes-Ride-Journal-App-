@@ -1,7 +1,15 @@
 // script.js
 import supabase from './supabaseClient.js';
 
+
 document.addEventListener('DOMContentLoaded', async () => {
+
+    // 1️⃣ — Globals & UI refs — must come first
+  let points = [];
+  let marker = null, trailPolyline = null, elevationChart = null;
+  let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
+  window.playInterval = null;
+  window.updatePlayback = null;
 
   const FRAME_DELAY_MS = 50;
   const slider = document.getElementById('replay-slider');
@@ -21,8 +29,84 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
   
-  console.log('script.js loaded');
-  window.updatePlayback = null;
+
+
+    // 🔁 Playback Control
+  playBtn.addEventListener('click', () => {
+    if (!points.length) return;
+    if (playInterval) {
+      clearInterval(playInterval);
+      playInterval = null;
+      playBtn.textContent = '▶️ Play';
+      return;
+    }
+    window.fracIndex = Number(slider.value);
+    playBtn.textContent = '⏸ Pause';
+    const mult = parseFloat(speedSel.value) || 1;
+    playInterval = setInterval(() => {
+      window.fracIndex += mult;
+    const idx = Math.floor(window.fracIndex);
+      if (idx >= points.length) {
+        clearInterval(playInterval);
+        playInterval = null;
+        playBtn.textContent = '🔁 Replay';
+        return;
+      }
+      updatePlayback(idx);
+    }, FRAME_DELAY_MS);
+  });
+
+  slider.addEventListener('input', () => {
+    if (playInterval) {
+      clearInterval(playInterval);
+      playInterval = null;
+      playBtn.textContent = '▶️ Play';
+    }
+    updatePlayback(Number(slider.value));
+  });
+    
+  
+  // 2️⃣ — Load-from-?ride=… (must come _after_ globals & wiring, before map/auth)
+  
+  const params = new URLSearchParams(window.location.search);
+  
+  if (params.has('ride')) {
+  const rideId = params.get('ride')
+    
+
+  // 1️⃣ Hide the upload form
+  document.getElementById('upload-section').style.display = 'none'
+
+  // 2️⃣ Fetch the stored file path
+  const { data: ride, error: rideErr } = await supabase
+    .from('ride_logs')
+    .select('gpx_path')
+    .eq('id', rideId)
+    .single()
+  if (rideErr) {
+    return alert('Failed to load ride metadata: ' + rideErr.message)
+  }
+
+  // 3️⃣ Build a public URL for that GPX file
+  const { data: urlData, error: urlErr } = supabase
+    .storage
+    .from('gpx-files')
+    .getPublicUrl(ride.gpx_path)
+  if (urlErr) {
+    return alert('Failed to get GPX URL: ' + urlErr.message)
+  }
+
+  // 4️⃣ Fetch and render exactly like an upload
+  const resp = await fetch(urlData.publicUrl)
+  const gpxText = await resp.text()
+   await parseAndRenderGPX(gpxText);
+ // don’t show “Log this Ride” on a ride we just loaded
+   saveForm.style.display = 'none';
+  // stop here — skip the rest of login/saveForm logic
+  return;
+}
+ 
+
 
 // Initialize map using correct ID
   const map = L.map('leaflet-map').setView([20, 0], 2);
@@ -32,10 +116,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }).addTo(map);
 
     // Declare all globals for ride rendering and control
-  let points = [], marker = null, trailPolyline = null, elevationChart = null;
-  let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
-  window.playInterval = null;
-      window.jumpToPlaybackIndex = function(idx) {
+
+     
+  window.jumpToPlaybackIndex = function(idx) {
       if (window.playInterval) {
         clearInterval(window.playInterval);
         window.playInterval = null;
@@ -210,43 +293,7 @@ uploadInput.addEventListener('change', e => {
   reader.readAsText(file);
 });
   
- // Grab any ?ride=<id> query parameter
-  const params = new URLSearchParams(window.location.search);
-  
-  if (params.has('ride')) {
-  const rideId = params.get('ride')
 
-  // 1️⃣ Hide the upload form
-  document.getElementById('upload-section').style.display = 'none'
-
-  // 2️⃣ Fetch the stored file path
-  const { data: ride, error: rideErr } = await supabase
-    .from('ride_logs')
-    .select('gpx_path')
-    .eq('id', rideId)
-    .single()
-  if (rideErr) {
-    return alert('Failed to load ride metadata: ' + rideErr.message)
-  }
-
-  // 3️⃣ Build a public URL for that GPX file
-  const { data: urlData, error: urlErr } = supabase
-    .storage
-    .from('gpx-files')
-    .getPublicUrl(ride.gpx_path)
-  if (urlErr) {
-    return alert('Failed to get GPX URL: ' + urlErr.message)
-  }
-
-  // 4️⃣ Fetch and render exactly like an upload
-  const resp = await fetch(urlData.publicUrl)
-  const gpxText = await resp.text()
-   await parseAndRenderGPX(gpxText);
- // don’t show “Log this Ride” on a ride we just loaded
-   saveForm.style.display = 'none';
-  // stop here — skip the rest of login/saveForm logic
-  return;
-}
   
   // Redirect clean-up from Supabase
   if (window.location.hash.includes('type=signup')) {
@@ -410,39 +457,6 @@ uploadInput.addEventListener('change', e => {
 });
 
 
-  // 🔁 Playback Control
-  playBtn.addEventListener('click', () => {
-    if (!points.length) return;
-    if (playInterval) {
-      clearInterval(playInterval);
-      playInterval = null;
-      playBtn.textContent = '▶️ Play';
-      return;
-    }
-    window.fracIndex = Number(slider.value);
-    playBtn.textContent = '⏸ Pause';
-    const mult = parseFloat(speedSel.value) || 1;
-    playInterval = setInterval(() => {
-      window.fracIndex += mult;
-    const idx = Math.floor(window.fracIndex);
-      if (idx >= points.length) {
-        clearInterval(playInterval);
-        playInterval = null;
-        playBtn.textContent = '🔁 Replay';
-        return;
-      }
-      updatePlayback(idx);
-    }, FRAME_DELAY_MS);
-  });
-
-  slider.addEventListener('input', () => {
-    if (playInterval) {
-      clearInterval(playInterval);
-      playInterval = null;
-      playBtn.textContent = '▶️ Play';
-    }
-    updatePlayback(Number(slider.value));
-  });
 
 
   
