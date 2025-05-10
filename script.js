@@ -70,6 +70,91 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
 
+  // 🆕 GPX File Upload and Ride Analytics Loader
+  uploadInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    saveForm.style.display = 'block';
+
+    if (playInterval) clearInterval(playInterval);
+    if (marker) map.removeLayer(marker);
+    if (trailPolyline) map.removeLayer(trailPolyline);
+    points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const xml = new DOMParser().parseFromString(ev.target.result, 'application/xml');
+      const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
+        lat: +tp.getAttribute('lat'),
+        lng: +tp.getAttribute('lon'),
+        ele: +tp.getElementsByTagName('ele')[0]?.textContent || 0,
+        time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
+      })).filter(p => p.lat && p.lng && p.time instanceof Date);
+
+      if (!trkpts.length) return alert('No valid trackpoints found');
+
+      const SAMPLE = 5;
+      let lastTime = trkpts[0].time;
+      let lastLL = L.latLng(trkpts[0].lat, trkpts[0].lng);
+      points.push(trkpts[0]);
+      for (let i = 1; i < trkpts.length; i++) {
+        const pt = trkpts[i];
+        const dt = (pt.time - lastTime) / 1000;
+        const moved = lastLL.distanceTo(L.latLng(pt.lat, pt.lng));
+        if (dt >= SAMPLE) {
+          if (dt > 180 && moved < 20) {
+            breakPoints.push(points.length);
+          } else {
+            points.push(pt);
+            lastTime = pt.time;
+            lastLL = L.latLng(pt.lat, pt.lng);
+          }
+        }
+      }
+      if (points.at(-1).time !== trkpts.at(-1).time) {
+        points.push(trkpts.at(-1));
+      }
+
+      cumulativeDistance = [0];
+      speedData = [0];
+      for (let i = 1; i < points.length; i++) {
+        const a = L.latLng(points[i - 1].lat, points[i - 1].lng);
+        const b = L.latLng(points[i].lat, points[i].lng);
+        const d = a.distanceTo(b);
+        const t = (points[i].time - points[i - 1].time) / 1000;
+        cumulativeDistance[i] = cumulativeDistance[i - 1] + d;
+        speedData[i] = t > 0 ? (d / t) * 3.6 : 0;
+      }
+
+      const totalMs = points.at(-1).time - points[0].time;
+      const totMin = Math.floor(totalMs / 60000);
+      const rideSec = points.reduce((sum, _, i) => i > 0 && !breakPoints.includes(i)
+        ? sum + ((points[i].time - points[i - 1].time) / 1000)
+        : sum, 0);
+      const rideMin = Math.floor(rideSec / 60);
+
+      durationEl.textContent = `${Math.floor(totMin / 60)}h ${totMin % 60}m`;
+      rideTimeEl.textContent = `${Math.floor(rideMin / 60)}h ${rideMin % 60}m`;
+      distanceEl.textContent = `${(cumulativeDistance.at(-1) / 1000).toFixed(2)} km`;
+      elevationEl.textContent = `${points.reduce((sum, p, i) =>
+        i > 0 && p.ele > points[i - 1].ele ? sum + (p.ele - points[i - 1].ele) : sum
+      , 0).toFixed(0)} m`;
+
+      trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
+        color: '#007bff', weight: 3, opacity: 0.7
+      }).addTo(map).bringToBack();
+      map.fitBounds(trailPolyline.getBounds(), { padding: [30, 30], animate: false });
+
+      setupChart();
+      renderSpeedFilter();
+      [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
+      slider.min = 0; slider.max = points.length - 1; slider.value = 0;
+      playBtn.textContent = '▶️ Play';
+      if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
+    };
+    reader.readAsText(file);
+  });
+
   const speedBins = [
     { label: '50–80', min: 50, max: 80 },
     { label: '80–100', min: 80, max: 100 },
