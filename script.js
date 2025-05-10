@@ -264,6 +264,8 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
         y: {
           title: { display: true, text: 'Acceleration (m/s²)' },
           position: 'left',
+          min: -2,
+          max: 2,
           grid: { color: '#334' }
         },
         ySpeed: {
