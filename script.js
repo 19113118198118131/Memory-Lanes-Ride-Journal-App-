@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     reader.readAsText(file);
   });
 
-
+// [Previous content preserved...]
 
   function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     const ctx = document.getElementById('accelChart')?.getContext('2d');
@@ -226,6 +226,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
     }).filter(Boolean);
 
+    const accelCursor = {
+      label: 'Accel Cursor',
+      type: 'scatter',
+      data: [{ x: accel[0]?.x || 0, y: accel[0]?.y || 0 }],
+      pointRadius: 4,
+      pointBackgroundColor: '#fff',
+      borderColor: '#fff',
+      borderWidth: 1,
+      showLine: false,
+      yAxisID: 'yAccel'
+    };
+
     window.accelChart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -240,15 +252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             tension: 0.3,
             yAxisID: 'yAccel'
           },
-          {
-            label: 'Accel Cursor',
-            type: 'scatter',
-            data: [{ x: 0, y: 0 }],
-            pointRadius: 4,
-            pointBackgroundColor: '#fff',
-            showLine: false,
-            yAxisID: 'yAccel'
-          },
+          accelCursor,
           ...overlays
         ]
       },
