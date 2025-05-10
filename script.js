@@ -150,19 +150,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // —————————————
+  // 1️⃣ UPLOAD THE RAW GPX TO STORAGE
+  // —————————————
+  const file = uploadInput.files[0];
+  if (!file) {
+    statusEl.textContent = '❗ No GPX file selected.';
+    return;
+  }
+  // build a unique path: userId/timestamp.gpx
+  const ext      = file.name.split('.').pop();
+  const stamp    = Date.now();
+  const filePath = `${user.id}/${stamp}.${ext}`;
 
-  const distance_km = parseFloat(distanceEl.textContent);
+  const { data: uploadData, error: uploadErr } = await supabase
+    .storage
+    .from('gpx-files')
+    .upload(filePath, file);
+
+  if (uploadErr) {
+    statusEl.textContent = `❌ GPX upload failed: ${uploadErr.message}`;
+    return;
+  }
+
+  // —————————————
+  // 2️⃣ COMPUTE YOUR RIDE METRICS
+  // —————————————
+  const distance_km  = parseFloat(distanceEl.textContent);
   const duration_min = parseFloat(rideTimeEl.textContent.split('h')[0]) * 60 +
-                       parseFloat(rideTimeEl.textContent.split('h')[1]) || 0;
-  const elevation_m = parseFloat(elevationEl.textContent);
-
-  const { error: insertErr } = await supabase.from('ride_logs').insert({
-    title,
-    user_id: user.id,
-    distance_km,
-    duration_min,
-    elevation_m
-  });
+                       (parseFloat(rideTimeEl.textContent.split('h')[1]) || 0);
+  const elevation_m  = parseFloat(elevationEl.textContent);
+ 
+  // —————————————
+  // 3️⃣ INSERT LOG WITH gpx_path
+  // —————————————
+  const { data: insertData, error: insertErr } = await supabase
+    .from('ride_logs')
+    .insert({
+      title,
+      user_id:     user.id,
+      distance_km,
+      duration_min,
+      elevation_m,
+      gpx_path:    uploadData.path    // ← store the bucket path
+    });
 
   statusEl.textContent = insertErr
     ? `❌ Save failed: ${insertErr.message}`
