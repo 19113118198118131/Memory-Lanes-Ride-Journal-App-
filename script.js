@@ -210,7 +210,6 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     return Number.isFinite(y) ? { x: x / 1000, y } : null;
   }).filter(Boolean);
 
-  // Combine all highlighted points into one dataset
   const highlightPoints = dist.map((x, i) => {
     const y = accelData[i];
     const inBin = selectedBins.some(binIdx => speed[i] >= bins[binIdx].min && speed[i] < bins[binIdx].max);
@@ -222,6 +221,7 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       label: 'Acceleration',
       data: accel,
       borderColor: '#00b4d8',
+      backgroundColor: '#00b4d8', // Ensures legend & tooltip stay same
       borderWidth: 2,
       pointRadius: 0,
       fill: false
@@ -235,6 +235,8 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       type: 'scatter',
       pointRadius: 4,
       pointBackgroundColor: '#ffbe0b',
+      borderColor: '#ffbe0b',       // Fix for consistent outline
+      backgroundColor: '#ffbe0b',   // Fix for legend color consistency
       showLine: false
     });
   }
@@ -261,7 +263,9 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       plugins: {
         legend: { display: true },
         tooltip: {
-          callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.y.toFixed(2)}` }
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.raw.y.toFixed(2)}`
+          }
         }
       }
     }
