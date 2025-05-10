@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
 
+
 // [Previous content preserved...]
 
   // 🆕 GPX File Upload and Ride Analytics Loader
@@ -165,7 +166,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     const ctx = document.getElementById('accelChart')?.getContext('2d');
     if (!ctx) return;
-    if (window.accelChart) window.accelChart.destroy();
+    if (window.accelChart && typeof window.accelChart.destroy === 'function') {
+      window.accelChart.destroy();
+    }
     const colorByBin = idx => selectedBins.includes(idx) ? '#8338ec' : 'rgba(255,255,255,0.1)';
 
     const accel = dist.map((x, i) => ({ x: x / 1000, y: accelData[i] }));
@@ -194,7 +197,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             pointRadius: 0,
             borderWidth: 1,
             fill: false,
-            tension: 0.3
+            tension: 0.3,
+            yAxisID: 'yAccel'
+          },
+          {
+            label: 'Accel Cursor',
+            type: 'scatter',
+            data: [{ x: 0, y: 0 }],
+            pointRadius: 4,
+            pointBackgroundColor: '#fff',
+            showLine: false,
+            yAxisID: 'yAccel'
           },
           ...overlays
         ]
@@ -204,11 +217,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         plugins: { legend: { display: true } },
         scales: {
           x: { title: { display: true, text: 'Distance (km)' } },
-          y: { title: { display: true, text: 'Acceleration (m/s²)' } }
+          yAccel: { title: { display: true, text: 'Acceleration (m/s²)' } }
         }
       }
     });
   }
+
+  window.updatePlayback = idx => {
+    const p = points[idx];
+    if (!marker) {
+      marker = L.circleMarker([p.lat, p.lng], { radius: 6, color: '#007bff', fillColor: '#007bff', fillOpacity: 0.9 }).addTo(map);
+    } else {
+      marker.setLatLng([p.lat, p.lng]);
+    }
+    trailPolyline.setLatLngs(points.slice(0, idx + 1).map(pt => [pt.lat, pt.lng]));
+    map.panTo([p.lat, p.lng], { animate: false });
+
+    const distKm = (cumulativeDistance[idx]/1000).toFixed(2);
+    const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'elevation';
+    const posDs = elevationChart.data.datasets.find(d => d.label === 'Position');
+    posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'yElevation';
+    posDs.data[0] = { x: parseFloat(distKm), y: mode === 'speed' ? speedData[idx] : p.ele };
+    elevationChart.update('none');
+
+    // Update acceleration cursor as well
+    if (window.accelChart) {
+      const accelCursor = window.accelChart.data.datasets.find(d => d.label === 'Accel Cursor');
+      if (accelCursor) {
+        accelCursor.data[0] = { x: parseFloat(distKm), y: accelData[idx] };
+        window.accelChart.update('none');
+      }
+    }
+
+    slider.value = idx;
+    document.getElementById('telemetry-elevation').textContent = `${p.ele.toFixed(0)} m`;
+    document.getElementById('telemetry-distance').textContent = `${distKm} km`;
+    document.getElementById('telemetry-speed').textContent = `${speedData[idx].toFixed(1)} km/h`;
+  };
+
 
 
   const speedBins = [
