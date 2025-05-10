@@ -318,6 +318,46 @@ footer a {
   color: #0a192f;
 }
 
+.auth-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.auth-form input[type="email"],
+.auth-form input[type="password"] {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  border: 1px solid #1c2c45;
+  border-radius: 6px;
+  background-color: #112240;
+  color: #ffffff;
+  outline: none;
+  min-width: 200px;
+}
+
+.auth-form input::placeholder {
+  color: #ccc;
+}
+
+.auth-form button {
+  background: #007bff;
+  color: #0a192f;
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.auth-form button:hover {
+  background: #64ffda;
+}
+
+
 /* Mobile adjustments */
 @media (max-width: 600px) {
   #timeline {
