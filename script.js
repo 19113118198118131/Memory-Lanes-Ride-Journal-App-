@@ -198,6 +198,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     reader.readAsText(file);
   });
 
+// [Previous content preserved...]
+
+// [Previous content preserved...]
+
   function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     const ctx = document.getElementById('accelChart')?.getContext('2d');
     if (!ctx) return;
@@ -209,17 +213,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const accel = dist.map((x, i) => ({ x: x / 1000, y: accelData[i] }));
     const overlays = selectedBins.map(binIdx => {
       const bin = bins[binIdx];
+      const rawData = dist.map((x, i) => (speed[i] >= bin.min && speed[i] < bin.max)
+        ? { x: x / 1000, y: accelData[i] }
+        : { x: x / 1000, y: null });
+      const data = rawData.filter(d => d.y !== null);
+      if (!data.length) return null;
       return {
         label: `Speed ${bin.min}–${bin.max}`,
-        data: dist.map((x, i) => (speed[i] >= bin.min && speed[i] < bin.max) ? { x: x / 1000, y: accelData[i] } : { x: x / 1000, y: null }),
+        data,
         type: 'line',
         borderColor: colorByBin(binIdx),
         pointRadius: 0,
         tension: 0.3,
         borderWidth: 1.5,
-        fill: false
+        fill: false,
+        yAxisID: 'yAccel'
       };
-    });
+    }).filter(Boolean);
 
     window.accelChart = new Chart(ctx, {
       type: 'line',
@@ -257,6 +267,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+
 
   window.updatePlayback = idx => {
     const p = points[idx];
@@ -314,7 +325,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-// [Previous content preserved...]
+
 
   function highlightSpeedBin(i) {
     const btn = document.querySelector(`#speed-bins .speed-bin-btn[data-index="${i}"]`);
