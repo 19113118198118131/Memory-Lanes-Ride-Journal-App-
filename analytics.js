@@ -47,25 +47,25 @@ function renderCornerChart(angleDegs, speedData) {
         { label: 'Straights', data: straightPts, pointBackgroundColor: '#FF6384' }
       ]
     },
-options: {
-  responsive: true,
-  animation: false,
-  interaction: { mode: 'nearest', intersect: false },
-  onClick: function(evt) {   // ✅ directly here
-    const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
-    if (!elements.length) return;
-    const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-    if (dataPoint && typeof dataPoint.idx === 'number') {
-      if (playInterval) {
-        clearInterval(playInterval);
-        playInterval = null;
-        playBtn.textContent = '▶️ Play';
+  options: {
+    responsive: true,
+    animation: false,
+    interaction: { mode: 'nearest', intersect: false },
+    onClick: function(evt) {
+      const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+      if (!elements.length) return;
+      const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+      if (dataPoint && typeof dataPoint.idx === 'number') {
+        if (playInterval) {
+          clearInterval(playInterval);
+          playInterval = null;
+          playBtn.textContent = '▶️ Play';
+        }
+        slider.value = dataPoint.idx;
+        fracIndex = dataPoint.idx;
+        updatePlayback(dataPoint.idx);
       }
-      slider.value = dataPoint.idx;
-      fracIndex = dataPoint.idx;
-      updatePlayback(dataPoint.idx);
-    }
-  },
+    },
       plugins: {
         tooltip: {
           callbacks: {
@@ -180,7 +180,7 @@ window.accelChart = new Chart(ctx, {
     responsive: true,
     animation: false,
     interaction: { mode: 'nearest', intersect: false },
-    onClick: function(evt) {   // ✅ directly here
+    onClick: function(evt) {
       const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
       if (!elements.length) return;
       const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
@@ -195,7 +195,6 @@ window.accelChart = new Chart(ctx, {
         updatePlayback(dataPoint.idx);
       }
     },
-
   onClick: function(evt) {
     const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
     if (!elements.length) return;
