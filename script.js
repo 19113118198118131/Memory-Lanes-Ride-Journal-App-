@@ -205,39 +205,20 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     window.accelChart.destroy();
   }
 
-  // Full acceleration line
-  const accel = accelData.map((y, i) =>
-    Number.isFinite(y) ? { x: dist[i] / 1000, y } : null
-  ).filter(Boolean);
-
-  // Corrected: Highlighted scatter points using cumulativeDistance (dist), not map-based guess
-  const highlightPoints = accelData.map((y, i) => {
-    const spd = speed[i];
-    const match = selectedBins.some(bin => spd >= bins[bin].min && spd < bins[bin].max);
-    return match && Number.isFinite(y) ? { x: dist[i] / 1000, y } : null;
+  // Clean main acceleration line
+  const accel = dist.map((x, i) => {
+    const y = accelData[i];
+    return Number.isFinite(y) ? { x: x / 1000, y } : null;
   }).filter(Boolean);
 
-  const highlightOverlay = {
-    label: 'Highlighted Speeds',
-    data: highlightPoints,
-    type: 'scatter',
-    pointRadius: 3,
-    pointBackgroundColor: '#ff6384',
-    showLine: false,
-    yAxisID: 'yAccel'
-  };
-
-  const accelCursor = {
-    label: 'Accel Cursor',
-    type: 'scatter',
-    data: [{ x: accel[0]?.x || 0, y: accel[0]?.y || 0 }],
-    pointRadius: 4,
-    pointBackgroundColor: '#fff',
-    borderColor: '#fff',
-    borderWidth: 1,
-    showLine: false,
-    yAxisID: 'yAccel'
-  };
+  // Single scatter dataset for all selected bins
+  const highlightPoints = dist.map((x, i) => {
+    const y = accelData[i];
+    const isInBin = selectedBins.some(binIdx =>
+      speed[i] >= bins[binIdx].min && speed[i] < bins[binIdx].max
+    );
+    return isInBin && Number.isFinite(y) ? { x: x / 1000, y } : null;
+  }).filter(Boolean);
 
   window.accelChart = new Chart(ctx, {
     type: 'line',
@@ -246,23 +227,34 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
         {
           label: 'Acceleration (m/s²)',
           data: accel,
-          borderColor: 'rgba(255,255,255,0.2)',
+          borderColor: 'rgba(255,255,255,0.3)',
           pointRadius: 0,
-          borderWidth: 1,
+          borderWidth: 1.2,
           fill: false,
-          tension: 0.3,
+          tension: 0.25,
           yAxisID: 'yAccel'
         },
-        accelCursor,
-        highlightOverlay
+        {
+          label: 'Highlighted Speeds',
+          type: 'scatter',
+          data: highlightPoints,
+          pointRadius: 3,
+          pointBackgroundColor: '#ff6384',
+          showLine: false,
+          yAxisID: 'yAccel'
+        }
       ]
     },
     options: {
       animation: false,
       plugins: { legend: { display: true } },
       scales: {
-        x: { title: { display: true, text: 'Distance (km)' } },
-        yAccel: { title: { display: true, text: 'Acceleration (m/s²)' }, position: 'left' }
+        x: {
+          title: { display: true, text: 'Distance (km)' }
+        },
+        yAccel: {
+          title: { display: true, text: 'Acceleration (m/s²)' }
+        }
       }
     }
   });
