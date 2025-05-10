@@ -212,11 +212,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const overlays = selectedBins.map(binIdx => {
       const bin = bins[binIdx];
       const points = dist.map((x, i) => {
-        const y = accelData[i];
-        return (speed[i] >= bin.min && speed[i] < bin.max && Number.isFinite(y))
-          ? { x: x / 1000, y }
-          : null;
-      }).filter(Boolean);
+  const y = accelData[i];
+  return (speed[i] >= bin.min && speed[i] < bin.max && Number.isFinite(y))
+    ? { x: x / 1000, y }
+    : null;
+}).filter(Boolean);
       if (!points.length) return null;
       return {
         label: `Speed ${bin.min}–${bin.max}`,
@@ -269,6 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+
 
 
   window.updatePlayback = idx => {
