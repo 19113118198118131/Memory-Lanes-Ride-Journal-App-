@@ -72,8 +72,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 
-
-
   document.getElementById('signup-btn').addEventListener('click', async () => {
     const email = document.getElementById('auth-email').value;
     const pass = document.getElementById('auth-password').value;
