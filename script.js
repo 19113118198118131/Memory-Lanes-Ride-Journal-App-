@@ -15,8 +15,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Hide forms initially
-  document.getElementById('save-ride-form').style.display = 'none';
-  document.getElementById('auth-section').style.display = 'none';
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    document.getElementById('save-ride-form').style.display = 'none';
+    document.getElementById('auth-section').style.display = 'block';
+  } else {
+    document.getElementById('save-ride-form').style.display = 'block';
+    document.getElementById('auth-section').style.display = 'none';
+  }
+
 
   // --- Login / Signup handlers ---
   document.getElementById('login-btn').addEventListener('click', async () => {
