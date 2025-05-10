@@ -62,7 +62,7 @@ function renderCornerChart(angleDegs, speedData) {
           playBtn.textContent = '▶️ Play';
         }
         slider.value = dataPoint.idx;
-        fracIndex = dataPoint.idx;
+        window.fracIndex = dataPoint.idx;
         updatePlayback(dataPoint.idx);
       }
     },
@@ -191,7 +191,7 @@ window.accelChart = new Chart(ctx, {
           playBtn.textContent = '▶️ Play';
         }
         slider.value = dataPoint.idx;
-        fracIndex = dataPoint.idx;
+        window.fracIndex = dataPoint.idx;
         updatePlayback(dataPoint.idx);
       }
     },
@@ -206,7 +206,7 @@ window.accelChart = new Chart(ctx, {
         playBtn.textContent = '▶️ Play';
       }
       slider.value = dataPoint.idx;
-      fracIndex = dataPoint.idx; // ✅ this line
+      window.fracIndex = dataPoint.idx; // ✅ this line
       updatePlayback(dataPoint.idx);
     }
   },
