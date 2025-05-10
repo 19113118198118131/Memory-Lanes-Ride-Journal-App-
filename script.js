@@ -17,6 +17,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const saveForm = document.getElementById('save-ride-form');
   const saveBtn = document.getElementById('save-ride-btn');
 
++ // start with playback disabled until we parse a ride
+  
+  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
+  
   console.log('script.js loaded');
   window.updatePlayback = null;
 
@@ -237,7 +241,11 @@ uploadInput.addEventListener('change', e => {
   // 4️⃣ Fetch and render exactly like an upload
   const resp = await fetch(urlData.publicUrl)
   const gpxText = await resp.text()
-  await parseAndRenderGPX(gpxText);
+   await parseAndRenderGPX(gpxText);
+ // don’t show “Log this Ride” on a ride we just loaded
+   saveForm.style.display = 'none';
+  // stop here — skip the rest of login/saveForm logic
+  return;
 }
   
   // Redirect clean-up from Supabase
@@ -333,7 +341,7 @@ uploadInput.addEventListener('change', e => {
 
 
 
-  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
+
 
   saveBtn.addEventListener('click', async () => {
   const title = document.getElementById('ride-title').value.trim();
