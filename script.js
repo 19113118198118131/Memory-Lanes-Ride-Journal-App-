@@ -317,15 +317,16 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     document.getElementById('telemetry-speed').textContent = `${speedData[idx].toFixed(1)} km/h`;
 
 // 🔵 Update dynamic dot on Acceleration Chart
-const posDs = window.accelChart?.data?.datasets?.find(d => d.label === 'Position');
-if (posDs) {
-  posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'y';
-  posDs.data[0] = {
+const posAccelDs = window.accelChart?.data?.datasets?.find(d => d.label === 'Position');
+if (posAccelDs) {
+  posAccelDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'y';
+  posAccelDs.data[0] = {
     x: parseFloat(distKm),
     y: mode === 'speed' ? speedData[idx] : accelData[idx]
   };
   window.accelChart.update('none');
 }
+
 
     
   };
