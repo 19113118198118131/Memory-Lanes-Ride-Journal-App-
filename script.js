@@ -198,9 +198,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     reader.readAsText(file);
   });
 
-// [Previous content preserved...]
-
-// [Previous content preserved...]
 
   function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     const ctx = document.getElementById('accelChart')?.getContext('2d');
@@ -208,26 +205,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (window.accelChart && typeof window.accelChart.destroy === 'function') {
       window.accelChart.destroy();
     }
-    const colorByBin = idx => selectedBins.includes(idx) ? '#8338ec' : 'rgba(255,255,255,0.1)';
 
     const accel = dist.map((x, i) => ({ x: x / 1000, y: accelData[i] }));
+
     const overlays = selectedBins.map(binIdx => {
       const bin = bins[binIdx];
-      const rawData = dist.map((x, i) => (speed[i] >= bin.min && speed[i] < bin.max)
-        ? { x: x / 1000, y: accelData[i] }
-        : { x: x / 1000, y: null });
-      const data = rawData.filter(d => d.y !== null);
-      if (!data.length) return null;
+      const points = dist.map((x, i) => (speed[i] >= bin.min && speed[i] < bin.max)
+        ? { x: x / 1000, y: speed[i] }
+        : null).filter(p => p);
+      if (!points.length) return null;
       return {
         label: `Speed ${bin.min}–${bin.max}`,
-        data,
-        type: 'line',
-        borderColor: colorByBin(binIdx),
-        pointRadius: 0,
-        tension: 0.3,
-        borderWidth: 1.5,
-        fill: false,
-        yAxisID: 'yAccel'
+        data: points,
+        type: 'scatter',
+        pointRadius: 3,
+        pointBackgroundColor: '#ff6384',
+        showLine: false,
+        yAxisID: 'ySpeed'
       };
     }).filter(Boolean);
 
@@ -262,7 +256,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         plugins: { legend: { display: true } },
         scales: {
           x: { title: { display: true, text: 'Distance (km)' } },
-          yAccel: { title: { display: true, text: 'Acceleration (m/s²)' } }
+          yAccel: { title: { display: true, text: 'Acceleration (m/s²)' }, position: 'left' },
+          ySpeed: { title: { display: true, text: 'Speed (km/h)' }, position: 'right', grid: { drawOnChartArea: false } }
         }
       }
     });
