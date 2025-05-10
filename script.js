@@ -86,29 +86,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // — Globals & DOM refs —
-  let points = [], marker = null, trailPolyline = null;
-  let elevationChart = null, cumulativeDistance = [], speedData = [];
-  let breakPoints = [], playInterval = null, fracIndex = 0;
-  let speedHighlightLayer = null, selectedSpeedBins = new Set(), accelData = [];
+    // — Globals & DOM refs —
+    let points = [], marker = null, trailPolyline = null;
+    let elevationChart = null, cumulativeDistance = [], speedData = [];
+    let breakPoints = [], playInterval = null, fracIndex = 0;
+    let speedHighlightLayer = null, selectedSpeedBins = new Set(), accelData = [];
+    
+    const FRAME_DELAY_MS = 50;
+    const uploadInput = document.getElementById('gpx-upload');
+    const saveForm    = document.getElementById('save-ride-form');
+    const saveBtn     = document.getElementById('save-ride-btn');
+    const distanceEl  = document.getElementById('distance');
+    const durationEl  = document.getElementById('duration');
+    const rideTimeEl  = document.getElementById('ride-time');
+    const elevationEl = document.getElementById('elevation');
+    const slider      = document.getElementById('replay-slider');
+    const playBtn     = document.getElementById('play-replay');
+    const summaryBtn  = document.getElementById('download-summary');
+    const videoBtn    = document.getElementById('export-video');
+    const speedSel    = document.getElementById('playback-speed');
+    
+    // Disable playback controls on load (but not the file picker)
+    [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => {
+      if (el) el.disabled = true;
+    });
+    // Ensure the file picker remains enabled
+    uploadInput.disabled = false;
 
-  const FRAME_DELAY_MS = 50;
-  const uploadInput = document.getElementById('gpx-upload');
-  const saveForm    = document.getElementById('save-ride-form');
-  const saveBtn     = document.getElementById('save-ride-btn');
-  const distanceEl  = document.getElementById('distance');
-  const durationEl  = document.getElementById('duration');
-  const rideTimeEl  = document.getElementById('ride-time');
-  const elevationEl = document.getElementById('elevation');
-  const slider      = document.getElementById('replay-slider');
-  const playBtn     = document.getElementById('play-replay');
-  const summaryBtn  = document.getElementById('download-summary');
-  const videoBtn    = document.getElementById('export-video');
-  const speedSel    = document.getElementById('playback-speed');
-
-  [uploadInput, slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => {
-    if (el) el.disabled = true;
-  });
 
   // — Speed‐filter bins & UI —
   const speedBins = [
