@@ -261,13 +261,13 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
           ticks: { callback: v => v.toFixed(2) },
           grid: { color: '#223' }
         },
-        y: {
-          title: { display: true, text: 'Acceleration (m/s²)' },
-          position: 'left',
-          min: -2,
-          max: 2,
-          grid: { color: '#334' }
-        },
+      y: {
+        title: { display: true, text: 'Acceleration (m/s²)' },
+        position: 'left',
+        suggestedMin: Math.min(...accel.map(p => p.y)) - 1,
+        suggestedMax: Math.max(...accel.map(p => p.y)) + 1,
+        grid: { color: '#334' }
+      },
         ySpeed: {
           title: { display: true, text: 'Speed (km/h)' },
           position: 'right',
