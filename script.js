@@ -54,6 +54,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const distKm = (cumulativeDistance[idx] / 1000).toFixed(2);
     const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'elevation';
 
+    // Pause playback when updating from chart click
+    if (window.playInterval) {
+      clearInterval(window.playInterval);
+      window.playInterval = null;
+      playBtn.textContent = '▶️ Play';
+    }
+
     // Update elevation/speed chart cursor
     const posDs = elevationChart.data.datasets.find(d => d.label === 'Position');
     posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'yElevation';
@@ -61,11 +68,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     elevationChart.update('none');
 
     // Update accel chart cursor
-    if (window.accelChart) {
-      const accelCursor = window.accelChart.data.datasets.find(d => d.label === 'Point in Ride');
+    const existingAccelChart = Chart.getChart(document.getElementById('accelChart'));
+    if (existingAccelChart) {
+      const accelCursor = existingAccelChart.data.datasets.find(d => d.label === 'Point in Ride');
       if (accelCursor) {
         accelCursor.data[0] = { x: parseFloat(distKm), y: accelData[idx] };
-        window.accelChart.update('none');
+        existingAccelChart.update('none');
       }
     }
 
@@ -108,68 +116,83 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.updatePlayback(Number(slider.value));
   });
 
-  // 5️⃣ — Speed filter setup ... (unchanged)
+  // 5️⃣ — Speed filter setup (unchanged)
   // ...
 
-  // 8️⃣ — GPX parser & renderer (calls setupChart & renderAccelChart)
+  // 8️⃣ — GPX parser & renderer
   async function parseAndRenderGPX(gpxText) {
     // existing parsing code ...
+    // after parsing and computing arrays:
+    trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map).bringToBack();
+
     setupChart();
     renderSpeedFilter();
     renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
-    // enable controls ...
+
+    [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
+    slider.min = 0; slider.max = points.length - 1; slider.value = 0;
+    playBtn.textContent = '▶️ Play';
   }
 
   // 1️⃣3️⃣ — Chart helpers
   function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
-    const ctx = document.getElementById('accelChart')?.getContext('2d'); if (!ctx) return;
-    if (window.accelChart && typeof window.accelChart.destroy === 'function') {
-      window.accelChart.destroy();
-    }
-    const accel = dist.map((x,i)=>{const y=accelData[i];return Number.isFinite(y)?{x:x/1000,y}:null}).filter(Boolean);
-    const highlights = dist.map((x,i)=>{const y=speed[i];const inBin=selectedBins.some(b=>y>=bins[b].min&&y<bins[b].max);return inBin&&Number.isFinite(y)?{x:x/1000,y,idx:i}:null}).filter(Boolean);
-    const values=accel.map(p=>p.y);
-    const minY=Math.min(...values), maxY=Math.max(...values), buf=(maxY-minY)*0.1||1;
-    const datasets=[
-      { label:'Point in Ride', data:[{x:0,y:0}], type:'scatter', pointRadius:5, showLine:false, yAxisID:'y' },
-      { label:'Acceleration', data:accel, borderWidth:2, pointRadius:0, fill:false, yAxisID:'y' },
-      { label:'Highlighted Speeds', data:highlights, type:'scatter', pointRadius:4, showLine:false, yAxisID:'ySpeed' }
+    const ctx = document.getElementById('accelChart')?.getContext('2d');
+    if (!ctx) return;
+    // destroy any existing Chart instance on this canvas
+    const old = Chart.getChart(ctx.canvas);
+    if (old) old.destroy();
+
+    const accel = dist.map((x, i) => { const y = accelData[i]; return Number.isFinite(y) ? { x: x / 1000, y } : null; }).filter(Boolean);
+    const highlights = dist.map((x, i) => { const y = speed[i]; const inBin = selectedBins.some(b => y >= bins[b].min && y < bins[b].max); return inBin && Number.isFinite(y) ? { x: x / 1000, y, idx: i } : null; }).filter(Boolean);
+    const values = accel.map(p => p.y);
+    const minY = Math.min(...values), maxY = Math.max(...values), buf = (maxY - minY) * 0.1 || 1;
+
+    const datasets = [
+      { label: 'Point in Ride', data: [{ x: 0, y: 0 }], type: 'scatter', pointRadius: 5, showLine: false, yAxisID: 'y' },
+      { label: 'Acceleration', data: accel, borderWidth: 2, pointRadius: 0, fill: false, yAxisID: 'y' },
+      { label: 'Highlighted Speeds', data: highlights, type: 'scatter', pointRadius: 4, showLine: false, yAxisID: 'ySpeed' }
     ];
-    window.accelChart = new Chart(ctx, {
-      type:'line',
-      data:{ datasets },
-      options:{
-        responsive:true,
-        animation:false,
-        interaction:{ mode:'nearest', intersect:false },
+
+    new Chart(ctx, {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        animation: false,
+        interaction: { mode: 'nearest', intersect: false },
         onClick(evt) {
-          const el = this.getElementsAtEventForMode(evt,'nearest',{intersect:false},true);
+          const el = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
           if (!el.length) return;
           const pt = this.data.datasets[el[0].datasetIndex].data[el[0].index];
-          if (pt?.idx != null) window.jumpToPlaybackIndex(pt.idx);
+          if (pt?.idx != null) window.updatePlayback(pt.idx);
         },
-        scales:{ x:{ /* ... */ }, y:{ min: minY-buf, max: maxY+buf }, ySpeed:{ /* ... */ } }
+        scales: {
+          x: { /* ... */ },
+          y: { min: minY - buf, max: maxY + buf },
+          ySpeed: { /* ... */ }
+        }
       }
     });
   }
 
   function setupChart() {
     const ctx = document.getElementById('elevationChart').getContext('2d');
-    if (elevationChart) elevationChart.destroy();
+    const old = Chart.getChart(ctx.canvas);
+    if (old) old.destroy();
     elevationChart = new Chart(ctx, {
-      type:'line',
-      data:{ datasets: [ /* ... */ ] },
-      options:{
-        responsive:true,
-        animation:false,
-        interaction:{ mode:'nearest', intersect:false },
+      type: 'line',
+      data: { datasets: [ /* ... */ ] },
+      options: {
+        responsive: true,
+        animation: false,
+        interaction: { mode: 'nearest', intersect: false },
         onClick(evt) {
-          const el = this.getElementsAtEventForMode(evt,'nearest',{intersect:false},true);
+          const el = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
           if (!el.length) return;
           const pt = this.data.datasets[el[0].datasetIndex].data[el[0].index];
-          if (pt?.idx != null) window.jumpToPlaybackIndex(pt.idx);
+          if (pt?.idx != null) window.updatePlayback(pt.idx);
         },
-        scales:{ /* ... */ }
+        scales: { /* ... */ }
       }
     });
   }
