@@ -5,22 +5,37 @@ console.log('script.js loaded');
 window.updatePlayback = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1️⃣ Auth check: if not signed in, hide the map and show the login form
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    console.error('Not logged in:', userError);
-    // hide everything except the auth UI
-    document.getElementById('upload-section').style.display   = 'none';
-    document.getElementById('map-section').style.display      = 'none';
-    document.getElementById('summary-section').style.display  = 'none';
-    document.getElementById('timeline').style.display         = 'none';
-    document.getElementById('auth-section').style.display     = '';
-    // stop here
-    return;
-  } else {
-    // we *are* signed in, so hide the login form
-    document.getElementById('auth-section').style.display     = 'none';
-  }
+
+    // Hide the “save” form & login form on load
+    document.getElementById('save-ride-form').style.display = 'none';
+    document.getElementById('auth-section').style.display  = 'none';
+
+    // --- Login / Signup handlers ---
+    const authSection = document.getElementById('auth-section');
+    const loginBtn    = document.getElementById('login-btn');
+    const signupBtn   = document.getElementById('signup-btn');
+    const authStatus  = document.getElementById('auth-status');
+
+    loginBtn.addEventListener('click', async () => {
+      const email = document.getElementById('auth-email').value;
+      const pass  = document.getElementById('auth-password').value;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if (error) {
+        authStatus.textContent = 'Login failed: ' + error.message;
+      } else {
+        authSection.style.display = 'none';
+        document.getElementById('save-ride-form').style.display = 'block';
+      }
+    });
+
+    signupBtn.addEventListener('click', async () => {
+      const email = document.getElementById('auth-email').value;
+      const pass  = document.getElementById('auth-password').value;
+      const { data, error } = await supabase.auth.signUp({ email, password: pass });
+      authStatus.textContent = error
+        ? 'Signup failed: ' + error.message
+        : 'Signup OK! Check your email, then login above.';
+    });
 
   // 2️⃣ Leaflet map setup (match your <div id="map">)
   const map = L.map('leaflet-map').setView([20, 0], 2);
@@ -172,5 +187,77 @@ document.addEventListener('DOMContentLoaded', async () => {
   playBtn.addEventListener('click', () => { /*…*/ });
   slider.addEventListener('input', () => { /*…*/ });
   summaryBtn.addEventListener('click', () => { /*…*/ });
-  saveBtn.addEventListener('click', async () => { /*…*/ });
+
+  saveBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
+
+  // 1️⃣ If not logged in yet, show login form and bail
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    document.getElementById('auth-section').style.display = '';
+    return;
+  }
+
+  // 2️⃣ Already logged in → proceed with save logic...
+  const file = document.getElementById('gpx-upload').files[0];
+  if (!file) {
+    document.getElementById('save-status').textContent = '❌ No GPX file selected!';
+    return;
+  }
+
+  saveBtn.disabled = true;
+  document.getElementById('save-status').textContent = '';
+
+  // upload GPX...
+  const timestamp = Date.now();
+  const filePath  = `${user.id}/${timestamp}_${file.name}`;
+  const { error: uploadError } = await supabase
+    .storage
+    .from('gpx-files')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type
+    });
+
+  if (uploadError) {
+    saveBtn.disabled = false;
+    document.getElementById('save-status').textContent = '❌ Upload failed: ' + uploadError.message;
+    return;
+  }
+
+  // get public URL & insert metadata...
+  const { data: { publicUrl } } = supabase
+    .storage
+    .from('gpx-files')
+    .getPublicUrl(filePath);
+
+  const distance_km   = parseFloat(distanceEl.textContent);
+  const duration_text = durationEl.textContent;
+  const [h, m]        = duration_text.match(/(\d+)h\s*(\d+)m/).slice(1);
+  const duration_min  = Number(h)*60 + Number(m);
+  const elevation_m   = parseInt(elevationEl.textContent);
+
+  const { error: insertError } = await supabase
+    .from('ride_logs')
+    .insert([{
+      user_id:      user.id,
+      title:        document.getElementById('ride-title').value,
+      distance_km,
+      duration_min,
+      elevation_m,
+      gpx_path:     filePath,
+      gpx_url:      publicUrl
+    }]);
+
+  saveBtn.disabled = false;
+  document.getElementById('save-status').textContent = insertError
+    ? '❌ Failed to save ride: ' + insertError.message
+    : '✅ Ride saved!';
+
+  if (!insertError) {
+    saveForm.style.display = 'none';
+    document.getElementById('ride-title').value = '';
+  }
 });
+
