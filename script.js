@@ -104,9 +104,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Declare all globals for ride rendering and control
   let points = [], marker = null, trailPolyline = null, elevationChart = null;
   let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
-  let playInterval = null, fracIndex = 0, speedHighlightLayer = null, selectedSpeedBins = new Set();
+  let playInterval = null;
+  window.fracIndex = 0;
+  let speedHighlightLayer = null;
+  let selectedSpeedBins = new Set();
   const FRAME_DELAY_MS = 50;
-
   const slider = document.getElementById('replay-slider');
   const playBtn = document.getElementById('play-replay');
   const summaryBtn = document.getElementById('download-summary');
@@ -117,7 +119,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const rideTimeEl = document.getElementById('ride-time');
   const elevationEl = document.getElementById('elevation');
   const uploadInput = document.getElementById('gpx-upload');
-
   const saveForm = document.getElementById('save-ride-form');
   const saveBtn = document.getElementById('save-ride-btn');
 
@@ -168,12 +169,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       playBtn.textContent = '▶️ Play';
       return;
     }
-    fracIndex = Number(slider.value);
+    window.fracIndex = Number(slider.value);
     playBtn.textContent = '⏸ Pause';
     const mult = parseFloat(speedSel.value) || 1;
     playInterval = setInterval(() => {
-      fracIndex += mult;
-      const idx = Math.floor(fracIndex);
+      window.fracIndex += mult;
+    const idx = Math.floor(window.fracIndex);
       if (idx >= points.length) {
         clearInterval(playInterval);
         playInterval = null;
@@ -359,7 +360,7 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
             playBtn.textContent = '▶️ Play';
           }
           slider.value = dataPoint.idx;
-          fracIndex = dataPoint.idx;
+          window.fracIndex = dataPoint.idx;
           updatePlayback(dataPoint.idx);
         }
       },
@@ -564,7 +565,7 @@ if (posAccelDs) {
             playBtn.textContent = '▶️ Play';
           }
           slider.value = dataPoint.idx;
-          fracIndex = dataPoint.idx;
+          window.fracIndex = dataPoint.idx;
           updatePlayback(dataPoint.idx);
         }
       },
