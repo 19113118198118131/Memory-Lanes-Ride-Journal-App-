@@ -314,13 +314,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+// [Previous content preserved...]
+
   function highlightSpeedBin(i) {
     const btn = document.querySelector(`#speed-bins .speed-bin-btn[data-index="${i}"]`);
     const isActive = selectedSpeedBins.has(i);
     isActive ? selectedSpeedBins.delete(i) : selectedSpeedBins.add(i);
     btn.classList.toggle('active', !isActive);
     if (speedHighlightLayer) map.removeLayer(speedHighlightLayer);
-    if (selectedSpeedBins.size === 0) return;
+    if (selectedSpeedBins.size === 0) {
+      renderAccelChart(accelData, cumulativeDistance, speedData, [], speedBins);
+      return;
+    }
     const segments = [];
     for (let j = 1; j < points.length; j++) {
       const speed = speedData[j];
@@ -331,7 +336,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
     }
-    speedHighlightLayer = L.layerGroup(segments.map(seg => L.polyline(seg, { weight: 5, opacity: 0.8 }))).addTo(map);
+    speedHighlightLayer = L.layerGroup(segments.map(seg => L.polyline(seg, { color: '#8338ec', weight: 5, opacity: 0.8 }))).addTo(map);
+    renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
   }
 
   window.updatePlayback = idx => {
@@ -351,11 +357,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     posDs.data[0] = { x: parseFloat(distKm), y: mode === 'speed' ? speedData[idx] : p.ele };
     elevationChart.update('none');
 
+    if (window.accelChart) {
+      const accelCursor = window.accelChart.data.datasets.find(d => d.label === 'Accel Cursor');
+      if (accelCursor) {
+        accelCursor.data[0] = { x: parseFloat(distKm), y: accelData[idx] };
+        window.accelChart.update('none');
+      }
+    }
+
     slider.value = idx;
     document.getElementById('telemetry-elevation').textContent = `${p.ele.toFixed(0)} m`;
     document.getElementById('telemetry-distance').textContent = `${distKm} km`;
     document.getElementById('telemetry-speed').textContent = `${speedData[idx].toFixed(1)} km/h`;
-  }
+  };
+
 
   function setupChart() {
     const ctx = document.getElementById('elevationChart').getContext('2d');
