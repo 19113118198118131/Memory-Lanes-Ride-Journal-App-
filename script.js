@@ -260,4 +260,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('ride-title').value = '';
   }
 });
-
+});
