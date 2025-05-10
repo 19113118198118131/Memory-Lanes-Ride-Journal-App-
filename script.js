@@ -184,26 +184,28 @@ uploadInput.addEventListener('change', e => {
   reader.onload = ev => {
     const gpxText = ev.target.result;
 
-    // parse & add to map
+    // 1️⃣ parse & add to map
     const gpxLayer = omnivore.gpx.parse(gpxText);
     if (window.currentGPX) map.removeLayer(window.currentGPX);
     window.currentGPX = gpxLayer.addTo(map);
     map.fitBounds(gpxLayer.getBounds());
 
-    // --- now do your old XML→trackpoint sampling logic ---
+    // 2️⃣ run your old XML→trackpoint sampling logic
     const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
-    const rawPts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
-      lat: +tp.getAttribute('lat'),
-      lng: +tp.getAttribute('lon'),
-      ele: +tp.getElementsByTagName('ele')[0]?.textContent || 0,
-      time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
-    })).filter(p => p.lat && p.lng && p.time instanceof Date);
+    const rawPts = Array.from(xml.getElementsByTagName('trkpt'))
+      .map(tp => ({
+        lat: +tp.getAttribute('lat'),
+        lng: +tp.getAttribute('lon'),
+        ele: +tp.getElementsByTagName('ele')[0]?.textContent || 0,
+        time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
+      }))
+      .filter(p => p.lat && p.lng && p.time instanceof Date);
     if (!rawPts.length) return alert('No valid trackpoints found');
 
-    // SAMPLE down the points
+    // down-sample with your SAMPLE logic
     const SAMPLE = 5;
     let lastTime = rawPts[0].time;
-    let lastLL = L.latLng(rawPts[0].lat, rawPts[0].lng);
+    let lastLL   = L.latLng(rawPts[0].lat, rawPts[0].lng);
     points.push(rawPts[0]);
     for (let i = 1; i < rawPts.length; i++) {
       const pt = rawPts[i];
@@ -215,69 +217,66 @@ uploadInput.addEventListener('change', e => {
         } else {
           points.push(pt);
           lastTime = pt.time;
-          lastLL = L.latLng(pt.lat, pt.lng);
+          lastLL   = L.latLng(pt.lat, pt.lng);
         }
       }
     }
-    // always include last point
+    // always include the very last point
     if (points.at(-1).time !== rawPts.at(-1).time) {
       points.push(rawPts.at(-1));
     }
 
-    // compute cumulativeDistance & speedData
+    // 3️⃣ compute cumulativeDistance & speedData
     cumulativeDistance = [0];
-    speedData = [0];
+    speedData          = [0];
     for (let i = 1; i < points.length; i++) {
       const a = L.latLng(points[i-1].lat, points[i-1].lng);
       const b = L.latLng(points[i].lat,   points[i].lng);
       const d = a.distanceTo(b);
       const t = (points[i].time - points[i-1].time) / 1000;
       cumulativeDistance[i] = cumulativeDistance[i-1] + d;
-      speedData[i] = t > 0 ? (d/t)*3.6 : 0;
+      speedData[i]          = t > 0 ? (d/t)*3.6 : 0;
     }
 
-    // fill in summary panel
+    // 4️⃣ populate the Ride Summary UI
     const totalMs = points.at(-1).time - points[0].time;
-    const totMin = Math.floor(totalMs/60000);
+    const totMin  = Math.floor(totalMs / 60000);
     const rideSec = points.reduce((sum, _, i) => {
-      if (i>0 && !breakPoints.includes(i)) {
-        return sum + ((points[i].time - points[i-1].time)/1000);
+      if (i > 0 && !breakPoints.includes(i)) {
+        return sum + ((points[i].time - points[i-1].time) / 1000);
       }
       return sum;
     }, 0);
-    const rideMin = Math.floor(rideSec/60);
+    const rideMin = Math.floor(rideSec / 60);
     durationEl.textContent  = `${Math.floor(totMin/60)}h ${totMin%60}m`;
     rideTimeEl.textContent  = `${Math.floor(rideMin/60)}h ${rideMin%60}m`;
     distanceEl.textContent  = `${(cumulativeDistance.at(-1)/1000).toFixed(2)} km`;
-    elevationEl.textContent = `${points.reduce((sum,p,i)=> {
-      if (i>0 && p.ele>points[i-1].ele) {
+    elevationEl.textContent = `${points.reduce((sum,p,i) => {
+      if (i>0 && p.ele > points[i-1].ele) {
         return sum + (p.ele - points[i-1].ele);
       }
       return sum;
     },0).toFixed(0)} m`;
 
-    // redraw the trail polyline (fine‐tuned points array)
+    // 5️⃣ redraw the fine-tuned trail polyline
     trailPolyline = L.polyline(
       points.map(p => [p.lat, p.lng]),
       { color:'#007bff', weight:3, opacity:0.7 }
     ).addTo(map).bringToBack();
     map.fitBounds(trailPolyline.getBounds(), { padding:[30,30], animate:false });
 
-    // build the charts & controls
+    // 6️⃣ rebuild charts, filters, playback & analytics
     setupChart();
     renderSpeedFilter();
     [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
-    slider.min = 0; slider.max = points.length-1; slider.value = 0;
+    slider.min = 0; slider.max = points.length - 1; slider.value = 0;
     playBtn.textContent = '▶️ Play';
-
-    // analytics if present
-    if (window.Analytics) {
-      Analytics.initAnalytics(points, speedData, cumulativeDistance);
-    }
+    if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
   };
 
   reader.readAsText(file);
 });
+
 
 
 
