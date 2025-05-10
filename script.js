@@ -31,6 +31,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const email = document.getElementById('auth-email').value;
     const pass = document.getElementById('auth-password').value;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+      console.log('login result', data, error);
+    await supabase.auth.getSession(); // force refresh
     const statusEl = document.getElementById('auth-status');
 statusEl.innerHTML = error
   ? '❌ Login failed: ' + error.message
