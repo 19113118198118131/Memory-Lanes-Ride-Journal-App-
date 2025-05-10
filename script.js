@@ -161,12 +161,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.updatePlayback = updatePlayback;
   function setupChart()     { /*…*/ }
 
-    // — GPX upload & parsing via blob URL —
+    // — GPX upload & parsing (blob‐URL → omnivore) —
     uploadInput.addEventListener('change', e => {
       const file = e.target.files[0];
-      if (!file) {
-        return alert('No GPX file selected');
-      }
+      if (!file) return alert('No GPX file selected');
     
       // show “Save Ride” UI
       saveForm.style.display = 'block';
@@ -178,21 +176,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       points = [];
       breakPoints = [];
     
-      // create a blob URL and hand off to omnivore
-      const blobUrl = URL.createObjectURL(file);
-      loadAndDisplayGPX(blobUrl);
+      // make a blob URL and hand it to omnivore
+      const url = URL.createObjectURL(file);
+      const gpxLayer = omnivore.gpx(url)
+        .on('ready', e => {
+          map.fitBounds(e.target.getBounds());
+          // (re)draw charts if you need them:
+          fetch(url)
+            .then(r => r.text())
+            .then(renderChartsFromGPXText)
+            .catch(err => console.warn('Chart render failed', err));
+          URL.revokeObjectURL(url);
+        });
     
-      // re-draw charts from the same GPX text (if needed)
-      if (typeof renderChartsFromGPXText === 'function') {
-        fetch(blobUrl)
-          .then(res => res.text())
-          .then(renderChartsFromGPXText)
-          .catch(err => console.warn('Chart render failed', err));
-      }
-    
-      // optional: revoke when you're done with it
-      // URL.revokeObjectURL(blobUrl);
+      if (window.currentGPX) map.removeLayer(window.currentGPX);
+      window.currentGPX = gpxLayer.addTo(map);
     });
+
 
 
   // — Controls: Play/Pause, Slider, Download summary, Save ride —
