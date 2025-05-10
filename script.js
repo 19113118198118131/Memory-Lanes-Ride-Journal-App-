@@ -399,7 +399,7 @@ if (posAccelDs) {
     elevationChart.update('none');
 
     if (window.accelChart) {
-      const accelCursor = window.accelChart.data.datasets.find(d => d.label === 'Accel Cursor');
+      const accelCursor = window.accelChart.data.datasets.find(d => d.label === 'Point in Ride');
       if (accelCursor) {
         accelCursor.data[0] = { x: parseFloat(distKm), y: accelData[idx] };
         window.accelChart.update('none');
