@@ -64,7 +64,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     updatePlayback(Number(slider.value));
   });
-    
+
+   // Initialize map using correct ID
+  const map = L.map('leaflet-map').setView([20, 0], 2);
+  setTimeout(() => map.invalidateSize(), 0);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
   
   // 2️⃣ — Load-from-?ride=… (must come _after_ globals & wiring, before map/auth)
   
@@ -108,12 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
  
 
 
-// Initialize map using correct ID
-  const map = L.map('leaflet-map').setView([20, 0], 2);
-  setTimeout(() => map.invalidateSize(), 0);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
+
 
     // Declare all globals for ride rendering and control
 
