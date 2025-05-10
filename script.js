@@ -45,24 +45,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   }).addTo(map);
 
   // 3️⃣ GPX loader helper (Omnivore URL‐loader style)
-  function loadAndDisplayGPX(url) {
-    console.log('Loading GPX from', url);
-    const gpxLayer = omnivore.gpx(url)
-      .on('ready', e => {
-        map.fitBounds(e.target.getBounds());
-        // re‐render charts if available
-        fetch(url)
-          .then(r => r.text())
-          .then(text => {
-            if (typeof renderChartsFromGPXText === 'function') {
-              renderChartsFromGPXText(text);
-            }
-          })
-          .catch(err => console.warn('Chart render failed', err));
-      });
-    if (window.currentGPX) map.removeLayer(window.currentGPX);
-    window.currentGPX = gpxLayer.addTo(map);
-  }
+        function loadAndDisplayGPX(url) {
+          console.log('Loading GPX from', url);
+          const gpxLayer = omnivore.gpx(url).on('ready', e => {
+            map.fitBounds(e.target.getBounds());
+          });
+          if (window.currentGPX) map.removeLayer(window.currentGPX);
+          window.currentGPX = gpxLayer.addTo(map);
+        }
+
 
   // 4️⃣ Auto-load ride if coming back from dashboard
   const selectedRideId = localStorage.getItem('selectedRideId');
@@ -170,41 +161,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.updatePlayback = updatePlayback;
   function setupChart()     { /*…*/ }
 
-// — GPX upload & parsing (text→parse) —
-uploadInput.addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) {
-    return alert('No GPX file selected');
-  }
-
-  // show “Save Ride” UI
-  saveForm.style.display = 'block';
-
-  // clear any old replay state
-  if (marker)        map.removeLayer(marker);
-  if (trailPolyline) map.removeLayer(trailPolyline);
-  if (playInterval)  clearInterval(playInterval);
-  points = [];
-  breakPoints = [];
-
-  // read the file as text
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const gpxText = ev.target.result;
-
-    // parse & add to map
-    const gpxLayer = omnivore.gpx.parse(gpxText);
-    if (window.currentGPX) map.removeLayer(window.currentGPX);
-    window.currentGPX = gpxLayer.addTo(map);
-    map.fitBounds(gpxLayer.getBounds());
-
-    // re-draw charts from that same text
-    if (typeof renderChartsFromGPXText === 'function') {
-      renderChartsFromGPXText(gpxText);
-    }
-  };
-  reader.readAsText(file);
-});
+    // — GPX upload & parsing via blob URL —
+    uploadInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) {
+        return alert('No GPX file selected');
+      }
+    
+      // show “Save Ride” UI
+      saveForm.style.display = 'block';
+    
+      // clear any old replay state
+      if (marker)        map.removeLayer(marker);
+      if (trailPolyline) map.removeLayer(trailPolyline);
+      if (playInterval)  clearInterval(playInterval);
+      points = [];
+      breakPoints = [];
+    
+      // create a blob URL and hand off to omnivore
+      const blobUrl = URL.createObjectURL(file);
+      loadAndDisplayGPX(blobUrl);
+    
+      // re-draw charts from the same GPX text (if needed)
+      if (typeof renderChartsFromGPXText === 'function') {
+        fetch(blobUrl)
+          .then(res => res.text())
+          .then(renderChartsFromGPXText)
+          .catch(err => console.warn('Chart render failed', err));
+      }
+    
+      // optional: revoke when you're done with it
+      // URL.revokeObjectURL(blobUrl);
+    });
 
 
   // — Controls: Play/Pause, Slider, Download summary, Save ride —
