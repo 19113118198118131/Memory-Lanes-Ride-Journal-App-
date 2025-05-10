@@ -220,26 +220,22 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     {
       label: 'Acceleration',
       data: accel,
-      borderColor: '#00b4d8',
-      backgroundColor: '#00b4d8', // Ensures legend & tooltip stay same
+      borderColor: '#8338EC',
       borderWidth: 2,
       pointRadius: 0,
       fill: false
-    }
-  ];
-
-  if (highlightPoints.length > 0) {
-    datasets.push({
+    },
+    {
       label: 'Highlighted Speeds',
       data: highlightPoints,
       type: 'scatter',
       pointRadius: 4,
-      pointBackgroundColor: '#ffbe0b',
-      borderColor: '#ffbe0b',       // Fix for consistent outline
-      backgroundColor: '#ffbe0b',   // Fix for legend color consistency
+      pointBackgroundColor: '#8338EC',
+      borderColor: '#8338EC',
+      borderWidth: 1,
       showLine: false
-    });
-  }
+    }
+  ];
 
   window.accelChart = new Chart(ctx, {
     type: 'line',
