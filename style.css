@@ -62,7 +62,7 @@ main {
 }
 
 /* Map container */
-#map {
+#leaflet-map {
   height: 50vh;
   min-height: 300px;
   width: 100%;
