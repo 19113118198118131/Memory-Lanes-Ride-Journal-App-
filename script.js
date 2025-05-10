@@ -209,25 +209,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const accel = dist.map((x, i) => ({ x: x / 1000, y: accelData[i] }));
 
-    const overlays = selectedBins.map(binIdx => {
-      const bin = bins[binIdx];
-      const points = dist.map((x, i) => {
-  const y = accelData[i];
-  return (speed[i] >= bin.min && speed[i] < bin.max && Number.isFinite(y))
-    ? { x: x / 1000, y }
-    : null;
-}).filter(Boolean);
-      if (!points.length) return null;
-      return {
-        label: `Speed ${bin.min}–${bin.max}`,
-        data: points,
-        type: 'scatter',
-        pointRadius: 3,
-        pointBackgroundColor: '#ff6384',
-        showLine: false,
-        yAxisID: 'yAccel'
-      };
+    // Combine all highlighted points into one dataset
+    const highlightPoints = dist.map((x, i) => {
+      const y = accelData[i];
+      const inBin = selectedBins.some(binIdx => speed[i] >= bins[binIdx].min && speed[i] < bins[binIdx].max);
+      return inBin && Number.isFinite(y) ? { x: x / 1000, y } : null;
     }).filter(Boolean);
+
+    const highlightOverlay = {
+      label: 'Highlighted Speeds',
+      data: highlightPoints,
+      type: 'scatter',
+      pointRadius: 3,
+      pointBackgroundColor: '#ff6384',
+      showLine: false,
+      yAxisID: 'yAccel'
+    };
 
     const accelCursor = {
       label: 'Accel Cursor',
@@ -256,7 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             yAxisID: 'yAccel'
           },
           accelCursor,
-          ...overlays
+          highlightOverlay
         ]
       },
       options: {
@@ -269,7 +266,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
-
 
 
   window.updatePlayback = idx => {
