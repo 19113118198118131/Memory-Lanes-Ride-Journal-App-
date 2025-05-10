@@ -27,22 +27,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
   // --- Login / Signup handlers ---
-  document.getElementById('login-btn').addEventListener('click', async () => {
-    const email = document.getElementById('auth-email').value;
-    const pass = document.getElementById('auth-password').value;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-      console.log('login result', data, error);
-    await supabase.auth.getSession(); // force refresh
-    const statusEl = document.getElementById('auth-status');
-statusEl.innerHTML = error
-  ? '❌ Login failed: ' + error.message
-  : '✅ Login successful! <button id="go-dashboard" style="margin-left:10px;">Go to Dashboard</button>';
+document.getElementById('login-btn').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value;
+  const pass = document.getElementById('auth-password').value;
+  const statusEl = document.getElementById('auth-status');
 
-if (!error) {
+  const { data: session, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: pass
+  });
+
+  console.log('login result', session, error);
+
+  if (error) {
+    statusEl.textContent = `❌ Login failed: ${error.message}`;
+    return;
+  }
+
+  statusEl.innerHTML = '✅ Login successful! <button id="go-dashboard" style="margin-left:10px;">Go to Dashboard</button>';
+
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('save-ride-form').style.display = 'block';
 
-  // Attach button listener after rendering it
   setTimeout(() => {
     const dashBtn = document.getElementById('go-dashboard');
     if (dashBtn) {
@@ -51,8 +57,8 @@ if (!error) {
       });
     }
   }, 0);
-}
-  });
+});
+
 
   document.getElementById('signup-btn').addEventListener('click', async () => {
     const email = document.getElementById('auth-email').value;
