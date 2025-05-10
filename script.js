@@ -27,8 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
   // --- Login / Signup handlers ---
-
- document.getElementById('login-btn').addEventListener('click', async () => {
+document.getElementById('login-btn').addEventListener('click', async () => {
   const email = document.getElementById('auth-email').value;
   const pass = document.getElementById('auth-password').value;
   const statusEl = document.getElementById('auth-status');
@@ -47,17 +46,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // ✅ Now apply success message and styles after confirming no error
   statusEl.innerHTML = '✅ Login successful! <button id="go-dashboard" style="margin-left:10px;">Go to Dashboard</button>';
-    statusEl.style.display = 'block';
-    statusEl.style.color = '#64ffda';
-    statusEl.style.padding = '0.75rem';
-    statusEl.style.fontWeight = 'bold';
-    statusEl.style.border = '1px solid #64ffda';
-    statusEl.style.background = '#112240';
-    statusEl.style.borderRadius = '5px';
-    statusEl.style.marginTop = '1rem';
+  statusEl.style.display = 'block';
+  statusEl.style.color = '#64ffda';
+  statusEl.style.padding = '0.75rem';
+  statusEl.style.fontWeight = 'bold';
+  statusEl.style.border = '1px solid #64ffda';
+  statusEl.style.background = '#112240';
+  statusEl.style.borderRadius = '5px';
+  statusEl.style.marginTop = '1rem';
 
-   
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('save-ride-form').style.display = 'block';
 
@@ -70,6 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }, 0);
 });
+
 
 
 
