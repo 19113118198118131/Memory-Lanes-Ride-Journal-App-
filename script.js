@@ -207,12 +207,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.accelChart.destroy();
     }
 
-    const accel = dist.map((x, i) => ({ x: x / 1000, y: accelData[i] }));
+    const accel = dist.map((x, i) => {
+  const y = accelData[i];
+  return Number.isFinite(y) ? { x: x / 1000, y } : null;
+}).filter(Boolean);
 
     // Combine all highlighted points into one dataset
     const highlightPoints = dist.map((x, i) => {
-      const y = accelData[i];
-      const inBin = selectedBins.some(binIdx => speed[i] >= bins[binIdx].min && speed[i] < bins[binIdx].max);
+  const y = accelData[i];
+  const inBin = selectedBins.some(binIdx => speed[i] >= bins[binIdx].min && speed[i] < bins[binIdx].max);
+  return inBin && Number.isFinite(y) ? { x: x / 1000, y } : null;
+}).filter(Boolean);
       return inBin && Number.isFinite(y) ? { x: x / 1000, y } : null;
     }).filter(Boolean);
 
