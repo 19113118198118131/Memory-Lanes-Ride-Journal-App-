@@ -352,20 +352,21 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
   responsive: true,
   animation: false,
   interaction: { mode: 'nearest', intersect: false },
-  onClick: function(evt) {
-    const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
-    if (!elements.length) return;
-    const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-    if (dataPoint && typeof dataPoint.idx === 'number') {
-      if (playInterval) {
-        clearInterval(playInterval);
-        playInterval = null;
-        playBtn.textContent = '▶️ Play';
+    onClick: function(evt) {
+      const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+      if (!elements.length) return;
+      const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+      if (dataPoint && typeof dataPoint.idx === 'number') {
+        if (playInterval) {
+          clearInterval(playInterval);
+          playInterval = null;
+          playBtn.textContent = '▶️ Play';
+        }
+        slider.value = dataPoint.idx;
+        fracIndex = dataPoint.idx; // ✅ this line
+        updatePlayback(dataPoint.idx);
       }
-      updatePlayback(dataPoint.idx);
-      slider.value = dataPoint.idx;
-    }
-  },
+    },
 
   ...
 scales: {
@@ -557,20 +558,21 @@ if (posAccelDs) {
         responsive: true,
         animation: false,
         interaction: { mode: 'nearest', intersect: false, axis: 'x' },
-    onClick: function(evt) {
-      const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
-      if (!elements.length) return;
-      const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-      if (dataPoint && typeof dataPoint.idx === 'number') {
-        if (playInterval) {
-          clearInterval(playInterval);
-          playInterval = null;
-          playBtn.textContent = '▶️ Play';
-        }
-        updatePlayback(dataPoint.idx);
-        slider.value = dataPoint.idx;
+  onClick: function(evt) {
+    const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+    if (!elements.length) return;
+    const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+    if (dataPoint && typeof dataPoint.idx === 'number') {
+      if (playInterval) {
+        clearInterval(playInterval);
+        playInterval = null;
+        playBtn.textContent = '▶️ Play';
       }
-    },
+      slider.value = dataPoint.idx;
+      fracIndex = dataPoint.idx; // ✅ this line
+      updatePlayback(dataPoint.idx);
+    }
+  },
         scales: {
           x: {
             type: 'linear',
