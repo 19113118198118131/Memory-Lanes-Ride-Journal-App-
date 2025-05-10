@@ -104,7 +104,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Declare all globals for ride rendering and control
   let points = [], marker = null, trailPolyline = null, elevationChart = null;
   let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
-  let playInterval = null;
+  window.playInterval = null;
+      window.jumpToPlaybackIndex = function(idx) {
+      if (window.playInterval) {
+        clearInterval(window.playInterval);
+        window.playInterval = null;
+        document.getElementById('play-replay').textContent = '▶️ Play';
+      }
+      document.getElementById('replay-slider').value = idx;
+      window.fracIndex = idx;
+      updatePlayback(idx);
+    }
   window.fracIndex = 0;
   let speedHighlightLayer = null;
   let selectedSpeedBins = new Set();
@@ -354,16 +364,10 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
         if (!elements.length) return;
         const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
         if (dataPoint && typeof dataPoint.idx === 'number') {
-          if (playInterval) {
-            clearInterval(playInterval);
-            playInterval = null;
-            playBtn.textContent = '▶️ Play';
-          }
-          slider.value = dataPoint.idx;
-          window.fracIndex = dataPoint.idx;
-          updatePlayback(dataPoint.idx);
+          window.jumpToPlaybackIndex(dataPoint.idx);
         }
       },
+
 
 scales: {
         x: {
@@ -559,16 +563,10 @@ if (posAccelDs) {
         if (!elements.length) return;
         const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
         if (dataPoint && typeof dataPoint.idx === 'number') {
-          if (playInterval) {
-            clearInterval(playInterval);
-            playInterval = null;
-            playBtn.textContent = '▶️ Play';
-          }
-          slider.value = dataPoint.idx;
-          window.fracIndex = dataPoint.idx;
-          updatePlayback(dataPoint.idx);
+          window.jumpToPlaybackIndex(dataPoint.idx);
         }
       },
+
         scales: {
           x: {
             type: 'linear',
