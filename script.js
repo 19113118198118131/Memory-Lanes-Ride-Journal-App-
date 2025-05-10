@@ -22,23 +22,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   }).addTo(map);
 
   // 3️⃣ Helper to fetch & render GPX
-  async function loadAndDisplayGPX(url) {
-    try {
-      console.log('Loading GPX from', url);
-      const res  = await fetch(url);
-      if (!res.ok) throw new Error(res.statusText);
-      const text = await res.text();
-      const gpxLayer = omnivore.gpx.parse(text);
-      if (window.currentGPX) map.removeLayer(window.currentGPX);
-      window.currentGPX = gpxLayer.addTo(map);
-      map.fitBounds(gpxLayer.getBounds());
-      if (typeof renderChartsFromGPXText === 'function') {
-        renderChartsFromGPXText(text);
-      }
-    } catch (err) {
-      console.error('GPX load error:', err);
-    }
-  }
+     function loadAndDisplayGPX(url) {
+       console.log('Loading GPX from', url);
+       // Omnivore will fetch+parse for us:
+       const gpxLayer = omnivore.gpx(url)
+         .on('ready', e => {
+           map.fitBounds(e.target.getBounds());
+           // if you still need the raw XML for charts:
+           fetch(url)
+             .then(r => r.text())
+             .then(renderChartsFromGPXText)
+             .catch(err => console.warn('Chart render failed', err));
+         });
+       if (window.currentGPX) map.removeLayer(window.currentGPX);
+       window.currentGPX = gpxLayer.addTo(map);
+     }
 
   // 4️⃣ Auto-load a ride if navigated from dashboard
   const selectedRideId = localStorage.getItem('selectedRideId');
@@ -70,26 +68,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
 
-  // — Globals & DOM refs —
-  let points = [], marker = null, trailPolyline = null;
-  let elevationChart = null, cumulativeDistance = [], speedData = [];
-  let breakPoints = [], playInterval = null, fracIndex = 0;
-  let speedHighlightLayer = null, selectedSpeedBins = new Set(), accelData = [];
 
-  const FRAME_DELAY_MS = 50;
-  const distanceEl = document.getElementById('distance');
-  const durationEl = document.getElementById('duration');
-  const rideTimeEl = document.getElementById('ride-time');
-  const elevationEl = document.getElementById('elevation');
-  const slider = document.getElementById('replay-slider');
-  const playBtn = document.getElementById('play-replay');
-  const summaryBtn = document.getElementById('download-summary');
-  const videoBtn = document.getElementById('export-video');
-  const speedSel = document.getElementById('playback-speed');
-  const uploadInput = document.getElementById('gpx-upload');
-  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
-
-  // … rest of existing handlers & functions (uploadInput.onchange, playBtn.onclick, etc.) …
 });
 
   
