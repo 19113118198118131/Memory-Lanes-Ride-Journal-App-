@@ -138,30 +138,17 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- Guarded redirect: only go to dashboard if no ride was clicked -->
-<script type="module">
-  import supabase from './supabaseClient.js';
-  window.supabase = supabase;
+  <script type="module">
+    import supabase from './supabaseClient.js';
+    window.supabase = supabase;
 
-  // Guarded redirect: only send logged-in users with no intent back to the dashboard
-  supabase.auth.getUser().then(({ data: { user } }) => {
-    if (!user) {
-      // not logged in → stay on upload/login page
-      return;
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.has('ride') || params.has('home')) {
-      // replaying a ride or clicked New Ride → remain here
-      return;
-    }
-
-    // otherwise, user is logged in with no intent → send to dashboard
-    window.location.href = 'dashboard.html';
-  });
-</script>
-
-
-
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;                // not logged in → stay on this page
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('ride') || params.has('home')) return;  // user intent → stay here
+      window.location.href = 'dashboard.html';
+    });
+  </script>
 
 
   <!-- Your app scripts -->
