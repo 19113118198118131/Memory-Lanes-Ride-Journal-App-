@@ -198,77 +198,75 @@ document.addEventListener('DOMContentLoaded', async () => {
     reader.readAsText(file);
   });
 
-// [Previous content preserved...]
-
-  function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
-    const ctx = document.getElementById('accelChart')?.getContext('2d');
-    if (!ctx) return;
-    if (window.accelChart && typeof window.accelChart.destroy === 'function') {
-      window.accelChart.destroy();
-    }
-
-    const accel = dist.map((x, i) => {
-      const y = accelData[i];
-      return Number.isFinite(y) ? { x: x / 1000, y } : null;
-    }).filter(Boolean);
-
-    // Combine all highlighted points into one dataset
-    const highlightPoints = dist.map((x, i) => {
-      const y = accelData[i];
-      const inBin = selectedBins.some(binIdx => speed[i] >= bins[binIdx].min && speed[i] < bins[binIdx].max);
-      return inBin && Number.isFinite(y) ? { x: x / 1000, y } : null;
-    }).filter(Boolean);
-
-    const highlightOverlay = {
-      label: 'Highlighted Speeds',
-      data: highlightPoints,
-      type: 'scatter',
-      pointRadius: 3,
-      pointBackgroundColor: '#ff6384',
-      showLine: false,
-      yAxisID: 'yAccel'
-    };
-
-    const accelCursor = {
-      label: 'Accel Cursor',
-      type: 'scatter',
-      data: [{ x: accel[0]?.x || 0, y: accel[0]?.y || 0 }],
-      pointRadius: 4,
-      pointBackgroundColor: '#fff',
-      borderColor: '#fff',
-      borderWidth: 1,
-      showLine: false,
-      yAxisID: 'yAccel'
-    };
-
-    window.accelChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        datasets: [
-          {
-            label: 'Acceleration (m/s²)',
-            data: accel,
-            borderColor: 'rgba(255,255,255,0.2)',
-            pointRadius: 0,
-            borderWidth: 1,
-            fill: false,
-            tension: 0.3,
-            yAxisID: 'yAccel'
-          },
-          accelCursor,
-          highlightOverlay
-        ]
-      },
-      options: {
-        animation: false,
-        plugins: { legend: { display: true } },
-        scales: {
-          x: { title: { display: true, text: 'Distance (km)' } },
-          yAccel: { title: { display: true, text: 'Acceleration (m/s²)' }, position: 'left' }
-        }
-      }
-    });
+function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
+  const ctx = document.getElementById('accelChart')?.getContext('2d');
+  if (!ctx) return;
+  if (window.accelChart && typeof window.accelChart.destroy === 'function') {
+    window.accelChart.destroy();
   }
+
+  // Full acceleration line
+  const accel = accelData.map((y, i) =>
+    Number.isFinite(y) ? { x: dist[i] / 1000, y } : null
+  ).filter(Boolean);
+
+  // Corrected: Highlighted scatter points using cumulativeDistance (dist), not map-based guess
+  const highlightPoints = accelData.map((y, i) => {
+    const spd = speed[i];
+    const match = selectedBins.some(bin => spd >= bins[bin].min && spd < bins[bin].max);
+    return match && Number.isFinite(y) ? { x: dist[i] / 1000, y } : null;
+  }).filter(Boolean);
+
+  const highlightOverlay = {
+    label: 'Highlighted Speeds',
+    data: highlightPoints,
+    type: 'scatter',
+    pointRadius: 3,
+    pointBackgroundColor: '#ff6384',
+    showLine: false,
+    yAxisID: 'yAccel'
+  };
+
+  const accelCursor = {
+    label: 'Accel Cursor',
+    type: 'scatter',
+    data: [{ x: accel[0]?.x || 0, y: accel[0]?.y || 0 }],
+    pointRadius: 4,
+    pointBackgroundColor: '#fff',
+    borderColor: '#fff',
+    borderWidth: 1,
+    showLine: false,
+    yAxisID: 'yAccel'
+  };
+
+  window.accelChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        {
+          label: 'Acceleration (m/s²)',
+          data: accel,
+          borderColor: 'rgba(255,255,255,0.2)',
+          pointRadius: 0,
+          borderWidth: 1,
+          fill: false,
+          tension: 0.3,
+          yAxisID: 'yAccel'
+        },
+        accelCursor,
+        highlightOverlay
+      ]
+    },
+    options: {
+      animation: false,
+      plugins: { legend: { display: true } },
+      scales: {
+        x: { title: { display: true, text: 'Distance (km)' } },
+        yAccel: { title: { display: true, text: 'Acceleration (m/s²)' }, position: 'left' }
+      }
+    }
+  });
+}
 
 
   window.updatePlayback = idx => {
