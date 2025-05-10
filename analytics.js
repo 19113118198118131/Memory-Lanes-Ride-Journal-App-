@@ -200,7 +200,16 @@ window.accelChart = new Chart(ctx, {
         if (!elements.length) return;
         const { datasetIndex, index } = elements[0];
         const dataObj = this.data.datasets[datasetIndex].data[index];
-        if (window.updatePlayback) window.updatePlayback(dataObj.idx);
+        if (window.updatePlayback && typeof dataObj.idx === 'number') {
+  if (window.playInterval) {
+    clearInterval(window.playInterval);
+    window.playInterval = null;
+    document.getElementById('play-replay').textContent = '▶️ Play';
+  }
+  window.updatePlayback(dataObj.idx);
+  document.getElementById('replay-slider').value = dataObj.idx;
+}
+
       },
       plugins: {
         tooltip: {
