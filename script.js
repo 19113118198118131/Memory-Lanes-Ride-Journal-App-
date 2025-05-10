@@ -299,7 +299,7 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
   const highlightPoints = dist.map((x, i) => {
     const y = speed[i];
     const inBin = selectedBins.some(binIdx => y >= bins[binIdx].min && y < bins[binIdx].max);
-    return inBin && Number.isFinite(y) ? { x: x / 1000, y } : null;
+    return inBin && Number.isFinite(y) ? { x: x / 1000, y, idx: i } : null;
   }).filter(Boolean);
 
   // Dynamically determine accel Y-axis range with a small buffer
@@ -348,7 +348,21 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       responsive: true,
       animation: false,
       interaction: { mode: 'nearest', intersect: false },
-      scales: {
+      options: {
+  responsive: true,
+  animation: false,
+  interaction: { mode: 'nearest', intersect: false },
+  onClick: function(evt) {
+    const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+    if (!elements.length) return;
+    const dataObj = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+    if (window.updatePlayback && typeof dataObj.idx === 'number') {
+      updatePlayback(dataObj.idx);
+      slider.value = dataObj.idx;
+    }
+  },
+  ...
+scales: {
         x: {
           type: 'linear',
           title: { display: true, text: 'Distance (km)' },
@@ -488,7 +502,7 @@ if (posAccelDs) {
         datasets: [
           {
             label: 'Elevation',
-            data: points.map((p, i) => ({ x: cumulativeDistance[i]/1000, y: p.ele })),
+            data: points.map((p, i) => ({ x: cumulativeDistance[i]/1000, y: p.ele, idx: i })),
             borderColor: '#64ffda',
             backgroundColor: (() => {
               const g = ctx.createLinearGradient(0,0,0,200);
@@ -537,10 +551,14 @@ if (posAccelDs) {
         responsive: true,
         animation: false,
         interaction: { mode: 'nearest', intersect: false, axis: 'x' },
-        onClick: (evt, elems) => {
-          if (!elems.length) return;
-          const idx = elems[0].index;
-          updatePlayback(idx);
+        onClick: function(evt) {
+          const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+          if (!elements.length) return;
+          const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+          if (dataPoint && typeof dataPoint.idx === 'number') {
+            updatePlayback(dataPoint.idx);
+            slider.value = dataPoint.idx;
+          }
         },
         scales: {
           x: {
