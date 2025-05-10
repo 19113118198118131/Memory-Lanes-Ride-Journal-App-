@@ -48,7 +48,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   statusEl.innerHTML = '✅ Login successful! <button id="go-dashboard" style="margin-left:10px;">Go to Dashboard</button>';
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#64ffda';
+    statusEl.style.padding = '0.75rem';
+    statusEl.style.fontWeight = 'bold';
+    statusEl.style.border = '1px solid #64ffda';
+    statusEl.style.background = '#112240';
+    statusEl.style.borderRadius = '5px';
+    statusEl.style.marginTop = '1rem';
 
+   
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('save-ride-form').style.display = 'block';
 
