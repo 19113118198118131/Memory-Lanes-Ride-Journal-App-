@@ -317,7 +317,6 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     document.getElementById('telemetry-speed').textContent = `${speedData[idx].toFixed(1)} km/h`;
 
     // 🔵 Update dynamic dot on Acceleration Chart
-const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'accel';
 const posDs = window.accelChart?.data?.datasets?.find(d => d.label === 'Position');
 if (posDs) {
   posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'y';
@@ -327,6 +326,7 @@ if (posDs) {
   };
   window.accelChart.update('none');
 }
+
     
   };
 
