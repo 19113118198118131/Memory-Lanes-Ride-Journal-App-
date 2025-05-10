@@ -184,7 +184,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           // (re)draw charts if you need them:
           fetch(url)
             .then(r => r.text())
-            .then(renderChartsFromGPXText)
+             .then(text => {
+               if (typeof renderChartsFromGPXText === 'function') {
+                 renderChartsFromGPXText(text);
+               }
+             })
             .catch(err => console.warn('Chart render failed', err));
           URL.revokeObjectURL(url);
         });
