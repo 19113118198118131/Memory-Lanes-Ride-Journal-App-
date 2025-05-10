@@ -53,13 +53,21 @@ function renderCornerChart(angleDegs, speedData) {
         x: { title: { display: true, text: 'Turn Angle (°)' } },
         y: { title: { display: true, text: 'Speed (km/h)' } }
       },
-      onClick: function(evt) {
-        const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
-        if (!elements.length) return;
-        const { datasetIndex, index } = elements[0];
-        const dataObj = this.data.datasets[datasetIndex].data[index];
-        if (window.updatePlayback) window.updatePlayback(dataObj.idx);
-      },
+onClick: function(evt) {
+  const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+  if (!elements.length) return;
+  const { datasetIndex, index } = elements[0];
+  const dataObj = this.data.datasets[datasetIndex].data[index];
+  if (window.updatePlayback && typeof dataObj.idx === 'number') {
+    if (window.playInterval) {
+      clearInterval(window.playInterval);
+      window.playInterval = null;
+      document.getElementById('play-replay').textContent = '▶️ Play';
+    }
+    window.updatePlayback(dataObj.idx);
+    document.getElementById('replay-slider').value = dataObj.idx;
+  }
+},
       plugins: {
         tooltip: {
           callbacks: {
