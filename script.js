@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // ── MAP SETUP ──
-  const map = L.map('map').setView([20, 0], 2);
+  const map = L.map('leaflet-map').setView([20, 0], 2);
   setTimeout(() => map.invalidateSize(), 0);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
