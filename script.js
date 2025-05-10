@@ -220,7 +220,7 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     {
       label: 'Acceleration',
       data: accel,
-      borderColor: '#8338EC',
+      borderColor: '#0168D9',
       borderWidth: 2,
       pointRadius: 0,
       fill: false,
