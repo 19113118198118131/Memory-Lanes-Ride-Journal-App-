@@ -70,6 +70,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
 
+// [Previous content preserved...]
+
   // 🆕 GPX File Upload and Ride Analytics Loader
   uploadInput.addEventListener('change', e => {
     const file = e.target.files[0];
@@ -117,13 +119,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       cumulativeDistance = [0];
       speedData = [0];
+      accelData = [0];
       for (let i = 1; i < points.length; i++) {
         const a = L.latLng(points[i - 1].lat, points[i - 1].lng);
         const b = L.latLng(points[i].lat, points[i].lng);
         const d = a.distanceTo(b);
         const t = (points[i].time - points[i - 1].time) / 1000;
+        const v = t > 0 ? (d / t) * 3.6 : 0;
+        const dv = v - speedData[i - 1];
         cumulativeDistance[i] = cumulativeDistance[i - 1] + d;
-        speedData[i] = t > 0 ? (d / t) * 3.6 : 0;
+        speedData[i] = v;
+        accelData[i] = t > 0 ? (dv / t) : 0;
       }
 
       const totalMs = points.at(-1).time - points[0].time;
@@ -147,6 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       setupChart();
       renderSpeedFilter();
+      renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
       [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
       slider.min = 0; slider.max = points.length - 1; slider.value = 0;
       playBtn.textContent = '▶️ Play';
@@ -154,6 +161,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     reader.readAsText(file);
   });
+
+  function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
+    const ctx = document.getElementById('accelChart')?.getContext('2d');
+    if (!ctx) return;
+    if (window.accelChart) window.accelChart.destroy();
+    const colorByBin = idx => selectedBins.includes(idx) ? '#8338ec' : 'rgba(255,255,255,0.1)';
+
+    const accel = dist.map((x, i) => ({ x: x / 1000, y: accelData[i] }));
+    const overlays = selectedBins.map(binIdx => {
+      const bin = bins[binIdx];
+      return {
+        label: `Speed ${bin.min}–${bin.max}`,
+        data: dist.map((x, i) => (speed[i] >= bin.min && speed[i] < bin.max) ? { x: x / 1000, y: accelData[i] } : { x: x / 1000, y: null }),
+        type: 'line',
+        borderColor: colorByBin(binIdx),
+        pointRadius: 0,
+        tension: 0.3,
+        borderWidth: 1.5,
+        fill: false
+      };
+    });
+
+    window.accelChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Acceleration (m/s²)',
+            data: accel,
+            borderColor: 'rgba(255,255,255,0.2)',
+            pointRadius: 0,
+            borderWidth: 1,
+            fill: false,
+            tension: 0.3
+          },
+          ...overlays
+        ]
+      },
+      options: {
+        animation: false,
+        plugins: { legend: { display: true } },
+        scales: {
+          x: { title: { display: true, text: 'Distance (km)' } },
+          y: { title: { display: true, text: 'Acceleration (m/s²)' } }
+        }
+      }
+    });
+  }
+
 
   const speedBins = [
     { label: '50–80', min: 50, max: 80 },
