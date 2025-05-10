@@ -368,6 +368,52 @@ footer a {
   margin-bottom: 2rem;
 }
 
+.ride-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.ride-form input[type="text"] {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  border: 1px solid #1c2c45;
+  border-radius: 6px;
+  background-color: #112240;
+  color: #ffffff;
+  outline: none;
+  min-width: 250px;
+}
+
+.ride-form input::placeholder {
+  color: #aaa;
+}
+
+.ride-form button {
+  background: #007bff;
+  color: #0a192f;
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.ride-form button:hover {
+  background: #64ffda;
+}
+
+#save-ride-form {
+  background-color: #132033;
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
 
 /* Mobile adjustments */
 @media (max-width: 600px) {
