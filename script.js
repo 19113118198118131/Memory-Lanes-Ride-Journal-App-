@@ -314,7 +314,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 1️⃣3️⃣ — Chart helpers
   function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     const ctx = document.getElementById('accelChart')?.getContext('2d'); if (!ctx) return;
-    if (window.accelChart) window.accelChart.destroy();
+    if (window.accelChart && typeof window.accelChart.destroy === 'function') {
+      window.accelChart.destroy();
+    }
     const accel = dist.map((x,i)=>{const y=accelData[i];return Number.isFinite(y)?{x:x/1000,y}:null}).filter(Boolean);
     const highlights = dist.map((x,i)=>{const y=speed[i];const inBin=selectedBins.some(b=>y>=bins[b].min&&y<bins[b].max);return inBin&&Number.isFinite(y)?{x:x/1000,y,idx:i}:null}).filter(Boolean);
     const values=accel.map(p=>p.y);
