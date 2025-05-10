@@ -161,12 +161,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.updatePlayback = updatePlayback;
   function setupChart()     { /*…*/ }
 
-// — GPX upload & parsing (text → parse) —
+// — GPX upload & parsing & charting —
 uploadInput.addEventListener('change', e => {
   const file = e.target.files[0];
-  if (!file) {
-    return alert('No GPX file selected');
-  }
+  if (!file) return alert('No GPX file selected');
 
   // show “Save Ride” UI
   saveForm.style.display = 'block';
@@ -182,31 +180,103 @@ uploadInput.addEventListener('change', e => {
   reader.onload = ev => {
     const gpxText = ev.target.result;
 
-    console.log('GPX text loaded (first 100 chars):', gpxText.slice(0, 100));
-
-    // parse & add to map
-    // omnivore.gpx.parse takes the raw GPX string and returns a layer
+    // 1️⃣ parse & draw GPX on the map
     const gpxLayer = omnivore.gpx.parse(gpxText);
-    console.log('Parsed GPX layer:', gpxLayer);
-
-    if (window.currentGPX) {
-      map.removeLayer(window.currentGPX);
-    }
+    if (window.currentGPX) map.removeLayer(window.currentGPX);
     window.currentGPX = gpxLayer.addTo(map);
+    map.fitBounds(gpxLayer.getBounds());
 
-    try {
-      map.fitBounds(gpxLayer.getBounds());
-    } catch (err) {
-      console.warn('Couldn’t fit bounds:', err);
+    // 2️⃣ extract trackpoints, compute speed/distance/elevation
+    const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
+    const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
+      lat: +tp.getAttribute('lat'),
+      lng: +tp.getAttribute('lon'),
+      ele: +tp.getElementsByTagName('ele')[0]?.textContent || 0,
+      time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
+    }));
+    // filter out any invalid
+    points = trkpts.filter(p => p.lat && p.lng && p.time instanceof Date);
+    // detect breaks & sample
+    const SAMPLE = 5;
+    let lastTime = points[0].time,
+        lastLL   = L.latLng(points[0].lat, points[0].lng),
+        accelOn  = false;
+    breakPoints = [];
+    // build filtered points
+    const filtered = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+      const pt = points[i],
+            dt = (pt.time - lastTime) / 1000,
+            moved = lastLL.distanceTo(L.latLng(pt.lat, pt.lng));
+      if (dt >= SAMPLE) {
+        if (dt > 180 && moved < 20) {
+          breakPoints.push(filtered.length);
+        } else {
+          filtered.push(pt);
+          lastTime = pt.time;
+          lastLL   = L.latLng(pt.lat, pt.lng);
+        }
+      }
+    }
+    // always include last
+    if (filtered.at(-1).time !== points.at(-1).time) {
+      filtered.push(points.at(-1));
+    }
+    points = filtered;
+
+    // cumulative distance & speed arrays
+    cumulativeDistance = [0];
+    speedData = [0];
+    for (let i = 1; i < points.length; i++) {
+      const a = L.latLng(points[i - 1].lat, points[i - 1].lng),
+            b = L.latLng(points[i].lat,     points[i].lng),
+            d = a.distanceTo(b),
+            t = (points[i].time - points[i - 1].time) / 1000;
+      cumulativeDistance[i] = cumulativeDistance[i - 1] + d;
+      speedData[i] = t > 0 ? (d / t) * 3.6 : 0;
     }
 
-    // redraw charts if you have that function
-    if (typeof renderChartsFromGPXText === 'function') {
-      renderChartsFromGPXText(gpxText);
-    }
+    // 3️⃣ update summary panel
+    const totalMs   = points.at(-1).time - points[0].time,
+          totMin    = Math.floor(totalMs / 60000),
+          rideSec   = points.reduce(
+            (sum, _, i) => i > 0 && !breakPoints.includes(i)
+              ? sum + ((points[i].time - points[i - 1].time) / 1000)
+              : sum,
+            0
+          ),
+          rideMin   = Math.floor(rideSec / 60),
+          elevGain  = points.reduce(
+            (g, p, i) => i > 0 && p.ele > points[i - 1].ele
+              ? g + (p.ele - points[i - 1].ele)
+              : g,
+            0
+          );
+    distanceEl.textContent  = `${(cumulativeDistance.at(-1)/1000).toFixed(2)} km`;
+    durationEl.textContent  = `${Math.floor(totMin/60)}h ${totMin%60}m`;
+    rideTimeEl.textContent  = `${Math.floor(rideMin/60)}h ${rideMin%60}m`;
+    elevationEl.textContent = `${elevGain.toFixed(0)} m`;
+
+    // 4️⃣ draw the polyline and enable controls
+    trailPolyline = L.polyline(
+      points.map(p => [p.lat, p.lng]),
+      { color: '#007bff', weight: 3, opacity: 0.7 }
+    ).addTo(map).bringToBack();
+    [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
+    slider.min = 0;
+    slider.max = points.length - 1;
+    slider.value = 0;
+    playBtn.textContent = '▶️ Play';
+
+    // 5️⃣ render speed filter buttons & chart
+    renderSpeedFilter();
+    setupChart();
+    updatePlayback(0);
   };
+
   reader.readAsText(file);
 });
+
 
 
 
