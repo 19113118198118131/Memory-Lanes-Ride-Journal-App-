@@ -71,8 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
 
 
-// [Previous content preserved...]
-
   // 🔁 Playback Control
   playBtn.addEventListener('click', () => {
     if (!points.length) return;
@@ -236,7 +234,17 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       borderWidth: 1,
       showLine: false,
       yAxisID: 'ySpeed' // Speeds on right axis
-    }
+    },
+  {
+    label: 'Point in Ride',
+    data: [{ x: 0, y: 0 }],
+    type: 'scatter',
+    pointRadius: 5,
+    pointBackgroundColor: '#ffffff',
+    borderColor: '#ffffff',
+    showLine: false,
+    yAxisID: 'y'  // This will be dynamically reassigned
+  }
   ];
 
   window.accelChart = new Chart(ctx, {
@@ -307,6 +315,19 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     document.getElementById('telemetry-elevation').textContent = `${p.ele.toFixed(0)} m`;
     document.getElementById('telemetry-distance').textContent = `${distKm} km`;
     document.getElementById('telemetry-speed').textContent = `${speedData[idx].toFixed(1)} km/h`;
+
+    // 🔵 Update dynamic dot on Acceleration Chart
+const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'accel';
+const posDs = window.accelChart?.data?.datasets?.find(d => d.label === 'Position');
+if (posDs) {
+  posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'y';
+  posDs.data[0] = {
+    x: parseFloat(distKm),
+    y: mode === 'speed' ? speedData[idx] : accelData[idx]
+  };
+  window.accelChart.update('none');
+}
+    
   };
 
 
