@@ -5,12 +5,21 @@ console.log('script.js loaded');
 window.updatePlayback = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1️⃣ Auth check
+  // 1️⃣ Auth check: if not signed in, hide the map and show the login form
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
     console.error('Not logged in:', userError);
-    document.getElementById('save-ride-form').style.display = 'none';
-    return window.location.href = 'index.html';
+    // hide everything except the auth UI
+    document.getElementById('upload-section').style.display   = 'none';
+    document.getElementById('map-section').style.display      = 'none';
+    document.getElementById('summary-section').style.display  = 'none';
+    document.getElementById('timeline').style.display         = 'none';
+    document.getElementById('auth-section').style.display     = '';
+    // stop here
+    return;
+  } else {
+    // we *are* signed in, so hide the login form
+    document.getElementById('auth-section').style.display     = 'none';
   }
 
   // 2️⃣ Leaflet map setup (match your <div id="map">)
