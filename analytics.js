@@ -54,18 +54,18 @@ function renderCornerChart(angleDegs, speedData) {
         y: { title: { display: true, text: 'Speed (km/h)' } }
       },
 onClick: function(evt) {
-  const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+  const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
   if (!elements.length) return;
-  const { datasetIndex, index } = elements[0];
-  const dataObj = this.data.datasets[datasetIndex].data[index];
-  if (window.updatePlayback && typeof dataObj.idx === 'number') {
-    if (window.playInterval) {
-      clearInterval(window.playInterval);
-      window.playInterval = null;
-      document.getElementById('play-replay').textContent = '▶️ Play';
+  const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+  if (dataPoint && typeof dataPoint.idx === 'number') {
+    if (playInterval) {
+      clearInterval(playInterval);
+      playInterval = null;
+      playBtn.textContent = '▶️ Play';
     }
-    window.updatePlayback(dataObj.idx);
-    document.getElementById('replay-slider').value = dataObj.idx;
+    slider.value = dataPoint.idx;
+    fracIndex = dataPoint.idx; // ✅ this line
+    updatePlayback(dataPoint.idx);
   }
 },
       plugins: {
@@ -195,22 +195,21 @@ window.accelChart = new Chart(ctx, {
           title: { display: true, text: 'Accel (m/s²)' }
         }
       },
-      onClick: function(evt) {
-        const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
-        if (!elements.length) return;
-        const { datasetIndex, index } = elements[0];
-        const dataObj = this.data.datasets[datasetIndex].data[index];
-        if (window.updatePlayback && typeof dataObj.idx === 'number') {
-  if (window.playInterval) {
-    clearInterval(window.playInterval);
-    window.playInterval = null;
-    document.getElementById('play-replay').textContent = '▶️ Play';
-  }
-  window.updatePlayback(dataObj.idx);
-  document.getElementById('replay-slider').value = dataObj.idx;
-}
-
-      },
+  onClick: function(evt) {
+    const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+    if (!elements.length) return;
+    const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+    if (dataPoint && typeof dataPoint.idx === 'number') {
+      if (playInterval) {
+        clearInterval(playInterval);
+        playInterval = null;
+        playBtn.textContent = '▶️ Play';
+      }
+      slider.value = dataPoint.idx;
+      fracIndex = dataPoint.idx; // ✅ this line
+      updatePlayback(dataPoint.idx);
+    }
+  },
       plugins: {
         tooltip: {
           callbacks: {
