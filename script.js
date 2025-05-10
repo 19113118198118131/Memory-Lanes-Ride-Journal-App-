@@ -27,18 +27,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
   // --- Login / Signup handlers ---
-document.getElementById('login-btn').addEventListener('click', async () => {
+
+ document.getElementById('login-btn').addEventListener('click', async () => {
   const email = document.getElementById('auth-email').value;
   const pass = document.getElementById('auth-password').value;
   const statusEl = document.getElementById('auth-status');
-    console.log('statusEl exists:', !!statusEl);
-    console.log('auth-status content BEFORE:', statusEl?.innerHTML);
-    statusEl.innerHTML = '✅ Login successful! <button id="go-dashboard" style="margin-left:10px;">Go to Dashboard</button>';
-   const { data: session, error } = await supabase.auth.signInWithPassword({
+
+  const { data: session, error } = await supabase.auth.signInWithPassword({
     email,
     password: pass
   });
 
+  console.log('statusEl exists:', !!statusEl);
+  console.log('auth-status content BEFORE:', statusEl?.innerHTML);
   console.log('login result', session, error);
 
   if (error) {
@@ -60,6 +61,7 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     }
   }, 0);
 });
+
 
 
   document.getElementById('signup-btn').addEventListener('click', async () => {
