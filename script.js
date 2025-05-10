@@ -214,6 +214,12 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     return inBin && Number.isFinite(y) ? { x: x / 1000, y } : null;
   }).filter(Boolean);
 
+  // Dynamically determine accel Y-axis range with a small buffer
+  const accelValues = accel.map(p => p.y);
+  const accelMin = Math.min(...accelValues);
+  const accelMax = Math.max(...accelValues);
+  const accelBuffer = (accelMax - accelMin) * 0.1 || 1; // avoid 0 buffer
+
   const datasets = [
     {
       label: 'Point in Ride',
@@ -223,7 +229,7 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       pointBackgroundColor: '#ffffff',
       borderColor: '#ffffff',
       showLine: false,
-      yAxisID: 'y'  // This will be dynamically reassigned
+      yAxisID: 'y'
     },
     {
       label: 'Acceleration',
@@ -232,7 +238,7 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       borderWidth: 2,
       pointRadius: 0,
       fill: false,
-      yAxisID: 'y'  // Acceleration on left axis
+      yAxisID: 'y'
     },
     {
       label: 'Highlighted Speeds',
@@ -243,7 +249,7 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       borderColor: '#8338EC',
       borderWidth: 1,
       showLine: false,
-      yAxisID: 'ySpeed' // Speeds on right axis
+      yAxisID: 'ySpeed'
     }
   ];
 
@@ -261,13 +267,13 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
           ticks: { callback: v => v.toFixed(2) },
           grid: { color: '#223' }
         },
-      y: {
-        title: { display: true, text: 'Acceleration (m/s²)' },
-        position: 'left',
-        suggestedMin: Math.min(...accel.map(p => p.y)) - 1,
-        suggestedMax: Math.max(...accel.map(p => p.y)) + 1,
-        grid: { color: '#334' }
-      },
+        y: {
+          title: { display: true, text: 'Acceleration (m/s²)' },
+          position: 'left',
+          min: accelMin - accelBuffer,
+          max: accelMax + accelBuffer,
+          grid: { color: '#334' }
+        },
         ySpeed: {
           title: { display: true, text: 'Speed (km/h)' },
           position: 'right',
@@ -285,6 +291,7 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     }
   });
 }
+
 
 
   window.updatePlayback = idx => {
