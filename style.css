@@ -1,0 +1,483 @@
+/* Global styles */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #0a192f;
+  color: #ffffff;
+}
+
+/* Header */
+header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #112240;
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+header h1 {
+  margin: 0.5rem 0;
+  font-size: 1.75rem;
+}
+nav {
+  margin-top: 0.5rem;
+}
+
+/* "Buy Me a Coffee" button */
+.bmc-button {
+  background-color: #007bff;
+  color: #0a192f;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-weight: bold;
+  text-decoration: none;
+  display: inline-block;
+  transition: background 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 0 0 rgba(100, 255, 218, 0);
+}
+
+.bmc-button:hover {
+  background-color: #64ffda;
+  color: #0a192f;
+  transform: translateY(-2px);
+  box-shadow: 0 0 12px rgba(100, 255, 218, 0.6);
+}
+
+
+/* Main content area */
+main {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-bottom: 8rem;    /* ensure footer never covers content */
+}
+
+/* Sections spacing (excluding charts) */
+#upload-section,
+#summary-section,
+#timeline {
+  margin-bottom: 1.5rem;
+}
+
+/* Chart & Analytics containers spacing */
+#charts,
+#analytics-container {
+  position: relative;
+  margin-bottom: 8rem;     /* breathing room for footer */
+  padding-bottom: 8rem;    /* inside breathing room so x-axis isn’t clipped */
+  overflow: visible;
+}
+
+/* Map container */
+#leaflet-map {
+  height: 50vh;
+  min-height: 300px;
+  width: 100%;
+  border-radius: 8px;
+}
+
+/* Ride summary list */
+#summary-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+#summary-section li {
+  margin: 0.5rem 0;
+}
+
+/* Timeline controls */
+#timeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+#timeline input[type="range"] {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Fixed footer */
+footer {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background-color: #112240;
+  padding: 1rem 0;       /* match header padding */
+  text-align: center;
+  z-index: 1000;
+}
+footer a {
+  color: #007bff;
+  text-decoration: underline;
+}
+
+/* Elevation break dots */
+.break-dot {
+  background-color: #007bff;
+  border-radius: 50%;
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+}
+
+/* Pulsing map marker */
+.pulse-marker {
+  background: rgba(0, 123, 255, 0.5);
+  border: 2px solid #007bff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  70% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(0.9); opacity: 0; }
+}
+
+/* Telemetry overlay */
+#map-section {
+  position: relative;
+}
+#telemetry-overlay {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.75rem 1.2rem;
+  border-radius: 12px;
+  background: rgba(0, 123, 255, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 123, 255, 0.3);
+  color: #007bff;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  z-index: 400;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  transition: all 0.3s ease-in-out;
+}
+#telemetry-overlay div {
+  margin: 0.2rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+#telemetry-overlay strong {
+  font-weight: 600;
+  color: #007bff;
+}
+
+/* Chart toggle controls */
+#chart-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+#chart-toggle label {
+  cursor: pointer;
+}
+#chart-toggle input[type="radio"] {
+  margin-right: 0.3rem;
+}
+
+/* Chart container adjustments for #charts only */
+#charts {
+  height: 360px;
+  max-height: 360px;
+  position: relative;
+  overflow: visible;
+  padding-bottom: 8rem;
+}
+
+/* Canvas sizing for charts */
+#elevationChart,
+#cornerChart,
+#accelChart {
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+}
+
+.chart-block {
+  margin-bottom: 2rem;
+}
+.chart-block h3 {
+  margin-bottom: 0.25rem;
+  font-size: 1.1rem;
+}
+.chart-desc {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+
+/* Speed-bin buttons */
+#speed-bins .speed-bin-btn {
+  margin: 0 4px;
+  padding: 4px 8px;
+  border: 1px solid #FF6384;
+  border-radius: 4px;
+  background-color: #223;
+  color: #FF6384;
+  cursor: pointer;
+  transition: border-color 0.3s, color 0.3s;
+  font-size: 0.9rem;
+}
+#speed-bins .speed-bin-btn.active {
+  border-color: #8338EC;
+  color: #8338EC;
+}
+:root {
+  --accent-active-rgb: 131, 56, 236;
+}
+@keyframes subtle-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(var(--accent-active-rgb), 0); }
+  50%     { box-shadow: 0 0 4px rgba(var(--accent-active-rgb), 0.25); }
+}
+.speed-bin-btn.active {
+  animation: subtle-pulse 2.5s ease-in-out infinite;
+}
+@keyframes line-pulse {
+  0%, 100% {
+    stroke-opacity: 0.8;
+    stroke-width: 5;
+  }
+  50% {
+    stroke-opacity: 1;
+    stroke-width: 6;
+  }
+}
+.leaflet-overlay-pane svg .pulse-line {
+  animation: line-pulse 2.5s ease-in-out infinite;
+}
+.ride-entry {
+  background: #132033;
+  border: 1px solid #1c2c45;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.ride-entry:hover {
+  background: #1a2a44;
+}
+.ride-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #64ffda;
+  margin-bottom: 0.3rem;
+}
+.ride-details span {
+  margin-right: 1rem;
+  color: #ccc;
+  font-size: 0.95rem;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-header h1 {
+  font-size: 1.8rem;
+  margin: 0.5rem 0;
+  color: #ffffff;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.button-group button {
+  background: #007bff;
+  color: #0a192f;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.button-group button:hover {
+  background: #64ffda;
+  color: #0a192f;
+}
+
+.auth-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.auth-form input[type="email"],
+.auth-form input[type="password"] {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  border: 1px solid #1c2c45;
+  border-radius: 6px;
+  background-color: #112240;
+  color: #ffffff;
+  outline: none;
+  min-width: 200px;
+}
+
+.auth-form input::placeholder {
+  color: #ccc;
+}
+
+.auth-form button {
+  background: #007bff;
+  color: #0a192f;
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.auth-form button:hover {
+  background: #64ffda;
+}
+
+#auth-section {
+  background-color: #132033;
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+#upload-section {
+  margin-bottom: 2rem;
+}
+
+.ride-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.ride-form input[type="text"] {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  border: 1px solid #1c2c45;
+  border-radius: 6px;
+  background-color: #112240;
+  color: #ffffff;
+  outline: none;
+  min-width: 250px;
+}
+
+.ride-form input::placeholder {
+  color: #aaa;
+}
+
+.ride-form button {
+  background: #007bff;
+  color: #0a192f;
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.ride-form button:hover {
+  background: #64ffda;
+}
+
+#save-ride-form {
+  background-color: #132033;
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.download-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.download-buttons button {
+  background: #007bff;
+  color: #0a192f;
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.download-buttons button:hover:not(:disabled) {
+  background: #64ffda;
+}
+
+.download-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+  #timeline {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  #timeline input[type="range"] {
+    width: 100%;
+  }
+  #timeline select,
+  #timeline label,
+  #timeline button {
+    width: auto;
+    font-size: 0.9rem;
+    margin: 0 auto;
+  }
+  header h1 {
+    font-size: 1.5rem;
+  }
+  .bmc-button {
+    font-size: 0.9rem;
+    padding: 6px 12px;
+  }
+}
+
+.dashboard-header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.button-group {
+  width: 100%;
+  justify-content: flex-start;
+}
+
