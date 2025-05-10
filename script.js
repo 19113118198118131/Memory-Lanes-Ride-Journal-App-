@@ -503,7 +503,14 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
       animation: false,
       interaction: { mode: 'nearest', intersect: false },
       onClick: function(evt) {
-        const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+        // ⏸ Stop playback if playing
+        if (window.playInterval) {
+          clearInterval(window.playInterval);
+          window.playInterval = null;
+          playBtn.textContent = '▶️ Play';
+        }
+    
+        const elements = this.getElementsAtEventForMode(evt,'nearest',{ intersect:false },true);
         if (!elements.length) return;
         const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
         if (dataPoint && typeof dataPoint.idx === 'number') {
@@ -656,7 +663,14 @@ if (posAccelDs) {
       animation: false,
       interaction: { mode: 'nearest', intersect: false },
       onClick: function(evt) {
-        const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
+        // ⏸ Stop playback if playing
+        if (window.playInterval) {
+          clearInterval(window.playInterval);
+          window.playInterval = null;
+          playBtn.textContent = '▶️ Play';
+        }
+    
+        const elements = this.getElementsAtEventForMode(evt,'nearest',{ intersect:false },true);
         if (!elements.length) return;
         const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
         if (dataPoint && typeof dataPoint.idx === 'number') {
