@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Show success message
   statusEl.innerHTML = '✅ Login successful! <button id="go-dashboard" style="margin-left:10px;">Go to Dashboard</button>';
+  document.getElementById('save-status').textContent = '';
   statusEl.style.display = 'block';
   statusEl.style.color = '#64ffda';
   statusEl.style.padding = '0.75rem';
@@ -125,11 +126,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  const { data: { user }, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !user) {
+  const sessionResult = await supabase.auth.getSession();
+  const user = sessionResult.data?.session?.user;
+
+  if (!user) {
     statusEl.textContent = '❌ You must be logged in to save a ride.';
     return;
   }
+
 
   const distance_km = parseFloat(distanceEl.textContent);
   const duration_min = parseFloat(rideTimeEl.textContent.split('h')[0]) * 60 +
