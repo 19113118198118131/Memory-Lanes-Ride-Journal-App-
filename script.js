@@ -363,7 +363,7 @@ options: {
       updatePlayback(dataPoint.idx);
     }
   },
-  ...
+
 scales: {
         x: {
           type: 'linear',
