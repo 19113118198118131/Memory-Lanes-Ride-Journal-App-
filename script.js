@@ -31,13 +31,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     const email = document.getElementById('auth-email').value;
     const pass = document.getElementById('auth-password').value;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-    document.getElementById('auth-status').textContent = error
-      ? 'Login failed: ' + error.message
-      : 'Login successful!';
-    if (!error) {
-      document.getElementById('auth-section').style.display = 'none';
-      document.getElementById('save-ride-form').style.display = 'block';
+    const statusEl = document.getElementById('auth-status');
+statusEl.innerHTML = error
+  ? '❌ Login failed: ' + error.message
+  : '✅ Login successful! <button id="go-dashboard" style="margin-left:10px;">Go to Dashboard</button>';
+
+if (!error) {
+  document.getElementById('auth-section').style.display = 'none';
+  document.getElementById('save-ride-form').style.display = 'block';
+
+  // Attach button listener after rendering it
+  setTimeout(() => {
+    const dashBtn = document.getElementById('go-dashboard');
+    if (dashBtn) {
+      dashBtn.addEventListener('click', () => {
+        window.location.href = 'dashboard.html';
+      });
     }
+  }, 0);
+}
   });
 
   document.getElementById('signup-btn').addEventListener('click', async () => {
