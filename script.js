@@ -70,6 +70,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
 
+  saveBtn.addEventListener('click', async () => {
+  const title = document.getElementById('ride-title').value.trim();
+  const statusEl = document.getElementById('save-status');
+  if (!title) {
+    statusEl.textContent = '❗ Please enter a ride title.';
+    return;
+  }
+
+  const { data: { user }, error: userErr } = await supabase.auth.getUser();
+  if (userErr || !user) {
+    statusEl.textContent = '❌ You must be logged in to save a ride.';
+    return;
+  }
+
+  const distance_km = parseFloat(distanceEl.textContent);
+  const duration_min = parseFloat(rideTimeEl.textContent.split('h')[0]) * 60 +
+                       parseFloat(rideTimeEl.textContent.split('h')[1]) || 0;
+  const elevation_m = parseFloat(elevationEl.textContent);
+
+  const { error: insertErr } = await supabase.from('ride_logs').insert({
+    title,
+    user_id: user.id,
+    distance_km,
+    duration_min,
+    elevation_m
+  });
+
+  statusEl.textContent = insertErr
+    ? `❌ Save failed: ${insertErr.message}`
+    : '✅ Ride saved!';
+});
+
 
   // 🔁 Playback Control
   playBtn.addEventListener('click', () => {
