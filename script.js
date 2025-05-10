@@ -1,7 +1,51 @@
 // script.js
 import supabase from './supabaseClient.js';
 
-// ————————————————————————————————
+document.addEventListener('DOMContentLoaded', async () => {
+
+  const FRAME_DELAY_MS = 50;
+  const slider = document.getElementById('replay-slider');
+  const playBtn = document.getElementById('play-replay');
+  const summaryBtn = document.getElementById('download-summary');
+  const videoBtn = document.getElementById('export-video');
+  const speedSel = document.getElementById('playback-speed');
+  const distanceEl = document.getElementById('distance');
+  const durationEl = document.getElementById('duration');
+  const rideTimeEl = document.getElementById('ride-time');
+  const elevationEl = document.getElementById('elevation');
+  const uploadInput = document.getElementById('gpx-upload');
+  const saveForm = document.getElementById('save-ride-form');
+  const saveBtn = document.getElementById('save-ride-btn');
+
+  console.log('script.js loaded');
+  window.updatePlayback = null;
+
+// Initialize map using correct ID
+  const map = L.map('leaflet-map').setView([20, 0], 2);
+  setTimeout(() => map.invalidateSize(), 0);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+    // Declare all globals for ride rendering and control
+  let points = [], marker = null, trailPolyline = null, elevationChart = null;
+  let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
+  window.playInterval = null;
+      window.jumpToPlaybackIndex = function(idx) {
+      if (window.playInterval) {
+        clearInterval(window.playInterval);
+        window.playInterval = null;
+        document.getElementById('play-replay').textContent = '▶️ Play';
+      }
+      document.getElementById('replay-slider').value = idx;
+      window.fracIndex = idx;
+      updatePlayback(idx);
+    }
+  window.fracIndex = 0;
+  let speedHighlightLayer = null;
+  let selectedSpeedBins = new Set();
+  
+  // ————————————————————————————————
 // 0️⃣ Reusable GPX parser + renderer
 // ————————————————————————————————
 function parseAndRenderGPX(gpxText) {
@@ -106,12 +150,7 @@ uploadInput.addEventListener('change', e => {
   reader.onload = ev => parseAndRenderGPX(ev.target.result);
   reader.readAsText(file);
 });
-
-console.log('script.js loaded');
-window.updatePlayback = null;
-
-document.addEventListener('DOMContentLoaded', async () => {
-
+  
  // Grab any ?ride=<id> query parameter
   const params = new URLSearchParams(window.location.search);
   
@@ -237,43 +276,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       : 'Signup OK! Check your email, then login above.';
   });
 
-  // Initialize map using correct ID
-  const map = L.map('leaflet-map').setView([20, 0], 2);
-  setTimeout(() => map.invalidateSize(), 0);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
+  
 
-  // Declare all globals for ride rendering and control
-  let points = [], marker = null, trailPolyline = null, elevationChart = null;
-  let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
-  window.playInterval = null;
-      window.jumpToPlaybackIndex = function(idx) {
-      if (window.playInterval) {
-        clearInterval(window.playInterval);
-        window.playInterval = null;
-        document.getElementById('play-replay').textContent = '▶️ Play';
-      }
-      document.getElementById('replay-slider').value = idx;
-      window.fracIndex = idx;
-      updatePlayback(idx);
-    }
-  window.fracIndex = 0;
-  let speedHighlightLayer = null;
-  let selectedSpeedBins = new Set();
-  const FRAME_DELAY_MS = 50;
-  const slider = document.getElementById('replay-slider');
-  const playBtn = document.getElementById('play-replay');
-  const summaryBtn = document.getElementById('download-summary');
-  const videoBtn = document.getElementById('export-video');
-  const speedSel = document.getElementById('playback-speed');
-  const distanceEl = document.getElementById('distance');
-  const durationEl = document.getElementById('duration');
-  const rideTimeEl = document.getElementById('ride-time');
-  const elevationEl = document.getElementById('elevation');
-  const uploadInput = document.getElementById('gpx-upload');
-  const saveForm = document.getElementById('save-ride-form');
-  const saveBtn = document.getElementById('save-ride-btn');
+
 
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
 
