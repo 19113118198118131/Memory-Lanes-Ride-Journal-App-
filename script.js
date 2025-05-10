@@ -67,8 +67,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Show ride form
   document.getElementById('save-ride-form').style.display = 'block';
 
-  document.getElementById('save-ride-form').style.display = 'block';
-
   setTimeout(() => {
     const dashBtn = document.getElementById('go-dashboard');
     if (dashBtn) {
