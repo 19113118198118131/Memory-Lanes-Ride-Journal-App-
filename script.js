@@ -31,8 +31,10 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   const email = document.getElementById('auth-email').value;
   const pass = document.getElementById('auth-password').value;
   const statusEl = document.getElementById('auth-status');
-
-  const { data: session, error } = await supabase.auth.signInWithPassword({
+    console.log('statusEl exists:', !!statusEl);
+    console.log('auth-status content BEFORE:', statusEl?.innerHTML);
+    statusEl.innerHTML = '✅ Login successful! <button id="go-dashboard" style="margin-left:10px;">Go to Dashboard</button>';
+   const { data: session, error } = await supabase.auth.signInWithPassword({
     email,
     password: pass
   });
