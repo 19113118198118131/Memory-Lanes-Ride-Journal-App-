@@ -29,7 +29,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
   
+const speedBins = [
+    { label: '50–80', min: 50, max: 80 },
+    { label: '80–100', min: 80, max: 100 },
+    { label: '100–120', min: 100, max: 120 },
+    { label: '120–160', min: 120, max: 160 },
+    { label: '160–200', min: 160, max: 200 },
+    { label: '200+', min: 200, max: Infinity }
+  ];
+  
 
+
+  function renderSpeedFilter() {
+    const container = document.getElementById('speed-bins');
+    container.innerHTML = '';
+    speedBins.forEach((bin, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = bin.label;
+      btn.classList.add('speed-bin-btn');
+      btn.dataset.index = i;
+      btn.addEventListener('click', () => highlightSpeedBin(i));
+      container.appendChild(btn);
+    });
+  }
+
+
+
+  function highlightSpeedBin(i) {
+    const btn = document.querySelector(`#speed-bins .speed-bin-btn[data-index="${i}"]`);
+    const isActive = selectedSpeedBins.has(i);
+    isActive ? selectedSpeedBins.delete(i) : selectedSpeedBins.add(i);
+    btn.classList.toggle('active', !isActive);
+    if (speedHighlightLayer) map.removeLayer(speedHighlightLayer);
+    if (selectedSpeedBins.size === 0) {
+      renderAccelChart(accelData, cumulativeDistance, speedData, [], speedBins);
+      return;
+    }
+    const segments = [];
+    for (let j = 1; j < points.length; j++) {
+      const speed = speedData[j];
+      for (let b of selectedSpeedBins) {
+        if (speed >= speedBins[b].min && speed < speedBins[b].max) {
+          segments.push([[points[j-1].lat, points[j-1].lng], [points[j].lat, points[j].lng]]);
+          break;
+        }
+      }
+    }
+    speedHighlightLayer = L.layerGroup(segments.map(seg => L.polyline(seg, { color: '#8338ec', weight: 5, opacity: 0.8 }))).addTo(map);
+    renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+  }
 
     // 🔁 Playback Control
   playBtn.addEventListener('click', () => {
@@ -133,55 +181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let speedHighlightLayer = null;
   let selectedSpeedBins = new Set();
 
-    const speedBins = [
-    { label: '50–80', min: 50, max: 80 },
-    { label: '80–100', min: 80, max: 100 },
-    { label: '100–120', min: 100, max: 120 },
-    { label: '120–160', min: 120, max: 160 },
-    { label: '160–200', min: 160, max: 200 },
-    { label: '200+', min: 200, max: Infinity }
-  ];
-  
-
-
-  function renderSpeedFilter() {
-    const container = document.getElementById('speed-bins');
-    container.innerHTML = '';
-    speedBins.forEach((bin, i) => {
-      const btn = document.createElement('button');
-      btn.textContent = bin.label;
-      btn.classList.add('speed-bin-btn');
-      btn.dataset.index = i;
-      btn.addEventListener('click', () => highlightSpeedBin(i));
-      container.appendChild(btn);
-    });
-  }
-
-
-
-  function highlightSpeedBin(i) {
-    const btn = document.querySelector(`#speed-bins .speed-bin-btn[data-index="${i}"]`);
-    const isActive = selectedSpeedBins.has(i);
-    isActive ? selectedSpeedBins.delete(i) : selectedSpeedBins.add(i);
-    btn.classList.toggle('active', !isActive);
-    if (speedHighlightLayer) map.removeLayer(speedHighlightLayer);
-    if (selectedSpeedBins.size === 0) {
-      renderAccelChart(accelData, cumulativeDistance, speedData, [], speedBins);
-      return;
-    }
-    const segments = [];
-    for (let j = 1; j < points.length; j++) {
-      const speed = speedData[j];
-      for (let b of selectedSpeedBins) {
-        if (speed >= speedBins[b].min && speed < speedBins[b].max) {
-          segments.push([[points[j-1].lat, points[j-1].lng], [points[j].lat, points[j].lng]]);
-          break;
-        }
-      }
-    }
-    speedHighlightLayer = L.layerGroup(segments.map(seg => L.polyline(seg, { color: '#8338ec', weight: 5, opacity: 0.8 }))).addTo(map);
-    renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
-  }
+    
   
   // ————————————————————————————————
 // 0️⃣ Reusable GPX parser + renderer
