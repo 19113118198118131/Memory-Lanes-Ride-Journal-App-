@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
   }
   
-  };
+
   
 // ————————————————————————————————
 // 0️⃣ Reusable GPX parser + renderer
