@@ -16,6 +16,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   const uploadInput = document.getElementById('gpx-upload');
   const saveForm = document.getElementById('save-ride-form');
   const saveBtn = document.getElementById('save-ride-btn');
+  const rideTitleDisplay = document.getElementById('ride-title-display');
+  const backBtn = document.getElementById('back-dashboard');
+  const uploadAnotherBtn = document.getElementById('upload-another');
+  const uploadSection = document.getElementById('upload-section');
+
+backBtn.addEventListener('click', () => {
+  window.location.href = 'dashboard.html';
+});
+
+uploadAnotherBtn.addEventListener('click', () => {
+  rideTitleDisplay.textContent = '';
+  document.getElementById('ride-controls').style.display = 'none';
+  uploadSection.style.display = 'block';
+  document.getElementById('save-ride-form').style.display = 'block';
+  document.getElementById('ride-title').value = '';
+  history.replaceState({}, document.title, window.location.pathname); // Clears ?ride=... from URL
+});
 
   console.log('script.js loaded');
   window.updatePlayback = null;
@@ -217,12 +234,20 @@ uploadInput.addEventListener('change', e => {
   // 2️⃣ Fetch the stored file path
   const { data: ride, error: rideErr } = await supabase
     .from('ride_logs')
-    .select('gpx_path')
+    .select('gpx_path, title')
     .eq('id', rideId)
-    .single()
+    .single();
+  
   if (rideErr) {
-    return alert('Failed to load ride metadata: ' + rideErr.message)
+    return alert('Failed to load ride metadata: ' + rideErr.message);
   }
+  
+  rideTitleDisplay.textContent = ride?.title
+    ? `📍 Viewing: “${ride.title}”`
+    : `📍 Viewing Saved Ride`;
+  
+  document.getElementById('ride-controls').style.display = 'block';
+
 
   // 3️⃣ Build a public URL for that GPX file
   const { data: urlData, error: urlErr } = supabase
