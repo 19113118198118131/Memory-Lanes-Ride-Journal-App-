@@ -75,30 +75,37 @@
           rideList.textContent = 'No rides logged yet.';
         } else {
           console.log(`✔ rendering ${rides.length} rides`);
-          rides.forEach(ride => {
-            const item = document.createElement('div');
-            item.className = 'ride-entry';
-            item.innerHTML = `
+        rides.forEach(ride => {
+          const item = document.createElement('div');
+          item.className = 'ride-entry';
+          item.innerHTML = `
+            <div class="ride-title-row">
               <div class="ride-title">${ride.title}</div>
-              <div class="ride-details">
-                <span>📍 ${ride.distance_km.toFixed(1)} km</span>
-                <span>⏱ ${ride.duration_min} min</span>
-                <span>⛰️ ${ride.elevation_m} m</span>
-              </div>
-              <button class="btn-delete" data-id="${ride.id}" data-path="${ride.gpx_path}">🗑️ Delete</button>
-            `;
-
-            // ← Your click handler is here!
-        item.addEventListener('click', () => {
-          console.log('→ ride clicked:', ride.id);
-          // send the user to index.html?ride=<id>
-          window.location.href = `index.html?ride=${ride.id}`;
-        });
-
-
-
-            rideList.appendChild(item);
+              <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">🗑️</div>
+            </div>
+            <div class="ride-details">
+              <span>📍 ${ride.distance_km.toFixed(1)} km</span>
+              <span>⏱ ${ride.duration_min} min</span>
+              <span>⛰️ ${ride.elevation_m} m</span>
+            </div>
+          `;
+        
+          // Make ride entry clickable
+          item.addEventListener('click', () => {
+            console.log('→ ride clicked:', ride.id);
+            window.location.href = `index.html?ride=${ride.id}`;
           });
+        
+          // 🧱 Add delete icon click (after .innerHTML so element exists)
+          const deleteIcon = item.querySelector('.delete-icon');
+          deleteIcon.addEventListener('click', (e) => {
+            e.stopPropagation();  // Prevents triggering the ride card click
+            alert(`Delete requested for ride ID: ${ride.id}`);
+            // Later: call a deleteRide(ride.id, ride.gpx_path) here
+          });
+        
+          rideList.appendChild(item);
+        });
         }
       } catch (err) {
         console.error('❌ dashboard error:', err);
