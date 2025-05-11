@@ -2,7 +2,7 @@
 import supabase from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-
+// 0️⃣ Grab all relevant DOM references
   const FRAME_DELAY_MS = 50;
   const slider = document.getElementById('replay-slider');
   const playBtn = document.getElementById('play-replay');
@@ -19,15 +19,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   console.log('script.js loaded');
   window.updatePlayback = null;
+// 1️⃣ Disable controls until a GPX is parsed
+[slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true); 
 
-// Initialize map using correct ID
+// 2️⃣ Initialize the Leaflet map
   const map = L.map('leaflet-map').setView([20, 0], 2);
   setTimeout(() => map.invalidateSize(), 0);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
-    // Declare all globals for ride rendering and control
+// 3️⃣ Declare globals for ride data & playback control
   let points = [], marker = null, trailPolyline = null, elevationChart = null;
   let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
   window.playInterval = null;
@@ -55,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   ];
   
 
-
+ // Speed filter UI
   function renderSpeedFilter() {
     const container = document.getElementById('speed-bins');
     container.innerHTML = '';
@@ -95,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
   }
   
-  // ————————————————————————————————
+// ————————————————————————————————
 // 0️⃣ Reusable GPX parser + renderer
 // ————————————————————————————————
 function parseAndRenderGPX(gpxText) {
@@ -180,11 +182,11 @@ function parseAndRenderGPX(gpxText) {
   slider.min = 0; slider.max = points.length - 1; slider.value = 0;
   playBtn.textContent = '▶️ Play';
 
+  // Re-enable controls
+  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
+  
+  // Init any external analytics
   if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
-
-
-
-
 }
  
 
