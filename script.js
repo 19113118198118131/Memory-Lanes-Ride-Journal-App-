@@ -184,19 +184,8 @@ function parseAndRenderGPX(gpxText) {
 
 }
 
+setTimeout(() => requestAnimationFrame(enableAllControls), 100);
  
-requestAnimationFrame(() => {
-  setTimeout(() => {
-    [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => {
-      if (el) {
-        el.disabled = false;
-        el.removeAttribute('disabled');
-        console.log(`Enabled: ${el.id}`);
-      }
-    });
-  }, 100); // Extra delay to ensure DOM is fully painted
-});
-
 
 // ————————————————————————————————
 // 1️⃣ Wire up file‐upload to use the parser
@@ -263,15 +252,18 @@ uploadInput.addEventListener('change', e => {
   }
 
   // Hide forms initially
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    document.getElementById('save-ride-form').style.display = 'none';
-    document.getElementById('auth-section').style.display = 'block';
-  } else {
-    document.getElementById('save-ride-form').style.display = 'block';
-    document.getElementById('auth-section').style.display = 'none';
-  }
+const { data: { user } } = await supabase.auth.getUser();
+
+if (!user) {
+  document.getElementById('save-ride-form').style.display = 'none';
+  document.getElementById('auth-section').style.display = 'block';
+} else {
+  document.getElementById('save-ride-form').style.display = 'block';
+  document.getElementById('auth-section').style.display = 'none';
+
+  // ✅ Force re-enable playback controls after auth and DOM visibility
+  setTimeout(() => requestAnimationFrame(enableAllControls), 100);
+}
 
 
   // --- Login / Signup handlers ---
@@ -734,3 +726,16 @@ if (posAccelDs) {
     });
   }
 });
+
+function enableAllControls() {
+  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => {
+    if (el) {
+      el.disabled = false;
+      el.removeAttribute('disabled');
+      el.classList.remove('disabled');
+      el.style.opacity = '1';
+      el.style.pointerEvents = 'auto';
+    }
+  });
+}
+
