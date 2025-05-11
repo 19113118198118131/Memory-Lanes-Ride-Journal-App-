@@ -239,7 +239,7 @@ if (params.has('ride')) {
 
   // 1️⃣ Hide the upload form
   document.getElementById('upload-section').style.display = 'none'
-  saveForm.style.display = 'none';  
+   
   
   // 2️⃣ Fetch the stored file path
   const { data: ride, error: rideErr } = await supabase
@@ -251,6 +251,7 @@ if (params.has('ride')) {
   if (rideErr) {
     return alert('Failed to load ride metadata: ' + rideErr.message);
   }
+  saveForm.style.display = 'none';  
   
   rideTitleDisplay.textContent = ride?.title
     ? `📍 Viewing: “${ride.title}”`
@@ -298,8 +299,14 @@ if (!user) {
   document.getElementById('save-ride-form').style.display = 'none';
   document.getElementById('auth-section').style.display = 'block';
 } else {
-  document.getElementById('save-ride-form').style.display = 'block';
+  const params = new URLSearchParams(window.location.search);
+  const viewingRide = params.has('ride');
+  
+  // Show save form only if not viewing a ride
+  document.getElementById('save-ride-form').style.display = viewingRide ? 'none' : 'block';
   document.getElementById('auth-section').style.display = 'none';
+}
+
 
   // ✅ Force re-enable playback controls after auth and DOM visibility
   setTimeout(() => requestAnimationFrame(enableAllControls), 100);
