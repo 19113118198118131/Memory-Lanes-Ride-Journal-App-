@@ -482,6 +482,22 @@ footer a {
   color: #0a192f;
 }
 
+.btn-muted {
+  background: #FFFCF9;
+  border: 1px solid #ccc;
+  color: #0a192f;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: bold;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.btn-muted:hover {
+  background: #f0efed;
+  border-color: #bbb;
+  color: #000;
+}
+
 
 /* Mobile adjustments */
 @media (max-width: 600px) {
