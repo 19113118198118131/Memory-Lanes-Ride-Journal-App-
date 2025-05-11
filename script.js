@@ -235,8 +235,6 @@ if (!params.has('ride')) {
 if (params.has('ride')) {
   const rideId = params.get('ride');
 
-  // your ride-loading logic follows here...
-}
 
   // 1️⃣ Hide the upload form
   document.getElementById('upload-section').style.display = 'none'
