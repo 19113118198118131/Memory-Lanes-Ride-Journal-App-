@@ -728,7 +728,8 @@ if (posAccelDs) {
 });
 
 function enableAllControls() {
-  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => {
+  ['replay-slider', 'play-replay', 'download-summary', 'export-video', 'playback-speed'].forEach(id => {
+    const el = document.getElementById(id);
     if (el) {
       el.disabled = false;
       el.removeAttribute('disabled');
@@ -738,4 +739,5 @@ function enableAllControls() {
     }
   });
 }
+
 
