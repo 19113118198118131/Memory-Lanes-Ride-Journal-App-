@@ -29,7 +29,18 @@
 
  
   <main>
-<div id="save-ride-form" style="display:none; margin-top:1rem;">
+
+
+<section id="upload-section">
+  <input type="file" id="gpx-upload" accept=".gpx" />
+  <div class="download-buttons">
+    <button id="download-summary" disabled>📁 Download Summary</button>
+    <button id="export-video" disabled>🎥 Export Video</button>
+  </div>
+</section>
+
+    <!-- Hidden by default unless uploading a new ride -->
+ <div id="save-ride-form" style="display:none; margin-top:1rem;">
   <h3>Log this Ride</h3>
   <div class="ride-form">
     <label for="ride-title">Ride Title:</label>
@@ -40,14 +51,6 @@
 </div>
 
 
-
-<section id="upload-section">
-  <input type="file" id="gpx-upload" accept=".gpx" />
-  <div class="download-buttons">
-    <button id="download-summary" disabled>📁 Download Summary</button>
-    <button id="export-video" disabled>🎥 Export Video</button>
-  </div>
-</section>
 
 
 <section id="auth-section" style="margin-bottom: 2rem;">
