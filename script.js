@@ -33,7 +33,7 @@ uploadAnotherBtn.addEventListener('click', () => {
   rideTitleDisplay.textContent = '';
   document.getElementById('ride-controls').style.display = 'none';
   uploadSection.style.display = 'block';
-  saveForm.style.display = 'none';  // ✅ hide until file is selected
+  hideSaveForm();  // ✅ hide until file is selected
   document.getElementById('ride-title').value = '';
   history.replaceState({}, document.title, window.location.pathname);
 });
@@ -215,7 +215,7 @@ setTimeout(() => requestAnimationFrame(enableAllControls), 100);
 uploadInput.addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
-  saveForm.style.display = 'block'; // ✅ show the form only after file selected
+  showSaveForm(); // ✅ show the form only after file selected
 
   if (playInterval) clearInterval(playInterval);
   if (marker)       map.removeLayer(marker);
@@ -254,7 +254,7 @@ if (params.has('ride')) {
   if (rideErr) {
     return alert('Failed to load ride metadata: ' + rideErr.message);
   }
-  saveForm.style.display = 'none';  
+  hideSaveForm();  
   
   rideTitleDisplay.textContent = ride?.title
     ? `📍 Viewing: “${ride.title}”`
