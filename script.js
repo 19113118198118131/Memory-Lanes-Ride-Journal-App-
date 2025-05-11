@@ -2,7 +2,8 @@
 import supabase from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-// 0️⃣ Grab all relevant DOM references
+
+  // 0️⃣ Grab all relevant DOM references
   const FRAME_DELAY_MS = 50;
   const slider = document.getElementById('replay-slider');
   const playBtn = document.getElementById('play-replay');
@@ -17,10 +18,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const saveForm = document.getElementById('save-ride-form');
   const saveBtn = document.getElementById('save-ride-btn');
 
-  console.log('script.js loaded');
-  window.updatePlayback = null;
-// 1️⃣ Disable controls until a GPX is parsed
+  // 1️⃣ Disable controls until a GPX is parsed
 [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true); 
+ console.log('UI disabled at start');
 
 // 2️⃣ Initialize the Leaflet map
   const map = L.map('leaflet-map').setView([20, 0], 2);
@@ -44,6 +44,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       updatePlayback(idx);
     }
   window.fracIndex = 0;
+
+  / 4️⃣ Define updatePlayback 
+  window.updatePlayback = idx => {
+    const p = points[idx];
+    if (!marker) {
+      marker = L.circleMarker([p.lat, p.lng], { radius: 6, color: '#007bff', fillColor: '#007bff', fillOpacity: 0.9 }).addTo(map);
+    } else {
+      marker.setLatLng([p.lat, p.lng]);
+    }
+    trailPolyline.setLatLngs(points.slice(0, idx + 1).map(pt => [pt.lat, pt.lng]));
+    map.panTo([p.lat, p.lng], { animate: false });
+  
+  
+  
   let speedHighlightLayer = null;
   let selectedSpeedBins = new Set();
 
@@ -101,6 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 0️⃣ Reusable GPX parser + renderer
 // ————————————————————————————————
 function parseAndRenderGPX(gpxText) {
+  console.log('parseAndRenderGPX() called, length:', gpxText.length);
   // Parse XML → trackpoints
   const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
   const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
@@ -210,9 +225,10 @@ uploadInput.addEventListener('change', e => {
   
  // Grab any ?ride=<id> query parameter
   const params = new URLSearchParams(window.location.search);
-  
+ 
   if (params.has('ride')) {
   const rideId = params.get('ride')
+  console.log('Detected ?ride=', rideId);
 
   // 1️⃣ Hide the upload form
   document.getElementById('upload-section').style.display = 'none'
@@ -240,6 +256,9 @@ uploadInput.addEventListener('change', e => {
   const resp = await fetch(urlData.publicUrl)
   const gpxText = await resp.text()
   await parseAndRenderGPX(gpxText);
+
+    // 🔑 EARLY RETURN ensures we don't re-disable controls below
+    return;
 }
   
   // Redirect clean-up from Supabase
@@ -335,7 +354,7 @@ uploadInput.addEventListener('change', e => {
 
 
 
-  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = true);
+
 
   saveBtn.addEventListener('click', async () => {
   const title = document.getElementById('ride-title').value.trim();
@@ -555,16 +574,8 @@ scales: {
 
 
 
-  window.updatePlayback = idx => {
-    const p = points[idx];
-    if (!marker) {
-      marker = L.circleMarker([p.lat, p.lng], { radius: 6, color: '#007bff', fillColor: '#007bff', fillOpacity: 0.9 }).addTo(map);
-    } else {
-      marker.setLatLng([p.lat, p.lng]);
-    }
-    trailPolyline.setLatLngs(points.slice(0, idx + 1).map(pt => [pt.lat, pt.lng]));
-    map.panTo([p.lat, p.lng], { animate: false });
 
+    // Elevation chart
     const distKm = (cumulativeDistance[idx]/1000).toFixed(2);
     const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'elevation';
     const posDs = elevationChart.data.datasets.find(d => d.label === 'Position');
@@ -572,7 +583,7 @@ scales: {
     posDs.data[0] = { x: parseFloat(distKm), y: mode === 'speed' ? speedData[idx] : p.ele };
     elevationChart.update('none');
 
-    // Update acceleration cursor as well
+    // Acceleration chart
     if (window.accelChart) {
       const accelCursor = window.accelChart.data.datasets.find(d => d.label === 'Point in Ride');
       if (accelCursor) {
@@ -581,6 +592,7 @@ scales: {
       }
     }
 
+    // Telemetry readouts
     slider.value = idx;
     document.getElementById('telemetry-elevation').textContent = `${p.ele.toFixed(0)} m`;
     document.getElementById('telemetry-distance').textContent = `${distKm} km`;
