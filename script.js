@@ -239,7 +239,8 @@ if (params.has('ride')) {
 
   // 1️⃣ Hide the upload form
   document.getElementById('upload-section').style.display = 'none'
-
+  saveForm.style.display = 'none';  
+  
   // 2️⃣ Fetch the stored file path
   const { data: ride, error: rideErr } = await supabase
     .from('ride_logs')
