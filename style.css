@@ -498,6 +498,23 @@ footer a {
   color: #000;
 }
 
+.ride-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.delete-icon {
+  color: #ff5c5c;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: color 0.2s ease;
+}
+
+.delete-icon:hover {
+  color: #ff9999;
+}
+
 
 /* Mobile adjustments */
 @media (max-width: 600px) {
