@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const backBtn = document.getElementById('back-dashboard');
   const uploadAnotherBtn = document.getElementById('upload-another');
   const uploadSection = document.getElementById('upload-section');
+  const rideActions = document.getElementById('ride-actions');
 
 backBtn.addEventListener('click', () => {
   window.location.href = 'dashboard.html';
@@ -222,11 +223,20 @@ uploadInput.addEventListener('change', e => {
   reader.readAsText(file);
 });
   
- // Grab any ?ride=<id> query parameter
-  const params = new URLSearchParams(window.location.search);
-  
-  if (params.has('ride')) {
-  const rideId = params.get('ride')
+// Grab any ?ride=<id> query parameter
+const params = new URLSearchParams(window.location.search);
+
+// If not viewing a ride, hide the viewer buttons
+if (!params.has('ride')) {
+  rideActions.style.display = 'none';
+}
+
+// If viewing a specific ride, handle it
+if (params.has('ride')) {
+  const rideId = params.get('ride');
+
+  // your ride-loading logic follows here...
+}
 
   // 1️⃣ Hide the upload form
   document.getElementById('upload-section').style.display = 'none'
@@ -247,6 +257,8 @@ uploadInput.addEventListener('change', e => {
     : `📍 Viewing Saved Ride`;
   
   document.getElementById('ride-controls').style.display = 'block';
+  rideActions.style.display = 'flex';
+
 
 
   // 3️⃣ Build a public URL for that GPX file
