@@ -30,10 +30,11 @@ uploadAnotherBtn.addEventListener('click', () => {
   rideTitleDisplay.textContent = '';
   document.getElementById('ride-controls').style.display = 'none';
   uploadSection.style.display = 'block';
-  document.getElementById('save-ride-form').style.display = 'block';
+  saveForm.style.display = 'none';  // ✅ hide until file is selected
   document.getElementById('ride-title').value = '';
-  history.replaceState({}, document.title, window.location.pathname); // Clears ?ride=... from URL
+  history.replaceState({}, document.title, window.location.pathname);
 });
+
 
   console.log('script.js loaded');
   window.updatePlayback = null;
@@ -211,7 +212,7 @@ setTimeout(() => requestAnimationFrame(enableAllControls), 100);
 uploadInput.addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
-  saveForm.style.display = 'block';
+  saveForm.style.display = 'block'; // ✅ show the form only after file selected
 
   if (playInterval) clearInterval(playInterval);
   if (marker)       map.removeLayer(marker);
@@ -256,6 +257,9 @@ if (params.has('ride')) {
   
   document.getElementById('ride-controls').style.display = 'block';
   rideActions.style.display = 'flex';
+  
+  // ✅ HIDE ride form if we're just viewing
+  saveForm.style.display = 'none';
 
 
 
