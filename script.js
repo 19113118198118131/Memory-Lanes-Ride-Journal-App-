@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const uploadAnotherBtn = document.getElementById('upload-another');
   const uploadSection = document.getElementById('upload-section');
   const rideActions = document.getElementById('ride-actions');
+  const showSaveForm = () => saveForm.style.display = 'block';
+  const hideSaveForm = () => saveForm.style.display = 'none';
+
 
 backBtn.addEventListener('click', () => {
   window.location.href = 'dashboard.html';
@@ -260,9 +263,6 @@ if (params.has('ride')) {
   document.getElementById('ride-controls').style.display = 'block';
   rideActions.style.display = 'flex';
   
-  // ✅ HIDE ride form if we're just viewing
-  saveForm.style.display = 'none';
-
 
 
   // 3️⃣ Build a public URL for that GPX file
