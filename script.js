@@ -611,7 +611,7 @@ if (posAccelDs) {
   window.accelChart.update('none');
 }
 
-  };
+
 
 
 
