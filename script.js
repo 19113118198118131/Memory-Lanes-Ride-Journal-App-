@@ -184,12 +184,18 @@ function parseAndRenderGPX(gpxText) {
 
 }
 
-  // Final safety to force-enable all playback controls
-setTimeout(() => {
-  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => {
-    if (el && el.disabled) el.removeAttribute('disabled');
-  });
-}, 100);
+.... 
+requestAnimationFrame(() => {
+  setTimeout(() => {
+    [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => {
+      if (el) {
+        el.disabled = false;
+        el.removeAttribute('disabled');
+        console.log(`Enabled: ${el.id}`);
+      }
+    });
+  }, 100); // Extra delay to ensure DOM is fully painted
+});
 
 
 // ————————————————————————————————
