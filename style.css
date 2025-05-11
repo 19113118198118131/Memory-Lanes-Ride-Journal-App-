@@ -444,6 +444,44 @@ footer a {
   cursor: not-allowed;
 }
 
+/* Ride Controls Section */
+#ride-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background-color: #132033;
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  margin: 1.5rem 0;
+}
+
+#ride-title-display {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #64ffda;
+  margin: 0;
+  flex: 1 1 100%;
+}
+
+#ride-controls .btn {
+  background: #007bff;
+  color: #0a192f;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+#ride-controls .btn:hover {
+  background: #64ffda;
+  color: #0a192f;
+}
+
 
 /* Mobile adjustments */
 @media (max-width: 600px) {
