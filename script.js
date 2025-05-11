@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   window.fracIndex = 0;
 
-  / 4️⃣ Define updatePlayback 
+  // 4️⃣ Define updatePlayback 
   window.updatePlayback = idx => {
     const p = points[idx];
     if (!marker) {
