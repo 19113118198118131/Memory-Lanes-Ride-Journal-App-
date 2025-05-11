@@ -235,9 +235,12 @@ uploadInput.addEventListener('change', e => {
   }
 
   // 4️⃣ Fetch and render exactly like an upload
+  console.log("Fetching GPX file from:", urlData.publicUrl);
   const resp = await fetch(urlData.publicUrl)
   const gpxText = await resp.text()
+  console.log("Fetched GPX content length:", gpxText.length);
   await parseAndRenderGPX(gpxText);
+  console.log("Finished rendering GPX");
 }
   
   // Redirect clean-up from Supabase
