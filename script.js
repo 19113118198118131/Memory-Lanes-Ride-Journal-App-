@@ -686,10 +686,11 @@ scales: {
         tooltip: {
           callbacks: {
             label: ctx => `${ctx.dataset.label}: ${ctx.raw.y.toFixed(2)}`
-          }
-        }
+         }
       }
-    }); /
+    }
+  }
+});
 
 
 
