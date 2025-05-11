@@ -669,8 +669,8 @@ if (posAccelDs) {
             borderColor: '#64ffda',
             backgroundColor: (() => {
               const g = ctx.createLinearGradient(0,0,0,200);
-              g.addColorStop(0, 'rgba(100,255,218,0.5)');
-              g.addColorStop(1, 'rgba(10,25,47,0.1)');
+              g.addColorStop(0, 'rgba(100,255,218,0.4)');
+              g.addColorStop(1, 'rgba(100,255,218,0)');
               return g;
             })(),
             borderWidth: 2,
@@ -701,7 +701,12 @@ if (posAccelDs) {
             label: 'Speed (km/h)',
             data: points.map((p, i) => ({ x: cumulativeDistance[i]/1000, y: speedData[i], idx: i })),
             borderColor: '#ff6384',
-            backgroundColor: 'rgba(255,99,132,0.1)',
+            backgroundColor: (() => {
+              const g = ctx.createLinearGradient(0, 0, 0, 200);
+              g.addColorStop(0, 'rgba(255,99,132,0.4)');
+              g.addColorStop(1, 'rgba(255,99,132,0)');
+              return g;
+            })(),
             borderWidth: 2,
             tension: 0.3,
             pointRadius: 0,
