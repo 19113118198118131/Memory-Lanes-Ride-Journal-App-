@@ -659,7 +659,7 @@ uploadInput.addEventListener('change', e => {
           window.jumpToPlaybackIndex(dataPoint.idx);
         }
       },
-
+    );
 
 scales: {
         x: {
@@ -689,8 +689,7 @@ scales: {
           }
         }
       }
-    }
-  });
+
 
 
 
