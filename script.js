@@ -184,7 +184,7 @@ function parseAndRenderGPX(gpxText) {
 
 }
 
-.... 
+ 
 requestAnimationFrame(() => {
   setTimeout(() => {
     [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => {
