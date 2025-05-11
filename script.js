@@ -161,11 +161,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       animation: false,
       interaction: { mode: 'nearest', intersect: false },
       onClick: function(evt) {
-        // ⏸ Stop playback if playing
+        // â¸ Stop playback if playing
         if (window.playInterval) {
           clearInterval(window.playInterval);
           window.playInterval = null;
-          playBtn.textContent = '▶️ Play';
+          playBtn.textContent = 'â–¶ï¸ Play';
         }
     
         const elements = this.getElementsAtEventForMode(evt,'nearest',{ intersect:false },true);
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
     });
-}
+
     document.querySelectorAll('input[name="chartMode"]').forEach(radio => {
       radio.addEventListener('change', () => {
         const mode = document.querySelector('input[name="chartMode"]:checked').value;
