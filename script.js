@@ -306,11 +306,11 @@ if (!user) {
   document.getElementById('save-ride-form').style.display = viewingRide ? 'none' : 'block';
   document.getElementById('auth-section').style.display = 'none';
 }
-});
+
 
   // ✅ Force re-enable playback controls after auth and DOM visibility
   setTimeout(() => requestAnimationFrame(enableAllControls), 100);
-}
+
 
 
   // --- Login / Signup handlers ---
