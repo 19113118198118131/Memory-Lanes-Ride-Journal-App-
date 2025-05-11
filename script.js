@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inBin = selectedBins.some(binIdx => y >= bins[binIdx].min && y < bins[binIdx].max);
     return inBin && Number.isFinite(y) ? { x: x / 1000, y, idx: i } : null;
   }).filter(Boolean);
-
+}
  function setupChart() {
     const ctx = document.getElementById('elevationChart').getContext('2d');
     if (elevationChart) elevationChart.destroy();
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
     });
-
+}
     document.querySelectorAll('input[name="chartMode"]').forEach(radio => {
       radio.addEventListener('change', () => {
         const mode = document.querySelector('input[name="chartMode"]:checked').value;
@@ -689,6 +689,7 @@ scales: {
           }
         }
       }
+    }); /
 
 
 
