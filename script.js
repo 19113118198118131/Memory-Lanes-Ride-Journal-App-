@@ -182,11 +182,15 @@ function parseAndRenderGPX(gpxText) {
 
   if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
 
-
-
-
 }
- 
+
+  // Final safety to force-enable all playback controls
+setTimeout(() => {
+  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => {
+    if (el && el.disabled) el.removeAttribute('disabled');
+  });
+}, 100);
+
 
 // ————————————————————————————————
 // 1️⃣ Wire up file‐upload to use the parser
