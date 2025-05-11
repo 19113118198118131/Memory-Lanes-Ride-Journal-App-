@@ -217,10 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         elevationChart.update();
       });
     });
-  }
-}
-
-     
+  }   
 
 
   function highlightSpeedBin(i) {
