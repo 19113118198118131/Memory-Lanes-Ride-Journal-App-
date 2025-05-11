@@ -645,11 +645,11 @@ uploadInput.addEventListener('change', e => {
       animation: false,
       interaction: { mode: 'nearest', intersect: false },
       onClick: function(evt) {
-        // ⏸ Stop playback if playing
+        // â¸ Stop playback if playing
         if (window.playInterval) {
           clearInterval(window.playInterval);
           window.playInterval = null;
-          playBtn.textContent = '▶️ Play';
+          playBtn.textContent = 'â–¶ï¸ Play';
         }
     
         const elements = this.getElementsAtEventForMode(evt,'nearest',{ intersect:false },true);
@@ -659,7 +659,7 @@ uploadInput.addEventListener('change', e => {
           window.jumpToPlaybackIndex(dataPoint.idx);
         }
       },
-    );
+
 
 scales: {
         x: {
@@ -669,7 +669,7 @@ scales: {
           grid: { color: '#223' }
         },
         y: {
-          title: { display: true, text: 'Acceleration (m/s²)' },
+          title: { display: true, text: 'Acceleration (m/sÂ²)' },
           position: 'left',
           min: accelMin - accelBuffer,
           max: accelMax + accelBuffer,
@@ -686,11 +686,12 @@ scales: {
         tooltip: {
           callbacks: {
             label: ctx => `${ctx.dataset.label}: ${ctx.raw.y.toFixed(2)}`
-         }
+          }
+        }
       }
     }
-  }
-});
+  });
+}
 
 
 
