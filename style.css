@@ -554,6 +554,40 @@ footer a {
   color: #ff9999;
 }
 
+.filters-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  background-color: #132033;
+  padding: 0.75rem 1.2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Input and Select styling */
+.filters-container input[type="text"],
+.filters-container select {
+  background-color: #112240;
+  color: #ffffff;
+  border: 1px solid #1c2c45;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  min-width: 200px;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.filters-container input[type="text"]::placeholder {
+  color: #ccc;
+}
+
+.filters-container input[type="text"]:focus,
+.filters-container select:focus {
+  border-color: #64ffda;
+}
 
 /* Mobile adjustments */
 @media (max-width: 600px) {
