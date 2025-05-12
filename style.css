@@ -557,37 +557,41 @@ footer a {
 .filters-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  background-color: #132033;
-  padding: 0.75rem 1.2rem;
+  gap: 1rem;
+  background-color: #0d1b2a;
+  padding: 1rem;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  margin-bottom: 1.5rem;
+  align-items: center;
 }
 
-/* Input and Select styling */
 .filters-container input[type="text"],
 .filters-container select {
-  background-color: #112240;
-  color: #ffffff;
-  border: 1px solid #1c2c45;
   padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.95rem;
-  min-width: 200px;
-  outline: none;
-  transition: border-color 0.3s ease;
+  background-color: #112240;
+  border: 1px solid #1a2c3f;
+  border-radius: 5px;
+  color: #ffffff;
+  font-size: 0.9rem;
 }
 
 .filters-container input[type="text"]::placeholder {
-  color: #ccc;
+  color: #7a9ab7;
 }
 
-.filters-container input[type="text"]:focus,
-.filters-container select:focus {
-  border-color: #64ffda;
+.filters-container .ride-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
+
+.filters-container label {
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: #ccd6f6;
+}
+
+
 
 /* Mobile adjustments */
 @media (max-width: 600px) {
