@@ -433,10 +433,12 @@ if (!user) {
   const duration_min = parseFloat(rideTimeEl.textContent.split('h')[0]) * 60 +
                        (parseFloat(rideTimeEl.textContent.split('h')[1]) || 0);
   const elevation_m  = parseFloat(elevationEl.textContent);
- 
+  const ride_date    = points[0]?.time.toISOString().split('T')[0];
   // —————————————
   // 3️⃣ INSERT LOG WITH gpx_path
   // —————————————
+  const ride_date = points[0].time.toISOString(); // preserve timezone
+    
   const { data: insertData, error: insertErr } = await supabase
     .from('ride_logs')
     .insert({
@@ -445,6 +447,7 @@ if (!user) {
       distance_km,
       duration_min,
       elevation_m,
+      ride_date,
       gpx_path:    uploadData.path    // ← store the bucket path
     });
 
