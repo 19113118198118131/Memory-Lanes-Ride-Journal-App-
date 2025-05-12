@@ -131,6 +131,37 @@ function populateYearFilter(rides) {
   });
 }
 
+async function deleteRide(rideId, gpxPath) {
+  const confirmed = window.confirm('Are you sure you want to delete this ride? This cannot be undone.');
+  if (!confirmed) return;
+
+  // Delete from the ride_logs table
+  const { error: deleteError } = await supabase
+    .from('ride_logs')
+    .delete()
+    .eq('id', rideId);
+
+  if (deleteError) {
+    alert(`❌ Failed to delete ride: ${deleteError.message}`);
+    return;
+  }
+
+  // Delete the GPX file from storage (optional cleanup)
+  const { error: storageError } = await supabase
+    .storage
+    .from('gpx-files')
+    .remove([gpxPath]);
+
+  if (storageError) {
+    console.warn('⚠️ GPX file deletion failed:', storageError.message);
+  }
+
+  // Update the list
+  allRides = allRides.filter(r => r.id !== rideId);
+  applyFilters(); // Re-render the filtered list
+}
+
+
 function renderRides(rides) {
   rideList.innerHTML = '';
   if (!rides.length) {
@@ -160,11 +191,12 @@ function renderRides(rides) {
       window.location.href = `index.html?ride=${ride.id}`;
     });
 
-    const deleteIcon = item.querySelector('.delete-icon');
-    deleteIcon.addEventListener('click', (e) => {
-      e.stopPropagation();
-      alert(`Delete requested for ride ID: ${ride.id}`);
-    });
+      const deleteIcon = item.querySelector('.delete-icon');
+      deleteIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteRide(ride.id, ride.gpx_path);
+      });
+
 
     rideList.appendChild(item);
   });
