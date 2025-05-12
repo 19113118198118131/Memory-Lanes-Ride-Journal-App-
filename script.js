@@ -792,7 +792,7 @@ if (posAccelDs) {
     });
   }
 });
-})();
+
   
 function enableAllControls() {
   ['replay-slider', 'play-replay', 'download-summary', 'export-video', 'playback-speed'].forEach(id => {
