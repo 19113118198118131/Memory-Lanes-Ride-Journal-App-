@@ -282,20 +282,26 @@ footer a {
   font-size: 0.95rem;
 }
 
+.ride-card {
+  position: relative; /* enables absolute positioning inside */
+  padding-bottom: 1.5rem; /* makes space for bottom icon */
+}
+
 .delete-icon {
   position: absolute;
-  bottom: 2mm;         /* ~7.5px offset from bottom */
-  right: 10px;         /* Slight inset from right edge */
-  font-size: 1.2rem;
-  color: #ff4d4d;
+  right: 10px;
+  bottom: 6px;
   cursor: pointer;
-  transition: transform 0.2s ease, color 0.2s ease;
+  font-size: 1.1rem;
+  color: #ff6b6b;
+  transition: transform 0.2s ease;
 }
 
 .delete-icon:hover {
-  transform: scale(1.15);
-  color: #ff7373;
+  transform: scale(1.2);
+  color: #ff4c4c;
 }
+
 
 .dashboard-header {
   display: flex;
