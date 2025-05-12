@@ -433,7 +433,7 @@ if (!user) {
   const duration_min = parseFloat(rideTimeEl.textContent.split('h')[0]) * 60 +
                        (parseFloat(rideTimeEl.textContent.split('h')[1]) || 0);
   const elevation_m  = parseFloat(elevationEl.textContent);
-  const ride_date    = points[0]?.time.toISOString().split('T')[0];
+  
   // —————————————
   // 3️⃣ INSERT LOG WITH gpx_path
   // —————————————
