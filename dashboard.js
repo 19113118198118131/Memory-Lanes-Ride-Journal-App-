@@ -9,25 +9,34 @@ const logoutBtn = document.getElementById('logout-btn');
 const filtersContainer = document.createElement('div');
 filtersContainer.className = 'filters-container';
 filtersContainer.innerHTML = `
-  <div class="ride-filters">
-    <label for="sort-select">Sort by:</label>
-    <select id="sort-select">
-      <option value="date_desc">Newest First</option>
-      <option value="date_asc">Oldest First</option>
-      <option value="distance_desc">Longest Ride</option>
-      <option value="distance_asc">Shortest Ride</option>
-      <option value="elevation_desc">Most Elevation</option>
-      <option value="elevation_asc">Least Elevation</option>
+  <button class="filter-toggle">⚙️ Filters</button>
+  <div class="filter-panel">
+    <div class="ride-filters">
+      <label for="sort-select">Sort by:</label>
+      <select id="sort-select">
+        <option value="date_desc">Newest First</option>
+        <option value="date_asc">Oldest First</option>
+        <option value="distance_desc">Longest Ride</option>
+        <option value="distance_asc">Shortest Ride</option>
+        <option value="elevation_desc">Most Elevation</option>
+        <option value="elevation_asc">Least Elevation</option>
+      </select>
+    </div>
+    <input type="text" id="searchInput" placeholder="🔍 Search title..." />
+    <select id="monthFilter">
+      <option value="">All Months</option>
+    </select>
+    <select id="yearFilter">
+      <option value="">All Years</option>
     </select>
   </div>
-  <input type="text" id="searchInput" placeholder="🔍 Search title..." />
-  <select id="monthFilter">
-    <option value="">All Months</option>
-  </select>
-  <select id="yearFilter">
-    <option value="">All Years</option>
-  </select>
 `;
+const filterToggle = filtersContainer.querySelector('.filter-toggle');
+const filterPanel = filtersContainer.querySelector('.filter-panel');
+filterToggle.addEventListener('click', () => {
+  filterPanel.classList.toggle('expanded');
+});
+
 rideList.parentElement.insertBefore(filtersContainer, rideList);
 
 let allRides = [];
