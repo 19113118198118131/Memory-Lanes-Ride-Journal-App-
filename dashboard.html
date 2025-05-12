@@ -76,19 +76,23 @@
         } else {
           console.log(`✔ rendering ${rides.length} rides`);
         rides.forEach(ride => {
-          const item = document.createElement('div');
-          item.className = 'ride-entry';
-          item.innerHTML = `
-            <div class="ride-title-row">
-              <div class="ride-title">${ride.title}</div>
+        const item = document.createElement('div');
+        item.className = 'ride-entry';
+        item.innerHTML = `
+          <div class="ride-title-row">
+            <div class="ride-title">${ride.title}</div>
+            <div class="ride-meta">
+              <div class="ride-date">${new Date(ride.ride_date).toLocaleDateString()}</div>
               <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">🗑️</div>
             </div>
-            <div class="ride-details">
-              <span>📍 ${ride.distance_km.toFixed(1)} km</span>
-              <span>⏱ ${ride.duration_min} min</span>
-              <span>⛰️ ${ride.elevation_m} m</span>
-            </div>
-          `;
+          </div>
+          <div class="ride-details">
+            <span>📍 ${ride.distance_km.toFixed(1)} km</span>
+            <span>⏱ ${ride.duration_min} min</span>
+            <span>⛰️ ${ride.elevation_m} m</span>
+          </div>
+        `;
+
         
           // Make ride entry clickable
           item.addEventListener('click', () => {
