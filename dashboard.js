@@ -1,11 +1,11 @@
-// Supabase config
+// dashboard.js (complete version)
 import supabase from './supabaseClient.js';
 
-// DOM references
 const rideList = document.getElementById('ride-list');
 const logoutBtn = document.getElementById('logout-btn');
+const homeBtn = document.getElementById('home-btn');
 
-// Filter UI container
+// 🔹 Add filter bar (search + month dropdown)
 const filtersContainer = document.createElement('div');
 filtersContainer.className = 'filters-container';
 filtersContainer.innerHTML = `
@@ -18,29 +18,31 @@ rideList.parentElement.insertBefore(filtersContainer, rideList);
 
 let allRides = [];
 
-// Main init
 (async () => {
-  // Ensure user is authenticated
+  // 1. Check authentication
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) {
     window.location.href = 'index.html';
     return;
   }
 
-  // Fetch rides for this user
+  // 2. Fetch rides
   const { data: rides, error: fetchError } = await supabase
     .from('ride_logs')
-    .select('id, title, distance_km, duration_min, elevation_m, created_at, ride_date, gpx_path')
+    .select('id, title, distance_km, duration_min, elevation_m, ride_date, gpx_path')
     .eq('user_id', user.id)
     .order('ride_date', { ascending: false });
 
-  // Store full ride list globally for filtering
-  allRides = rides || [];
+  if (fetchError) {
+    rideList.textContent = '❌ Failed to load rides.';
+    return;
+  }
 
+  allRides = rides || [];
   populateMonthFilter(allRides);
   renderRides(allRides);
 
-  // Hook up filter listeners
+  // Hook up event listeners
   document.getElementById('searchInput').addEventListener('input', applyFilters);
   document.getElementById('monthFilter').addEventListener('change', applyFilters);
 })();
@@ -98,6 +100,7 @@ function renderRides(rides) {
         <span>⛰️ ${ride.elevation_m} m</span>
       </div>
     `;
+
     item.addEventListener('click', () => {
       window.location.href = `index.html?ride=${ride.id}`;
     });
@@ -112,7 +115,11 @@ function renderRides(rides) {
   });
 }
 
-// Logout
+// Navigation & logout
+homeBtn.addEventListener('click', () => {
+  window.location.href = 'index.html?home=1';
+});
+
 logoutBtn.addEventListener('click', async () => {
   await supabase.auth.signOut();
   window.location.href = 'index.html';
