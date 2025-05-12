@@ -556,24 +556,47 @@ footer a {
 
 .filters-container {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem; /* adds spacing between all filters */
+  justify-content: flex-start;
   align-items: center;
-  margin-bottom: 1.5rem;
-  background-color: #0e1a2b;
+  flex-wrap: wrap;
+  gap: 1rem;
   padding: 0.75rem 1rem;
+  background-color: #0e1a2b;
   border-radius: 8px;
+  margin-bottom: 1.5rem;
 }
 
 .ride-filters {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  margin-right: 1rem; /* creates gap between "Sort by" and next input */
+  gap: 1.25rem;
+  width: 100%;
+  padding-left: 0.5rem;
 }
 
 .ride-filters label {
-  margin-right: 0.5rem;
   color: #ccc;
+  margin-right: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.ride-filters select,
+.ride-filters input[type="text"] {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9rem;
+  border-radius: 5px;
+  border: 1px solid #1e293b;
+  background-color: #1e293b;
+  color: #eee;
+  outline: none;
+  min-width: 140px;
+}
+
+.ride-filters select:focus,
+.ride-filters input[type="text"]:focus {
+  border-color: #64ffda;
+  box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2);
 }
 
 .filters-container select,
