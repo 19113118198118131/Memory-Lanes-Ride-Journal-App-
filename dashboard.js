@@ -1,60 +1,98 @@
-// dashboard.js (complete version)
+// Supabase config
 import supabase from './supabaseClient.js';
 
+// DOM references
 const rideList = document.getElementById('ride-list');
 const logoutBtn = document.getElementById('logout-btn');
-const homeBtn = document.getElementById('home-btn');
 
-// 🔹 Add filter bar (search + month dropdown)
+// Filter UI container
 const filtersContainer = document.createElement('div');
 filtersContainer.className = 'filters-container';
 filtersContainer.innerHTML = `
+  <div class="ride-filters">
+    <label for="sort-select">Sort by:</label>
+    <select id="sort-select">
+      <option value="date_desc">Newest First</option>
+      <option value="date_asc">Oldest First</option>
+      <option value="distance_desc">Longest Ride</option>
+      <option value="distance_asc">Shortest Ride</option>
+      <option value="elevation_desc">Most Elevation</option>
+      <option value="elevation_asc">Least Elevation</option>
+    </select>
+  </div>
   <input type="text" id="searchInput" placeholder="🔍 Search title..." />
   <select id="monthFilter">
     <option value="">All Months</option>
+  </select>
+  <select id="yearFilter">
+    <option value="">All Years</option>
   </select>
 `;
 rideList.parentElement.insertBefore(filtersContainer, rideList);
 
 let allRides = [];
 
+// Main init
 (async () => {
-  // 1. Check authentication
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) {
     window.location.href = 'index.html';
     return;
   }
 
-  // 2. Fetch rides
   const { data: rides, error: fetchError } = await supabase
     .from('ride_logs')
-    .select('id, title, distance_km, duration_min, elevation_m, ride_date, gpx_path')
+    .select('id, title, distance_km, duration_min, elevation_m, created_at, ride_date, gpx_path')
     .eq('user_id', user.id)
     .order('ride_date', { ascending: false });
 
-  if (fetchError) {
-    rideList.textContent = '❌ Failed to load rides.';
-    return;
-  }
-
   allRides = rides || [];
+
   populateMonthFilter(allRides);
+  populateYearFilter(allRides);
   renderRides(allRides);
 
-  // Hook up event listeners
   document.getElementById('searchInput').addEventListener('input', applyFilters);
   document.getElementById('monthFilter').addEventListener('change', applyFilters);
+  document.getElementById('yearFilter').addEventListener('change', applyFilters);
+  document.getElementById('sort-select').addEventListener('change', applyFilters);
 })();
 
 function applyFilters() {
   const keyword = document.getElementById('searchInput').value.toLowerCase();
   const month = document.getElementById('monthFilter').value;
-  const filtered = allRides.filter(ride => {
+  const year = document.getElementById('yearFilter').value;
+  const sort = document.getElementById('sort-select').value;
+
+  let filtered = allRides.filter(ride => {
     const matchesKeyword = ride.title.toLowerCase().includes(keyword);
-    const matchesMonth = !month || (ride.ride_date && new Date(ride.ride_date).getMonth().toString() === month);
-    return matchesKeyword && matchesMonth;
+    const rideDate = new Date(ride.ride_date);
+    const matchesMonth = !month || (rideDate.getMonth().toString() === month);
+    const matchesYear = !year || (rideDate.getFullYear().toString() === year);
+    return matchesKeyword && matchesMonth && matchesYear;
   });
+
+  switch (sort) {
+    case 'date_asc':
+      filtered.sort((a, b) => new Date(a.ride_date) - new Date(b.ride_date));
+      break;
+    case 'date_desc':
+      filtered.sort((a, b) => new Date(b.ride_date) - new Date(a.ride_date));
+      break;
+    case 'distance_asc':
+      filtered.sort((a, b) => a.distance_km - b.distance_km);
+      break;
+    case 'distance_desc':
+      filtered.sort((a, b) => b.distance_km - a.distance_km);
+      break;
+    case 'elevation_asc':
+      filtered.sort((a, b) => a.elevation_m - b.elevation_m);
+      break;
+    case 'elevation_desc':
+      filtered.sort((a, b) => b.elevation_m - a.elevation_m);
+      break;
+  }
+
   renderRides(filtered);
 }
 
@@ -72,6 +110,23 @@ function populateMonthFilter(rides) {
     opt.value = m;
     opt.textContent = new Date(2025, m).toLocaleString('default', { month: 'long' });
     monthFilter.appendChild(opt);
+  });
+}
+
+function populateYearFilter(rides) {
+  const yearSet = new Set();
+  rides.forEach(ride => {
+    if (ride.ride_date) {
+      const year = new Date(ride.ride_date).getFullYear();
+      yearSet.add(year);
+    }
+  });
+  const yearFilter = document.getElementById('yearFilter');
+  [...yearSet].sort().forEach(y => {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    yearFilter.appendChild(opt);
   });
 }
 
@@ -100,7 +155,6 @@ function renderRides(rides) {
         <span>⛰️ ${ride.elevation_m} m</span>
       </div>
     `;
-
     item.addEventListener('click', () => {
       window.location.href = `index.html?ride=${ride.id}`;
     });
@@ -115,11 +169,7 @@ function renderRides(rides) {
   });
 }
 
-// Navigation & logout
-homeBtn.addEventListener('click', () => {
-  window.location.href = 'index.html?home=1';
-});
-
+// Logout
 logoutBtn.addEventListener('click', async () => {
   await supabase.auth.signOut();
   window.location.href = 'index.html';
