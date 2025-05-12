@@ -265,6 +265,7 @@ footer a {
   margin-bottom: 1rem;
   border-radius: 8px;
   transition: all 0.2s ease;
+  position: relative;
 }
 .ride-entry:hover {
   background: #1a2a44;
