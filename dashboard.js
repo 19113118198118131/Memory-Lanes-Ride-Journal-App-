@@ -4,6 +4,7 @@ import supabase from './supabaseClient.js';
 // DOM references
 const rideList = document.getElementById('ride-list');
 const logoutBtn = document.getElementById('logout-btn');
+const newRideBtn = document.getElementById('home-btn');
 
 // Filter UI container
 const filtersContainer = document.createElement('div');
@@ -205,5 +206,9 @@ function renderRides(rides) {
 // Logout
 logoutBtn.addEventListener('click', async () => {
   await supabase.auth.signOut();
+  window.location.href = 'index.html';
+});
+
+newRideBtn.addEventListener('click', () => {
   window.location.href = 'index.html';
 });
