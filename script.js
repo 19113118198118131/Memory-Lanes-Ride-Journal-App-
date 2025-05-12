@@ -1,17 +1,6 @@
 // script.js
 import supabase from './supabaseClient.js';
 
-// 🔐 Skip redirect if ?home=1 is present
-const urlParams = new URLSearchParams(window.location.search);
-const stayHome = urlParams.get('home') === '1';
-
-(async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user && !stayHome) {
-    window.location.href = 'dashboard.html';
-    return;
-  }
-
 document.addEventListener('DOMContentLoaded', async () => {
 
   const FRAME_DELAY_MS = 50;
@@ -806,5 +795,5 @@ function enableAllControls() {
     }
   });
 }
-})();
+
 
