@@ -1,11 +1,22 @@
-
-
 // Supabase config
 import supabase from './supabaseClient.js';
 
 // DOM references
 const rideList = document.getElementById('ride-list');
 const logoutBtn = document.getElementById('logout-btn');
+
+// Filter UI container
+const filtersContainer = document.createElement('div');
+filtersContainer.className = 'filters-container';
+filtersContainer.innerHTML = `
+  <input type="text" id="searchInput" placeholder="🔍 Search title..." />
+  <select id="monthFilter">
+    <option value="">All Months</option>
+  </select>
+`;
+rideList.parentElement.insertBefore(filtersContainer, rideList);
+
+let allRides = [];
 
 // Main init
 (async () => {
@@ -19,10 +30,57 @@ const logoutBtn = document.getElementById('logout-btn');
   // Fetch rides for this user
   const { data: rides, error: fetchError } = await supabase
     .from('ride_logs')
-    .select('id, title, distance_km, duration_min, elevation_m, created_at')
+    .select('id, title, distance_km, duration_min, elevation_m, created_at, ride_date, gpx_path')
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+    .order('ride_date', { ascending: false });
 
+  // Store full ride list globally for filtering
+  allRides = rides || [];
+
+  populateMonthFilter(allRides);
+  renderRides(allRides);
+
+  // Hook up filter listeners
+  document.getElementById('searchInput').addEventListener('input', applyFilters);
+  document.getElementById('monthFilter').addEventListener('change', applyFilters);
+})();
+
+function applyFilters() {
+  const keyword = document.getElementById('searchInput').value.toLowerCase();
+  const month = document.getElementById('monthFilter').value;
+  const filtered = allRides.filter(ride => {
+    const matchesKeyword = ride.title.toLowerCase().includes(keyword);
+    const matchesMonth = !month || (ride.ride_date && new Date(ride.ride_date).getMonth().toString() === month);
+    return matchesKeyword && matchesMonth;
+  });
+  renderRides(filtered);
+}
+
+function populateMonthFilter(rides) {
+  const monthSet = new Set();
+  rides.forEach(ride => {
+    if (ride.ride_date) {
+      const month = new Date(ride.ride_date).getMonth();
+      monthSet.add(month);
+    }
+  });
+  const monthFilter = document.getElementById('monthFilter');
+  [...monthSet].sort().forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = new Date(2025, m).toLocaleString('default', { month: 'long' });
+    monthFilter.appendChild(opt);
+  });
+}
+
+function renderRides(rides) {
+  rideList.innerHTML = '';
+  if (!rides.length) {
+    rideList.textContent = 'No rides found.';
+    return;
+  }
+
+  
   // Clear loading state
   rideList.innerHTML = '';
 
@@ -35,30 +93,38 @@ const logoutBtn = document.getElementById('logout-btn');
     rideList.textContent = 'No rides found.';
     return;
   }
-
-  // Render each ride entry
+  
   rides.forEach(ride => {
     const item = document.createElement('div');
     item.className = 'ride-entry';
+    const rideDate = ride.ride_date ? new Date(ride.ride_date).toLocaleDateString() : '';
     item.innerHTML = `
-      <div class="ride-card">
+      <div class="ride-title-row">
         <div class="ride-title">${ride.title}</div>
-        <div class="ride-details">
-          <span>📍 ${ride.distance_km.toFixed(1)} km</span>
-          <span>⏱ ${ride.duration_min} min</span>
-          <span>⛰️ ${ride.elevation_m} m</span>
-          <span>📅 ${new Date(ride.created_at).toLocaleDateString()}</span>
+        <div class="ride-meta">
+          <span class="ride-date">${rideDate}</span>
+          <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">🗑️</div>
         </div>
-        <span class="delete-icon" title="Delete Ride">🗑️</span>
+      </div>
+      <div class="ride-details">
+        <span>📍 ${ride.distance_km.toFixed(1)} km</span>
+        <span>⏱ ${ride.duration_min} min</span>
+        <span>⛰️ ${ride.elevation_m} m</span>
       </div>
     `;
     item.addEventListener('click', () => {
-      localStorage.setItem('selectedRideId', ride.id);
-      window.location.href = 'index.html';
+      window.location.href = `index.html?ride=${ride.id}`;
     });
+
+    const deleteIcon = item.querySelector('.delete-icon');
+    deleteIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      alert(`Delete requested for ride ID: ${ride.id}`);
+    });
+
     rideList.appendChild(item);
   });
-})();
+}
 
 // Logout
 logoutBtn.addEventListener('click', async () => {
