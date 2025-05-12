@@ -10,7 +10,7 @@ const stayHome = urlParams.get('home') === '1';
   if (user && !stayHome) {
     window.location.href = 'dashboard.html';
     return;
-  })();
+  }
 
 document.addEventListener('DOMContentLoaded', async () => {
 
@@ -806,5 +806,5 @@ function enableAllControls() {
     }
   });
 }
-
+})();
 
