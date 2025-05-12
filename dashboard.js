@@ -80,20 +80,6 @@ function renderRides(rides) {
     return;
   }
 
-  
-  // Clear loading state
-  rideList.innerHTML = '';
-
-  if (fetchError) {
-    rideList.textContent = '❌ Failed to load rides.';
-    return;
-  }
-
-  if (!rides.length) {
-    rideList.textContent = 'No rides found.';
-    return;
-  }
-  
   rides.forEach(ride => {
     const item = document.createElement('div');
     item.className = 'ride-entry';
