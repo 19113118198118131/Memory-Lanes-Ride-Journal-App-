@@ -49,6 +49,7 @@ const logoutBtn = document.getElementById('logout-btn');
           <span>⛰️ ${ride.elevation_m} m</span>
           <span>📅 ${new Date(ride.created_at).toLocaleDateString()}</span>
         </div>
+        <span class="delete-icon" title="Delete Ride">🗑️</span>
       </div>
     `;
     item.addEventListener('click', () => {
