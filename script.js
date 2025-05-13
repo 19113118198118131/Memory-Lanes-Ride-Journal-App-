@@ -657,6 +657,7 @@ scales: {
       posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'yElevation';
       posDs.data[0] = { x: parseFloat(distKm), y: mode === 'speed' ? speedData[idx] : p.ele };
       elevationChart.update('none');
+    }
 
     // Update acceleration cursor as well
     if (window.accelChart) {
