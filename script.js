@@ -189,7 +189,7 @@ function parseAndRenderGPX(gpxText) {
       resolve(); // ✅ Only resolve after both charts are updated
     }, 100);
   });
-}
+
 
 
   // ↓ Update summary UI ↓
