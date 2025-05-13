@@ -766,10 +766,12 @@ if (posAccelDs) {
           ySpeed: {
             title: { display: true, text: 'Speed (km/h)' },
             position: 'right',
-            min: 0,
-            max: 300, // or adjust based on your typical top speed
+            min: 0, // always makes sense for speed
             grid: { drawOnChartArea: false },
-            ticks: { stepSize: 20 }
+            ticks: {
+              stepSize: 20,
+              callback: v => v.toFixed(0)
+            }
           }
         },
         plugins: {
