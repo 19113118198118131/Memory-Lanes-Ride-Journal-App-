@@ -205,7 +205,7 @@ function parseAndRenderGPX(gpxText) {
   playBtn.textContent = '▶️ Play';
 
   if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
-
+updatePlayback(0);
 }
 
 setTimeout(() => requestAnimationFrame(enableAllControls), 100);
