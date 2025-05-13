@@ -507,11 +507,15 @@ function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     return Number.isFinite(y) ? { x: x / 1000, y } : null;
   }).filter(Boolean);
 
-  const highlightPoints = dist.map((x, i) => {
+let highlightPoints = [];
+if (selectedBins.length > 0) {
+  highlightPoints = dist.map((x, i) => {
     const y = speed[i];
     const inBin = selectedBins.some(binIdx => y >= bins[binIdx].min && y < bins[binIdx].max);
     return inBin && Number.isFinite(y) ? { x: x / 1000, y, idx: i } : null;
   }).filter(Boolean);
+}
+
 
   // Dynamically determine accel Y-axis range with a small buffer
   const accelValues = accel.map(p => p.y);
