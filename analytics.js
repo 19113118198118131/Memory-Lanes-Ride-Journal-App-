@@ -209,7 +209,7 @@ scales: {
         }
       }
     }
-  }
+  });
 }
 
 // 5) Entry point
