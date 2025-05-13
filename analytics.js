@@ -173,11 +173,11 @@ window.accelChart = new Chart(ctx, {
 
       ]
     },
-options: {
-  responsive: true,
-  animation: false,
-  interaction: { mode: 'nearest', intersect: false },
-  onClick: function(evt) {
+  options: {
+    responsive: true,
+    animation: false,
+    interaction: { mode: 'nearest', intersect: false },
+onClick: function(evt) {
   const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
   if (!elements.length) return;
   const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
@@ -185,28 +185,15 @@ options: {
     window.jumpToPlaybackIndex(dataPoint.idx);
   }
 },
-plugins: {
-  tooltip: {
-    callbacks: {
-      label: ctx => `Accel: ${ctx.raw.y.toFixed(2)} m/s² at ${ctx.raw.x.toFixed(2)} km`
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => `Dist: ${ctx.label} km, Accel: ${ctx.raw.y.toFixed(2)} m/s²`
+          }
+        }
+      }
     }
-  }
-},
-scales: {
-  x: {
-    title: {
-      display: true,
-      text: 'Distance (km)'
-    },
-    grid: { color: '#223' }
-  },
-  y: {
-    title: {
-      display: true,
-      text: 'Acceleration (m/s²)'
-    },
-    grid: { color: '#334' }
-  }
+  });
 }
 
 
