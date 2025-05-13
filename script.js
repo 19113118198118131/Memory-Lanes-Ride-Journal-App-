@@ -758,10 +758,12 @@ if (posAccelDs) {
             grid: { color: '#334' }
           },
           ySpeed: {
-            display: true,
-            position: 'right',
             title: { display: true, text: 'Speed (km/h)' },
-            grid: { drawOnChartArea: false }
+            position: 'right',
+            min: 0,
+            max: 300, // or adjust based on your typical top speed
+            grid: { drawOnChartArea: false },
+            ticks: { stepSize: 20 }
           }
         },
         plugins: {
