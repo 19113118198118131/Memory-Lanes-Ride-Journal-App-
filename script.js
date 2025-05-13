@@ -236,6 +236,18 @@ uploadInput.addEventListener('change', e => {
 // Grab any ?ride=<id> query parameter
 const params = new URLSearchParams(window.location.search);
 
+  if (params.get('home') === '1') {
+  const topNav = document.querySelector('#top-nav') || document.body;
+  const btn = document.createElement('button');
+  btn.textContent = '🏠 Go to Dashboard';
+  btn.style = 'margin-left: 1rem; padding: 0.5rem 1rem; font-weight: bold; background: #112240; color: #64ffda; border: 1px solid #64ffda; border-radius: 5px; cursor: pointer;';
+  btn.addEventListener('click', () => {
+    window.location.href = 'dashboard.html';
+  });
+  topNav.appendChild(btn);
+}
+
+  
 // If not viewing a ride, hide the viewer buttons
 if (!params.has('ride')) {
   rideActions.style.display = 'none';
