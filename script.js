@@ -121,6 +121,7 @@ uploadAnotherBtn.addEventListener('click', () => {
 // 0️⃣ Reusable GPX parser + renderer
 // ————————————————————————————————
 function parseAndRenderGPX(gpxText) {
+  return new Promise((resolve) => {
   // Parse XML → trackpoints
   const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
   const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
@@ -175,12 +176,17 @@ function parseAndRenderGPX(gpxText) {
   }
 
 // 🛠 FORCE INITIAL RENDER OF CHART ELEMENTS ON LOAD
-setTimeout(() => {
-  if (window.Analytics && window.accelChart && typeof window.accelChart.update === 'function') {
-    window.accelChart.update();
-  }
-}, 100);
-
+    setTimeout(() => {
+      if (window.accelChart && typeof window.accelChart.update === 'function') {
+        window.accelChart.update();
+      }
+      if (window.elevationChart && typeof window.elevationChart.update === 'function') {
+        window.elevationChart.update();
+      }
+      resolve(); // ✅ Only resolve after both charts are updated
+    }, 100);
+  });
+}
 
 
   // ↓ Update summary UI ↓
@@ -302,7 +308,7 @@ if (params.has('ride')) {
   const resp = await fetch(urlData.publicUrl)
   const gpxText = await resp.text()
   console.log("Fetched GPX content length:", gpxText.length);
-  await parseAndRenderGPX(gpxText);
+  await parseAndRenderGPX(gpxText); 
   console.log("Finished rendering GPX");
 }
   
@@ -643,10 +649,11 @@ scales: {
 
     const distKm = (cumulativeDistance[idx]/1000).toFixed(2);
     const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'elevation';
-    const posDs = elevationChart.data.datasets.find(d => d.label === 'Position');
-    posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'yElevation';
-    posDs.data[0] = { x: parseFloat(distKm), y: mode === 'speed' ? speedData[idx] : p.ele };
-    elevationChart.update('none');
+    const posDs = elevationChart?.data?.datasets.find(d => d.label === 'Position');
+    if (posDs) {
+      posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'yElevation';
+      posDs.data[0] = { x: parseFloat(distKm), y: mode === 'speed' ? speedData[idx] : p.ele };
+      elevationChart.update('none');
 
     // Update acceleration cursor as well
     if (window.accelChart) {
