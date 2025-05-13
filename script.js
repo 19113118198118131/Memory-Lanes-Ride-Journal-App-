@@ -197,14 +197,24 @@ function parseAndRenderGPX(gpxText) {
 
 
     // ↓ Build charts & enable controls ↓
-  setupChart();
-  renderSpeedFilter();
-  renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
-  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
-  slider.min = 0; slider.max = points.length - 1; slider.value = 0;
-  playBtn.textContent = '▶️ Play';
+setupChart();
+renderSpeedFilter();
+renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
 
-  if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
+if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
+
+// 🔄 Force refresh of charts after short delay
+setTimeout(() => {
+  if (window.accelChart) window.accelChart.resize();
+  if (window.cornerChart) window.cornerChart.resize();
+}, 100);
+
+[slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
+slider.min = 0;
+slider.max = points.length - 1;
+slider.value = 0;
+playBtn.textContent = '▶️ Play';
+
 
 }
 
