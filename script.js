@@ -164,13 +164,15 @@ function parseAndRenderGPX(gpxText) {
   for (let i = 1; i < points.length; i++) {
     const a = L.latLng(points[i-1].lat, points[i-1].lng);
     const b = L.latLng(points[i].lat,   points[i].lng);
-    const d = a.distanceTo(b);
-    const t = (points[i].time - points[i-1].time) / 1000;
-    const v = t > 0 ? (d / t) * 3.6 : 0;
+    const d = a.distanceTo(b); // meters
+    const t = (points[i].time - points[i-1].time) / 1000; // seconds
+    const v = t > 0 ? d / t : 0; // m/s
+  
     cumulativeDistance[i] = cumulativeDistance[i-1] + d;
-    speedData[i]          = v;
-    accelData[i]          = t > 0 ? (v - speedData[i-1]) / t : 0;
+    speedData[i]          = v * 3.6; // km/h for display only
+    accelData[i]          = t > 0 ? (v - (speedData[i-1] / 3.6)) / t : 0; // m/s²
   }
+
 
   // ↓ Update summary UI ↓
   const totalMs = points.at(-1).time - points[0].time;
