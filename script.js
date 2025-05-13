@@ -197,16 +197,38 @@ function parseAndRenderGPX(gpxText) {
 
 
     // ↓ Build charts & enable controls ↓
-setupChart();
-renderSpeedFilter();
-renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
-
-if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
+console.log('[init] Starting chart rendering...');
+  setupChart();
+console.log('[init] Elevation chart setup done.');
+  renderSpeedFilter();
+console.log('[init] Speed filter rendered.');
+  renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+console.log('[init] Accel chart rendered.');
+  
+if (window.Analytics) {
+  console.log('[init] Initializing analytics...');
+  Analytics.initAnalytics(points, speedData, cumulativeDistance);
+  console.log('[init] Analytics initialized.');
+} else {
+  console.warn('[init] Analytics object missing!');
+}
 
 // 🔄 Force refresh of charts after short delay
 setTimeout(() => {
-  if (window.accelChart) window.accelChart.resize();
-  if (window.cornerChart) window.cornerChart.resize();
+  console.log('[resize] Forcing chart resize...');
+  if (window.accelChart) {
+    window.accelChart.resize();
+    console.log('[resize] accelChart resized');
+  } else {
+    console.warn('[resize] accelChart missing');
+  }
+
+  if (window.cornerChart) {
+    window.cornerChart.resize();
+    console.log('[resize] cornerChart resized');
+  } else {
+    console.warn('[resize] cornerChart missing');
+  }
 }, 100);
 
 [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
