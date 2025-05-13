@@ -585,14 +585,14 @@ scales: {
         },
         y: {
           title: { display: true, text: 'Acceleration (m/s²)' },
-          position: 'left',
+          : 'left',
           min: accelMin - accelBuffer,
           max: accelMax + accelBuffer,
           grid: { color: '#334' }
         },
         ySpeed: {
           title: { display: true, text: 'Speed (km/h)' },
-          position: 'right',
+          : 'right',
           grid: { drawOnChartArea: false }
         }
       },
@@ -622,7 +622,7 @@ scales: {
 
     const distKm = (cumulativeDistance[idx]/1000).toFixed(2);
     const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'elevation';
-    const posDs = elevationChart.data.datasets.find(d => d.label === 'Position');
+    const posDs = elevationChart.data.datasets.find(d => d.label === 'Point in Ride');
     posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'yElevation';
     posDs.data[0] = { x: parseFloat(distKm), y: mode === 'speed' ? speedData[idx] : p.ele };
     elevationChart.update('none');
@@ -642,7 +642,7 @@ scales: {
     document.getElementById('telemetry-speed').textContent = `${speedData[idx].toFixed(1)} km/h`;
 
 // 🔵 Update dynamic dot on Acceleration Chart
-const posAccelDs = window.accelChart?.data?.datasets?.find(d => d.label === 'Position');
+const posAccelDs = window.accelChart?.data?.datasets?.find(d => d.label === 'Point in Ride');
 if (posAccelDs) {
   posAccelDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'y';
   posAccelDs.data[0] = {
@@ -685,7 +685,7 @@ if (posAccelDs) {
             yAxisID: 'yElevation'
           },
           {
-            label: 'Position',
+            label: 'Point in Ride',
             data: [{ x: 0, y: points[0] ? points[0].ele : 0 }],
             type: 'scatter',
             pointRadius: 5,
