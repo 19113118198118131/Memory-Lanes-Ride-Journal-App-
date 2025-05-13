@@ -38,10 +38,13 @@ function renderCornerChart(angleDegs, speedData) {
     (ang > cornerThreshold ? cornerPts : straightPts).push(pt);
   });
 
-  const ctx = document.getElementById('cornerChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'scatter',
-    data: {
+const ctx = document.getElementById('cornerChart').getContext('2d');
+if (window.cornerChart && typeof window.cornerChart.destroy === 'function') {
+  window.cornerChart.destroy();
+}
+window.cornerChart = new Chart(ctx, {
+  type: 'scatter',
+  data: {
       datasets: [
         { label: 'Corners', data: cornerPts, pointBackgroundColor: '#8338EC' },
         { label: 'Straights', data: straightPts, pointBackgroundColor: '#FF6384' }
@@ -170,11 +173,11 @@ window.accelChart = new Chart(ctx, {
 
       ]
     },
-  options: {
-    responsive: true,
-    animation: false,
-    interaction: { mode: 'nearest', intersect: false },
-onClick: function(evt) {
+options: {
+  responsive: true,
+  animation: false,
+  interaction: { mode: 'nearest', intersect: false },
+  onClick: function(evt) {
   const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
   if (!elements.length) return;
   const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
@@ -182,15 +185,30 @@ onClick: function(evt) {
     window.jumpToPlaybackIndex(dataPoint.idx);
   }
 },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: ctx => `Dist: ${ctx.label} km, Accel: ${ctx.raw.y.toFixed(2)} m/s²`
-          }
-        }
+scales: {
+    x: {
+      title: {
+        display: true,
+        text: 'Turn Angle (degrees)'
+      },
+      grid: { color: '#223' },
+      ticks: { callback: v => `${v}°` }
+    },
+    y: {
+      title: {
+        display: true,
+        text: 'Speed (km/h)'
+      },
+      grid: { color: '#334' }
+    }
+  },
+  plugins: {
+    tooltip: {
+      callbacks: {
+        label: ctx => `Angle: ${ctx.raw.x.toFixed(1)}°, Speed: ${ctx.raw.y.toFixed(1)} km/h`
       }
     }
-  });
+  }
 }
 
 // 5) Entry point
