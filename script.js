@@ -237,7 +237,7 @@ uploadInput.addEventListener('change', e => {
 const params = new URLSearchParams(window.location.search);
 
   if (params.get('home') === '1') {
-  const topNav = document.querySelector('#top-nav') || document.body;
+  const topNav = document.getElementById('nav-back-button');
   const btn = document.createElement('button');
   btn.textContent = '🏠 Go to Dashboard';
   btn.style = 'margin-left: 1rem; padding: 0.5rem 1rem; font-weight: bold; background: #112240; color: #64ffda; border: 1px solid #64ffda; border-radius: 5px; cursor: pointer;';
