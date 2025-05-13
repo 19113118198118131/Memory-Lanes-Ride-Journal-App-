@@ -90,8 +90,6 @@ function initAnalytics(points, speedData, cumulativeDistance) {
   const { angleDegs, accelData } = computeAnalytics(points, speedData);
   renderCornerChart(angleDegs, speedData);
   window.accelData = accelData; // make it global
-  renderAccelChart(accelData, cumulativeDistance, speedData, [], []);
-
 }
 
 // expose globally
