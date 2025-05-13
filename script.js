@@ -240,7 +240,20 @@ const params = new URLSearchParams(window.location.search);
   const topNav = document.getElementById('nav-back-button');
   const btn = document.createElement('button');
   btn.textContent = '🏠 Go to Dashboard';
-  btn.style = 'margin-left: 1rem; padding: 0.5rem 1rem; font-weight: bold; background: #112240; color: #64ffda; border: 1px solid #64ffda; border-radius: 5px; cursor: pointer;';
+  btn.style = `
+  padding: 0.4rem 1rem;
+  font-weight: bold;
+  font-size: 0.9rem;
+  background: transparent;
+  color: #64ffda;
+  border: 1px solid #64ffda;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.2s;
+`;
+btn.onmouseenter = () => btn.style.background = '#0a192f';
+btn.onmouseleave = () => btn.style.background = 'transparent';
+
   btn.addEventListener('click', () => {
     window.location.href = 'dashboard.html';
   });
