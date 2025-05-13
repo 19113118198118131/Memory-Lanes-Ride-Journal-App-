@@ -88,9 +88,9 @@ function smoothArray(data, windowSize = 15) {
 // 4) Entry point
 function initAnalytics(points, speedData, cumulativeDistance) {
   const { angleDegs, accelData } = computeAnalytics(points, speedData);
-  renderCornerChart(angleDegs, speedData);
+  requestAnimationFrame(() => renderCornerChart(angleDegs, speedData));
   window.accelData = accelData; // make it global
 }
 
 // expose globally
-window.Analytics = { initAnalytics, renderAccelChart };
+window.Analytics = { initAnalytics };
