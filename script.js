@@ -209,6 +209,18 @@ setTimeout(() => {
   setupChart();
   renderSpeedFilter();
   renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+
+  // 🛠 FORCE INITIAL RENDER OF CHART ELEMENTS ON LOAD
+setTimeout(() => {
+  if (window.accelChart && typeof window.accelChart.update === 'function') {
+    window.accelChart.update();
+  }
+  if (window.elevationChart && typeof window.elevationChart.update === 'function') {
+    window.elevationChart.update();
+  }
+}, 100);  
+  
+  
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
   slider.min = 0; slider.max = points.length - 1; slider.value = 0;
   playBtn.textContent = '▶️ Play';
