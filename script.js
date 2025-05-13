@@ -131,7 +131,10 @@ function parseAndRenderGPX(gpxText) {
     time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
   })).filter(p => p.lat && p.lng && p.time instanceof Date);
 
-  if (!trkpts.length) return alert('No valid trackpoints found');
+  if (!trkpts.length) {
+  alert('No valid trackpoints found');
+  return resolve();
+}
 
   // ↓ Build points[], detect breaks, sample every 5s ↓
   const SAMPLE = 5;
@@ -252,7 +255,7 @@ uploadInput.addEventListener('change', e => {
   points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
 
   const reader = new FileReader();
-  reader.onload = ev => parseAndRenderGPX(ev.target.result);
+  reader.onload = async ev => await parseAndRenderGPX(ev.target.result);
   reader.readAsText(file);
 });
   
