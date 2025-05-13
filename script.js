@@ -215,21 +215,23 @@ if (window.Analytics) {
 
 // 🔄 Force refresh of charts after short delay
 setTimeout(() => {
-  console.log('[resize] Forcing chart resize...');
+  console.log('[update] Forcing full chart updates...');
+
   if (window.accelChart) {
-    window.accelChart.resize();
-    console.log('[resize] accelChart resized');
+    window.accelChart.update('active');  // 'active' ensures layout + animation reset
+    console.log('[update] accelChart updated');
   } else {
-    console.warn('[resize] accelChart missing');
+    console.warn('[update] accelChart missing');
   }
 
   if (window.cornerChart) {
-    window.cornerChart.resize();
-    console.log('[resize] cornerChart resized');
+    window.cornerChart.update('active');
+    console.log('[update] cornerChart updated');
   } else {
-    console.warn('[resize] cornerChart missing');
+    console.warn('[update] cornerChart missing');
   }
-}, 100);
+}, 300);
+
 
 [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
 slider.min = 0;
