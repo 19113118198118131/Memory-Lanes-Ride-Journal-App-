@@ -185,32 +185,30 @@ options: {
     window.jumpToPlaybackIndex(dataPoint.idx);
   }
 },
+plugins: {
+  tooltip: {
+    callbacks: {
+      label: ctx => `Accel: ${ctx.raw.y.toFixed(2)} m/s² at ${ctx.raw.x.toFixed(2)} km`
+    }
+  }
+},
 scales: {
-    x: {
-      title: {
-        display: true,
-        text: 'Turn Angle (degrees)'
-      },
-      grid: { color: '#223' },
-      ticks: { callback: v => `${v}°` }
+  x: {
+    title: {
+      display: true,
+      text: 'Distance (km)'
     },
-    y: {
-      title: {
-        display: true,
-        text: 'Speed (km/h)'
-      },
-      grid: { color: '#334' }
-    }
+    grid: { color: '#223' }
   },
-  plugins: {
-    tooltip: {
-      callbacks: {
-        label: ctx => `Angle: ${ctx.raw.x.toFixed(1)}°, Speed: ${ctx.raw.y.toFixed(1)} km/h`
-        }
-      }
-    }
-  });
+  y: {
+    title: {
+      display: true,
+      text: 'Acceleration (m/s²)'
+    },
+    grid: { color: '#334' }
+  }
 }
+
 
 // 5) Entry point
 function initAnalytics(points, speedData, cumulativeDistance) {
