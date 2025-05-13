@@ -665,128 +665,83 @@ if (posAccelDs) {
 
 
 
-  function setupChart() {
-    const ctx = document.getElementById('elevationChart').getContext('2d');
-    if (elevationChart) elevationChart.destroy();
-    elevationChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        datasets: [
-          {
-            label: 'Elevation',
-            data: points.map((p, i) => ({ x: cumulativeDistance[i]/1000, y: p.ele, idx: i })),
-            borderColor: '#64ffda',
-            backgroundColor: (() => {
-              const g = ctx.createLinearGradient(0,0,0,200);
-              g.addColorStop(0, 'rgba(100,255,218,0.4)');
-              g.addColorStop(1, 'rgba(100,255,218,0)');
-              return g;
-            })(),
-            borderWidth: 2,
-            tension: 0.3,
-            pointRadius: 0,
-            fill: true,
-            yAxisID: 'yElevation'
-          },
-          {
-            label: 'Position',
-            data: [{ x: 0, y: points[0] ? points[0].ele : 0 }],
-            type: 'scatter',
-            pointRadius: 5,
-            pointBackgroundColor: '#fff',
-            showLine: false,
-            yAxisID: 'yElevation'
-          },
-          {
-            label: 'Breaks',
-            data: breakPoints.map(i => ({ x: cumulativeDistance[i]/1000, y: points[i].ele })),
-            type: 'scatter',
-            pointRadius: 3,
-            pointBackgroundColor: 'rgba(150,150,150,0.6)',
-            showLine: false,
-            yAxisID: 'yElevation'
-          },
-          {
-            label: 'Speed (km/h)',
-            data: points.map((p, i) => ({ x: cumulativeDistance[i]/1000, y: speedData[i], idx: i })),
-            borderColor: '#ff6384',
-            backgroundColor: (() => {
-              const g = ctx.createLinearGradient(0, 0, 0, 200);
-              g.addColorStop(0, 'rgba(255,99,132,0.4)');
-              g.addColorStop(1, 'rgba(255,99,132,0)');
-              return g;
-            })(),
-            borderWidth: 2,
-            tension: 0.3,
-            pointRadius: 0,
-            fill: true,
-            yAxisID: 'ySpeed'
-          }
-        ]
-      },
-    options: {
-      responsive: true,
-      animation: false,
-      interaction: { mode: 'nearest', intersect: false },
-      onClick: function(evt) {
-        // ⏸ Stop playback if playing
-        if (window.playInterval) {
-          clearInterval(window.playInterval);
-          window.playInterval = null;
-          playBtn.textContent = '▶️ Play';
-        }
-    
-        const elements = this.getElementsAtEventForMode(evt,'nearest',{ intersect:false },true);
-        if (!elements.length) return;
-        const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-        if (dataPoint && typeof dataPoint.idx === 'number') {
-          window.jumpToPlaybackIndex(dataPoint.idx);
-        }
-      },
+  window.updatePlayback = idx => {
+  const p = points[idx];
+  const distKm = (cumulativeDistance[idx] / 1000).toFixed(2);
+  const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'elevation';
 
-        scales: {
-          x: {
-            type: 'linear',
-            title: { display: true, text: 'Distance (km)' },
-            grid: { color: '#223' },
-            ticks: { callback: v => v.toFixed(2) }
-          },
-          yElevation: {
-            display: true,
-            position: 'left',
-            title: { display: true, text: 'Elevation (m)' },
-            grid: { color: '#334' }
-          },
-          ySpeed: {
-            display: true,
-            position: 'right',
-            title: { display: true, text: 'Speed (km/h)' },
-            grid: { drawOnChartArea: false }
-          }
-        },
-        plugins: {
-          legend: { display: true },
-          tooltip: {
-            callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.y.toFixed(1)}` }
-          }
-        }
-      }
-    });
-
-    document.querySelectorAll('input[name="chartMode"]').forEach(radio => {
-      radio.addEventListener('change', () => {
-        const mode = document.querySelector('input[name="chartMode"]:checked').value;
-        elevationChart.data.datasets.forEach(ds => {
-          if (ds.label === 'Elevation' || ds.label === 'Breaks') ds.hidden = (mode === 'speed');
-          else if (ds.label === 'Speed (km/h)') ds.hidden = (mode === 'elevation');
-        });
-        elevationChart.options.scales.yElevation.display = (mode !== 'speed');
-        elevationChart.options.scales.ySpeed.display     = (mode !== 'elevation');
-        elevationChart.update();
-      });
-    });
+  // 🗺️ Update map marker
+  if (!marker) {
+    marker = L.circleMarker([p.lat, p.lng], {
+      radius: 6,
+      color: '#007bff',
+      fillColor: '#007bff',
+      fillOpacity: 0.9
+    }).addTo(map);
+  } else {
+    marker.setLatLng([p.lat, p.lng]);
   }
-});
+
+  // 🧵 Update trail
+  trailPolyline.setLatLngs(points.slice(0, idx + 1).map(pt => [pt.lat, pt.lng]));
+  map.panTo([p.lat, p.lng], { animate: false });
+
+  // 📊 Update elevationChart datasets
+  const eleDs       = elevationChart.data.datasets.find(d => d.label === 'Elevation');
+  const speedDs     = elevationChart.data.datasets.find(d => d.label === 'Speed (km/h)');
+  const breaksDs    = elevationChart.data.datasets.find(d => d.label === 'Breaks');
+  const pointDs     = elevationChart.data.datasets.find(d => d.label === 'Point in Ride');
+
+  if (eleDs) eleDs.data = points.map((pt, i) => ({ x: cumulativeDistance[i]/1000, y: pt.ele, idx: i }));
+  if (speedDs) speedDs.data = points.map((pt, i) => ({ x: cumulativeDistance[i]/1000, y: speedData[i], idx: i }));
+  if (breaksDs) breaksDs.data = breakPoints.map(i => ({ x: cumulativeDistance[i]/1000, y: points[i].ele }));
+  if (pointDs) {
+    pointDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'yElevation';
+    pointDs.data = [{
+      x: parseFloat(distKm),
+      y: mode === 'speed' ? speedData[idx] : p.ele
+    }];
+  }
+
+  elevationChart.options.scales.yElevation.display = (mode !== 'speed');
+  elevationChart.options.scales.ySpeed.display     = (mode !== 'elevation');
+  elevationChart.update('none');
+
+  // ⚡ Update accelChart
+  if (window.accelChart) {
+    const accelCursor = window.accelChart.data.datasets.find(d => d.label === 'Point in Ride');
+    const accelDs     = window.accelChart.data.datasets.find(d => d.label === 'Acceleration');
+
+    if (accelDs) {
+      accelDs.data = cumulativeDistance.map((d, i) => {
+        const y = accelData[i];
+        return Number.isFinite(y) ? { x: d / 1000, y } : null;
+      }).filter(Boolean);
+    }
+
+    if (accelCursor) {
+      accelCursor.yAxisID = (mode === 'speed') ? 'ySpeed' : 'y';
+      accelCursor.data = [{
+        x: parseFloat(distKm),
+        y: mode === 'speed' ? speedData[idx] : accelData[idx]
+      }];
+    }
+
+    window.accelChart.update('none');
+  }
+
+  // 📉 Optional: Update corneringChart or other charts here in similar pattern
+
+  // 📟 Update telemetry readout
+  document.getElementById('telemetry-elevation').textContent = `${p.ele.toFixed(0)} m`;
+  document.getElementById('telemetry-distance').textContent  = `${distKm} km`;
+  document.getElementById('telemetry-speed').textContent     = `${speedData[idx].toFixed(1)} km/h`;
+
+  // 🎛️ Update slider position
+  slider.value = idx;
+  window.fracIndex = idx;
+};
+
 
   
 function enableAllControls() {
