@@ -237,7 +237,7 @@ uploadInput.addEventListener('change', e => {
 const params = new URLSearchParams(window.location.search);
 
   if (params.get('home') === '1') {
-  const topNav = document.getElementById('nav-back-button');
+  const topNav = document.getElementById('ride-card-nav');
   const btn = document.createElement('button');
   btn.textContent = '🏠 Go to Dashboard';
   btn.style = `
