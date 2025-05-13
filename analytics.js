@@ -206,6 +206,7 @@ scales: {
     tooltip: {
       callbacks: {
         label: ctx => `Angle: ${ctx.raw.x.toFixed(1)}°, Speed: ${ctx.raw.y.toFixed(1)} km/h`
+        }
       }
     }
   }
