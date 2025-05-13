@@ -695,7 +695,7 @@ if (posAccelDs) {
             yAxisID: 'yElevation'
           },
           {
-            label: 'Position',
+            label: 'Point in Ride',
             data: [{ x: 0, y: points[0] ? points[0].ele : 0 }],
             type: 'scatter',
             pointRadius: 5,
