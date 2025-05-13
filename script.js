@@ -166,12 +166,21 @@ function parseAndRenderGPX(gpxText) {
     const b = L.latLng(points[i].lat,   points[i].lng);
     const d = a.distanceTo(b); // meters
     const t = (points[i].time - points[i-1].time) / 1000; // seconds
-    const v = t > 0 ? d / t : 0; // m/s
+    const v_mps = t > 0 ? (d / t) : 0;   // m/s
+    const v_kph = v_mps * 3.6;           // convert to km/h
   
     cumulativeDistance[i] = cumulativeDistance[i-1] + d;
-    speedData[i]          = v * 3.6; // km/h for display only
-    accelData[i]          = t > 0 ? (v - (speedData[i-1] / 3.6)) / t : 0; // m/s²
+    speedData[i]          = v_kph;
+    accelData[i]          = t > 0 ? (v_mps - (speedData[i-1] / 3.6)) / t : 0; // acceleration in m/s²
   }
+
+// 🛠 FORCE INITIAL RENDER OF CHART ELEMENTS ON LOAD
+setTimeout(() => {
+  if (window.Analytics && window.accelChart && typeof window.accelChart.update === 'function') {
+    window.accelChart.update();
+  }
+}, 100);
+
 
 
   // ↓ Update summary UI ↓
