@@ -239,7 +239,7 @@ const params = new URLSearchParams(window.location.search);
   if (params.get('home') === '1') {
   const topNav = document.getElementById('ride-card-nav');
   const btn = document.createElement('button');
-  btn.textContent = '🏠 Go to Dashboard';
+  btn.textContent = 'Go to Dashboard';
   btn.style = `
   padding: 0.4rem 1rem;
   font-weight: bold;
@@ -369,7 +369,21 @@ if (!user) {
   statusEl.textContent = '';  
 
   // Show success message
-  statusEl.innerHTML = '✅ Login successful! <button id="go-dashboard" style="margin-left:10px;">Go to Dashboard</button>';
+  statusEl.innerHTML = `
+  ✅ Login successful!
+  <button id="go-dashboard" style="
+    margin-left: 1rem;
+    padding: 0.4rem 1rem;
+    font-weight: bold;
+    font-size: 0.9rem;
+    background: transparent;
+    color: #64ffda;
+    border: 1px solid #64ffda;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.2s;
+  ">Go to Dashboard</button>
+`;
   document.getElementById('save-status').textContent = '';
   
   // Show styled success
@@ -391,14 +405,17 @@ if (!user) {
   document.getElementById('save-ride-form').style.display = 'block';
 
 
-  setTimeout(() => {
-    const dashBtn = document.getElementById('go-dashboard');
-    if (dashBtn) {
-      dashBtn.addEventListener('click', () => {
-        window.location.href = 'dashboard.html';
-      });
-    }
-  }, 0);
+setTimeout(() => {
+  const dashBtn = document.getElementById('go-dashboard');
+  const navContainer = document.getElementById('ride-card-nav');
+  if (dashBtn && navContainer) {
+    navContainer.appendChild(dashBtn); // 💡 Move button visually
+    dashBtn.addEventListener('click', () => {
+      window.location.href = 'dashboard.html';
+    });
+  }
+}, 0);
+
 });
 
 
