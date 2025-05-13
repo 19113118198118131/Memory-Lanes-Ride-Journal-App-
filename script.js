@@ -678,12 +678,7 @@ scales: {
     posDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'yElevation';
     posDs.data[0] = { x: parseFloat(distKm), y: mode === 'speed' ? speedData[idx] : p.ele };
    
-    slider.value = idx;
-    document.getElementById('telemetry-elevation').textContent = `${p.ele.toFixed(0)} m`;
-    document.getElementById('telemetry-distance').textContent = `${distKm} km`;
-    document.getElementById('telemetry-speed').textContent = `${speedData[idx].toFixed(1)} km/h`;
-   
-    elevationChart.update('none');
+     elevationChart.update('none');
 
     // Update acceleration cursor as well
     if (window.accelChart) {
