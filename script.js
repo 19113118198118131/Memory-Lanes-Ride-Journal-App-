@@ -204,7 +204,11 @@ function parseAndRenderGPX(gpxText) {
   slider.min = 0; slider.max = points.length - 1; slider.value = 0;
   playBtn.textContent = '▶️ Play';
 
-  if (window.Analytics) Analytics.initAnalytics(points, speedData, cumulativeDistance);
+  if (window.Analytics) {
+  Analytics.initAnalytics(points, speedData, cumulativeDistance);
+  renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+}
+
 
 }
 
