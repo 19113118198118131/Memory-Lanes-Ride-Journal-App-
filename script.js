@@ -100,7 +100,7 @@ uploadAnotherBtn.addEventListener('click', () => {
     btn.classList.toggle('active', !isActive);
     if (speedHighlightLayer) map.removeLayer(speedHighlightLayer);
     if (selectedSpeedBins.size === 0) {
-      renderAccelChart(accelData, cumulativeDistance, speedData, [], speedBins);
+      renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
       return;
     }
     const segments = [];
