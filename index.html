@@ -19,11 +19,11 @@
   </header>
 
   <!-- controls shown only once there's data -->
-  <div id="ride-controls" class="has-data" style="margin: 1rem;">
+  <div id="ride-controls" class="has-data" style="display:none; margin: 1rem;">
     <h2 id="ride-title-display" style="color: #64ffda; margin-bottom: 0.5rem;"></h2>
   </div>
 
-  <div id="ride-actions" class="has-data" style="margin: 1rem; display: flex; gap: 1rem;">
+  <div id="ride-actions" class="has-data" style="display:none; margin: 1rem; display: flex; gap: 1rem;">
     <button id="back-dashboard" class="btn-muted">⬅️ Back to Dashboard</button>
     <button id="upload-another" class="btn-muted">📤 Upload a New Ride</button>
   </div>
@@ -40,7 +40,7 @@
     </section>
 
     <!-- login / save form: only once data exists -->
-    <div id="save-ride-form" class="has-data" style="margin-top:1rem;">
+    <div id="save-ride-form" class="has-data" style="display:none; margin-top:1rem;">
       <h3>Log this Ride</h3>
       <div class="ride-form">
         <label for="ride-title">Ride Title:</label>
@@ -98,6 +98,7 @@
       </select>
     </section>
 
+    <!-- Analytics Section (only) -->
     <section id="analytics-container" class="has-data">
       <h2>Ride Analytics</h2>
 
