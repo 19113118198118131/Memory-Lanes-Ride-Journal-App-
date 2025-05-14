@@ -10,8 +10,16 @@ function resetToUploadView() {
 
 // Un-hide once we’ve got a GPX (or fetched ride)
 function showRideUI() {
-  document.querySelectorAll('.has-data').forEach(el => el.style.display = '');
+  document.querySelectorAll('.has-data').forEach(el => {
+    // pick the right type for this container
+    if (el.matches('#ride-actions, .download-buttons')) {
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'block';
+    }
+  });
 }
+
 
 
   const FRAME_DELAY_MS = 50;
