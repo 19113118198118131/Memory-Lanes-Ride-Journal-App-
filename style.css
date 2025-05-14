@@ -668,7 +668,7 @@ footer a {
 }
 
 .has-data {
-  display: none !important;
+  display: none;
 }
 .upload-hint {
   margin-top: 0.5rem;
