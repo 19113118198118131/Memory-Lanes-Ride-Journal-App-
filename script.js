@@ -215,10 +215,11 @@ async function parseAndRenderGPX(gpxText) {
   }
 
   // ── Reveal all ride‐driven sections ──
-  document.querySelectorAll('.has-data').forEach(el => {
-    el.style.display = '';
-    el.classList.add('fade-in');
-  });
+document.querySelectorAll('.has-data').forEach(el => {
+  el.classList.remove('has-data');   // 💥 remove the blocking class
+  el.style.display = '';             // restore whatever the stylesheet says
+  el.classList.add('fade-in');
+});
   document.getElementById('download-summary').style.display = '';
   document.getElementById('export-video').style.display   = '';
 
