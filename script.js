@@ -3,6 +3,10 @@ import supabase from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
 
+  document.querySelectorAll('.has-data').forEach(el => el.style.display = 'none');
+  document.getElementById('download-summary').style.display = 'none';
+  document.getElementById('export-video').style.display   = 'none'; 
+
   const FRAME_DELAY_MS = 50;
   const slider = document.getElementById('replay-slider');
   const playBtn = document.getElementById('play-replay');
@@ -204,15 +208,31 @@ function parseAndRenderGPX(gpxText) {
   slider.min = 0; slider.max = points.length - 1; slider.value = 0;
   playBtn.textContent = '▶️ Play';
 
-  if (window.Analytics) {
-  Analytics.initAnalytics(points, speedData, cumulativeDistance);
-  renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+  
+    if (window.Analytics) {
+    Analytics.initAnalytics(points, speedData, cumulativeDistance);
+    renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+  }
+
+  // ── Reveal all ride‐driven sections ──
+  document.querySelectorAll('.has-data').forEach(el => {
+    el.style.display = '';
+    el.classList.add('fade-in');
+  });
+  document.getElementById('download-summary').style.display = '';
+  document.getElementById('export-video').style.display   = '';
+
+  // ── Then show either “Save this ride” (logged‐in) or login/signup ──
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    saveForm.style.display = '';           // saveForm === document.getElementById('save-ride-form')
+  } else {
+    document.getElementById('auth-section').style.display = '';
+  }
 }
 
 
-}
-
-setTimeout(() => requestAnimationFrame(enableAllControls), 100);
+  setTimeout(() => requestAnimationFrame(enableAllControls), 100);
  
 
 // ————————————————————————————————
