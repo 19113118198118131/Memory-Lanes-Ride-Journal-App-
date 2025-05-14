@@ -244,7 +244,9 @@ uploadInput.addEventListener('change', e => {
 
 const reader = new FileReader();
 reader.onload = async ev => {
+    console.log("✅ reader.onload fired");
   await parseAndRenderGPX(ev.target.result);
+  console.log("✅ parseAndRenderGPX finished");
   showRideUI();
   const { data:{ user } } = await supabase.auth.getUser();
   if (user) document.getElementById('save-ride-form').style.display = '';
