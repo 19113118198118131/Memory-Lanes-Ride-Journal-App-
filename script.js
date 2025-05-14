@@ -3,6 +3,17 @@ import supabase from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
 
+  // Hide all sections that require ride data
+function resetToUploadView() {
+  document.querySelectorAll('.has-data').forEach(el => el.style.display = 'none');
+}
+
+// Un-hide once we’ve got a GPX (or fetched ride)
+function showRideUI() {
+  document.querySelectorAll('.has-data').forEach(el => el.style.display = '');
+}
+
+
   const FRAME_DELAY_MS = 50;
   const slider = document.getElementById('replay-slider');
   const playBtn = document.getElementById('play-replay');
@@ -40,6 +51,9 @@ uploadAnotherBtn.addEventListener('click', () => {
 
 
   console.log('script.js loaded');
+  // ① start in “upload only” mode
+  resetToUploadView();
+
   window.updatePlayback = null;
 
 // Initialize map using correct ID
@@ -228,37 +242,45 @@ uploadInput.addEventListener('change', e => {
   if (trailPolyline) map.removeLayer(trailPolyline);
   points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
 
-  const reader = new FileReader();
-  reader.onload = ev => parseAndRenderGPX(ev.target.result);
-  reader.readAsText(file);
-});
+const reader = new FileReader();
+reader.onload = async ev => {
+  await parseAndRenderGPX(ev.target.result);
+  showRideUI();
+  const { data:{ user } } = await supabase.auth.getUser();
+  if (user) document.getElementById('save-ride-form').style.display = '';
+  else      document.getElementById('auth-section').style.display = '';
+};
+reader.readAsText(file);
+
   
 // Grab any ?ride=<id> query parameter
 const params = new URLSearchParams(window.location.search);
 
-  if (params.get('home') === '1') {
+if (params.get('home') === '1') {
+  resetToUploadView();
   const topNav = document.getElementById('ride-card-nav');
   const btn = document.createElement('button');
   btn.textContent = 'Go to Dashboard';
   btn.style = `
-  padding: 0.4rem 1rem;
-  font-weight: bold;
-  font-size: 0.9rem;
-  background: transparent;
-  color: #64ffda;
-  border: 1px solid #64ffda;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background 0.2s;
-`;
-btn.onmouseenter = () => btn.style.background = '#0a192f';
-btn.onmouseleave = () => btn.style.background = 'transparent';
+    padding: 0.4rem 1rem;
+    font-weight: bold;
+    font-size: 0.9rem;
+    background: transparent;
+    color: #64ffda;
+    border: 1px solid #64ffda;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.2s;
+  `;
+  btn.onmouseenter = () => btn.style.background = '#0a192f';
+  btn.onmouseleave = () => btn.style.background = 'transparent';
 
   btn.addEventListener('click', () => {
     window.location.href = 'dashboard.html';
   });
   topNav.appendChild(btn);
 }
+
 
   
 // If not viewing a ride, hide the viewer buttons
@@ -311,7 +333,17 @@ if (params.has('ride')) {
   const gpxText = await resp.text()
   console.log("Fetched GPX content length:", gpxText.length);
   await parseAndRenderGPX(gpxText);
-  console.log("Finished rendering GPX");
+  showRideUI();
+
+// then show save or auth
+const { data: { user } } = await supabase.auth.getUser();
+if (user) {
+  document.getElementById('save-ride-form').style.display = '';
+} else {
+  document.getElementById('auth-section').style.display = '';
+}
+
+console.log("Finished rendering GPX");
 }
   
   // Redirect clean-up from Supabase
