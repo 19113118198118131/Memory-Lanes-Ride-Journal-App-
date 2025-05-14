@@ -667,14 +667,22 @@ footer a {
   }
 }
 
-.has-data { display: none;
-  .fade-in {
+/* hide anything with .has-data by default */
+.has-data {
+  display: none;
+}
+
+/* fade-in helper (apply by adding the class “fade-in”) */
+.fade-in {
   animation: fadeIn 0.5s ease forwards;
 }
-  @keyframes fadeIn {
+
+@keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+/* your existing .upload-hint etc. can stay here */
 .upload-hint {
   margin-top: 0.5rem;
   font-size: 0.9rem;
