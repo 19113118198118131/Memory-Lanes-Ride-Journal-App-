@@ -223,6 +223,9 @@ document.querySelectorAll('.has-data').forEach(el => {
   document.getElementById('download-summary').style.display = '';
   document.getElementById('export-video').style.display   = '';
 
++  // 🗺️ Make Leaflet redraw now that the <div> is visible
++  setTimeout(() => map.invalidateSize(), 0);
+  
   // ── Then show either “Save this ride” (logged‐in) or login/signup ──
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
