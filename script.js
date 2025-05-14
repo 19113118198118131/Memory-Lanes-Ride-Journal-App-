@@ -124,7 +124,7 @@ uploadAnotherBtn.addEventListener('click', () => {
   // ————————————————————————————————
 // 0️⃣ Reusable GPX parser + renderer
 // ————————————————————————————————
-function parseAndRenderGPX(gpxText) {
+async function parseAndRenderGPX(gpxText) {
   // Parse XML → trackpoints
   const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
   const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
