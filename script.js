@@ -1,52 +1,46 @@
-// script.js
 import supabase from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-
-  document.querySelectorAll('.has-data').forEach(el => el.style.display = 'none');
-  document.getElementById('download-summary').style.display = 'none';
-  document.getElementById('export-video').style.display   = 'none'; 
-
-  const FRAME_DELAY_MS = 50;
-  const slider = document.getElementById('replay-slider');
-  const playBtn = document.getElementById('play-replay');
-  const summaryBtn = document.getElementById('download-summary');
-  const videoBtn = document.getElementById('export-video');
-  const speedSel = document.getElementById('playback-speed');
-  const distanceEl = document.getElementById('distance');
-  const durationEl = document.getElementById('duration');
-  const rideTimeEl = document.getElementById('ride-time');
+  // ── grab your ride-driven buttons/sections up front ──
+  const slider      = document.getElementById('replay-slider');
+  const playBtn     = document.getElementById('play-replay');
+  const summaryBtn  = document.getElementById('download-summary');
+  const videoBtn    = document.getElementById('export-video');
+  const speedSel    = document.getElementById('playback-speed');
+  const distanceEl  = document.getElementById('distance');
+  const durationEl  = document.getElementById('duration');
+  const rideTimeEl  = document.getElementById('ride-time');
   const elevationEl = document.getElementById('elevation');
   const uploadInput = document.getElementById('gpx-upload');
-  const saveForm = document.getElementById('save-ride-form');
-  const saveBtn = document.getElementById('save-ride-btn');
-  const rideTitleDisplay = document.getElementById('ride-title-display');
-  const backBtn = document.getElementById('back-dashboard');
-  const uploadAnotherBtn = document.getElementById('upload-another');
-  const uploadSection = document.getElementById('upload-section');
-  const rideActions = document.getElementById('ride-actions');
-  const showSaveForm = () => saveForm.style.display = 'block';
-  const hideSaveForm = () => saveForm.style.display = 'none';
+  const saveForm    = document.getElementById('save-ride-form');
+  const saveBtn     = document.getElementById('save-ride-btn');
+  const authSection = document.getElementById('auth-section');
+  const rideTitleDisplay  = document.getElementById('ride-title-display');
+  const backBtn           = document.getElementById('back-dashboard');
+  const uploadAnotherBtn  = document.getElementById('upload-another');
+  const uploadSection     = document.getElementById('upload-section');
+  const rideActions       = document.getElementById('ride-actions');
 
+  // 👇 Helpers: toggle our “has-data” CSS class
+  function resetToUploadView() {
+    document.querySelectorAll('.has-data').forEach(el => el.classList.add('has-data'));
+    saveForm.style.display    = 'none';
+    authSection.style.display = 'none';
+  }
+  function showRideUI() {
+    document.querySelectorAll('.has-data').forEach(el => el.classList.remove('has-data'));
+    // we'll reveal saveForm/authSection later after parsing
+  }
 
-backBtn.addEventListener('click', () => {
-  window.location.href = 'dashboard.html';
-});
+  // ❗ Start locked in “just upload” mode
+  resetToUploadView();
 
-uploadAnotherBtn.addEventListener('click', () => {
-  rideTitleDisplay.textContent = '';
-  document.getElementById('ride-controls').style.display = 'none';
-  uploadSection.style.display = 'block';
-  hideSaveForm();  // ✅ hide until file is selected
-  document.getElementById('ride-title').value = '';
-  history.replaceState({}, document.title, window.location.pathname);
-});
-
+  // ── Now continue initializing your map, GPX parser, charts, etc. ──
 
   console.log('script.js loaded');
   window.updatePlayback = null;
 
-// Initialize map using correct ID
+  // Initialize map using correct ID
   const map = L.map('leaflet-map').setView([20, 0], 2);
   setTimeout(() => map.invalidateSize(), 0);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -199,41 +193,35 @@ async function parseAndRenderGPX(gpxText) {
   }).addTo(map).bringToBack();
   map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: false });
 
-
-    // ↓ Build charts & enable controls ↓
+  // ↓ Build charts & enable controls ↓
   setupChart();
   renderSpeedFilter();
   renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
   [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
-  slider.min = 0; slider.max = points.length - 1; slider.value = 0;
+  slider.min = 0;
+  slider.max = points.length - 1;
+  slider.value = 0;
   playBtn.textContent = '▶️ Play';
 
-  
-    if (window.Analytics) {
+  if (window.Analytics) {
     Analytics.initAnalytics(points, speedData, cumulativeDistance);
-    renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
   }
 
-  // ── Reveal all ride‐driven sections ──
-document.querySelectorAll('.has-data').forEach(el => {
-  el.classList.remove('has-data');   // 💥 remove the blocking class
-  el.style.display = '';             // restore whatever the stylesheet says
-  el.classList.add('fade-in');
-});
-  document.getElementById('download-summary').style.display = '';
-  document.getElementById('export-video').style.display   = '';
+  // ── Reveal everything with data now ──
+  showRideUI();
 
-+  // 🗺️ Make Leaflet redraw now that the <div> is visible
-+  setTimeout(() => map.invalidateSize(), 0);
-  
-  // ── Then show either “Save this ride” (logged‐in) or login/signup ──
+  // 🗺️ Redraw map once visible
+  setTimeout(() => map.invalidateSize(), 0);
+
+  // ── Finally, show “Save this ride” OR login/signup ──
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
-    saveForm.style.display = '';           // saveForm === document.getElementById('save-ride-form')
+    saveForm.style.display    = '';
   } else {
-    document.getElementById('auth-section').style.display = '';
+    authSection.style.display = '';
   }
-}
+
+
 
 
   setTimeout(() => requestAnimationFrame(enableAllControls), 100);
@@ -242,46 +230,51 @@ document.querySelectorAll('.has-data').forEach(el => {
 // ————————————————————————————————
 // 1️⃣ Wire up file‐upload to use the parser
 // ————————————————————————————————
-uploadInput.addEventListener('change', e => {
+uploadInput.addEventListener('change', async e => {
   const file = e.target.files[0];
   if (!file) return;
-  showSaveForm(); // ✅ show the form only after file selected
+  // 1) parse & render everything
+  const text = await new Promise(r => {
+    const rdr = new FileReader();
+    rdr.onload = ev => r(ev.target.result);
+    rdr.readAsText(file);
+  });
+  await parseAndRenderGPX(text);
 
-  if (playInterval) clearInterval(playInterval);
-  if (marker)       map.removeLayer(marker);
-  if (trailPolyline) map.removeLayer(trailPolyline);
-  points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
+  // 2) reveal map, charts, summary, export/download buttons
+  showRideUI();
 
-  const reader = new FileReader();
-  reader.onload = ev => parseAndRenderGPX(ev.target.result);
-  reader.readAsText(file);
+  // 3) finally, show save or login form
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    document.getElementById('save-ride-form').style.display = '';
+  } else {
+    document.getElementById('auth-section').style.display = '';
+  }
 });
+
   
 // Grab any ?ride=<id> query parameter
 const params = new URLSearchParams(window.location.search);
 
-  if (params.get('home') === '1') {
-  const topNav = document.getElementById('ride-card-nav');
-  const btn = document.createElement('button');
-  btn.textContent = 'Go to Dashboard';
-  btn.style = `
-  padding: 0.4rem 1rem;
-  font-weight: bold;
-  font-size: 0.9rem;
-  background: transparent;
-  color: #64ffda;
-  border: 1px solid #64ffda;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background 0.2s;
-`;
-btn.onmouseenter = () => btn.style.background = '#0a192f';
-btn.onmouseleave = () => btn.style.background = 'transparent';
+// 🚩 If returning via “New Ride” button, reset to picker
+if (params.get('home') === '1') {
+  resetToUploadView();
+}
 
-  btn.addEventListener('click', () => {
-    window.location.href = 'dashboard.html';
-  });
-  topNav.appendChild(btn);
+// 🚩 If deep‐linking to an existing ride...
+if (params.has('ride')) {
+  const rideId = params.get('ride');
+  // your existing fetch-and-render logic...
+  await fetchAndRenderRide(rideId);
+  // then reveal UI & auth/save
+  showRideUI();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    document.getElementById('save-ride-form').style.display = '';
+  } else {
+    document.getElementById('auth-section').style.display = '';
+  }
 }
 
   
