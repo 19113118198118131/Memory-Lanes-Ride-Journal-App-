@@ -251,7 +251,7 @@ reader.onload = async ev => {
   else      document.getElementById('auth-section').style.display = '';
 };
 reader.readAsText(file);
-
+});
   
 // Grab any ?ride=<id> query parameter
 const params = new URLSearchParams(window.location.search);
