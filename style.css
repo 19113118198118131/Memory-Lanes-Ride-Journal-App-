@@ -667,7 +667,7 @@ footer a {
   }
 }
 
-.has-data { display: none !important;
+.has-data { display: none;
   .fade-in {
   animation: fadeIn 0.5s ease forwards;
 }
