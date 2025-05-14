@@ -235,25 +235,33 @@ setTimeout(() => requestAnimationFrame(enableAllControls), 100);
 uploadInput.addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
-  showSaveForm(); // ✅ show the form only after file selected
+  showSaveForm();
 
   if (playInterval) clearInterval(playInterval);
-  if (marker)       map.removeLayer(marker);
+  if (marker) map.removeLayer(marker);
   if (trailPolyline) map.removeLayer(trailPolyline);
-  points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
+  points = [];
+  breakPoints = [];
+  cumulativeDistance = [];
+  speedData = [];
+  accelData = [];
 
-const reader = new FileReader();
-reader.onload = async ev => {
-    console.log("✅ reader.onload fired");
-  await parseAndRenderGPX(ev.target.result);
-  console.log("✅ parseAndRenderGPX finished");
-  showRideUI();
-  const { data:{ user } } = await supabase.auth.getUser();
-  if (user) document.getElementById('save-ride-form').style.display = '';
-  else      document.getElementById('auth-section').style.display = '';
-};
-reader.readAsText(file);
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    console.log('✅ reader.onload fired');
+    await parseAndRenderGPX(ev.target.result);
+    console.log('✅ parseAndRenderGPX finished');
+    showRideUI();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      document.getElementById('save-ride-form').style.display = '';
+    } else {
+      document.getElementById('auth-section').style.display = '';
+    }
+  };
+  reader.readAsText(file);
 });
+
   
 // Grab any ?ride=<id> query parameter
 const params = new URLSearchParams(window.location.search);
