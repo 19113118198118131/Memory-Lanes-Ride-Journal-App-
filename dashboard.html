@@ -3,29 +3,179 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ride Dashboard</title>
+  <title>Memory Lanes Ride Journal</title>
   <link rel="stylesheet" href="style.css" />
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
-<header>
-  <div class="dashboard-header">
-    <h1>My Ride Journal</h1>
-    <div class="button-group">
-      <button id="home-btn">➕ New Ride</button>
-      <button id="logout-btn">Logout</button>
+  <!-- ========================
+       HEADER & TOP NAV
+       ======================== -->
+  <header>
+    <h1>Memory Lanes Ride Journal</h1>
+    <nav>
+      <a href="https://buymeacoffee.com/sweetasrides" target="_blank" class="bmc-button">
+        ☕ Buy Me a Coffee
+      </a>
+    </nav>
+  </header>
+
+  <!-- ========================
+       GPX UPLOAD SECTION (Initial step, always visible)
+       ======================== -->
+  <section id="upload-section" style="margin: 1rem 0;">
+    <input type="file" id="gpx-upload" class="btn-muted" accept=".gpx" />
+    <p id="upload-note" style="color:#64ffda;text-align:center; margin-top: 0.5rem;">
+      Upload GPX file to begin.
+    </p>
+    <div class="download-buttons">
+      <!-- These buttons are hidden until after upload -->
+      <button id="download-summary" style="display:none;" disabled>📁 Download Summary</button>
+      <button id="export-video" style="display:none;" disabled>🎥 Export Video</button>
     </div>
+  </section>
+
+  <!-- ========================
+       SAVE RIDE FORM (hidden until GPX upload)
+       ======================== -->
+  <div id="save-ride-form" style="display:none; margin-top:1rem;">
+    <h3>Log this Ride</h3>
+    <div class="ride-form">
+      <label for="ride-title">Ride Title:</label>
+      <input type="text" id="ride-title" placeholder="Enter a title for this ride" />
+      <button id="save-ride-btn">Save Ride</button>
+    </div>
+    <p id="save-status"></p>
+    <div id="ride-card-nav" style="text-align: right; margin-top: 0.5rem;"></div>
   </div>
-</header>
 
+  <!-- ========================
+       AUTH SECTION (shown only if user is not logged in)
+       ======================== -->
+  <section id="auth-section" style="display:none; margin-bottom: 2rem;">
+    <h2>Login or Sign Up</h2>
+    <div class="auth-form">
+      <input type="email" id="auth-email" placeholder="Email" />
+      <input type="password" id="auth-password" placeholder="Password" />
+      <button id="login-btn">Login</button>
+      <button id="signup-btn">Sign Up</button>
+    </div>
+  </section>
+  <p id="auth-status"></p>
 
+  <!-- ========================
+       MAIN RIDE UI (map, summary, timeline, controls)
+       ======================== -->
+  <section id="main-ride-ui" style="display:none;">
+    <!-- ------ RIDE CONTROLS & ACTIONS ------ -->
+    <div id="ride-controls" style="display:none; margin: 1rem;">
+      <h2 id="ride-title-display" style="color: #64ffda; margin-bottom: 0.5rem;"></h2>
+    </div>
+    <div id="ride-actions" style="display:none; margin: 1rem; display: flex; gap: 1rem;">
+      <button id="back-dashboard" class="btn-muted">⬅️ Back to Dashboard</button>
+      <button id="upload-another" class="btn-muted">📤 Upload a New Ride</button>
+    </div>
+    <!-- ------ MAP, TELEMETRY, SPEED BINS ------ -->
+    <section id="map-section">
+      <div id="leaflet-map"></div>
+      <!-- TELEMETRY OVERLAY -->
+      <div id="telemetry-overlay">
+        <div>📍 <strong>Elevation:</strong> <span id="telemetry-elevation">–</span></div>
+        <div>📏 <strong>Distance:</strong>  <span id="telemetry-distance">–</span></div>
+        <div>⏱️ <strong>Speed:</strong>     <span id="telemetry-speed">–</span></div>
+      </div>
+      <!-- SPEED FILTER PANEL -->
+      <div id="speed-filter" style="padding:10px; background:#112240; border-radius:8px; color:#fff; margin:1rem 0;">
+        <strong>Highlight speed:</strong>
+        <span id="speed-bins"></span>
+      </div>
+    </section>
+    <!-- ------ SUMMARY ------ -->
+    <section id="summary-section">
+      <h2>Ride Summary</h2>
+      <ul>
+        <li><strong>Distance:</strong> <span id="distance">–</span></li>
+        <li><strong>Total Duration:</strong> <span id="duration">–</span></li>
+        <li><strong>Ride Time:</strong> <span id="ride-time">–</span></li>
+        <li><strong>Elevation Gain:</strong> <span id="elevation">–</span></li>
+      </ul>
+    </section>
+    <!-- ------ TIMELINE / PLAYBACK ------ -->
+    <section id="timeline">
+      <input type="range" id="replay-slider" min="0" max="0" value="0" step="1" disabled />
+      <button id="play-replay" disabled>▶️ Play</button>
+      <label for="playback-speed">Speed:</label>
+      <select id="playback-speed" disabled>
+        <option value="8">8×</option>
+        <option value="4">4×</option>
+        <option value="2">2×</option>
+        <option value="1" selected>1×</option>
+        <option value="0.5">0.5×</option>
+      </select>
+    </section>
+    <!-- ------ SHOW ANALYTICS BUTTON ------ -->
+    <div style="text-align:center; margin:2rem 0;">
+      <button id="show-analytics-btn" style="display:none;">View Ride Analytics</button>
+    </div>
+  </section>
 
-  <main>
-    <h2>Your Rides</h2>
-    <div id="ride-list">Loading rides…</div>
-  </main>
+  <!-- ========================
+       ANALYTICS SECTION (hidden until toggled)
+       ======================== -->
+  <section id="analytics-container" style="display:none;">
+    <h2>Ride Analytics</h2>
+    <!-- ---- Elevation & Speed Profile ---- -->
+    <div class="chart-block">
+      <h3>Elevation &amp; Speed Profile</h3>
+      <p class="chart-desc">
+        This chart shows elevation and speed (km/h) over distance (km).<br>
+        Toggle between Both, Elevation Only, and Speed Only.
+      </p>
+      <div id="chart-toggle">
+        <label><input type="radio" name="chartMode" value="both" checked /> Both</label>
+        <label><input type="radio" name="chartMode" value="elevation" /> Elevation Only</label>
+        <label><input type="radio" name="chartMode" value="speed" /> Speed Only</label>
+      </div>
+      <canvas id="elevationChart" height="300"></canvas>
+    </div>
+    <!-- ---- Cornering vs Straight-Line Speed ---- -->
+    <div class="chart-block">
+      <h3>Cornering vs Straight-Line Speed</h3>
+      <p class="chart-desc">
+        This scatter plot shows your turn-angle in degrees (X-axis) versus your speed in km/h (Y-axis).<br>
+        Points above the 20° threshold are “corners,” below are “straights.”<br>
+        Click any point to jump the map to that exact moment.
+      </p>
+      <canvas id="cornerChart" width="600" height="300"></canvas>
+    </div>
+    <!-- ---- Longitudinal Acceleration Profile ---- -->
+    <div class="chart-block">
+      <h3>Longitudinal Acceleration Profile</h3>
+      <p class="chart-desc">
+        This chart shows your longitudinal acceleration (m/s²) over the ride distance (km).<br>
+        Blue spikes are throttle-on; dips are braking. Red dots show when your speed was in the selected range.<br>
+        Click any point to see its location on the map.
+      </p>
+      <canvas id="accelChart" width="600" height="300"></canvas>
+    </div>
+  </section>
 
-  <script type="module" src="dashboard.js"></script>
-  
-  
+  <!-- ========================
+       FOOTER
+       ======================== -->
+  <footer>
+    <p>Built with love for the ride. <a href="https://buymeacoffee.com/sweetasrides" target="_blank">Support with a coffee</a></p>
+  </footer>
+
+  <!-- ========================
+       JS LIBRARIES & APP SCRIPTS
+       ======================== -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="supabaseClient.js"></script>
+  <script type="module" src="script.js"></script>
+  <script src="analytics.js"></script>
 </body>
 </html>
