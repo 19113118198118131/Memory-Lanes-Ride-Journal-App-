@@ -347,10 +347,12 @@ exitEditBtn.onclick = function() {
     editablePolyline.remove();
     editablePolyline = null;
   }
+  editExperimentalBanner.style.display = 'none';
   if (trailPolyline) map.removeLayer(trailPolyline);
   trailPolyline = L.polyline(originalPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
   isEditing = false;
   setBulkMode(null);
+  editExperimentalBanner.style.display = 'none';
   bulkAddBtn.style.display = 'none';
   bulkDeleteBtn.style.display = 'none';
   exitEditBtn.style.display = 'none';
