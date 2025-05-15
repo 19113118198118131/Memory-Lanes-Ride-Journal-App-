@@ -1,6 +1,6 @@
-/* -------------------------------------
-   GLOBAL RESET & ROOT VARS
-------------------------------------- */
+/* ======================================
+   GLOBAL RESET & ROOT VARIABLES
+====================================== */
 :root {
   --main-bg: #0a192f;
   --card-bg: #132033;
@@ -11,15 +11,15 @@
   --border: #1c2c45;
   --text-main: #fff;
   --text-secondary: #ccc;
-  --radius: 22px; /* Extra roundness for Apple/neumorphism */
+  --radius: 22px; /* Apple-like, extra rounded */
   --shadow: 0 10px 40px 0 rgba(0,0,0,0.14), 0 2px 10px rgba(0,123,255,0.10);
   --shadow-light: 0 2px 16px 0 rgba(100,255,218,0.09);
   --fade-trans: background 0.22s cubic-bezier(.4,0,.2,1), color 0.17s, box-shadow 0.22s, transform 0.16s;
 }
 
-/* -------------------------------------
-   GLOBAL BASE STYLES
-------------------------------------- */
+/* ======================================
+   BASE STYLES
+====================================== */
 body {
   margin: 0;
   font-family: 'Segoe UI', 'San Francisco', 'Helvetica Neue', Arial, sans-serif;
@@ -31,9 +31,9 @@ body {
   letter-spacing: 0.01em;
 }
 
-/* -------------------------------------
+/* ======================================
    HEADER
-------------------------------------- */
+====================================== */
 header {
   display: flex;
   flex-direction: column;
@@ -57,7 +57,7 @@ header h1 {
 }
 nav { margin-top: 0.22rem; }
 
-/* Buy Me a Coffee button (pill shape, shadow) */
+/* "Buy Me a Coffee" button */
 .bmc-button {
   background: var(--accent);
   color: var(--main-bg);
@@ -80,26 +80,24 @@ nav { margin-top: 0.22rem; }
   outline: none;
 }
 
-/* -------------------------------------
+/* ======================================
    MAIN CONTENT AREA
-------------------------------------- */
+====================================== */
 main {
   padding: 2.2rem 1.1rem 7rem 1.1rem;
   max-width: 1220px;
   margin: 0 auto;
   width: 100%;
 }
-
-/* Section spacing (excluding charts) */
 #upload-section,
 #summary-section,
 #timeline {
   margin-bottom: 2rem;
 }
 
-/* -------------------------------------
+/* ======================================
    MAP CONTAINER
-------------------------------------- */
+====================================== */
 #leaflet-map {
   height: 48vh;
   min-height: 320px;
@@ -114,16 +112,14 @@ main {
   animation: fadeIn 0.75s cubic-bezier(.3,.7,.4,1) 0.23s forwards;
 }
 
-/* -------------------------------------
-   FADE IN (MAP & CHARTS)
-------------------------------------- */
+/* Fade In Animation (map & charts) */
 @keyframes fadeIn {
   to { opacity: 1; }
 }
 
-/* -------------------------------------
+/* ======================================
    RIDE SUMMARY
-------------------------------------- */
+====================================== */
 #summary-section ul {
   list-style: none;
   padding: 0;
@@ -133,9 +129,9 @@ main {
   margin: 0.55rem 0;
 }
 
-/* -------------------------------------
+/* ======================================
    TIMELINE CONTROLS
-------------------------------------- */
+====================================== */
 #timeline {
   display: flex;
   flex-wrap: wrap;
@@ -147,9 +143,9 @@ main {
   min-width: 190px;
 }
 
-/* -------------------------------------
+/* ======================================
    FOOTER
-------------------------------------- */
+====================================== */
 footer {
   position: fixed;
   left: 0; bottom: 0;
@@ -171,9 +167,9 @@ footer a:hover {
   color: var(--accent-light);
 }
 
-/* -------------------------------------
-   TELEMETRY OVERLAY (Apple glassmorphic)
-------------------------------------- */
+/* ======================================
+   TELEMETRY OVERLAY (Glassmorphic)
+====================================== */
 #map-section { position: relative; }
 #telemetry-overlay {
   position: absolute;
@@ -203,9 +199,9 @@ footer a:hover {
   color: var(--accent);
 }
 
-/* -------------------------------------
+/* ======================================
    CHARTS & ANALYTICS
-------------------------------------- */
+====================================== */
 #analytics-container, #charts {
   position: relative;
   margin-bottom: 8rem;
@@ -213,7 +209,6 @@ footer a:hover {
   overflow: visible;
 }
 
-/* Chart blocks styled as cards */
 .chart-block {
   margin-bottom: 2.7rem;
   width: 100%;
@@ -290,9 +285,9 @@ footer a:hover {
   z-index: 9999;
 }
 
-/* -------------------------------------
-   BUTTONS (EXTRA POLISH)
-------------------------------------- */
+/* ======================================
+   BUTTONS (Apple-like, extra polish)
+====================================== */
 button, .btn-muted, .download-buttons button, .ride-form button, .auth-form button {
   border: none;
   border-radius: 999px;
@@ -334,9 +329,9 @@ button:active, .btn-muted:active, .download-buttons button:active {
   border-color: #90a0bb;
 }
 
-/* -------------------------------------
+/* ======================================
    SPEED BIN BUTTONS
-------------------------------------- */
+====================================== */
 #speed-bins .speed-bin-btn {
   margin: 0 7px 5px 0;
   padding: 8px 20px;
@@ -363,9 +358,16 @@ button:active, .btn-muted:active, .download-buttons button:active {
   50%     { box-shadow: 0 0 13px rgba(131,56,236,0.13); }
 }
 
-/* -------------------------------------
+/* ======================================
+   EDITING POLYLINE (Editing Glow)
+====================================== */
+.leaflet-editable-selected {
+  filter: drop-shadow(0 0 8px #ff9500) drop-shadow(0 0 18px #fff6);
+}
+
+/* ======================================
    RIDE LIST CARDS / ENTRIES (Dashboard)
-------------------------------------- */
+====================================== */
 .ride-entry {
   background: var(--card-bg);
   border: 2px solid var(--border);
@@ -393,7 +395,7 @@ button:active, .btn-muted:active, .download-buttons button:active {
   font-size: 1.09rem;
 }
 
-/* Delete icon (apple-like rounder style) */
+/* Delete icon (Apple-like rounder style) */
 .delete-icon {
   position: absolute;
   right: 19px; bottom: 15px;
@@ -413,9 +415,9 @@ button:active, .btn-muted:active, .download-buttons button:active {
   transform: scale(1.15);
 }
 
-/* -------------------------------------
+/* ======================================
    FORM ELEMENTS
-------------------------------------- */
+====================================== */
 input, select {
   font-family: inherit;
   border-radius: 14px;
@@ -454,7 +456,6 @@ input:focus, select:focus {
 }
 #save-ride-form { margin-top: 1.55rem; }
 
-/* Download buttons */
 .download-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -479,9 +480,9 @@ input:focus, select:focus {
   cursor: not-allowed;
 }
 
-/* -------------------------------------
+/* ======================================
    DASHBOARD HEADER & FILTERS
-------------------------------------- */
+====================================== */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
@@ -551,13 +552,9 @@ input:focus, select:focus {
   font-size: 1.03rem;
 }
 
-.leaflet-editable-selected {
-  filter: drop-shadow(0 0 8px #ff9500) drop-shadow(0 0 18px #fff6);
-}
-
-/* -------------------------------------
+/* ======================================
    MOBILE ADJUSTMENTS
-------------------------------------- */
+====================================== */
 @media (max-width: 1200px) {
   main, .dashboard-header, #leaflet-map, .chart-block, #elevationChart, #cornerChart, #accelChart {
     max-width: 100vw;
@@ -583,17 +580,15 @@ input:focus, select:focus {
   .download-buttons { flex-direction: column; gap: 0.3rem; }
   #leaflet-map { min-height: 70px; }
 }
-
 .dashboard-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 .button-group { width: 100%; justify-content: flex-start; }
-
 @media (max-width: 600px) {
   .filters-container { flex-direction: column; align-items: stretch; }
 }
 
-/* -------------------------------------
+/* ======================================
    OTHER UI POLISH
-------------------------------------- */
+====================================== */
 /* Elevation break dots */
 .break-dot {
   background: var(--accent);
@@ -601,6 +596,7 @@ input:focus, select:focus {
   width: 6px; height: 6px;
   display: inline-block;
 }
+/* Pulsing map marker */
 .pulse-marker {
   background: rgba(0, 123, 255, 0.42);
   border: 2px solid var(--accent);
