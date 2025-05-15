@@ -113,14 +113,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     { label: '200+', min: 200, max: Infinity }
   ];
 
-  // -------------
-  // Map Setup
-  // -------------
-  const map = L.map('leaflet-map').setView([20, 0], 2);
-  setTimeout(() => map.invalidateSize(), 0);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
+// -------------
+// Map Setup (ONE TIME, after DOMContentLoaded)
+// -------------
+const map = L.map('leaflet-map').setView([20, 0], 2);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+// Initial invalidate, in case the map container is visible at load (harmless to keep)
+setTimeout(() => map.invalidateSize(), 0);
+
+// -------------
+// UI Show Functions (call invalidateSize when revealing the map)
+// -------------
+function showUIAfterUpload(isLoggedIn) {
+  uploadSection.style.display        = 'block';
+  mainRideUI.style.display           = 'block';
+  saveForm.style.display             = 'block';
+  showAnalyticsBtn.style.display     = 'inline-block';
+  analyticsSection.style.display     = 'none';
+  downloadSummary.style.display      = 'inline-block';
+  exportVideo.style.display          = 'inline-block';
+  rideActions.style.display          = 'none';
+  authSection.style.display          = isLoggedIn ? 'none' : 'block';
+
+  // FIX: Tell Leaflet to resize map now that it's visible
+  setTimeout(() => map.invalidateSize(), 200);
+}
+
+function showUIForSavedRide() {
+  uploadSection.style.display        = 'none';
+  mainRideUI.style.display           = 'block';
+  saveForm.style.display             = 'none';
+  authSection.style.display          = 'none';
+  showAnalyticsBtn.style.display     = 'inline-block';
+  analyticsSection.style.display     = 'none';
+  downloadSummary.style.display      = 'inline-block';
+  exportVideo.style.display          = 'inline-block';
+  rideActions.style.display          = 'flex';
+
+  // FIX: Tell Leaflet to resize map now that it's visible
+  setTimeout(() => map.invalidateSize(), 200);
+}
+
 
   // ---------------------------
   // Nav/Action Button Handlers
