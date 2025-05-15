@@ -68,7 +68,14 @@
 <!-- ✅ Keeping it OUTSIDE the section -->
 <p id="auth-status"></p>
 
-<!-- Map/Telemetry/Timeline/Analytics: hidden initially -->
+<div id="edit-controls" style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+  <button id="edit-gpx-btn" class="btn-muted">✏️ Edit Route</button>
+  <button id="save-edited-gpx-btn" class="btn-muted" style="display:none;">💾 Save as New Route</button>
+  <button id="undo-edit-btn" class="btn-muted" style="display:none;">↩️ Undo</button>
+  <button id="redo-edit-btn" class="btn-muted" style="display:none;">↪️ Redo</button>
+</div>
+
+    <!-- Map/Telemetry/Timeline/Analytics: hidden initially -->
 <section id="main-ride-ui" style="display:none;">
    <section id="map-section">
     <div id="leaflet-map"></div>
@@ -161,6 +168,8 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
+
 
   <!-- Guarded redirect: only go to dashboard if no ride was clicked -->
   <script type="module">
