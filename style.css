@@ -10,21 +10,27 @@
   --muted: #223;
   --border: #1c2c45;
   --text-main: #fff;
-  --text-secondary: #ccc;
-  --radius: 14px;
-  --shadow: 0 6px 32px rgba(0,0,0,0.13), 0 1.5px 6px rgba(0,123,255,0.08);
-  --fade-trans: background 0.25s cubic-bezier(.4,0,.2,1), color 0.2s, box-shadow 0.25s;
+  --text-secondary: #ccd6f6;
+  --radius: 22px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.14), 0 3px 10px rgba(0,123,255,0.09);
+  --fade-trans: background 0.25s cubic-bezier(.4,0,.2,1), color 0.18s, box-shadow 0.2s;
+  --transition: all 0.21s cubic-bezier(.4,0,.2,1);
 }
 
 /* -------------------------------------
    GLOBAL BASE STYLES
 ------------------------------------- */
-body {
+html, body {
   margin: 0;
+  padding: 0;
   font-family: 'Segoe UI', 'San Francisco', 'Helvetica Neue', Arial, sans-serif;
   background: var(--main-bg);
   color: var(--text-main);
   min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 /* -------------------------------------
@@ -35,16 +41,17 @@ header {
   flex-direction: column;
   align-items: center;
   background: #16233e;
-  padding: 1.5rem 0 1rem 0;
+  padding: 1.7rem 0 1rem 0;
   text-align: center;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.3rem;
   border-radius: 0 0 var(--radius) var(--radius);
   box-shadow: var(--shadow);
   transition: var(--fade-trans);
+  animation: fadeIn 0.9s cubic-bezier(.33,.66,.4,1) 0.1s both;
 }
 header h1 {
   margin: 0.5rem 0;
-  font-size: 2rem;
+  font-size: 2.13rem;
   font-weight: 700;
   letter-spacing: 1px;
   text-shadow: 0 2px 8px rgba(0,0,0,0.09);
@@ -53,7 +60,9 @@ nav {
   margin-top: 0.3rem;
 }
 
-/* Buy Me a Coffee button (pill shape) */
+/* -------------------------------------
+   "Buy Me a Coffee" button (pill Apple style)
+------------------------------------- */
 .bmc-button {
   background: var(--accent);
   color: var(--main-bg);
@@ -78,108 +87,63 @@ nav {
 }
 
 /* -------------------------------------
+   FADE-IN ANIMATION (for main sections)
+------------------------------------- */
+#leaflet-map, .chart-block, #summary-section, #timeline, #save-ride-form, #auth-section, .ride-entry {
+  opacity: 0;
+  animation: fadeIn 0.7s cubic-bezier(.3,.7,.4,1) 0.15s forwards;
+}
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+/* -------------------------------------
    MAIN CONTENT AREA
 ------------------------------------- */
 main {
-  padding: 2.2rem 1rem 7rem 1rem;
+  padding: 2.1rem 1rem 7rem 1rem;
   max-width: 1200px;
   margin: 0 auto;
-}
-
-/* Section spacing (excluding charts) */
-#upload-section,
-#summary-section,
-#timeline {
-  margin-bottom: 1.7rem;
 }
 
 /* -------------------------------------
    MAP CONTAINER
 ------------------------------------- */
 #leaflet-map {
-  height: 48vh;
-  min-height: 320px;
+  height: 46vh;
+  min-height: 300px;
   width: 100%;
   max-width: 1200px;
-  border-radius: 18px;
+  border-radius: var(--radius);
   margin: 0 auto;
-  box-shadow: 0 4px 32px 0 rgba(100,255,218,0.04);
-  background: #ddd;
+  background: #ececec;
+  box-shadow: 0 6px 36px 0 rgba(0,123,255,0.10);
   transition: var(--fade-trans);
 }
 
 /* -------------------------------------
-   RIDE SUMMARY
-------------------------------------- */
-#summary-section ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-#summary-section li {
-  margin: 0.5rem 0;
-}
-
-/* -------------------------------------
-   TIMELINE CONTROLS
-------------------------------------- */
-#timeline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-}
-#timeline input[type="range"] {
-  flex: 1;
-  min-width: 190px;
-}
-
-/* -------------------------------------
-   FOOTER
-------------------------------------- */
-footer {
-  position: fixed;
-  left: 0; bottom: 0;
-  width: 100%;
-  background: #16233e;
-  padding: 1.05rem 0;
-  text-align: center;
-  z-index: 1000;
-  box-shadow: 0 -2px 16px 0 rgba(0,0,0,0.12);
-}
-footer a {
-  color: var(--accent);
-  text-decoration: underline;
-  font-weight: 600;
-  transition: color 0.25s;
-}
-footer a:hover {
-  color: var(--accent-light);
-}
-
-/* -------------------------------------
-   TELEMETRY OVERLAY (Apple glassmorphic effect)
+   TELEMETRY OVERLAY (Apple glass style)
 ------------------------------------- */
 #map-section { position: relative; }
 #telemetry-overlay {
   position: absolute;
-  top: 1.15rem; right: 1.15rem;
-  padding: 0.8rem 1.25rem;
+  top: 1.18rem; right: 1.22rem;
+  padding: 0.86rem 1.27rem;
   border-radius: 18px;
-  background: rgba(0, 123, 255, 0.10);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1.5px solid rgba(0, 123, 255, 0.22);
+  background: rgba(0, 123, 255, 0.14);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1.5px solid rgba(0, 123, 255, 0.19);
   color: var(--accent);
-  font-size: 1rem;
+  font-size: 1.03rem;
   line-height: 1.55;
   z-index: 400;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.16);
   pointer-events: none;
   transition: var(--fade-trans);
 }
 #telemetry-overlay div {
-  margin: 0.23rem 0;
+  margin: 0.19rem 0;
   display: flex;
   align-items: center;
   gap: 0.44rem;
@@ -199,40 +163,64 @@ footer a:hover {
   overflow: visible;
 }
 
+/* Chart blocks (Apple card style) */
 .chart-block {
-  margin-bottom: 2.5rem;
-  max-width: 740px;
+  margin-bottom: 2.7rem;
+  max-width: 1200px;
+  width: 100%;
   margin-left: auto;
   margin-right: auto;
   border-radius: var(--radius);
-  box-shadow: 0 2.5px 14px 0 rgba(0,0,0,0.11);
-  background: rgba(255,255,255,0.03);
-  padding: 1rem 0.75rem 1.3rem 0.75rem;
+  box-shadow: 0 6px 38px 0 rgba(0,0,0,0.11), 0 2px 9px 0 rgba(0,123,255,0.08);
+  background: rgba(255,255,255,0.04);
+  padding: 1.45rem 1.2rem 1.5rem 1.2rem;
   transition: var(--fade-trans);
 }
+
+/* Chart headings & desc */
 .chart-block h3 {
-  margin-bottom: 0.32rem;
-  font-size: 1.11rem;
-  letter-spacing: 0.4px;
+  margin-bottom: 0.4rem;
+  font-size: 1.16rem;
+  font-weight: 700;
+  letter-spacing: 0.45px;
 }
 .chart-desc {
-  margin: 0 0 0.53rem;
-  font-size: 0.98rem;
-  color: #9cb2c5;
+  margin: 0 0 0.58rem;
+  font-size: 0.99rem;
+  color: #a1bbdf;
 }
 
-/* Responsive charts */
+/* Chart canvases (responsive) */
 #elevationChart,
 #cornerChart,
 #accelChart {
   display: block;
   width: 100% !important;
-  max-width: 700px;
-  height: 320px !important;
+  max-width: 1200px;
+  min-height: 320px;
+  max-height: 450px;
+  height: 36vh;
   margin: 0 auto;
-  border-radius: 14px;
+  border-radius: 22px;
   background: #fff1;
   box-shadow: 0 3px 16px 0 rgba(0,123,255,0.04);
+  transition: var(--fade-trans);
+}
+
+/* Responsive chart/timeline for mobile/tablet */
+@media (max-width: 900px) {
+  #leaflet-map, .chart-block, #elevationChart, #cornerChart, #accelChart {
+    max-width: 99vw;
+  }
+  .chart-block, #leaflet-map {
+    padding: 0.3rem 0.1rem 1rem 0.1rem;
+    min-height: 210px;
+  }
+  #elevationChart, #cornerChart, #accelChart { min-height: 140px; height: 23vh; }
+}
+@media (max-width: 600px) {
+  .chart-block, #leaflet-map { padding: 0.2rem 0.1rem 0.7rem 0.1rem; }
+  #elevationChart, #cornerChart, #accelChart { min-height: 88px; height: 18vh; }
 }
 
 /* Chart toggle controls */
@@ -241,60 +229,80 @@ footer a:hover {
   justify-content: center;
   gap: 1.1rem;
   margin-bottom: 1rem;
-  font-size: 1.01rem;
+  font-size: 1.02rem;
 }
 #chart-toggle label { cursor: pointer; }
 #chart-toggle input[type="radio"] { margin-right: 0.32rem; }
 
+/* Custom Chart.js tooltip (Apple glass style) */
+.chartjs-tooltip {
+  background: rgba(20, 29, 52, 0.93) !important;
+  border-radius: 12px !important;
+  color: #fff !important;
+  box-shadow: 0 2px 18px 0 rgba(0,0,0,0.13);
+  font-size: 1.03rem;
+  padding: 0.77rem 1.1rem;
+  transition: var(--fade-trans);
+}
+
 /* -------------------------------------
-   BUTTONS
+   BUTTONS - Apple pill style
 ------------------------------------- */
 button, .btn-muted, .download-buttons button, .ride-form button, .auth-form button {
   border: none;
   border-radius: 999px;
-  font-size: 1.04rem;
-  font-weight: 600;
-  padding: 0.62rem 1.45rem;
+  font-size: 1.06rem;
+  font-weight: 700;
+  padding: 0.72rem 1.6rem;
   background: var(--accent);
   color: var(--main-bg);
-  box-shadow: 0 1.5px 8px 0 rgba(0,123,255,0.08);
+  box-shadow: 0 2.5px 10px 0 rgba(0,123,255,0.09);
   outline: none;
   cursor: pointer;
   transition: var(--fade-trans);
+  letter-spacing: 0.4px;
+}
+
+button:hover, .btn-muted:hover, .download-buttons button:hover:not(:disabled) {
+  background: var(--accent-light);
+  color: var(--main-bg);
+  box-shadow: 0 0 0 7px var(--accent-fade);
+  transform: scale(1.01);
 }
 
 button:active, .btn-muted:active, .download-buttons button:active {
   background: var(--accent-light);
   color: var(--main-bg);
+  box-shadow: 0 0 0 10px var(--accent-fade);
   transform: scale(0.98);
 }
 
 .btn-muted {
-  background: #FFFCF9;
+  background: #fcfdfe;
   border: 1.5px solid #b7beca;
-  color: #1e232a;
+  color: #21292e;
   transition: var(--fade-trans);
 }
 .btn-muted:hover {
-  background: #f3f8fd;
+  background: #e9f7fd;
   color: #007bff;
-  border-color: #90a0bb;
+  border-color: #95aecb;
 }
 
 /* -------------------------------------
    SPEED BIN BUTTONS
 ------------------------------------- */
 #speed-bins .speed-bin-btn {
-  margin: 0 5px 4px 0;
-  padding: 6px 16px;
+  margin: 0 5px 5px 0;
+  padding: 8px 18px;
   border: 1.5px solid #FF6384;
   border-radius: 999px;
   background: #223;
   color: #FF6384;
-  font-weight: 500;
-  font-size: 1.02rem;
+  font-weight: 600;
+  font-size: 1.05rem;
   cursor: pointer;
-  transition: border-color 0.28s, color 0.28s, background 0.16s;
+  transition: border-color 0.28s, color 0.28s, background 0.15s;
 }
 #speed-bins .speed-bin-btn.active {
   border-color: #8338EC;
@@ -311,123 +319,117 @@ button:active, .btn-muted:active, .download-buttons button:active {
 }
 
 /* -------------------------------------
-   RIDE LIST CARDS / ENTRIES (Dashboard)
+   RIDE ENTRY CARDS (Dashboard)
 ------------------------------------- */
 .ride-entry {
   background: var(--card-bg);
   border: 1.5px solid var(--border);
-  padding: 1.15rem 1.2rem;
-  margin-bottom: 1.2rem;
-  border-radius: 18px;
-  transition: box-shadow 0.16s, background 0.16s;
+  padding: 1.22rem 1.3rem;
+  margin-bottom: 1.27rem;
+  border-radius: var(--radius);
+  transition: box-shadow 0.18s, background 0.13s;
   position: relative;
-  box-shadow: 0 3.5px 24px 0 rgba(0,0,0,0.06);
+  box-shadow: 0 6px 32px 0 rgba(0,0,0,0.09), 0 2px 9px 0 rgba(0,123,255,0.05);
 }
 .ride-entry:hover {
-  background: #20354a;
-  box-shadow: 0 6px 32px 0 rgba(0,123,255,0.12);
+  background: #1b2d49;
+  box-shadow: 0 8px 40px 0 rgba(0,123,255,0.14);
 }
 .ride-title {
-  font-size: 1.26rem;
+  font-size: 1.23rem;
   font-weight: 700;
   color: var(--accent-light);
-  margin-bottom: 0.34rem;
+  margin-bottom: 0.32rem;
 }
 .ride-details span {
-  margin-right: 1.13rem;
-  color: #c5d1e3;
+  margin-right: 1.09rem;
+  color: #c8d2ec;
   font-size: 1.01rem;
 }
 
-/* Delete icon (apple-like rounder style) */
+/* Delete icon (Apple-like round pill) */
 .delete-icon {
   position: absolute;
-  right: 18px; bottom: 11px;
+  right: 16px; bottom: 10px;
   cursor: pointer;
-  font-size: 1.22rem;
+  font-size: 1.18rem;
   color: #ff6b6b;
   background: #fff1;
   border-radius: 50%;
   padding: 6px 9px;
-  transition: box-shadow 0.16s, color 0.19s;
-  box-shadow: 0 2px 9px 0 rgba(255,107,107,0.10);
+  transition: box-shadow 0.15s, color 0.18s;
+  box-shadow: 0 2px 9px 0 rgba(255,107,107,0.12);
 }
-
 .delete-icon:hover {
   color: #fff;
   background: #ff6b6b;
-  box-shadow: 0 0 12px #ff6b6b55;
-  transform: scale(1.13);
+  box-shadow: 0 0 16px #ff6b6b55;
+  transform: scale(1.11);
 }
 
 /* -------------------------------------
-   FORM ELEMENTS
+   FORM ELEMENTS (auth, save, filters)
 ------------------------------------- */
 input, select {
   font-family: inherit;
   border-radius: var(--radius);
   border: 1.2px solid #1c2c45;
-  padding: 0.58rem 1.1rem;
-  font-size: 1.02rem;
-  background: #132033;
+  padding: 0.62rem 1.18rem;
+  font-size: 1.04rem;
+  background: #192b44;
   color: #e3e8ef;
   outline: none;
-  margin-bottom: 0.13rem;
-  box-shadow: 0 2px 10px 0 rgba(0,0,0,0.04);
+  margin-bottom: 0.12rem;
+  box-shadow: 0 2px 10px 0 rgba(0,0,0,0.03);
   transition: border-color 0.22s, background 0.18s;
 }
 input:focus, select:focus {
   border-color: var(--accent-light);
-  background: #172a47;
+  background: #203355;
 }
 
-/* -------------------------------------
-   AUTH / SAVE RIDE FORM
-------------------------------------- */
+/* Save Ride/Auth Forms (Apple card) */
+#save-ride-form, #auth-section {
+  background: var(--card-bg);
+  padding: 1.25rem 2.2rem;
+  border-radius: 18px;
+  margin-bottom: 1.8rem;
+  box-shadow: var(--shadow);
+  animation-delay: 0.13s;
+}
+
+/* Ride/Auth form rows */
 .auth-form, .ride-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.8rem;
+  gap: 0.9rem;
   align-items: center;
-  margin-top: 0.55rem;
+  margin-top: 0.67rem;
 }
 .auth-form input[type="email"], .auth-form input[type="password"],
-.ride-form input[type="text"] {
-  min-width: 210px;
-}
-#save-ride-form, #auth-section {
-  background: var(--card-bg);
-  padding: 1.25rem 2rem;
-  border-radius: 16px;
-  margin-bottom: 1.65rem;
-  box-shadow: var(--shadow);
-}
-#save-ride-form {
-  margin-top: 1.5rem;
-}
+.ride-form input[type="text"] { min-width: 210px; }
+.ride-form input::placeholder,
+.auth-form input::placeholder { color: #bbb; }
 
-/* Download buttons */
+/* Download buttons (Apple style) */
 .download-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.88rem;
-  margin-top: 0.5rem;
+  gap: 0.92rem;
+  margin-top: 0.4rem;
 }
 .download-buttons button {
   background: var(--accent);
   color: var(--main-bg);
   font-weight: 700;
-  padding: 0.6rem 1.3rem;
+  padding: 0.65rem 1.3rem;
   border-radius: 999px;
   font-size: 1.07rem;
-  box-shadow: 0 1.5px 7px 0 rgba(0,123,255,0.05);
+  box-shadow: 0 1.5px 7px 0 rgba(0,123,255,0.07);
   transition: var(--fade-trans);
 }
-.download-buttons button:hover:not(:disabled) {
-  background: var(--accent-light);
-}
 .download-buttons button:disabled {
-  opacity: 0.48;
+  opacity: 0.47;
   cursor: not-allowed;
 }
 
@@ -442,7 +444,7 @@ input:focus, select:focus {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding-bottom: 0.45rem;
+  padding-bottom: 0.43rem;
 }
 
 .dashboard-header h1 {
@@ -453,20 +455,19 @@ input:focus, select:focus {
 
 .button-group {
   display: flex;
-  gap: 1.2rem;
+  gap: 1.18rem;
 }
-
 .button-group button {
   background: var(--accent);
   color: var(--main-bg);
-  padding: 0.54rem 1.2rem;
+  padding: 0.54rem 1.19rem;
   font-weight: bold;
   border: none;
   border-radius: 999px;
   cursor: pointer;
   font-size: 1.07rem;
   transition: var(--fade-trans);
-  box-shadow: 0 2px 8px 0 rgba(0,123,255,0.06);
+  box-shadow: 0 2px 8px 0 rgba(0,123,255,0.08);
 }
 .button-group button:hover {
   background: var(--accent-light);
@@ -479,14 +480,14 @@ input:focus, select:focus {
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
-  padding: 0.7rem 1.2rem;
+  padding: 0.82rem 1.23rem;
   background: #0e1a2b;
-  border-radius: 10px;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 1px 8px rgba(0,123,255,0.06);
+  border-radius: 12px;
+  margin-bottom: 1.6rem;
+  box-shadow: 0 1.5px 9px rgba(0,123,255,0.07);
   position: sticky; top: 1rem; z-index: 10;
   opacity: 0; transform: translateY(-10px);
-  animation: fadeInSlide 0.4s ease-out forwards;
+  animation: fadeInSlide 0.45s ease-out forwards;
 }
 @keyframes fadeInSlide {
   to { opacity: 1; transform: translateY(0); }
@@ -495,53 +496,51 @@ input:focus, select:focus {
 .ride-filters input[type="text"], .ride-filters select {
   min-width: 120px;
 }
-
 .filter-toggle {
   display: none;
   background: #0a192f;
   color: var(--accent-light);
   border: 1.2px solid var(--accent-light);
-  padding: 0.38rem 0.88rem;
+  padding: 0.39rem 0.87rem;
   border-radius: 8px;
   margin-bottom: 0.5rem;
   cursor: pointer;
-  font-size: 0.99rem;
+  font-size: 1.01rem;
 }
 
 /* -------------------------------------
    MOBILE ADJUSTMENTS
 ------------------------------------- */
-@media (max-width: 900px) {
-  main { padding: 1rem 0.6rem 6rem 0.6rem; }
-  #leaflet-map { min-height: 240px; }
-  .chart-block { padding: 0.7rem 0.1rem 1rem 0.1rem; }
+@media (max-width: 1000px) {
+  #leaflet-map, .chart-block, #elevationChart, #cornerChart, #accelChart { max-width: 99vw; }
+  .chart-block, #leaflet-map { padding: 0.32rem 0.08rem 1rem 0.08rem; min-height: 180px; }
+  #elevationChart, #cornerChart, #accelChart { min-height: 110px; height: 19vh; }
 }
 @media (max-width: 700px) {
-  #leaflet-map { min-height: 190px; }
-  .dashboard-header { flex-direction: column; gap: 0.5rem; }
+  main { padding: 0.9rem 0.16rem 5rem 0.16rem; }
+  #leaflet-map { min-height: 120px; }
+  .dashboard-header { flex-direction: column; gap: 0.53rem; }
 }
 @media (max-width: 600px) {
-  main { padding: 0.7rem 0.1rem 6rem 0.1rem; }
+  main { padding: 0.29rem 0.04rem 4rem 0.04rem; }
   #timeline { flex-direction: column; align-items: center; text-align: center; }
   #timeline input[type="range"] { width: 100%; }
-  header h1 { font-size: 1.15rem; }
-  .bmc-button { font-size: 0.97rem; padding: 6px 12px; }
+  header h1 { font-size: 1.19rem; }
+  .bmc-button { font-size: 0.99rem; padding: 6px 12px; }
   .chart-block { max-width: 99vw; }
-  #elevationChart, #cornerChart, #accelChart { min-height: 120px; }
+  #elevationChart, #cornerChart, #accelChart { min-height: 60px; }
   .download-buttons { flex-direction: column; gap: 0.3rem; }
 }
 
 /* -------------------------------------
-   OTHER UI POLISH
+   ELEVATION DOTS & PULSE EFFECTS
 ------------------------------------- */
-/* Elevation break dots */
 .break-dot {
   background: var(--accent);
   border-radius: 50%;
   width: 6px; height: 6px;
   display: inline-block;
 }
-/* Pulsing map marker */
 .pulse-marker {
   background: rgba(0, 123, 255, 0.42);
   border: 2px solid var(--accent);
@@ -554,7 +553,6 @@ input:focus, select:focus {
   70% { transform: scale(1.44); opacity: 0; }
   100% { transform: scale(0.92); opacity: 0; }
 }
-/* Animated map lines */
 @keyframes line-pulse {
   0%, 100% { stroke-opacity: 0.8; stroke-width: 5; }
   50% { stroke-opacity: 1; stroke-width: 6; }
