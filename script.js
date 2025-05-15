@@ -345,8 +345,8 @@ function showUIForSavedRide() {
       ? `📍 Viewing: “${ride.title}”`
       : `📍 Viewing Saved Ride`;
 
-    document.getElementById('ride-controls').style.display = 'block';
-    rideActions.style.display = 'flex';
+    document.getElementById('ride-header-controls').style.display = 'block';
+
 
     // 3️⃣ Build public GPX URL
     const { data: urlData, error: urlErr } = supabase
