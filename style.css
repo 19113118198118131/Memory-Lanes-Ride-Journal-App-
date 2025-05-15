@@ -551,60 +551,6 @@ input:focus, select:focus {
   font-size: 1.03rem;
 }
 
-/* -------------------------------------
-   Ride Header Controls (Centered above Map)
-------------------------------------- */
-.ride-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  margin: 0 auto 1.3rem auto;
-  padding-top: 0.4rem;
-  padding-bottom: 0.1rem;
-}
-
-.ride-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-width: 900px;
-  width: 100%;
-  gap: 0.7rem;
-  background: rgba(19,32,51,0.85);
-  border-radius: 22px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
-  padding: 1.1rem 2.2rem 1.2rem 2.2rem;
-}
-
-.ride-title-display {
-  font-size: 1.28rem;
-  color: #64ffda;
-  font-weight: 650;
-  text-align: center;
-  margin: 0 0 0.3rem 0;
-  letter-spacing: 0.04em;
-  display: block;
-}
-
-.ride-action-buttons {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1.2rem;
-}
-
-@media (max-width: 700px) {
-  .ride-header-content {
-    padding: 1rem 0.6rem;
-  }
-  .ride-controls {
-    margin-bottom: 1rem;
-  }
-  .ride-title-display { font-size: 1.05rem; }
-  .ride-action-buttons { gap: 0.5rem; }
-}
-
 
 /* -------------------------------------
    MOBILE ADJUSTMENTS
