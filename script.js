@@ -1,5 +1,5 @@
 // =============================================
-// Memory Lanes Ride Journal - script.js (Full App, Optimized, Maintainable)
+// Memory Lanes Ride Journal - script.js
 // =============================================
 
 import supabase from './supabaseClient.js';
