@@ -30,7 +30,7 @@
  
   <main>
 
-
+<!-- GPX Upload: Visible by default -->
 <section id="upload-section">
   <input type="file" id="gpx-upload" class="btn-muted" accept=".gpx" />
   <div class="download-buttons">
@@ -53,8 +53,8 @@
 
 
 
-
-<section id="auth-section" style="margin-bottom: 2rem;">
+<!-- Login/Sign up section: hidden by default, shown after upload if not logged in -->
+<section id="auth-section" style="display:none; margin-bottom: 2rem;">
   <h2>Login or Sign Up</h2>
   <div class="auth-form">
     <input type="email" id="auth-email" placeholder="Email" />
@@ -67,26 +67,22 @@
 <!-- ✅ Keeping it OUTSIDE the section -->
 <p id="auth-status"></p>
 
-<section id="map-section">
-  <div id="leaflet-map"></div>
-
-  <!-- TELEMETRY OVERLAY -->
-  <div id="telemetry-overlay">
-    <div>📍 <strong>Elevation:</strong> <span id="telemetry-elevation">–</span></div>
-    <div>📏 <strong>Distance:</strong>  <span id="telemetry-distance">–</span></div>
-    <div>⏱️ <strong>Speed:</strong>     <span id="telemetry-speed">–</span></div>
-  </div>
-
+<!-- Map/Telemetry/Timeline/Analytics: hidden initially -->
+<section id="main-ride-ui" style="display:none;">
+   <section id="map-section">
+    <div id="leaflet-map"></div>
+    <!-- TELEMETRY OVERLAY -->
+      <div id="telemetry-overlay">
+        <div>📍 <strong>Elevation:</strong> <span id="telemetry-elevation">–</span></div>
+        <div>📏 <strong>Distance:</strong>  <span id="telemetry-distance">–</span></div>
+        <div>⏱️ <strong>Speed:</strong>     <span id="telemetry-speed">–</span></div>
+      </div>
     <!-- SPEED FILTER PANEL -->
-  <div id="speed-filter" style="padding:10px; background:#112240; border-radius:8px; color:#fff; margin:1rem 0;">
-    <strong>Highlight speed:</strong>
-    <span id="speed-bins"></span>
-  </div>
-</section>
-
-
-
-
+      <div id="speed-filter" style="padding:10px; background:#112240; border-radius:8px; color:#fff; margin:1rem 0;">
+        <strong>Highlight speed:</strong>
+        <span id="speed-bins"></span>
+      </div>
+    </section>
 
     <section id="summary-section">
       <h2>Ride Summary</h2>
@@ -109,10 +105,10 @@
          <option value="1" selected>1×</option>
          <option value="0.5">0.5×</option>
        </select>
-    </section>
+     </section>
 
-  <!-- Analytics Section (only) -->
-  <section id="analytics-container">
+  <!-- Analytics Section: hidden initially -->
+  <section id="analytics-container" style="display:none;">
     <h2>Ride Analytics</h2>
 
     <div class="chart-block">
@@ -149,7 +145,11 @@
       <canvas id="accelChart" width="600" height="300"></canvas>
     </div>
   </section>
-</main>
+  <!-- Reveal analytics toggle/button -->
+  <div style="text-align:center; margin:2rem 0;">
+    <button id="show-analytics-btn" style="display:none;">View Ride Analytics</button>
+  </div>
+  </main>
 
 
     <footer>
