@@ -304,10 +304,10 @@ function showUIForSavedRide() {
     // ↓ Draw map trail and fit bounds ↓
 
     if (trailPolyline) map.removeLayer(trailPolyline);
-    
     trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
       color: '#007bff', weight: 3, opacity: 0.7
     }).addTo(map).bringToBack();
+    map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: false });
 
     
    
@@ -747,7 +747,7 @@ function showUIForSavedRide() {
       marker.setLatLng([p.lat, p.lng]);
     }
     trailPolyline.setLatLngs(points.slice(0, idx + 1).map(pt => [pt.lat, pt.lng]));
-    
+    map.panTo([p.lat, p.lng], { animate: false });
 
     const distKm = (cumulativeDistance[idx]/1000).toFixed(2);
     const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'elevation';
