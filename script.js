@@ -276,11 +276,18 @@ function showUIForSavedRide() {
       i>0 && p.ele>points[i-1].ele ? sum + (p.ele - points[i-1].ele) : sum, 0).toFixed(0)} m`;
 
     // ↓ Draw map trail and fit bounds ↓
-    if (trailPolyline) map.removeLayer(trailPolyline);
-    trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
-      color: '#007bff', weight: 3, opacity: 0.7
-    }).addTo(map).bringToBack();
-    map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: false });
+      if (trailPolyline) map.removeLayer(trailPolyline);
+      trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
+        color: '#007bff', weight: 3, opacity: 0.7
+      }).addTo(map).bringToBack();
+      
+      // Always fit bounds (use this, even if only a few points)
+      if (points.length > 1) {
+        map.fitBounds(trailPolyline.getBounds(), { padding: [30, 30], animate: true });
+      } else {
+        map.setView([points[0].lat, points[0].lng], 13); // default fallback zoom if only one point
+      }
+
 
     // ↓ Build charts & enable controls ↓
     setupChart();
