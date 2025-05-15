@@ -1,6 +1,8 @@
-/* -------------------------------------
-   GLOBAL RESET & ROOT VARS
-------------------------------------- */
+/* ===========================================
+   MEMORY LANES RIDE JOURNAL - style.css
+   =========================================== */
+
+/* ---------- GLOBAL RESET & VARS ---------- */
 :root {
   --main-bg: #0a192f;
   --card-bg: #132033;
@@ -11,15 +13,13 @@
   --border: #1c2c45;
   --text-main: #fff;
   --text-secondary: #ccc;
-  --radius: 22px; /* Extra roundness for Apple/neumorphism */
+  --radius: 22px;
   --shadow: 0 10px 40px 0 rgba(0,0,0,0.14), 0 2px 10px rgba(0,123,255,0.10);
   --shadow-light: 0 2px 16px 0 rgba(100,255,218,0.09);
   --fade-trans: background 0.22s cubic-bezier(.4,0,.2,1), color 0.17s, box-shadow 0.22s, transform 0.16s;
 }
 
-/* -------------------------------------
-   GLOBAL BASE STYLES
-------------------------------------- */
+/* ---------- BASE ---------- */
 body {
   margin: 0;
   font-family: 'Segoe UI', 'San Francisco', 'Helvetica Neue', Arial, sans-serif;
@@ -31,9 +31,7 @@ body {
   letter-spacing: 0.01em;
 }
 
-/* -------------------------------------
-   HEADER
-------------------------------------- */
+/* ---------- HEADER ---------- */
 header {
   display: flex;
   flex-direction: column;
@@ -57,7 +55,6 @@ header h1 {
 }
 nav { margin-top: 0.22rem; }
 
-/* Buy Me a Coffee button (pill shape, shadow) */
 .bmc-button {
   background: var(--accent);
   color: var(--main-bg);
@@ -80,9 +77,7 @@ nav { margin-top: 0.22rem; }
   outline: none;
 }
 
-/* -------------------------------------
-   MAIN CONTENT AREA
-------------------------------------- */
+/* ---------- MAIN CONTENT AREA ---------- */
 main {
   padding: 2.2rem 1.1rem 7rem 1.1rem;
   max-width: 1220px;
@@ -90,16 +85,13 @@ main {
   width: 100%;
 }
 
-/* Section spacing (excluding charts) */
 #upload-section,
 #summary-section,
 #timeline {
   margin-bottom: 2rem;
 }
 
-/* -------------------------------------
-   MAP CONTAINER
-------------------------------------- */
+/* ---------- MAP CONTAINER ---------- */
 #leaflet-map {
   height: 48vh;
   min-height: 320px;
@@ -114,16 +106,9 @@ main {
   animation: fadeIn 0.75s cubic-bezier(.3,.7,.4,1) 0.23s forwards;
 }
 
-/* -------------------------------------
-   FADE IN (MAP & CHARTS)
-------------------------------------- */
-@keyframes fadeIn {
-  to { opacity: 1; }
-}
+@keyframes fadeIn { to { opacity: 1; } }
 
-/* -------------------------------------
-   RIDE SUMMARY
-------------------------------------- */
+/* ---------- RIDE SUMMARY ---------- */
 #summary-section ul {
   list-style: none;
   padding: 0;
@@ -133,9 +118,7 @@ main {
   margin: 0.55rem 0;
 }
 
-/* -------------------------------------
-   TIMELINE CONTROLS
-------------------------------------- */
+/* ---------- TIMELINE CONTROLS ---------- */
 #timeline {
   display: flex;
   flex-wrap: wrap;
@@ -147,9 +130,7 @@ main {
   min-width: 190px;
 }
 
-/* -------------------------------------
-   FOOTER
-------------------------------------- */
+/* ---------- FOOTER ---------- */
 footer {
   position: fixed;
   left: 0; bottom: 0;
@@ -171,9 +152,7 @@ footer a:hover {
   color: var(--accent-light);
 }
 
-/* -------------------------------------
-   TELEMETRY OVERLAY (Apple glassmorphic)
-------------------------------------- */
+/* ---------- TELEMETRY OVERLAY ---------- */
 #map-section { position: relative; }
 #telemetry-overlay {
   position: absolute;
@@ -203,9 +182,7 @@ footer a:hover {
   color: var(--accent);
 }
 
-/* -------------------------------------
-   CHARTS & ANALYTICS
-------------------------------------- */
+/* ---------- CHARTS & ANALYTICS ---------- */
 #analytics-container, #charts {
   position: relative;
   margin-bottom: 8rem;
@@ -213,7 +190,6 @@ footer a:hover {
   overflow: visible;
 }
 
-/* Chart blocks styled as cards */
 .chart-block {
   margin-bottom: 2.7rem;
   width: 100%;
@@ -290,9 +266,7 @@ footer a:hover {
   z-index: 9999;
 }
 
-/* -------------------------------------
-   BUTTONS (EXTRA POLISH)
-------------------------------------- */
+/* ---------- BUTTONS (APPLE STYLE) ---------- */
 button, .btn-muted, .download-buttons button, .ride-form button, .auth-form button {
   border: none;
   border-radius: 999px;
@@ -334,9 +308,7 @@ button:active, .btn-muted:active, .download-buttons button:active {
   border-color: #90a0bb;
 }
 
-/* -------------------------------------
-   SPEED BIN BUTTONS
-------------------------------------- */
+/* ---------- SPEED BIN BUTTONS ---------- */
 #speed-bins .speed-bin-btn {
   margin: 0 7px 5px 0;
   padding: 8px 20px;
@@ -363,125 +335,33 @@ button:active, .btn-muted:active, .download-buttons button:active {
   50%     { box-shadow: 0 0 13px rgba(131,56,236,0.13); }
 }
 
-/* -------------------------------------
-   RIDE LIST CARDS / ENTRIES (Dashboard)
-------------------------------------- */
-.ride-entry {
-  background: var(--card-bg);
-  border: 2px solid var(--border);
-  padding: 1.25rem 1.3rem;
-  margin-bottom: 1.4rem;
-  border-radius: 26px;
-  transition: box-shadow 0.19s, background 0.15s, transform 0.13s;
-  position: relative;
-  box-shadow: 0 5px 28px 0 rgba(0,0,0,0.12), 0 1.5px 6px rgba(0,123,255,0.08);
+/* ---------- EDIT CONTROLS, HINTS ---------- */
+#edit-controls button.active,
+#bulk-add-btn.active,
+#bulk-delete-btn.active {
+  background: #222f;
+  color: #21c821;
+  border: 2px solid #21c821;
+  box-shadow: 0 0 8px #21c82155;
 }
-.ride-entry:hover {
-  background: #20354a;
-  box-shadow: 0 9px 38px 0 rgba(0,123,255,0.18);
-  transform: translateY(-2px) scale(1.01);
+#bulk-delete-btn.active {
+  color: #ff3333;
+  border-color: #ff3333;
+  box-shadow: 0 0 8px #ff333355;
 }
-.ride-title {
-  font-size: 1.32rem;
-  font-weight: 700;
-  color: var(--accent-light);
-  margin-bottom: 0.36rem;
+#edit-help {
+  font-size: 1.01rem;
+  padding-left: 0.5rem;
 }
-.ride-details span {
-  margin-right: 1.18rem;
-  color: #c5d1e3;
-  font-size: 1.09rem;
+#edit-mode-hint {
+  font-size: 1.04rem;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.18em;
+  color: #ffd82b;
 }
 
-/* Delete icon (apple-like rounder style) */
-.delete-icon {
-  position: absolute;
-  right: 19px; bottom: 15px;
-  cursor: pointer;
-  font-size: 1.29rem;
-  color: #ff6b6b;
-  background: #fff2;
-  border-radius: 50%;
-  padding: 8px 12px;
-  transition: box-shadow 0.19s, color 0.16s, background 0.15s, transform 0.13s;
-  box-shadow: 0 3px 14px 0 rgba(255,107,107,0.12);
-}
-.delete-icon:hover {
-  color: #fff;
-  background: #ff6b6b;
-  box-shadow: 0 0 17px #ff6b6b59;
-  transform: scale(1.15);
-}
-
-/* -------------------------------------
-   FORM ELEMENTS
-------------------------------------- */
-input, select {
-  font-family: inherit;
-  border-radius: 14px;
-  border: 1.6px solid #1c2c45;
-  padding: 0.65rem 1.15rem;
-  font-size: 1.07rem;
-  background: #1d2b43;
-  color: #e3e8ef;
-  outline: none;
-  margin-bottom: 0.17rem;
-  box-shadow: 0 2px 10px 0 rgba(0,0,0,0.06);
-  transition: border-color 0.22s, background 0.18s;
-}
-input:focus, select:focus {
-  border-color: var(--accent-light);
-  background: #202e4a;
-}
-
-.auth-form, .ride-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.1rem;
-  align-items: center;
-  margin-top: 0.7rem;
-}
-.auth-form input[type="email"], .auth-form input[type="password"],
-.ride-form input[type="text"] {
-  min-width: 200px;
-}
-#save-ride-form, #auth-section {
-  background: var(--card-bg);
-  padding: 1.33rem 2.3rem;
-  border-radius: 22px;
-  margin-bottom: 1.75rem;
-  box-shadow: var(--shadow);
-}
-#save-ride-form { margin-top: 1.55rem; }
-
-/* Download buttons */
-.download-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 0.5rem;
-}
-.download-buttons button {
-  background: var(--accent);
-  color: var(--main-bg);
-  font-weight: 700;
-  padding: 0.7rem 1.5rem;
-  border-radius: 999px;
-  font-size: 1.09rem;
-  box-shadow: 0 2px 10px 0 rgba(0,123,255,0.08);
-  transition: var(--fade-trans);
-}
-.download-buttons button:hover:not(:disabled) {
-  background: var(--accent-light);
-}
-.download-buttons button:disabled {
-  opacity: 0.50;
-  cursor: not-allowed;
-}
-
-/* -------------------------------------
-   DASHBOARD HEADER & FILTERS
-------------------------------------- */
+/* ---------- DASHBOARD HEADER & FILTERS ---------- */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
@@ -551,10 +431,121 @@ input:focus, select:focus {
   font-size: 1.03rem;
 }
 
+.leaflet-editable-selected {
+  filter: drop-shadow(0 0 8px #ff9500) drop-shadow(0 0 18px #fff6);
+}
 
-/* -------------------------------------
-   MOBILE ADJUSTMENTS
-------------------------------------- */
+/* ---------- RIDE ENTRY (DASHBOARD) ---------- */
+.ride-entry {
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  padding: 1.25rem 1.3rem;
+  margin-bottom: 1.4rem;
+  border-radius: 26px;
+  transition: box-shadow 0.19s, background 0.15s, transform 0.13s;
+  position: relative;
+  box-shadow: 0 5px 28px 0 rgba(0,0,0,0.12), 0 1.5px 6px rgba(0,123,255,0.08);
+}
+.ride-entry:hover {
+  background: #20354a;
+  box-shadow: 0 9px 38px 0 rgba(0,123,255,0.18);
+  transform: translateY(-2px) scale(1.01);
+}
+.ride-title {
+  font-size: 1.32rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  margin-bottom: 0.36rem;
+}
+.ride-details span {
+  margin-right: 1.18rem;
+  color: #c5d1e3;
+  font-size: 1.09rem;
+}
+
+.delete-icon {
+  position: absolute;
+  right: 19px; bottom: 15px;
+  cursor: pointer;
+  font-size: 1.29rem;
+  color: #ff6b6b;
+  background: #fff2;
+  border-radius: 50%;
+  padding: 8px 12px;
+  transition: box-shadow 0.19s, color 0.16s, background 0.15s, transform 0.13s;
+  box-shadow: 0 3px 14px 0 rgba(255,107,107,0.12);
+}
+.delete-icon:hover {
+  color: #fff;
+  background: #ff6b6b;
+  box-shadow: 0 0 17px #ff6b6b59;
+  transform: scale(1.15);
+}
+
+/* ---------- FORM ELEMENTS ---------- */
+input, select {
+  font-family: inherit;
+  border-radius: 14px;
+  border: 1.6px solid #1c2c45;
+  padding: 0.65rem 1.15rem;
+  font-size: 1.07rem;
+  background: #1d2b43;
+  color: #e3e8ef;
+  outline: none;
+  margin-bottom: 0.17rem;
+  box-shadow: 0 2px 10px 0 rgba(0,0,0,0.06);
+  transition: border-color 0.22s, background 0.18s;
+}
+input:focus, select:focus {
+  border-color: var(--accent-light);
+  background: #202e4a;
+}
+
+.auth-form, .ride-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.1rem;
+  align-items: center;
+  margin-top: 0.7rem;
+}
+.auth-form input[type="email"], .auth-form input[type="password"],
+.ride-form input[type="text"] {
+  min-width: 200px;
+}
+#save-ride-form, #auth-section {
+  background: var(--card-bg);
+  padding: 1.33rem 2.3rem;
+  border-radius: 22px;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow);
+}
+#save-ride-form { margin-top: 1.55rem; }
+
+.download-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+.download-buttons button {
+  background: var(--accent);
+  color: var(--main-bg);
+  font-weight: 700;
+  padding: 0.7rem 1.5rem;
+  border-radius: 999px;
+  font-size: 1.09rem;
+  box-shadow: 0 2px 10px 0 rgba(0,123,255,0.08);
+  transition: var(--fade-trans);
+}
+.download-buttons button:hover:not(:disabled) {
+  background: var(--accent-light);
+}
+.download-buttons button:disabled {
+  opacity: 0.50;
+  cursor: not-allowed;
+}
+
+/* ---------- MOBILE RESPONSIVENESS ---------- */
 @media (max-width: 1200px) {
   main, .dashboard-header, #leaflet-map, .chart-block, #elevationChart, #cornerChart, #accelChart {
     max-width: 100vw;
@@ -583,15 +574,11 @@ input:focus, select:focus {
 
 .dashboard-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 .button-group { width: 100%; justify-content: flex-start; }
-
 @media (max-width: 600px) {
   .filters-container { flex-direction: column; align-items: stretch; }
 }
 
-/* -------------------------------------
-   OTHER UI POLISH
-------------------------------------- */
-/* Elevation break dots */
+/* ---------- OTHER UI POLISH ---------- */
 .break-dot {
   background: var(--accent);
   border-radius: 50%;
@@ -610,7 +597,6 @@ input:focus, select:focus {
   70% { transform: scale(1.44); opacity: 0; }
   100% { transform: scale(0.92); opacity: 0; }
 }
-/* Animated map lines */
 @keyframes line-pulse {
   0%, 100% { stroke-opacity: 0.8; stroke-width: 5; }
   50% { stroke-opacity: 1; stroke-width: 6; }
