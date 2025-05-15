@@ -32,29 +32,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('gpx-upload').value = '';
   }
 
-  function showUIAfterUpload(isLoggedIn) {
-    uploadSection.style.display        = 'block';
-    mainRideUI.style.display           = 'block';
-    saveForm.style.display             = 'block';
-    showAnalyticsBtn.style.display     = 'inline-block';
-    analyticsSection.style.display     = 'none';
-    downloadSummary.style.display      = 'inline-block';
-    exportVideo.style.display          = 'inline-block';
-    rideActions.style.display          = 'none';
-    authSection.style.display          = isLoggedIn ? 'none' : 'block';
-  }
+    function showUIAfterUpload(isLoggedIn) {
+      uploadSection.style.display        = 'block';
+      mainRideUI.style.display           = 'block';
+      saveForm.style.display             = 'block';
+      showAnalyticsBtn.style.display     = 'inline-block';
+      analyticsSection.style.display     = 'none';
+      downloadSummary.style.display      = 'inline-block';
+      exportVideo.style.display          = 'inline-block';
+      rideActions.style.display          = 'none';
+      authSection.style.display          = isLoggedIn ? 'none' : 'block';
+    
+      // FIX: Tell Leaflet to resize map now that it's visible, THEN fit bounds
+      setTimeout(() => {
+        map.invalidateSize();
+        if (trailPolyline && trailPolyline.getBounds) {
+          if (points.length > 1) {
+            map.fitBounds(trailPolyline.getBounds(), { padding: [30, 30], animate: false });
+          } else if (points.length === 1) {
+            map.setView([points[0].lat, points[0].lng], 13);
+          }
+        }
+      }, 200);
+    }
 
-  function showUIForSavedRide() {
-    uploadSection.style.display        = 'none';
-    mainRideUI.style.display           = 'block';
-    saveForm.style.display             = 'none';
-    authSection.style.display          = 'none';
-    showAnalyticsBtn.style.display     = 'inline-block';
-    analyticsSection.style.display     = 'none';
-    downloadSummary.style.display      = 'inline-block';
-    exportVideo.style.display          = 'inline-block';
-    rideActions.style.display          = 'flex';
-  }
+
+    function showUIForSavedRide() {
+      uploadSection.style.display        = 'none';
+      mainRideUI.style.display           = 'block';
+      saveForm.style.display             = 'none';
+      authSection.style.display          = 'none';
+      showAnalyticsBtn.style.display     = 'inline-block';
+      analyticsSection.style.display     = 'none';
+      downloadSummary.style.display      = 'inline-block';
+      exportVideo.style.display          = 'inline-block';
+      rideActions.style.display          = 'flex';
+    
+      // FIX: Tell Leaflet to resize map now that it's visible, THEN fit bounds
+      setTimeout(() => {
+        map.invalidateSize();
+        if (trailPolyline && trailPolyline.getBounds) {
+          if (points.length > 1) {
+            map.fitBounds(trailPolyline.getBounds(), { padding: [30, 30], animate: false });
+          } else if (points.length === 1) {
+            map.setView([points[0].lat, points[0].lng], 13);
+          }
+        }
+      }, 200);
+    }
+
 
   function showAnalyticsSection() {
     analyticsSection.style.display     = 'block';
@@ -283,14 +309,7 @@ function showUIForSavedRide() {
       color: '#007bff', weight: 3, opacity: 0.7
     }).addTo(map).bringToBack();
     
-    // *** This guarantees the whole route is in view ***
-    if (points.length > 1) {
-      map.fitBounds(trailPolyline.getBounds(), { padding: [30, 30], animate: true });
-    } else {
-      map.setView([points[0].lat, points[0].lng], 13);
-    }
-
-      
+   
 
     // ↓ Build charts & enable controls ↓
     setupChart();
