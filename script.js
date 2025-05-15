@@ -129,6 +129,12 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // Initial invalidate, in case the map container is visible at load (harmless to keep)
 setTimeout(() => map.invalidateSize(), 0);
 
+let isEditing = false;
+let editablePolyline = null;
+let editHistory = [];
+let redoHistory = [];
+  
+
 // -------------
 // UI Show Functions (call invalidateSize when revealing the map)
 // -------------
@@ -318,6 +324,101 @@ function showUIForSavedRide() {
     hideAnalyticsSection();
     showAnalyticsBtn.style.display = 'inline-block';
   }
+
+ // ---- GPX Editing Integration ----
+const editBtn = document.getElementById('edit-gpx-btn');
+const saveEditBtn = document.getElementById('save-edited-gpx-btn');
+const undoEditBtn = document.getElementById('undo-edit-btn');
+const redoEditBtn = document.getElementById('redo-edit-btn');
+
+// Start Edit Mode
+editBtn.onclick = function() {
+  if (isEditing) return;
+  isEditing = true;
+  editBtn.style.display = 'none';
+  saveEditBtn.style.display = '';
+  undoEditBtn.style.display = '';
+  redoEditBtn.style.display = '';
+  redoHistory = [];
+  // Create editable polyline
+  editablePolyline = L.polyline(points.map(p => [p.lat, p.lng]), { color: '#ff9500', weight: 5 }).addTo(map);
+  editablePolyline.enableEdit();
+  editHistory = [editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }))];
+  // Save edit history on each change
+  editablePolyline.on('editable:vertex:dragend editable:vertex:deleted editable:vertex:new', () => {
+    editHistory.push(editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng })));
+    redoHistory = [];
+  });
+  // Hide your normal polyline while editing (optional)
+  if (trailPolyline) map.removeLayer(trailPolyline);
+  // Optional: fit bounds to new polyline
+  map.fitBounds(editablePolyline.getBounds(), { padding: [30,30], animate: true });
+};
+
+// Undo
+undoEditBtn.onclick = function() {
+  if (editHistory.length > 1) {
+    redoHistory.push(editHistory.pop());
+    const last = editHistory[editHistory.length - 1];
+    editablePolyline.setLatLngs(last.map(p => [p.lat, p.lng]));
+  }
+};
+// Redo
+redoEditBtn.onclick = function() {
+  if (redoHistory.length > 0) {
+    const next = redoHistory.pop();
+    editHistory.push(next);
+    editablePolyline.setLatLngs(next.map(p => [p.lat, p.lng]));
+  }
+};
+
+// Save as New Route
+saveEditBtn.onclick = function() {
+  const editedLatLngs = editablePolyline.getLatLngs();
+  if (editedLatLngs.length < 2) {
+    alert("A route must have at least two points.");
+    return;
+  }
+  const editedPoints = editedLatLngs.map(ll => ({
+    lat: ll.lat, lng: ll.lng, ele: 0, time: new Date().toISOString()
+  }));
+  // Prompt for new title
+  const title = prompt("Enter a name for your new route:");
+  if (!title) return;
+
+  // Create and download new GPX file
+  const gpxString = generateMinimalGPX(editedPoints, title);
+  const blob = new Blob([gpxString], { type: "application/gpx+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${title.replace(/\s+/g, "_")}.gpx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  // Remove edit mode UI, reset
+  editablePolyline.remove();
+  editablePolyline = null;
+  isEditing = false;
+  saveEditBtn.style.display = 'none';
+  editBtn.style.display = '';
+  undoEditBtn.style.display = 'none';
+  redoEditBtn.style.display = 'none';
+  // Optionally: render the new route as main polyline
+  if (trailPolyline) map.removeLayer(trailPolyline);
+  trailPolyline = L.polyline(editedPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+};
+ 
+function generateMinimalGPX(points, name = "Edited Route") {
+  return `<?xml version="1.0"?>
+<gpx version="1.1" creator="Memory Lanes Ride Journal" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>${name}</name>
+    <trkseg>
+      ${points.map(p => `<trkpt lat="${p.lat}" lon="${p.lng}"></trkpt>`).join('\n')}
+    </trkseg>
+  </trk>
+</gpx>`;
+}
 
   // ---------------------------
   // Ride Loading from Dashboard Logic
