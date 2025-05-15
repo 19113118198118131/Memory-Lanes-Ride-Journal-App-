@@ -129,6 +129,106 @@ document.addEventListener('DOMContentLoaded', async () => {
     { label: '200+', min: 200, max: Infinity }
   ];
 
+function parseAndRenderGPX(gpxText) {
+  // Parse XML → trackpoints
+  const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
+  const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
+    lat: +tp.getAttribute('lat'),
+    lng: +tp.getAttribute('lon'),
+    ele: +tp.getElementsByTagName('ele')[0]?.textContent || 0,
+    time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
+  })).filter(p => p.lat && p.lng && p.time instanceof Date);
+
+  if (!trkpts.length) return alert('No valid trackpoints found');
+
+  // ↓ Build points[], detect breaks, sample every 5s ↓
+  const SAMPLE = 5;
+  points = [trkpts[0]];
+  breakPoints = [];
+  let lastTime = trkpts[0].time;
+  let lastLL   = L.latLng(trkpts[0].lat, trkpts[0].lng);
+
+  for (let i = 1; i < trkpts.length; i++) {
+    const pt    = trkpts[i];
+    const dt    = (pt.time - lastTime) / 1000;
+    const moved = lastLL.distanceTo(L.latLng(pt.lat, pt.lng));
+    if (dt >= SAMPLE) {
+      if (dt > 180 && moved < 20) {
+        breakPoints.push(points.length);
+      } else {
+        points.push(pt);
+        lastTime = pt.time;
+        lastLL   = L.latLng(pt.lat, pt.lng);
+      }
+    }
+  }
+  if (points.at(-1).time !== trkpts.at(-1).time) {
+    points.push(trkpts.at(-1));
+  }
+
+  // ↓ Compute cumulativeDistance, speedData, accelData ↓
+  cumulativeDistance = [0];
+  speedData          = [0];
+  accelData          = [0];
+  for (let i = 1; i < points.length; i++) {
+    const a = L.latLng(points[i-1].lat, points[i-1].lng);
+    const b = L.latLng(points[i].lat,   points[i].lng);
+    const d = a.distanceTo(b); // meters
+    const t = (points[i].time - points[i-1].time) / 1000; // seconds
+    const v = t > 0 ? d / t : 0; // m/s
+
+    cumulativeDistance[i] = cumulativeDistance[i-1] + d;
+    speedData[i]          = v * 3.6; // km/h for display only
+    accelData[i]          = t > 0 ? (v - (speedData[i-1] / 3.6)) / t : 0; // m/s²
+  }
+
+  // ↓ Update summary UI ↓
+  const totalMs = points.at(-1).time - points[0].time;
+  const totMin  = Math.floor(totalMs / 60000);
+  distanceEl.textContent = `${(cumulativeDistance.at(-1) / 1000).toFixed(2)} km`;
+  durationEl.textContent = `${Math.floor(totMin / 60)}h ${totMin % 60}m`;
+  const rideSec = points.reduce((sum, _, i) =>
+    i > 0 && !breakPoints.includes(i)
+      ? sum + ((points[i].time - points[i-1].time) / 1000)
+      : sum, 0);
+  const rideMin = Math.floor(rideSec / 60);
+  rideTimeEl.textContent   = `${Math.floor(rideMin / 60)}h ${rideMin % 60}m`;
+  elevationEl.textContent  = `${points.reduce((sum, p, i) =>
+    i>0 && p.ele>points[i-1].ele ? sum + (p.ele - points[i-1].ele) : sum, 0).toFixed(0)} m`;
+
+  // ↓ Draw map trail and fit bounds ↓
+  if (trailPolyline) map.removeLayer(trailPolyline);
+  trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
+    color: '#007bff', weight: 3, opacity: 0.7
+  }).addTo(map).bringToBack();
+
+  setTimeout(() => {
+    map.invalidateSize(); // Ensure correct sizing after UI transition
+    if (trailPolyline && points.length > 1) {
+      map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: true });
+    } else if (points.length === 1) {
+      map.setView([points[0].lat, points[0].lng], 13);
+    }
+  }, 210);
+
+  // ↓ Build charts & enable controls ↓
+  setupChart();
+  renderSpeedFilter();
+  renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+  [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
+  slider.min = 0; slider.max = points.length - 1; slider.value = 0;
+  playBtn.textContent = '▶️ Play';
+
+  if (window.Analytics) {
+    Analytics.initAnalytics(points, speedData, cumulativeDistance);
+    renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+  }
+
+  hideAnalyticsSection();
+  showAnalyticsBtn.style.display = 'inline-block';
+}
+
+
   // ------------- Map Setup (ONE TIME, after DOMContentLoaded) -------------
   const map = L.map('leaflet-map').setView([20, 0], 2);
   map.editTools = new L.Editable(map); // Enable editing support!
