@@ -231,9 +231,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   setTimeout(() => map.invalidateSize(), 0);
 
 // =======================
-// EDIT MODE (Improved & Robust)
+// EDIT MODE (Improved & Robust Multi-Segment Handling)
 // =======================
 
+// --- Edit Mode State ---
 let isEditing = false;
 let editablePolyline = null;
 let editHistory = [];
@@ -246,7 +247,7 @@ let ghostAddLine = null;
 let highlightedDeleteMarkers = [];
 let lastBrushMove = 0;
 
-// Utility for visual feedback
+// --- Utility: Visual feedback cleanup ---
 function clearGhostsAndHighlights() {
   if (brushLayer) { map.removeLayer(brushLayer); brushLayer = null; }
   if (ghostAddLine) { map.removeLayer(ghostAddLine); ghostAddLine = null; }
@@ -254,7 +255,7 @@ function clearGhostsAndHighlights() {
   highlightedDeleteMarkers = [];
 }
 
-// --- BULK MODE TOGGLING ---
+// --- Toggle Bulk Mode ---
 function setBulkMode(mode) {
   bulkMode = mode;
   bulkAddBtn.classList.toggle('active', mode === 'add');
@@ -303,7 +304,7 @@ editBtn.onclick = function() {
   originalPoints = editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }));
 
   editablePolyline.on('editable:vertex:dragend editable:vertex:deleted editable:vertex:new', () => {
-    if (!bulkMode) { // only in normal mode!
+    if (!bulkMode) { // Only in normal mode!
       editHistory.push(editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng })));
       redoHistory = [];
       saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
@@ -401,7 +402,7 @@ map.on('mousedown touchstart', function(e) {
     map.off('touchmove', onMove);
     map.off('touchend', onUp);
 
-    // ----- BULK DELETE -----
+    // --- BULK DELETE ---
     if (bulkMode === 'delete') {
       if (editablePolyline) {
         const idxs = getPolylinePointsInBrush(editablePolyline, brushPath, 22);
@@ -417,17 +418,28 @@ map.on('mousedown touchstart', function(e) {
       }
     }
 
-    // ----- BULK ADD -----
+    // --- BULK ADD ---
     if (bulkMode === 'add' && ghostAddLine) {
       if (editablePolyline) {
         let latlngs = editablePolyline.getLatLngs();
         let toAdd = brushPath.slice(1).map(ll => ({ lat: ll.lat, lng: ll.lng }));
         if (toAdd.length > 0) {
+          // If the last existing point is far from the first new point, insert a gap marker (null) to force new segment
+          const lastPt = latlngs.length ? latlngs[latlngs.length-1] : null;
+          if (
+            lastPt &&
+            L.latLng(lastPt).distanceTo(L.latLng(toAdd[0])) > 500 // >500m = likely intentional
+          ) {
+            // Insert a break by pushing a marker object with a 'gap' property
+            // For now: insert a marker with {gap: true} to split later
+            latlngs.push({ gap: true });
+          }
+          // Add new points after gap (or append if close)
           latlngs = latlngs.concat(toAdd);
-          editablePolyline.setLatLngs(latlngs);
-          editHistory.push(latlngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
+          editablePolyline.setLatLngs(latlngs.filter(pt => !pt.gap).map(ll => [ll.lat, ll.lng])); // Visual update (will connect all points for now)
+          editHistory.push(latlngs.map(ll => (ll.lat && ll.lng ? { lat: ll.lat, lng: ll.lng } : { gap: true })));
           redoHistory = [];
-          saveEditBtn.disabled = latlngs.length < 2;
+          saveEditBtn.disabled = latlngs.filter(pt => pt.lat && pt.lng).length < 2;
           showToast(`Added ${toAdd.length} point${toAdd.length > 1 ? "s" : ""}.`, "add");
         }
       }
@@ -517,20 +529,28 @@ function showToast(msg, mode = "info") {
   }, 1200);
 }
 
-// --- SPLIT POLYLINE BY GAPS FOR GPX EXPORT ---
+// --- Polyline Splitter: Split by gap AND explicit gap markers (for multi-segment GPX export) ---
 function splitPolylineByGap(latlngs, gapFactor = 5) {
-  if (latlngs.length < 2) return [latlngs];
+  if (latlngs.length < 2) return [latlngs.filter(pt => pt.lat && pt.lng)];
   // Compute average segment length
   let dists = [];
   for (let i = 1; i < latlngs.length; i++) {
+    if (latlngs[i].gap) continue;
+    if (latlngs[i-1].gap) continue;
+    if (!latlngs[i].lat || !latlngs[i].lng) continue;
+    if (!latlngs[i-1].lat || !latlngs[i-1].lng) continue;
     dists.push(L.latLng(latlngs[i-1]).distanceTo(L.latLng(latlngs[i])));
   }
-  const avg = dists.reduce((a, b) => a + b, 0) / dists.length;
+  const avg = dists.length ? dists.reduce((a, b) => a + b, 0) / dists.length : 0;
   let segments = [];
-  let current = [latlngs[0]];
-  for (let i = 1; i < latlngs.length; i++) {
-    const dist = L.latLng(latlngs[i-1]).distanceTo(L.latLng(latlngs[i]));
-    if (dist > gapFactor * avg) {
+  let current = [];
+  for (let i = 0; i < latlngs.length; i++) {
+    if (latlngs[i].gap) {
+      if (current.length > 1) segments.push(current);
+      current = [];
+      continue;
+    }
+    if (i > 0 && !latlngs[i-1].gap && avg && L.latLng(latlngs[i-1]).distanceTo(L.latLng(latlngs[i])) > gapFactor * avg) {
       if (current.length > 1) segments.push(current);
       current = [];
     }
@@ -540,38 +560,36 @@ function splitPolylineByGap(latlngs, gapFactor = 5) {
   return segments;
 }
 
-// --- SAVE AS NEW ROUTE (ROBUST) ---
+// --- SAVE AS NEW ROUTE (Export all segments robustly) ---
 saveEditBtn.onclick = function() {
   if (!editablePolyline) return;
-  const editedLatLngs = editablePolyline.getLatLngs();
-  if (editedLatLngs.length < 2) {
-    alert("A route must have at least two points.");
-    return;
-  }
+  // Get all points, including gap markers
+  const editedLatLngs = editablePolyline.getLatLngs().map(pt => ({ lat: pt.lat, lng: pt.lng }));
+
+  // If we've inserted gap markers, reconstruct the full points array (with gaps)
+  // NOTE: If using Leaflet.Editable, only actual LatLngs are kept in polyline, so any explicit "gap" markers must be tracked in editHistory!
+  let fullLatLngs = editHistory.length ? editHistory[editHistory.length-1] : editedLatLngs;
+
   // --- Find contiguous segments ---
-  let segments = splitPolylineByGap(editedLatLngs, 5);
+  let segments = splitPolylineByGap(fullLatLngs, 5);
 
   if (!segments.length) {
     alert("No valid segments to save!");
     return;
   }
 
-  // For now, let’s just use the *longest* segment (most points), but you could prompt the user to select.
-  segments.sort((a, b) => b.length - a.length);
-  let exportSegments = [segments[0]];
-
+  // Warn if there are multiple segments
   if (segments.length > 1) {
-    if (!confirm("Your edited route contains discontinuities (gaps).\nOnly the largest continuous segment will be saved as a new route. Continue?")) {
+    if (!confirm(`Your edited route has ${segments.length} segments (gaps were detected).\nAll segments will be saved in one GPX file.`)) {
       return;
     }
   }
 
-  // Convert to GPX format
   const title = prompt("Enter a name for your new route:");
   if (!title) return;
 
-  // GPX export supporting multi-segment (but we only use one for now)
-  const gpxString = generateMinimalGPX(exportSegments, title);
+  // Export *all* segments in GPX (each as <trkseg>)
+  const gpxString = generateMinimalGPX(segments, title);
   const blob = new Blob([gpxString], { type: "application/gpx+xml" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -595,12 +613,12 @@ saveEditBtn.onclick = function() {
   clearGhostsAndHighlights();
   // Optionally: render the new route as main polyline
   if (trailPolyline) map.removeLayer(trailPolyline);
-  trailPolyline = L.polyline(exportSegments[0].map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+  trailPolyline = L.polyline(segments[0].map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
 };
 
 // --- GPX GENERATION SUPPORTING MULTI-SEGMENT ---
 function generateMinimalGPX(segments, name = "Edited Route") {
-  // segments: Array of arrays of LatLng objects
+  // segments: Array of arrays of {lat, lng} objects
   return `<?xml version="1.0"?>
 <gpx version="1.1" creator="Memory Lanes Ride Journal" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
@@ -614,13 +632,13 @@ function generateMinimalGPX(segments, name = "Edited Route") {
 </gpx>`;
 }
 
+function sanitizeString(str) {
+  // Simple sanitizer for titles
+  return String(str).replace(/[<>&"]/g, c =>
+    ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])
+  );
+}
 
-  function sanitizeString(str) {
-    // Simple sanitizer for titles
-    return String(str).replace(/[<>&"]/g, c =>
-      ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])
-    );
-  }
 
   // =====================================================
   // SECTION 6: NAV/ACTION BUTTONS & UI INTERACTIONS
