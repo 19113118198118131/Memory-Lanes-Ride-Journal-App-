@@ -230,348 +230,390 @@ document.addEventListener('DOMContentLoaded', async () => {
   }).addTo(map);
   setTimeout(() => map.invalidateSize(), 0);
 
-  // =====================================================
-  // SECTION 5: ADVANCED EDIT MODE (FINAL)
-  // =====================================================
+// =======================
+// EDIT MODE (Improved & Robust)
+// =======================
 
-  // --- Edit mode state ---
-  let isEditing = false;
-  let editablePolyline = null;
-  let editHistory = [];
-  let redoHistory = [];
-  let bulkMode = null; // "add", "delete", or null
-  let brushPath = [];
-  let brushLayer = null;
-  let originalPoints = [];
-  let ghostAddLine = null;
-  let highlightedDeleteMarkers = [];
-  let lastBrushMove = 0;
+let isEditing = false;
+let editablePolyline = null;
+let editHistory = [];
+let redoHistory = [];
+let bulkMode = null; // "add", "delete", or null
+let brushPath = [];
+let brushLayer = null;
+let originalPoints = [];
+let ghostAddLine = null;
+let highlightedDeleteMarkers = [];
+let lastBrushMove = 0;
 
-  // --- Utility for visual feedback ---
-  function clearGhostsAndHighlights() {
-    if (brushLayer) { map.removeLayer(brushLayer); brushLayer = null; }
-    if (ghostAddLine) { map.removeLayer(ghostAddLine); ghostAddLine = null; }
-    highlightedDeleteMarkers.forEach(m => map.removeLayer(m));
-    highlightedDeleteMarkers = [];
-  }
+// Utility for visual feedback
+function clearGhostsAndHighlights() {
+  if (brushLayer) { map.removeLayer(brushLayer); brushLayer = null; }
+  if (ghostAddLine) { map.removeLayer(ghostAddLine); ghostAddLine = null; }
+  highlightedDeleteMarkers.forEach(m => map.removeLayer(m));
+  highlightedDeleteMarkers = [];
+}
 
-  // --- BULK MODE TOGGLING ---
-  function setBulkMode(mode) {
-    bulkMode = mode;
-    bulkAddBtn.classList.toggle('active', mode === 'add');
-    bulkDeleteBtn.classList.toggle('active', mode === 'delete');
-    editModeHint.innerHTML = mode === 'add'
-      ? 'Bulk Add: Draw a new section (green) to append to route. Map will not pan.'
-      : mode === 'delete'
-        ? 'Bulk Delete: Draw (red) over points to erase them. Map will not pan or drag points.'
-        : '';
-    // Disable all Leaflet dragging during bulk tools!
-    if (mode) {
-      map.dragging.disable();
-      if (editablePolyline && editablePolyline.editor) {
-        editablePolyline.editor.disable();
-      }
-    } else {
-      map.dragging.enable();
-      if (editablePolyline && editablePolyline.editor) {
-        editablePolyline.editor.enable();
-      }
-    }
-    clearGhostsAndHighlights();
-  }
-
-  // --- ENTER EDIT MODE ---
-  editBtn.onclick = function() {
-    if (isEditing) return;
-    isEditing = true;
-    editBtn.style.display = 'none';
-    saveEditBtn.style.display = '';
-    undoEditBtn.style.display = '';
-    redoEditBtn.style.display = '';
-    bulkAddBtn.style.display = '';
-    bulkDeleteBtn.style.display = '';
-    exitEditBtn.style.display = '';
-    editHelp.style.display = '';
-    redoHistory = [];
-    bulkAddBtn.classList.remove('active');
-    bulkDeleteBtn.classList.remove('active');
-    setBulkMode(null);
-    // Create editable polyline
-    editablePolyline = L.polyline(points.map(p => [p.lat, p.lng]), { color: '#ff9500', weight: 5 }).addTo(map);
-    editablePolyline.enableEdit();
-    editHistory = [editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }))];
-    originalPoints = editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }));
-    editablePolyline.on('editable:vertex:dragend editable:vertex:deleted editable:vertex:new', () => {
-      if (!bulkMode) { // only in normal mode!
-        editHistory.push(editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng })));
-        redoHistory = [];
-        saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
-      }
-    });
-    if (trailPolyline) map.removeLayer(trailPolyline);
-    map.fitBounds(editablePolyline.getBounds(), { padding: [30,30], animate: true });
-    saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
-  };
-
-  // --- UNDO/REDO ---
-  undoEditBtn.onclick = function() {
-    if (editHistory.length > 1) {
-      redoHistory.push(editHistory.pop());
-      const last = editHistory[editHistory.length - 1];
-      editablePolyline.setLatLngs(last.map(p => [p.lat, p.lng]));
-      saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
-    }
-  };
-  redoEditBtn.onclick = function() {
-    if (redoHistory.length > 0) {
-      const next = redoHistory.pop();
-      editHistory.push(next);
-      editablePolyline.setLatLngs(next.map(p => [p.lat, p.lng]));
-      saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
-    }
-  };
-
-  // --- EXIT EDIT MODE (Cancel All Edits) ---
-  exitEditBtn.onclick = function() {
-    if (editablePolyline) {
-      editablePolyline.remove();
-      editablePolyline = null;
-    }
-    if (trailPolyline) map.removeLayer(trailPolyline);
-    trailPolyline = L.polyline(originalPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
-    isEditing = false;
-    setBulkMode(null);
-    bulkAddBtn.style.display = 'none';
-    bulkDeleteBtn.style.display = 'none';
-    exitEditBtn.style.display = 'none';
-    saveEditBtn.style.display = 'none';
-    undoEditBtn.style.display = 'none';
-    redoEditBtn.style.display = 'none';
-    editBtn.style.display = '';
-    editHelp.style.display = 'none';
-    clearGhostsAndHighlights();
-    editModeHint.innerHTML = '';
-  };
-
-  // --- BULK TOOL BUTTONS ---
-  bulkAddBtn.onclick = () => setBulkMode(bulkMode === 'add' ? null : 'add');
-  bulkDeleteBtn.onclick = () => setBulkMode(bulkMode === 'delete' ? null : 'delete');
-
-  // --- BULK INTERACTIONS (Optimized) ---
-  map.on('mousedown touchstart', function(e) {
-    if (!isEditing || !bulkMode) return;
-    // Don't pan map in bulk modes!
+// --- BULK MODE TOGGLING ---
+function setBulkMode(mode) {
+  bulkMode = mode;
+  bulkAddBtn.classList.toggle('active', mode === 'add');
+  bulkDeleteBtn.classList.toggle('active', mode === 'delete');
+  editModeHint.innerHTML = mode === 'add'
+    ? 'Bulk Add: Draw a new section (green) to append to route. Map will not pan.'
+    : mode === 'delete'
+      ? 'Bulk Delete: Draw (red) over points to erase them. Map will not pan or drag points.'
+      : '';
+  // Disable all Leaflet dragging during bulk tools!
+  if (mode) {
     map.dragging.disable();
     if (editablePolyline && editablePolyline.editor) {
       editablePolyline.editor.disable();
     }
-
-    brushPath = [e.latlng];
-    clearGhostsAndHighlights();
-    let color = bulkMode === 'add' ? '#21c821' : '#ff3333';
-    let lineOptions = { color, weight: 6, opacity: 0.3, dashArray: '8 8' };
-    brushLayer = L.polyline([e.latlng], lineOptions).addTo(map);
-
-    function onMove(ev) {
-      let now = Date.now();
-      if (now - lastBrushMove < 30) return; // Debounce for perf
-      lastBrushMove = now;
-      let latlng;
-      if (ev.latlng) {
-        latlng = ev.latlng;
-      } else if (ev.touches && ev.touches[0]) {
-        latlng = map.mouseEventToLatLng(ev.touches[0]);
-      }
-      if (!latlng) return;
-      brushPath.push(latlng);
-      brushLayer.setLatLngs(brushPath);
-
-      if (bulkMode === 'delete') {
-        // Live highlight: show markers on candidate points
-        highlightPolylinePointsBulk(editablePolyline, brushPath, 22);
-      }
-      if (bulkMode === 'add') {
-        // Live preview: show the new stretch (ghost line)
-        if (ghostAddLine) map.removeLayer(ghostAddLine);
-        ghostAddLine = L.polyline(brushPath, { color: '#21c821', weight: 5, opacity: 0.5, dashArray: '1 12' }).addTo(map);
-      }
+  } else {
+    map.dragging.enable();
+    if (editablePolyline && editablePolyline.editor) {
+      editablePolyline.editor.enable();
     }
+  }
+  clearGhostsAndHighlights();
+}
 
-    function onUp(ev) {
-      map.off('mousemove', onMove);
-      map.off('mouseup', onUp);
-      map.off('touchmove', onMove);
-      map.off('touchend', onUp);
+// --- ENTER EDIT MODE ---
+editBtn.onclick = function() {
+  if (isEditing) return;
+  isEditing = true;
+  editBtn.style.display = 'none';
+  saveEditBtn.style.display = '';
+  undoEditBtn.style.display = '';
+  redoEditBtn.style.display = '';
+  bulkAddBtn.style.display = '';
+  bulkDeleteBtn.style.display = '';
+  exitEditBtn.style.display = '';
+  editHelp.style.display = '';
+  redoHistory = [];
+  bulkAddBtn.classList.remove('active');
+  bulkDeleteBtn.classList.remove('active');
+  setBulkMode(null);
 
-      // ----- BULK DELETE -----
-      if (bulkMode === 'delete') {
-        if (editablePolyline) {
-          const idxs = getPolylinePointsInBrush(editablePolyline, brushPath, 22);
-          if (idxs.length > 0) {
-            const latlngs = editablePolyline.getLatLngs();
-            idxs.sort((a, b) => b - a).forEach(idx => latlngs.splice(idx, 1));
-            editablePolyline.setLatLngs(latlngs);
-            editHistory.push(latlngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
-            redoHistory = [];
-            saveEditBtn.disabled = latlngs.length < 2;
-            showToast(`Deleted ${idxs.length} point${idxs.length > 1 ? "s" : ""}.`, "delete");
-          }
-        }
-      }
+  // Create editable polyline
+  editablePolyline = L.polyline(points.map(p => [p.lat, p.lng]), { color: '#ff9500', weight: 5 }).addTo(map);
+  editablePolyline.enableEdit();
+  editHistory = [editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }))];
+  originalPoints = editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }));
 
-      // ----- BULK ADD -----
-      if (bulkMode === 'add' && ghostAddLine) {
-        if (editablePolyline) {
-          let latlngs = editablePolyline.getLatLngs();
-          let toAdd = brushPath.slice(1).map(ll => ({ lat: ll.lat, lng: ll.lng }));
-          if (toAdd.length > 0) {
-            latlngs = latlngs.concat(toAdd);
-            editablePolyline.setLatLngs(latlngs);
-            editHistory.push(latlngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
-            redoHistory = [];
-            saveEditBtn.disabled = latlngs.length < 2;
-            showToast(`Added ${toAdd.length} point${toAdd.length > 1 ? "s" : ""}.`, "add");
-          }
-        }
-      }
-      clearGhostsAndHighlights();
-      brushPath = [];
-      // Re-enable normal edit if bulk mode turned off
-      if (!bulkMode && editablePolyline && editablePolyline.editor) {
-        editablePolyline.editor.enable();
-      }
-      map.dragging.enable();
+  editablePolyline.on('editable:vertex:dragend editable:vertex:deleted editable:vertex:new', () => {
+    if (!bulkMode) { // only in normal mode!
+      editHistory.push(editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng })));
+      redoHistory = [];
+      saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
     }
-
-    map.on('mousemove', onMove);
-    map.on('mouseup', onUp);
-    map.on('touchmove', onMove);
-    map.on('touchend', onUp);
   });
+  if (trailPolyline) map.removeLayer(trailPolyline);
+  map.fitBounds(editablePolyline.getBounds(), { padding: [30,30], animate: true });
+  saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
+};
 
-  // --- VISUAL FEEDBACK HELPERS ---
-  function highlightPolylinePointsBulk(polyline, path, pxTolerance) {
-    // Remove old highlights
-    highlightedDeleteMarkers.forEach(m => map.removeLayer(m));
-    highlightedDeleteMarkers = [];
-    if (!polyline) return;
-    const latlngs = polyline.getLatLngs();
-    for (let i = 0; i < latlngs.length; i++) {
-      for (let j = 1; j < path.length; j++) {
-        const p1 = map.latLngToContainerPoint(path[j - 1]);
-        const p2 = map.latLngToContainerPoint(path[j]);
-        const pt = map.latLngToContainerPoint(latlngs[i]);
-        const d = pointToSegmentDistance(pt, p1, p2);
-        if (d < pxTolerance) {
-          const marker = L.circleMarker(latlngs[i], {
-            radius: 9, color: '#ff3333', weight: 2, fillColor: '#fff', fillOpacity: 0.7,
-            className: 'bulk-delete-highlight'
-          }).addTo(map);
-          highlightedDeleteMarkers.push(marker);
-          break;
-        }
-      }
-    }
+// --- UNDO/REDO ---
+undoEditBtn.onclick = function() {
+  if (editHistory.length > 1) {
+    redoHistory.push(editHistory.pop());
+    const last = editHistory[editHistory.length - 1];
+    editablePolyline.setLatLngs(last.map(p => [p.lat, p.lng]));
+    saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
   }
-  function getPolylinePointsInBrush(polyline, path, pxTolerance) {
-    const idxs = [];
-    const latlngs = polyline.getLatLngs();
-    for (let i = 0; i < latlngs.length; i++) {
-      for (let j = 1; j < path.length; j++) {
-        const p1 = map.latLngToContainerPoint(path[j - 1]);
-        const p2 = map.latLngToContainerPoint(path[j]);
-        const pt = map.latLngToContainerPoint(latlngs[i]);
-        const d = pointToSegmentDistance(pt, p1, p2);
-        if (d < pxTolerance) {
-          idxs.push(i);
-          break;
-        }
-      }
-    }
-    return Array.from(new Set(idxs));
+};
+redoEditBtn.onclick = function() {
+  if (redoHistory.length > 0) {
+    const next = redoHistory.pop();
+    editHistory.push(next);
+    editablePolyline.setLatLngs(next.map(p => [p.lat, p.lng]));
+    saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
   }
-  function pointToSegmentDistance(p, v, w) {
-    const l2 = v.distanceTo(w) ** 2;
-    if (l2 === 0) return p.distanceTo(v);
-    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
-    t = Math.max(0, Math.min(1, t));
-    return p.distanceTo(L.point(v.x + t * (w.x - v.x), v.y + t * (w.y - v.y)));
-  }
+};
 
-  // --- TOAST/SNACKBAR ---
-  function showToast(msg, mode = "info") {
-    let toast = document.createElement("div");
-    toast.className = "custom-toast";
-    toast.innerHTML = msg;
-    toast.style.position = "fixed";
-    toast.style.bottom = "2.5rem";
-    toast.style.left = "50%";
-    toast.style.transform = "translateX(-50%)";
-    toast.style.background = mode === "delete" ? "#ff3333" : (mode === "add" ? "#21c821" : "#333");
-    toast.style.color = "#fff";
-    toast.style.padding = "0.8em 1.7em";
-    toast.style.fontSize = "1.13rem";
-    toast.style.borderRadius = "999px";
-    toast.style.boxShadow = "0 3px 14px #0004";
-    toast.style.zIndex = "99999";
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.style.opacity = "0";
-      setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 450);
-    }, 1200);
-  }
-
-  // --- SAVE AS NEW ROUTE ---
-  saveEditBtn.onclick = function() {
-    if (!editablePolyline) return;
-    const editedLatLngs = editablePolyline.getLatLngs();
-    if (editedLatLngs.length < 2) {
-      alert("A route must have at least two points.");
-      return;
-    }
-    const editedPoints = editedLatLngs.map(ll => ({
-      lat: ll.lat, lng: ll.lng, ele: 0, time: new Date().toISOString()
-    }));
-    const title = prompt("Enter a name for your new route:");
-    if (!title) return;
-    const gpxString = generateMinimalGPX(editedPoints, title);
-    const blob = new Blob([gpxString], { type: "application/gpx+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `${title.replace(/\s+/g, "_")}.gpx`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    // Remove edit mode UI, reset
+// --- EXIT EDIT MODE (Cancel All Edits) ---
+exitEditBtn.onclick = function() {
+  if (editablePolyline) {
     editablePolyline.remove();
     editablePolyline = null;
-    isEditing = false;
-    setBulkMode(null);
-    bulkAddBtn.style.display = 'none';
-    bulkDeleteBtn.style.display = 'none';
-    exitEditBtn.style.display = 'none';
-    saveEditBtn.style.display = 'none';
-    undoEditBtn.style.display = 'none';
-    redoEditBtn.style.display = 'none';
-    editBtn.style.display = '';
-    editHelp.style.display = 'none';
-    clearGhostsAndHighlights();
-    // Optionally: render the new route as main polyline
-    if (trailPolyline) map.removeLayer(trailPolyline);
-    trailPolyline = L.polyline(editedPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
-  };
+  }
+  if (trailPolyline) map.removeLayer(trailPolyline);
+  trailPolyline = L.polyline(originalPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+  isEditing = false;
+  setBulkMode(null);
+  bulkAddBtn.style.display = 'none';
+  bulkDeleteBtn.style.display = 'none';
+  exitEditBtn.style.display = 'none';
+  saveEditBtn.style.display = 'none';
+  undoEditBtn.style.display = 'none';
+  redoEditBtn.style.display = 'none';
+  editBtn.style.display = '';
+  editHelp.style.display = 'none';
+  clearGhostsAndHighlights();
+  editModeHint.innerHTML = '';
+};
 
-  function generateMinimalGPX(points, name = "Edited Route") {
-    return `<?xml version="1.0"?>
+// --- BULK TOOL BUTTONS ---
+bulkAddBtn.onclick = () => setBulkMode(bulkMode === 'add' ? null : 'add');
+bulkDeleteBtn.onclick = () => setBulkMode(bulkMode === 'delete' ? null : 'delete');
+
+// --- BULK INTERACTIONS (Optimized) ---
+map.on('mousedown touchstart', function(e) {
+  if (!isEditing || !bulkMode) return;
+  map.dragging.disable();
+  if (editablePolyline && editablePolyline.editor) {
+    editablePolyline.editor.disable();
+  }
+
+  brushPath = [e.latlng];
+  clearGhostsAndHighlights();
+  let color = bulkMode === 'add' ? '#21c821' : '#ff3333';
+  let lineOptions = { color, weight: 6, opacity: 0.3, dashArray: '8 8' };
+  brushLayer = L.polyline([e.latlng], lineOptions).addTo(map);
+
+  function onMove(ev) {
+    let now = Date.now();
+    if (now - lastBrushMove < 30) return; // Debounce for perf
+    lastBrushMove = now;
+    let latlng;
+    if (ev.latlng) {
+      latlng = ev.latlng;
+    } else if (ev.touches && ev.touches[0]) {
+      latlng = map.mouseEventToLatLng(ev.touches[0]);
+    }
+    if (!latlng) return;
+    brushPath.push(latlng);
+    brushLayer.setLatLngs(brushPath);
+
+    if (bulkMode === 'delete') {
+      highlightPolylinePointsBulk(editablePolyline, brushPath, 22);
+    }
+    if (bulkMode === 'add') {
+      if (ghostAddLine) map.removeLayer(ghostAddLine);
+      ghostAddLine = L.polyline(brushPath, { color: '#21c821', weight: 5, opacity: 0.5, dashArray: '1 12' }).addTo(map);
+    }
+  }
+
+  function onUp(ev) {
+    map.off('mousemove', onMove);
+    map.off('mouseup', onUp);
+    map.off('touchmove', onMove);
+    map.off('touchend', onUp);
+
+    // ----- BULK DELETE -----
+    if (bulkMode === 'delete') {
+      if (editablePolyline) {
+        const idxs = getPolylinePointsInBrush(editablePolyline, brushPath, 22);
+        if (idxs.length > 0) {
+          const latlngs = editablePolyline.getLatLngs();
+          idxs.sort((a, b) => b - a).forEach(idx => latlngs.splice(idx, 1));
+          editablePolyline.setLatLngs(latlngs);
+          editHistory.push(latlngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
+          redoHistory = [];
+          saveEditBtn.disabled = latlngs.length < 2;
+          showToast(`Deleted ${idxs.length} point${idxs.length > 1 ? "s" : ""}.`, "delete");
+        }
+      }
+    }
+
+    // ----- BULK ADD -----
+    if (bulkMode === 'add' && ghostAddLine) {
+      if (editablePolyline) {
+        let latlngs = editablePolyline.getLatLngs();
+        let toAdd = brushPath.slice(1).map(ll => ({ lat: ll.lat, lng: ll.lng }));
+        if (toAdd.length > 0) {
+          latlngs = latlngs.concat(toAdd);
+          editablePolyline.setLatLngs(latlngs);
+          editHistory.push(latlngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
+          redoHistory = [];
+          saveEditBtn.disabled = latlngs.length < 2;
+          showToast(`Added ${toAdd.length} point${toAdd.length > 1 ? "s" : ""}.`, "add");
+        }
+      }
+    }
+    clearGhostsAndHighlights();
+    brushPath = [];
+    if (!bulkMode && editablePolyline && editablePolyline.editor) {
+      editablePolyline.editor.enable();
+    }
+    map.dragging.enable();
+  }
+
+  map.on('mousemove', onMove);
+  map.on('mouseup', onUp);
+  map.on('touchmove', onMove);
+  map.on('touchend', onUp);
+});
+
+// --- VISUAL FEEDBACK HELPERS ---
+function highlightPolylinePointsBulk(polyline, path, pxTolerance) {
+  highlightedDeleteMarkers.forEach(m => map.removeLayer(m));
+  highlightedDeleteMarkers = [];
+  if (!polyline) return;
+  const latlngs = polyline.getLatLngs();
+  for (let i = 0; i < latlngs.length; i++) {
+    for (let j = 1; j < path.length; j++) {
+      const p1 = map.latLngToContainerPoint(path[j - 1]);
+      const p2 = map.latLngToContainerPoint(path[j]);
+      const pt = map.latLngToContainerPoint(latlngs[i]);
+      const d = pointToSegmentDistance(pt, p1, p2);
+      if (d < pxTolerance) {
+        const marker = L.circleMarker(latlngs[i], {
+          radius: 9, color: '#ff3333', weight: 2, fillColor: '#fff', fillOpacity: 0.7,
+          className: 'bulk-delete-highlight'
+        }).addTo(map);
+        highlightedDeleteMarkers.push(marker);
+        break;
+      }
+    }
+  }
+}
+function getPolylinePointsInBrush(polyline, path, pxTolerance) {
+  const idxs = [];
+  const latlngs = polyline.getLatLngs();
+  for (let i = 0; i < latlngs.length; i++) {
+    for (let j = 1; j < path.length; j++) {
+      const p1 = map.latLngToContainerPoint(path[j - 1]);
+      const p2 = map.latLngToContainerPoint(path[j]);
+      const pt = map.latLngToContainerPoint(latlngs[i]);
+      const d = pointToSegmentDistance(pt, p1, p2);
+      if (d < pxTolerance) {
+        idxs.push(i);
+        break;
+      }
+    }
+  }
+  return Array.from(new Set(idxs));
+}
+function pointToSegmentDistance(p, v, w) {
+  const l2 = v.distanceTo(w) ** 2;
+  if (l2 === 0) return p.distanceTo(v);
+  let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return p.distanceTo(L.point(v.x + t * (w.x - v.x), v.y + t * (w.y - v.y)));
+}
+
+// --- TOAST/SNACKBAR ---
+function showToast(msg, mode = "info") {
+  let toast = document.createElement("div");
+  toast.className = "custom-toast";
+  toast.innerHTML = msg;
+  toast.style.position = "fixed";
+  toast.style.bottom = "2.5rem";
+  toast.style.left = "50%";
+  toast.style.transform = "translateX(-50%)";
+  toast.style.background = mode === "delete" ? "#ff3333" : (mode === "add" ? "#21c821" : "#333");
+  toast.style.color = "#fff";
+  toast.style.padding = "0.8em 1.7em";
+  toast.style.fontSize = "1.13rem";
+  toast.style.borderRadius = "999px";
+  toast.style.boxShadow = "0 3px 14px #0004";
+  toast.style.zIndex = "99999";
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 450);
+  }, 1200);
+}
+
+// --- SPLIT POLYLINE BY GAPS FOR GPX EXPORT ---
+function splitPolylineByGap(latlngs, gapFactor = 5) {
+  if (latlngs.length < 2) return [latlngs];
+  // Compute average segment length
+  let dists = [];
+  for (let i = 1; i < latlngs.length; i++) {
+    dists.push(L.latLng(latlngs[i-1]).distanceTo(L.latLng(latlngs[i])));
+  }
+  const avg = dists.reduce((a, b) => a + b, 0) / dists.length;
+  let segments = [];
+  let current = [latlngs[0]];
+  for (let i = 1; i < latlngs.length; i++) {
+    const dist = L.latLng(latlngs[i-1]).distanceTo(L.latLng(latlngs[i]));
+    if (dist > gapFactor * avg) {
+      if (current.length > 1) segments.push(current);
+      current = [];
+    }
+    current.push(latlngs[i]);
+  }
+  if (current.length > 1) segments.push(current);
+  return segments;
+}
+
+// --- SAVE AS NEW ROUTE (ROBUST) ---
+saveEditBtn.onclick = function() {
+  if (!editablePolyline) return;
+  const editedLatLngs = editablePolyline.getLatLngs();
+  if (editedLatLngs.length < 2) {
+    alert("A route must have at least two points.");
+    return;
+  }
+  // --- Find contiguous segments ---
+  let segments = splitPolylineByGap(editedLatLngs, 5);
+
+  if (!segments.length) {
+    alert("No valid segments to save!");
+    return;
+  }
+
+  // For now, let’s just use the *longest* segment (most points), but you could prompt the user to select.
+  segments.sort((a, b) => b.length - a.length);
+  let exportSegments = [segments[0]];
+
+  if (segments.length > 1) {
+    if (!confirm("Your edited route contains discontinuities (gaps).\nOnly the largest continuous segment will be saved as a new route. Continue?")) {
+      return;
+    }
+  }
+
+  // Convert to GPX format
+  const title = prompt("Enter a name for your new route:");
+  if (!title) return;
+
+  // GPX export supporting multi-segment (but we only use one for now)
+  const gpxString = generateMinimalGPX(exportSegments, title);
+  const blob = new Blob([gpxString], { type: "application/gpx+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${title.replace(/\s+/g, "_")}.gpx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  // Remove edit mode UI, reset
+  editablePolyline.remove();
+  editablePolyline = null;
+  isEditing = false;
+  setBulkMode(null);
+  bulkAddBtn.style.display = 'none';
+  bulkDeleteBtn.style.display = 'none';
+  exitEditBtn.style.display = 'none';
+  saveEditBtn.style.display = 'none';
+  undoEditBtn.style.display = 'none';
+  redoEditBtn.style.display = 'none';
+  editBtn.style.display = '';
+  editHelp.style.display = 'none';
+  clearGhostsAndHighlights();
+  // Optionally: render the new route as main polyline
+  if (trailPolyline) map.removeLayer(trailPolyline);
+  trailPolyline = L.polyline(exportSegments[0].map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+};
+
+// --- GPX GENERATION SUPPORTING MULTI-SEGMENT ---
+function generateMinimalGPX(segments, name = "Edited Route") {
+  // segments: Array of arrays of LatLng objects
+  return `<?xml version="1.0"?>
 <gpx version="1.1" creator="Memory Lanes Ride Journal" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>${sanitizeString(name)}</name>
-    <trkseg>
-      ${points.map(p => `<trkpt lat="${p.lat}" lon="${p.lng}"></trkpt>`).join('\n')}
-    </trkseg>
+    ${segments.map(seg => `
+      <trkseg>
+        ${seg.map(p => `<trkpt lat="${p.lat}" lon="${p.lng}"></trkpt>`).join('\n')}
+      </trkseg>
+    `).join('\n')}
   </trk>
 </gpx>`;
-  }
+}
+
 
   function sanitizeString(str) {
     // Simple sanitizer for titles
