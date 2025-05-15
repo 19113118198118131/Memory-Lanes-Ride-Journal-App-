@@ -747,7 +747,7 @@ function showUIForSavedRide() {
       marker.setLatLng([p.lat, p.lng]);
     }
     trailPolyline.setLatLngs(points.slice(0, idx + 1).map(pt => [pt.lat, pt.lng]));
-    map.panTo([p.lat, p.lng], { animate: false });
+    
 
     const distKm = (cumulativeDistance[idx]/1000).toFixed(2);
     const mode = document.querySelector('input[name="chartMode"]:checked')?.value || 'elevation';
