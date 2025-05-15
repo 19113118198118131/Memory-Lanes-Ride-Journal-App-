@@ -75,15 +75,20 @@
     <!-- ========================
          Edit Controls (hidden by default)
          ======================== -->
-    <div id="edit-controls" style="display:none; gap:0.5rem; margin-bottom:1rem;">
-      <button id="edit-gpx-btn" class="btn-muted">✏️ Edit Route</button>
-      <button id="save-edited-gpx-btn" class="btn-muted" style="display:none;">💾 Save as New Route</button>
-      <button id="undo-edit-btn" class="btn-muted" style="display:none;">↩️ Undo</button>
-      <button id="redo-edit-btn" class="btn-muted" style="display:none;">↪️ Redo</button>
-    </div>
-    <div id="edit-help" style="display:none; margin-bottom:0.7rem; color:#ff9500; font-size:0.98rem;">
-      Drag points to move. Ctrl+Click to delete. Click route to add a point.
-    </div>
+  <div id="edit-controls" style="display:none; gap:0.5rem; margin-bottom:1rem;">
+    <button id="edit-gpx-btn" class="btn-muted">✏️ Edit Route</button>
+    <button id="save-edited-gpx-btn" class="btn-muted" style="display:none;">💾 Save as New Route</button>
+    <button id="undo-edit-btn" class="btn-muted" style="display:none;">↩️ Undo</button>
+    <button id="redo-edit-btn" class="btn-muted" style="display:none;">↪️ Redo</button>
+    <button id="bulk-add-btn" class="btn-muted" style="display:none;">➕ Bulk Add</button>
+    <button id="bulk-delete-btn" class="btn-muted" style="display:none;">🗑️ Bulk Delete</button>
+    <button id="exit-edit-btn" class="btn-muted" style="display:none;">🚪 Exit Edit Mode</button>
+  </div>
+  <div id="edit-help" style="display:none; margin-bottom:0.7rem; color:#ff9500; font-size:0.98rem;">
+    Drag points to move. Ctrl+Click to delete. Click route to add a point.<br>
+    <span id="edit-mode-hint"></span>
+  </div>
+
 
     <!-- ========================
          Main Ride UI (map, telemetry, etc) - hidden initially
