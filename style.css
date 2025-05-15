@@ -358,6 +358,19 @@ button:active, .btn-muted:active, .download-buttons button:active {
   50%     { box-shadow: 0 0 13px rgba(131,56,236,0.13); }
 }
 
+/* Highlight active bulk tool */
+#edit-controls .active {
+  background: #21c821 !important;
+  color: #fff !important;
+  box-shadow: 0 0 18px #21c82144;
+  border-color: #21c821 !important;
+}
+#edit-controls .active#bulk-delete-btn {
+  background: #ff3333 !important;
+  box-shadow: 0 0 18px #ff333344;
+  border-color: #ff3333 !important;
+}
+
 /* ======================================
    EDITING POLYLINE (Editing Glow)
 ====================================== */
