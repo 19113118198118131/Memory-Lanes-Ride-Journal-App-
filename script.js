@@ -15,7 +15,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const downloadSummary   = document.getElementById('download-summary');
   const exportVideo       = document.getElementById('export-video');
   const rideActions       = document.getElementById('ride-actions');
-
+  const editControls      = document.getElementById('edit-controls');
+  
   // -------------
   // Helper functions for progressive disclosure
   // -------------
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     downloadSummary.style.display      = 'none';
     exportVideo.style.display          = 'none';
     rideActions.style.display          = 'none';
+    editControls.style.display         = 'none';
     document.getElementById('gpx-upload').value = '';
   }
 
@@ -323,6 +325,8 @@ function showUIForSavedRide() {
     // Disable analytics until user clicks
     hideAnalyticsSection();
     showAnalyticsBtn.style.display = 'inline-block';
+    
+    editControls.style.display = 'flex';
   }
 
  // ---- GPX Editing Integration ----
