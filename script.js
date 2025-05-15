@@ -42,18 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       exportVideo.style.display          = 'inline-block';
       rideActions.style.display          = 'none';
       authSection.style.display          = isLoggedIn ? 'none' : 'block';
-    
-      // FIX: Tell Leaflet to resize map now that it's visible, THEN fit bounds
-      setTimeout(() => {
-        map.invalidateSize();
-        if (trailPolyline && trailPolyline.getBounds) {
-          if (points.length > 1) {
-            map.fitBounds(trailPolyline.getBounds(), { padding: [30, 30], animate: false });
-          } else if (points.length === 1) {
-            map.setView([points[0].lat, points[0].lng], 13);
-          }
-        }
-      }, 200);
+      setTimeout(() => map.invalidateSize(), 200);
     }
 
 
@@ -67,18 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       downloadSummary.style.display      = 'inline-block';
       exportVideo.style.display          = 'inline-block';
       rideActions.style.display          = 'flex';
-    
-      // FIX: Tell Leaflet to resize map now that it's visible, THEN fit bounds
-      setTimeout(() => {
-        map.invalidateSize();
-        if (trailPolyline && trailPolyline.getBounds) {
-          if (points.length > 1) {
-            map.fitBounds(trailPolyline.getBounds(), { padding: [30, 30], animate: false });
-          } else if (points.length === 1) {
-            map.setView([points[0].lat, points[0].lng], 13);
-          }
-        }
-      }, 200);
+      setTimeout(() => map.invalidateSize(), 200);
     }
 
 
@@ -307,7 +285,18 @@ function showUIForSavedRide() {
     trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
       color: '#007bff', weight: 3, opacity: 0.7
     }).addTo(map).bringToBack();
-    map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: false });
+    
+    // ---- Always fit map to the polyline after rendering, with slight delay ----
+    setTimeout(() => {
+      map.invalidateSize(); // Ensure correct sizing after UI transition
+      if (trailPolyline && points.length > 1) {
+        map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: true });
+      } else if (points.length === 1) {
+        map.setView([points[0].lat, points[0].lng], 13);
+      }
+    }, 210); // 210ms to ensure map is visible
+
+
 
     
    
