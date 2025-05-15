@@ -280,14 +280,8 @@ function showUIForSavedRide() {
       trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
         color: '#007bff', weight: 3, opacity: 0.7
       }).addTo(map).bringToBack();
+      map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: false });
       
-      // Always fit bounds (use this, even if only a few points)
-      if (points.length > 1) {
-        map.fitBounds(trailPolyline.getBounds(), { padding: [30, 30], animate: true });
-      } else {
-        map.setView([points[0].lat, points[0].lng], 13); // default fallback zoom if only one point
-      }
-
 
     // ↓ Build charts & enable controls ↓
     setupChart();
