@@ -1,11 +1,11 @@
-// script.js
+// =============================================
+// Memory Lanes Ride Journal - script.js (Full App, Optimized, Maintainable)
+// =============================================
+
 import supabase from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-
-  // -------------
-  // UI Section References
-  // -------------
+  // ========== UI ELEMENT REFERENCES ==========
   const uploadSection     = document.getElementById('upload-section');
   const saveForm          = document.getElementById('save-ride-form');
   const authSection       = document.getElementById('auth-section');
@@ -15,10 +15,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const downloadSummary   = document.getElementById('download-summary');
   const exportVideo       = document.getElementById('export-video');
   const rideActions       = document.getElementById('ride-actions');
+  const editControls      = document.getElementById('edit-controls');
+  const editBtn           = document.getElementById('edit-gpx-btn');
+  const saveEditBtn       = document.getElementById('save-edited-gpx-btn');
+  const undoEditBtn       = document.getElementById('undo-edit-btn');
+  const redoEditBtn       = document.getElementById('redo-edit-btn');
+  const bulkAddBtn        = document.getElementById('bulk-add-btn');
+  const bulkDeleteBtn     = document.getElementById('bulk-delete-btn');
+  const exitEditBtn       = document.getElementById('exit-edit-btn');
+  const editHelp          = document.getElementById('edit-help');
+  const editModeHint      = document.getElementById('edit-mode-hint');
 
-  // -------------
-  // Helper functions for progressive disclosure
-  // -------------
+  // ========== UI STATE HELPERS ==========
   function resetUIToInitial() {
     uploadSection.style.display        = 'block';
     saveForm.style.display             = 'none';
@@ -29,36 +37,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     downloadSummary.style.display      = 'none';
     exportVideo.style.display          = 'none';
     rideActions.style.display          = 'none';
+    editControls.style.display         = 'none';
+    editHelp.style.display             = 'none';
     document.getElementById('gpx-upload').value = '';
   }
 
-    function showUIAfterUpload(isLoggedIn) {
-      uploadSection.style.display        = 'block';
-      mainRideUI.style.display           = 'block';
-      saveForm.style.display             = 'block';
-      showAnalyticsBtn.style.display     = 'inline-block';
-      analyticsSection.style.display     = 'none';
-      downloadSummary.style.display      = 'inline-block';
-      exportVideo.style.display          = 'inline-block';
-      rideActions.style.display          = 'none';
-      authSection.style.display          = isLoggedIn ? 'none' : 'block';
-      setTimeout(() => map.invalidateSize(), 200);
-    }
+  function showUIAfterUpload(isLoggedIn) {
+    uploadSection.style.display        = 'block';
+    mainRideUI.style.display           = 'block';
+    saveForm.style.display             = 'block';
+    showAnalyticsBtn.style.display     = 'inline-block';
+    analyticsSection.style.display     = 'none';
+    downloadSummary.style.display      = 'inline-block';
+    exportVideo.style.display          = 'inline-block';
+    rideActions.style.display          = 'none';
+    authSection.style.display          = isLoggedIn ? 'none' : 'block';
+    setTimeout(() => map.invalidateSize(), 200);
+    editControls.style.display         = 'flex';
+  }
 
-
-    function showUIForSavedRide() {
-      uploadSection.style.display        = 'none';
-      mainRideUI.style.display           = 'block';
-      saveForm.style.display             = 'none';
-      authSection.style.display          = 'none';
-      showAnalyticsBtn.style.display     = 'inline-block';
-      analyticsSection.style.display     = 'none';
-      downloadSummary.style.display      = 'inline-block';
-      exportVideo.style.display          = 'inline-block';
-      rideActions.style.display          = 'flex';
-      setTimeout(() => map.invalidateSize(), 200);
-    }
-
+  function showUIForSavedRide() {
+    uploadSection.style.display        = 'none';
+    mainRideUI.style.display           = 'block';
+    saveForm.style.display             = 'none';
+    authSection.style.display          = 'none';
+    showAnalyticsBtn.style.display     = 'inline-block';
+    analyticsSection.style.display     = 'none';
+    downloadSummary.style.display      = 'inline-block';
+    exportVideo.style.display          = 'inline-block';
+    rideActions.style.display          = 'flex';
+    setTimeout(() => map.invalidateSize(), 200);
+    editControls.style.display         = 'flex';
+  }
 
   function showAnalyticsSection() {
     analyticsSection.style.display     = 'block';
@@ -71,14 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     showAnalyticsBtn.style.display     = 'inline-block';
   }
 
-  // -------------
-  // Initial State: show only upload UI
-  // -------------
-  resetUIToInitial();
-
-  // -------------
-  // Frame/ride-related global references
-  // -------------
+  // ========== RIDE DATA & CHART STATE ==========
   const FRAME_DELAY_MS    = 50;
   const slider            = document.getElementById('replay-slider');
   const playBtn           = document.getElementById('play-replay');
@@ -97,9 +100,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const showSaveForm      = () => saveForm.style.display = 'block';
   const hideSaveForm      = () => saveForm.style.display = 'none';
 
-  // -------------
-  // Ride data/Chart/Map state
-  // -------------
   let points = [], marker = null, trailPolyline = null, elevationChart = null;
   let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
   window.playInterval = null;
@@ -117,103 +117,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     { label: '200+', min: 200, max: Infinity }
   ];
 
-// -------------
-// Map Setup (ONE TIME, after DOMContentLoaded)
-// -------------
-const map = L.map('leaflet-map').setView([20, 0], 2);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap contributors'
-}).addTo(map);
-
-// Initial invalidate, in case the map container is visible at load (harmless to keep)
-setTimeout(() => map.invalidateSize(), 0);
-
-// -------------
-// UI Show Functions (call invalidateSize when revealing the map)
-// -------------
-function showUIAfterUpload(isLoggedIn) {
-  uploadSection.style.display        = 'block';
-  mainRideUI.style.display           = 'block';
-  saveForm.style.display             = 'block';
-  showAnalyticsBtn.style.display     = 'inline-block';
-  analyticsSection.style.display     = 'none';
-  downloadSummary.style.display      = 'inline-block';
-  exportVideo.style.display          = 'inline-block';
-  rideActions.style.display          = 'none';
-  authSection.style.display          = isLoggedIn ? 'none' : 'block';
-
-  // FIX: Tell Leaflet to resize map now that it's visible
-  setTimeout(() => map.invalidateSize(), 200);
-}
-
-function showUIForSavedRide() {
-  uploadSection.style.display        = 'none';
-  mainRideUI.style.display           = 'block';
-  saveForm.style.display             = 'none';
-  authSection.style.display          = 'none';
-  showAnalyticsBtn.style.display     = 'inline-block';
-  analyticsSection.style.display     = 'none';
-  downloadSummary.style.display      = 'inline-block';
-  exportVideo.style.display          = 'inline-block';
-  rideActions.style.display          = 'flex';
-
-  // FIX: Tell Leaflet to resize map now that it's visible
-  setTimeout(() => map.invalidateSize(), 200);
-}
-
-
-  // ---------------------------
-  // Nav/Action Button Handlers
-  // ---------------------------
-  backBtn.addEventListener('click', () => {
-    window.location.href = 'dashboard.html';
-  });
-
-  uploadAnotherBtn.addEventListener('click', () => {
-    rideTitleDisplay.textContent = '';
-    document.getElementById('ride-controls').style.display = 'none';
-    resetUIToInitial();
-    history.replaceState({}, document.title, window.location.pathname);
-  });
-
-  // ---------------------------
-  // Analytics Section Reveal Handler
-  // ---------------------------
-  showAnalyticsBtn.addEventListener('click', () => {
-    showAnalyticsSection();
-  });
-
-  // ---------------------------
-  // GPX File Upload Handler
-  // ---------------------------
-  uploadInput.addEventListener('change', async e => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Reset all UI sections to post-upload state
-    const { data: { user } } = await supabase.auth.getUser();
-    showUIAfterUpload(!!user);
-
-    // Clean up old data if re-uploading
-    if (window.playInterval) clearInterval(window.playInterval);
-    if (marker)       map.removeLayer(marker);
-    if (trailPolyline) map.removeLayer(trailPolyline);
-    points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
-
-    const reader = new FileReader();
-    reader.onload = ev => parseAndRenderGPX(ev.target.result);
-    reader.readAsText(file);
-
-    // Hide analytics (in case of re-upload)
-    hideAnalyticsSection();
-  });
-
-  // ---------------------------
-  // GPX Parser & Renderer
-  // ---------------------------
+  // ========== GPX PARSER & RENDERER ==========
   function parseAndRenderGPX(gpxText) {
-    // Parse XML → trackpoints
     const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
     const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
       lat: +tp.getAttribute('lat'),
@@ -224,7 +129,7 @@ function showUIForSavedRide() {
 
     if (!trkpts.length) return alert('No valid trackpoints found');
 
-    // ↓ Build points[], detect breaks, sample every 5s ↓
+    // Downsample, breakpoints
     const SAMPLE = 5;
     points = [trkpts[0]];
     breakPoints = [];
@@ -249,7 +154,7 @@ function showUIForSavedRide() {
       points.push(trkpts.at(-1));
     }
 
-    // ↓ Compute cumulativeDistance, speedData, accelData ↓
+    // Distance/speed/accel
     cumulativeDistance = [0];
     speedData          = [0];
     accelData          = [0];
@@ -259,13 +164,12 @@ function showUIForSavedRide() {
       const d = a.distanceTo(b); // meters
       const t = (points[i].time - points[i-1].time) / 1000; // seconds
       const v = t > 0 ? d / t : 0; // m/s
-
       cumulativeDistance[i] = cumulativeDistance[i-1] + d;
-      speedData[i]          = v * 3.6; // km/h for display only
-      accelData[i]          = t > 0 ? (v - (speedData[i-1] / 3.6)) / t : 0; // m/s²
+      speedData[i]          = v * 3.6;
+      accelData[i]          = t > 0 ? (v - (speedData[i-1] / 3.6)) / t : 0;
     }
 
-    // ↓ Update summary UI ↓
+    // Update summary UI
     const totalMs = points.at(-1).time - points[0].time;
     const totMin  = Math.floor(totalMs / 60000);
     distanceEl.textContent = `${(cumulativeDistance.at(-1) / 1000).toFixed(2)} km`;
@@ -279,29 +183,21 @@ function showUIForSavedRide() {
     elevationEl.textContent  = `${points.reduce((sum, p, i) =>
       i>0 && p.ele>points[i-1].ele ? sum + (p.ele - points[i-1].ele) : sum, 0).toFixed(0)} m`;
 
-    // ↓ Draw map trail and fit bounds ↓
-
+    // Draw route
     if (trailPolyline) map.removeLayer(trailPolyline);
     trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
       color: '#007bff', weight: 3, opacity: 0.7
     }).addTo(map).bringToBack();
-    
-    // ---- Always fit map to the polyline after rendering, with slight delay ----
+
     setTimeout(() => {
-      map.invalidateSize(); // Ensure correct sizing after UI transition
+      map.invalidateSize();
       if (trailPolyline && points.length > 1) {
         map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: true });
       } else if (points.length === 1) {
         map.setView([points[0].lat, points[0].lng], 13);
       }
-    }, 210); // 210ms to ensure map is visible
+    }, 210);
 
-
-
-    
-   
-
-    // ↓ Build charts & enable controls ↓
     setupChart();
     renderSpeedFilter();
     renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
@@ -314,106 +210,312 @@ function showUIForSavedRide() {
       renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
     }
 
-    // Disable analytics until user clicks
     hideAnalyticsSection();
     showAnalyticsBtn.style.display = 'inline-block';
   }
 
-  // ---------------------------
-  // Ride Loading from Dashboard Logic
-  // ---------------------------
-  const params = new URLSearchParams(window.location.search);
+  // ========== MAP SETUP ==========
+  const map = L.map('leaflet-map').setView([20, 0], 2);
+  map.editTools = new L.Editable(map); // Enable editing support!
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+  setTimeout(() => map.invalidateSize(), 0);
 
-  if (params.has('ride')) {
-    // 1️⃣ Hide upload section
-    uploadSection.style.display = 'none';
+  // ========== EDIT MODE & BULK TOOL LOGIC ==========
+  let isEditing = false;
+  let editablePolyline = null;
+  let editHistory = [];
+  let redoHistory = [];
+  let bulkMode = null; // "add", "delete", or null
+  let brushPath = [];
+  let brushLayer = null;
+  let originalPoints = [];
+  const MAX_HISTORY = 100; // Cap undo/redo stack for perf
 
-    // 2️⃣ Fetch the stored file path
-    const { data: ride, error: rideErr } = await supabase
-      .from('ride_logs')
-      .select('gpx_path, title')
-      .eq('id', params.get('ride'))
-      .single();
-
-    if (rideErr) {
-      alert('Failed to load ride metadata: ' + rideErr.message);
-      return;
+  function setBulkMode(mode) {
+    bulkMode = mode;
+    bulkAddBtn.classList.toggle('active', mode === 'add');
+    bulkDeleteBtn.classList.toggle('active', mode === 'delete');
+    editModeHint.innerHTML = mode === 'add'
+      ? 'Bulk Add: Hold and draw on the map to add points to the end of the route.'
+      : mode === 'delete'
+        ? 'Bulk Delete: Hold and draw across points to select and delete multiple.'
+        : '';
+    if (mode) {
+      map.getContainer().style.cursor = mode === 'delete' ? 'crosshair' : 'copy';
+    } else {
+      map.getContainer().style.cursor = '';
     }
-    hideSaveForm();
-
-    rideTitleDisplay.textContent = ride?.title
-      ? `📍 Viewing: “${ride.title}”`
-      : `📍 Viewing Saved Ride`;
-
-    document.getElementById('ride-controls').style.display = 'block';
-    rideActions.style.display = 'flex';
-
-
-
-    // 3️⃣ Build public GPX URL
-    const { data: urlData, error: urlErr } = supabase
-      .storage
-      .from('gpx-files')
-      .getPublicUrl(ride.gpx_path);
-    if (urlErr) {
-      alert('Failed to get GPX URL: ' + urlErr.message)
-      return;
-    }
-
-    // 4️⃣ Fetch and render
-    const resp = await fetch(urlData.publicUrl)
-    const gpxText = await resp.text()
-    await parseAndRenderGPX(gpxText);
-
-    // Show saved ride UI, but keep analytics hidden until user asks
-    showUIForSavedRide();
-    hideAnalyticsSection();
-    showAnalyticsBtn.style.display = 'inline-block';
   }
 
-  // ---------------------------
-  // Speed Filter/Highlight
-  // ---------------------------
-  function renderSpeedFilter() {
-    const container = document.getElementById('speed-bins');
-    container.innerHTML = '';
-    speedBins.forEach((bin, i) => {
-      const btn = document.createElement('button');
-      btn.textContent = bin.label;
-      btn.classList.add('speed-bin-btn');
-      btn.dataset.index = i;
-      btn.addEventListener('click', () => highlightSpeedBin(i));
-      container.appendChild(btn);
+  editBtn.onclick = function() {
+    if (isEditing) return;
+    isEditing = true;
+    editBtn.style.display = 'none';
+    saveEditBtn.style.display = '';
+    undoEditBtn.style.display = '';
+    redoEditBtn.style.display = '';
+    bulkAddBtn.style.display = '';
+    bulkDeleteBtn.style.display = '';
+    exitEditBtn.style.display = '';
+    editHelp.style.display = '';
+    redoHistory = [];
+    bulkAddBtn.classList.remove('active');
+    bulkDeleteBtn.classList.remove('active');
+    setBulkMode(null);
+    editablePolyline = L.polyline(points.map(p => [p.lat, p.lng]), { color: '#ff9500', weight: 5 }).addTo(map);
+    editablePolyline.enableEdit();
+    editHistory = [editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }))];
+    originalPoints = editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }));
+    editablePolyline.on('editable:vertex:dragend editable:vertex:deleted editable:vertex:new', () => {
+      pushEditHistory();
     });
+    if (trailPolyline) map.removeLayer(trailPolyline);
+    map.fitBounds(editablePolyline.getBounds(), { padding: [30,30], animate: true });
+    saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
+  };
+
+  function pushEditHistory() {
+    if (editHistory.length > MAX_HISTORY) editHistory.shift();
+    editHistory.push(editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng })));
+    redoHistory = [];
+    saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
   }
 
-  function highlightSpeedBin(i) {
-    const btn = document.querySelector(`#speed-bins .speed-bin-btn[data-index="${i}"]`);
-    const isActive = selectedSpeedBins.has(i);
-    isActive ? selectedSpeedBins.delete(i) : selectedSpeedBins.add(i);
-    btn.classList.toggle('active', !isActive);
-    if (speedHighlightLayer) map.removeLayer(speedHighlightLayer);
-    if (selectedSpeedBins.size === 0) {
-      renderAccelChart(accelData, cumulativeDistance, speedData, [], speedBins);
-      return;
+  undoEditBtn.onclick = function() {
+    if (editHistory.length > 1) {
+      redoHistory.push(editHistory.pop());
+      const last = editHistory[editHistory.length - 1];
+      editablePolyline.setLatLngs(last.map(p => [p.lat, p.lng]));
+      saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
     }
-    const segments = [];
-    for (let j = 1; j < points.length; j++) {
-      const speed = speedData[j];
-      for (let b of selectedSpeedBins) {
-        if (speed >= speedBins[b].min && speed < speedBins[b].max) {
-          segments.push([[points[j-1].lat, points[j-1].lng], [points[j].lat, points[j].lng]]);
+  };
+  redoEditBtn.onclick = function() {
+    if (redoHistory.length > 0) {
+      const next = redoHistory.pop();
+      pushEditHistory();
+      editablePolyline.setLatLngs(next.map(p => [p.lat, p.lng]));
+      saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
+    }
+  };
+
+  exitEditBtn.onclick = function() {
+    cleanupEditMode();
+    if (trailPolyline) map.removeLayer(trailPolyline);
+    trailPolyline = L.polyline(originalPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+  };
+
+  bulkAddBtn.onclick = function() { setBulkMode(bulkMode === 'add' ? null : 'add'); };
+  bulkDeleteBtn.onclick = function() { setBulkMode(bulkMode === 'delete' ? null : 'delete'); };
+
+  // Brush with performance throttle
+  let brushHighlightTimeout = null;
+  function brushMoveHandler(ev) {
+    let latlng;
+    if (ev.latlng) latlng = ev.latlng;
+    else if (ev.touches && ev.touches[0]) latlng = map.mouseEventToLatLng(ev.touches[0]);
+    if (!latlng) return;
+    brushPath.push(latlng);
+    brushLayer.setLatLngs(brushPath);
+    // Debounced highlight (max 1 per frame)
+    if (bulkMode === 'delete' && editablePolyline) {
+      if (brushHighlightTimeout) cancelAnimationFrame(brushHighlightTimeout);
+      brushHighlightTimeout = requestAnimationFrame(() => {
+        highlightPolylinePoints(editablePolyline, brushPath, 22);
+      });
+    }
+  }
+  function brushEndHandler(ev) {
+    // Remove document listeners
+    document.removeEventListener('mousemove', brushMoveHandler);
+    document.removeEventListener('mouseup', brushEndHandler);
+    document.removeEventListener('touchmove', brushMoveHandler);
+    document.removeEventListener('touchend', brushEndHandler);
+    // Bulk actions
+    if (bulkMode === 'delete' && editablePolyline) {
+      const idxs = getPolylinePointsInBrush(editablePolyline, brushPath, 22);
+      if (idxs.length > 0) {
+        const latlngs = editablePolyline.getLatLngs();
+        idxs.sort((a, b) => b - a).forEach(idx => latlngs.splice(idx, 1));
+        editablePolyline.setLatLngs(latlngs);
+        pushEditHistory();
+      }
+    }
+    if (bulkMode === 'add' && editablePolyline) {
+      let latlngs = editablePolyline.getLatLngs();
+      let toAdd = brushPath.slice(1).map(ll => ({ lat: ll.lat, lng: ll.lng }));
+      latlngs = latlngs.concat(toAdd);
+      editablePolyline.setLatLngs(latlngs);
+      pushEditHistory();
+    }
+    if (brushLayer) { map.removeLayer(brushLayer); brushLayer = null; }
+    brushPath = [];
+    removeAllPointHighlights();
+  }
+  map.on('mousedown touchstart', function(e) {
+    if (!isEditing || !bulkMode) return;
+    brushPath = [e.latlng];
+    if (brushLayer) { map.removeLayer(brushLayer); brushLayer = null; }
+    brushLayer = L.polyline([e.latlng], {
+      color: bulkMode === 'add' ? '#21c821' : '#ff3333',
+      weight: 6, opacity: 0.3, dashArray: '8 8'
+    }).addTo(map);
+
+    document.addEventListener('mousemove', brushMoveHandler);
+    document.addEventListener('mouseup', brushEndHandler);
+    document.addEventListener('touchmove', brushMoveHandler);
+    document.addEventListener('touchend', brushEndHandler);
+  });
+
+  function highlightPolylinePoints(polyline, path, pxTolerance) {
+    removeAllPointHighlights();
+    if (!polyline) return;
+    const latlngs = polyline.getLatLngs();
+    for (let i = 0; i < latlngs.length; i++) {
+      for (let j = 1; j < path.length; j++) {
+        const p1 = map.latLngToContainerPoint(path[j - 1]);
+        const p2 = map.latLngToContainerPoint(path[j]);
+        const pt = map.latLngToContainerPoint(latlngs[i]);
+        const d = pointToSegmentDistance(pt, p1, p2);
+        if (d < pxTolerance) {
+          const marker = L.circleMarker(latlngs[i], {
+            radius: 8, color: '#ff3333', weight: 2, fillColor: '#fff', fillOpacity: 0.6,
+            className: 'bulk-delete-highlight'
+          }).addTo(map);
+          if (!map._bulkHighlights) map._bulkHighlights = [];
+          map._bulkHighlights.push(marker);
           break;
         }
       }
     }
-    speedHighlightLayer = L.layerGroup(segments.map(seg => L.polyline(seg, { color: '#8338ec', weight: 5, opacity: 0.8 }))).addTo(map);
-    renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+  }
+  function removeAllPointHighlights() {
+    if (map._bulkHighlights) {
+      map._bulkHighlights.forEach(m => map.removeLayer(m));
+      map._bulkHighlights = [];
+    }
+  }
+  function getPolylinePointsInBrush(polyline, path, pxTolerance) {
+    const idxs = [];
+    const latlngs = polyline.getLatLngs();
+    for (let i = 0; i < latlngs.length; i++) {
+      for (let j = 1; j < path.length; j++) {
+        const p1 = map.latLngToContainerPoint(path[j - 1]);
+        const p2 = map.latLngToContainerPoint(path[j]);
+        const pt = map.latLngToContainerPoint(latlngs[i]);
+        const d = pointToSegmentDistance(pt, p1, p2);
+        if (d < pxTolerance) {
+          idxs.push(i);
+          break;
+        }
+      }
+    }
+    return Array.from(new Set(idxs));
+  }
+  function pointToSegmentDistance(p, v, w) {
+    const l2 = v.distanceTo(w) ** 2;
+    if (l2 === 0) return p.distanceTo(v);
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return p.distanceTo(L.point(v.x + t * (w.x - v.x), v.y + t * (w.y - v.y)));
   }
 
-  // ---------------------------
-  // Chart Rendering & Timeline/Playback
-  // ---------------------------
+  // ========== SAVE AS NEW ROUTE ==========
+  saveEditBtn.onclick = function() {
+    if (!editablePolyline) return;
+    const editedLatLngs = editablePolyline.getLatLngs();
+    if (editedLatLngs.length < 2) {
+      alert("A route must have at least two points.");
+      return;
+    }
+    const editedPoints = editedLatLngs.map(ll => ({
+      lat: ll.lat, lng: ll.lng, ele: 0, time: new Date().toISOString()
+    }));
+    const title = prompt("Enter a name for your new route:");
+    if (!title) return;
+    const gpxString = generateMinimalGPX(editedPoints, title);
+    const blob = new Blob([gpxString], { type: "application/gpx+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${title.replace(/\s+/g, "_")}.gpx`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    cleanupEditMode();
+    if (trailPolyline) map.removeLayer(trailPolyline);
+    trailPolyline = L.polyline(editedPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+  };
+
+  function cleanupEditMode() {
+    if (editablePolyline) { editablePolyline.remove(); editablePolyline = null; }
+    isEditing = false;
+    setBulkMode(null);
+    bulkAddBtn.style.display = 'none';
+    bulkDeleteBtn.style.display = 'none';
+    exitEditBtn.style.display = 'none';
+    saveEditBtn.style.display = 'none';
+    undoEditBtn.style.display = 'none';
+    redoEditBtn.style.display = 'none';
+    editBtn.style.display = '';
+    editHelp.style.display = 'none';
+    if (brushLayer) { map.removeLayer(brushLayer); brushLayer = null; }
+    removeAllPointHighlights();
+    editModeHint.innerHTML = '';
+    document.removeEventListener('mousemove', brushMoveHandler);
+    document.removeEventListener('mouseup', brushEndHandler);
+    document.removeEventListener('touchmove', brushMoveHandler);
+    document.removeEventListener('touchend', brushEndHandler);
+  }
+
+  function generateMinimalGPX(points, name = "Edited Route") {
+    return `<?xml version="1.0"?>
+<gpx version="1.1" creator="Memory Lanes Ride Journal" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>${sanitizeString(name)}</name>
+    <trkseg>
+      ${points.map(p => `<trkpt lat="${p.lat}" lon="${p.lng}"></trkpt>`).join('\n')}
+    </trkseg>
+  </trk>
+</gpx>`;
+  }
+
+  function sanitizeString(str) {
+    // Simple sanitizer for titles
+    return String(str).replace(/[<>&"]/g, c =>
+      ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])
+    );
+  }
+
+  // ========== NAV/ACTION BUTTONS ==========
+  backBtn.addEventListener('click', () => {
+    window.location.href = 'dashboard.html';
+  });
+  uploadAnotherBtn.addEventListener('click', () => {
+    rideTitleDisplay.textContent = '';
+    document.getElementById('ride-controls').style.display = 'none';
+    resetUIToInitial();
+    history.replaceState({}, document.title, window.location.pathname);
+  });
+
+  showAnalyticsBtn.addEventListener('click', showAnalyticsSection);
+
+  // ========== GPX FILE UPLOAD ==========
+  uploadInput.addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    showUIAfterUpload(!!user);
+    if (window.playInterval) clearInterval(window.playInterval);
+    if (marker)       map.removeLayer(marker);
+    if (trailPolyline) map.removeLayer(trailPolyline);
+    points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
+    const reader = new FileReader();
+    reader.onload = ev => parseAndRenderGPX(ev.target.result);
+    reader.readAsText(file);
+    hideAnalyticsSection();
+  });
+
+  // ========== CHARTS, ANALYTICS, PLAYBACK, SPEED BIN ==========
   function setupChart() {
     const ctx = document.getElementById('elevationChart').getContext('2d');
     if (elevationChart) elevationChart.destroy();
@@ -537,7 +639,6 @@ function showUIForSavedRide() {
     });
   }
 
-  // ---- Corner/Accel Chart logic as before ----
   function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
     const ctx = document.getElementById('accelChart')?.getContext('2d');
     if (!ctx) return;
@@ -651,7 +752,43 @@ function showUIForSavedRide() {
     });
   }
 
-  // ---- Corner Angle & Analytics Init ----
+  function renderSpeedFilter() {
+    const container = document.getElementById('speed-bins');
+    container.innerHTML = '';
+    speedBins.forEach((bin, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = bin.label;
+      btn.classList.add('speed-bin-btn');
+      btn.dataset.index = i;
+      btn.addEventListener('click', () => highlightSpeedBin(i));
+      container.appendChild(btn);
+    });
+  }
+  function highlightSpeedBin(i) {
+    const btn = document.querySelector(`#speed-bins .speed-bin-btn[data-index="${i}"]`);
+    const isActive = selectedSpeedBins.has(i);
+    isActive ? selectedSpeedBins.delete(i) : selectedSpeedBins.add(i);
+    btn.classList.toggle('active', !isActive);
+    if (speedHighlightLayer) map.removeLayer(speedHighlightLayer);
+    if (selectedSpeedBins.size === 0) {
+      renderAccelChart(accelData, cumulativeDistance, speedData, [], speedBins);
+      return;
+    }
+    const segments = [];
+    for (let j = 1; j < points.length; j++) {
+      const speed = speedData[j];
+      for (let b of selectedSpeedBins) {
+        if (speed >= speedBins[b].min && speed < speedBins[b].max) {
+          segments.push([[points[j-1].lat, points[j-1].lng], [points[j].lat, points[j].lng]]);
+          break;
+        }
+      }
+    }
+    speedHighlightLayer = L.layerGroup(segments.map(seg => L.polyline(seg, { color: '#8338ec', weight: 5, opacity: 0.8 }))).addTo(map);
+    renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
+  }
+
+  // ========== CORNER CHART & ANALYTICS ==========
   window.Analytics = {
     initAnalytics: function(points, speedData, cumulativeDistance) {
       const angleDegs = Array(points.length).fill(0);
@@ -718,7 +855,7 @@ function showUIForSavedRide() {
     });
   }
 
-  // ---- Timeline & Playback ----
+  // ========== TIMELINE / PLAYBACK ==========
   window.jumpToPlaybackIndex = function(idx) {
     if (window.playInterval) {
       clearInterval(window.playInterval);
@@ -804,9 +941,7 @@ function showUIForSavedRide() {
     updatePlayback(Number(slider.value));
   });
 
-  // ---------------------------
-  // Auth Section Handlers (Login/Signup)
-  // ---------------------------
+  // ========== AUTH / SAVE LOGIC ==========
   document.getElementById('login-btn').addEventListener('click', async () => {
     const email = document.getElementById('auth-email').value;
     const pass = document.getElementById('auth-password').value;
@@ -866,9 +1001,6 @@ function showUIForSavedRide() {
       : 'Signup OK! Check your email, then login above.';
   });
 
-  // ---------------------------
-  // Save Ride Handler
-  // ---------------------------
   saveBtn.addEventListener('click', async () => {
     const title = document.getElementById('ride-title').value.trim();
     const statusEl = document.getElementById('save-status');
@@ -919,9 +1051,48 @@ function showUIForSavedRide() {
       : '✅ Ride saved!';
   });
 
-  // ----------- Download/Export Buttons (implement as needed; currently disabled for progressive UI) ----------
+  // ========== LOAD RIDE FROM DASHBOARD ==========
+  const params = new URLSearchParams(window.location.search);
 
-  // ---------------------------
-  // End of DOMContentLoaded
-  // ---------------------------
+  if (params.has('ride')) {
+    uploadSection.style.display = 'none';
+    const { data: ride, error: rideErr } = await supabase
+      .from('ride_logs')
+      .select('gpx_path, title')
+      .eq('id', params.get('ride'))
+      .single();
+
+    if (rideErr) {
+      alert('Failed to load ride metadata: ' + rideErr.message);
+      return;
+    }
+    hideSaveForm();
+
+    rideTitleDisplay.textContent = ride?.title
+      ? `📍 Viewing: “${ride.title}”`
+      : `📍 Viewing Saved Ride`;
+
+    document.getElementById('ride-controls').style.display = 'block';
+    rideActions.style.display = 'flex';
+
+    const { data: urlData, error: urlErr } = supabase
+      .storage
+      .from('gpx-files')
+      .getPublicUrl(ride.gpx_path);
+    if (urlErr) {
+      alert('Failed to get GPX URL: ' + urlErr.message)
+      return;
+    }
+
+    const resp = await fetch(urlData.publicUrl)
+    const gpxText = await resp.text()
+    await parseAndRenderGPX(gpxText);
+
+    showUIForSavedRide();
+    hideAnalyticsSection();
+    showAnalyticsBtn.style.display = 'inline-block';
+  }
+
+  // ========== INIT ==========
+  resetUIToInitial();
 });
