@@ -551,6 +551,9 @@ input:focus, select:focus {
   font-size: 1.03rem;
 }
 
+.leaflet-editable-selected {
+  filter: drop-shadow(0 0 8px #ff9500) drop-shadow(0 0 18px #fff6);
+}
 
 /* -------------------------------------
    MOBILE ADJUSTMENTS
