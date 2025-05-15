@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const exportVideo       = document.getElementById('export-video');
   const rideActions       = document.getElementById('ride-actions');
   const editControls      = document.getElementById('edit-controls');
+  const editExperimentalBanner = document.getElementById('edit-experimental-banner');
   const editBtn           = document.getElementById('edit-gpx-btn');
   const saveEditBtn       = document.getElementById('save-edited-gpx-btn');
   const undoEditBtn       = document.getElementById('undo-edit-btn');
@@ -283,6 +284,13 @@ function setBulkMode(mode) {
 // --- ENTER EDIT MODE ---
 editBtn.onclick = function() {
   if (isEditing) return;
+  // --- Show experimental feature banner ---
+  editExperimentalBanner.style.display = '';
+  editExperimentalBanner.innerHTML = `
+    <span style="color:#fff; background:#b48d07; padding:7px 18px; border-radius:8px; font-size:1.08em; font-weight:bold;">
+      🚧 Edit Route is an <b>experimental feature</b> and is currently in testing. Results may be unpredictable!
+    </span>
+  `;
   isEditing = true;
   editBtn.style.display = 'none';
   saveEditBtn.style.display = '';
