@@ -554,7 +554,7 @@ input:focus, select:focus {
 /* -------------------------------------
    Ride Header Controls (Centered above Map)
 ------------------------------------- */
-.ride-header-controls {
+.ride-controls {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -564,7 +564,7 @@ input:focus, select:focus {
   padding-bottom: 0.1rem;
 }
 
-.ride-header-content {
+.ride-controls {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -598,7 +598,7 @@ input:focus, select:focus {
   .ride-header-content {
     padding: 1rem 0.6rem;
   }
-  .ride-header-controls {
+  .ride-controls {
     margin-bottom: 1rem;
   }
   .ride-title-display { font-size: 1.05rem; }
