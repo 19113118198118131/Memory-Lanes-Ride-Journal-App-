@@ -5,7 +5,9 @@
 import supabase from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // ========== UI ELEMENT REFERENCES ==========
+  // =====================================================
+  // SECTION 1: UI ELEMENT REFERENCES & UI STATE HELPERS
+  // =====================================================
   const uploadSection     = document.getElementById('upload-section');
   const saveForm          = document.getElementById('save-ride-form');
   const authSection       = document.getElementById('auth-section');
@@ -26,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const editHelp          = document.getElementById('edit-help');
   const editModeHint      = document.getElementById('edit-mode-hint');
 
-  // ========== UI STATE HELPERS ==========
+  // ----- UI visibility logic -----
   function resetUIToInitial() {
     uploadSection.style.display        = 'block';
     saveForm.style.display             = 'none';
@@ -81,7 +83,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     showAnalyticsBtn.style.display     = 'inline-block';
   }
 
-  // ========== RIDE DATA & CHART STATE ==========
+  // =====================================================
+  // SECTION 2: RIDE DATA & STATE
+  // =====================================================
   const FRAME_DELAY_MS    = 50;
   const slider            = document.getElementById('replay-slider');
   const playBtn           = document.getElementById('play-replay');
@@ -117,7 +121,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     { label: '200+', min: 200, max: Infinity }
   ];
 
-  // ========== GPX PARSER & RENDERER ==========
+  // =====================================================
+  // SECTION 3: GPX PARSER & MAP RENDERING
+  // =====================================================
   function parseAndRenderGPX(gpxText) {
     const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
     const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
@@ -214,7 +220,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     showAnalyticsBtn.style.display = 'inline-block';
   }
 
-  // ========== MAP SETUP ==========
+  // =====================================================
+  // SECTION 4: LEAFLET MAP SETUP
+  // =====================================================
   const map = L.map('leaflet-map').setView([20, 0], 2);
   map.editTools = new L.Editable(map); // Enable editing support!
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -222,7 +230,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }).addTo(map);
   setTimeout(() => map.invalidateSize(), 0);
 
-  // ========== EDIT MODE & BULK TOOL LOGIC ==========
+  // =====================================================
+  // SECTION 5: ADVANCED EDIT MODE (FINAL)
+  // =====================================================
+
+  // --- Edit mode state ---
   let isEditing = false;
   let editablePolyline = null;
   let editHistory = [];
@@ -231,24 +243,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   let brushPath = [];
   let brushLayer = null;
   let originalPoints = [];
-  const MAX_HISTORY = 100; // Cap undo/redo stack for perf
+  let ghostAddLine = null;
+  let highlightedDeleteMarkers = [];
+  let lastBrushMove = 0;
 
+  // --- Utility for visual feedback ---
+  function clearGhostsAndHighlights() {
+    if (brushLayer) { map.removeLayer(brushLayer); brushLayer = null; }
+    if (ghostAddLine) { map.removeLayer(ghostAddLine); ghostAddLine = null; }
+    highlightedDeleteMarkers.forEach(m => map.removeLayer(m));
+    highlightedDeleteMarkers = [];
+  }
+
+  // --- BULK MODE TOGGLING ---
   function setBulkMode(mode) {
     bulkMode = mode;
     bulkAddBtn.classList.toggle('active', mode === 'add');
     bulkDeleteBtn.classList.toggle('active', mode === 'delete');
     editModeHint.innerHTML = mode === 'add'
-      ? 'Bulk Add: Hold and draw on the map to add points to the end of the route.'
+      ? 'Bulk Add: Draw a new section (green) to append to route. Map will not pan.'
       : mode === 'delete'
-        ? 'Bulk Delete: Hold and draw across points to select and delete multiple.'
+        ? 'Bulk Delete: Draw (red) over points to erase them. Map will not pan or drag points.'
         : '';
+    // Disable all Leaflet dragging during bulk tools!
     if (mode) {
-      map.getContainer().style.cursor = mode === 'delete' ? 'crosshair' : 'copy';
+      map.dragging.disable();
+      if (editablePolyline && editablePolyline.editor) {
+        editablePolyline.editor.disable();
+      }
     } else {
-      map.getContainer().style.cursor = '';
+      map.dragging.enable();
+      if (editablePolyline && editablePolyline.editor) {
+        editablePolyline.editor.enable();
+      }
     }
+    clearGhostsAndHighlights();
   }
 
+  // --- ENTER EDIT MODE ---
   editBtn.onclick = function() {
     if (isEditing) return;
     isEditing = true;
@@ -264,25 +296,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     bulkAddBtn.classList.remove('active');
     bulkDeleteBtn.classList.remove('active');
     setBulkMode(null);
+    // Create editable polyline
     editablePolyline = L.polyline(points.map(p => [p.lat, p.lng]), { color: '#ff9500', weight: 5 }).addTo(map);
     editablePolyline.enableEdit();
     editHistory = [editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }))];
     originalPoints = editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }));
     editablePolyline.on('editable:vertex:dragend editable:vertex:deleted editable:vertex:new', () => {
-      pushEditHistory();
+      if (!bulkMode) { // only in normal mode!
+        editHistory.push(editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng })));
+        redoHistory = [];
+        saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
+      }
     });
     if (trailPolyline) map.removeLayer(trailPolyline);
     map.fitBounds(editablePolyline.getBounds(), { padding: [30,30], animate: true });
     saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
   };
 
-  function pushEditHistory() {
-    if (editHistory.length > MAX_HISTORY) editHistory.shift();
-    editHistory.push(editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng })));
-    redoHistory = [];
-    saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
-  }
-
+  // --- UNDO/REDO ---
   undoEditBtn.onclick = function() {
     if (editHistory.length > 1) {
       redoHistory.push(editHistory.pop());
@@ -294,82 +325,135 @@ document.addEventListener('DOMContentLoaded', async () => {
   redoEditBtn.onclick = function() {
     if (redoHistory.length > 0) {
       const next = redoHistory.pop();
-      pushEditHistory();
+      editHistory.push(next);
       editablePolyline.setLatLngs(next.map(p => [p.lat, p.lng]));
       saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
     }
   };
 
+  // --- EXIT EDIT MODE (Cancel All Edits) ---
   exitEditBtn.onclick = function() {
-    cleanupEditMode();
+    if (editablePolyline) {
+      editablePolyline.remove();
+      editablePolyline = null;
+    }
     if (trailPolyline) map.removeLayer(trailPolyline);
     trailPolyline = L.polyline(originalPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+    isEditing = false;
+    setBulkMode(null);
+    bulkAddBtn.style.display = 'none';
+    bulkDeleteBtn.style.display = 'none';
+    exitEditBtn.style.display = 'none';
+    saveEditBtn.style.display = 'none';
+    undoEditBtn.style.display = 'none';
+    redoEditBtn.style.display = 'none';
+    editBtn.style.display = '';
+    editHelp.style.display = 'none';
+    clearGhostsAndHighlights();
+    editModeHint.innerHTML = '';
   };
 
-  bulkAddBtn.onclick = function() { setBulkMode(bulkMode === 'add' ? null : 'add'); };
-  bulkDeleteBtn.onclick = function() { setBulkMode(bulkMode === 'delete' ? null : 'delete'); };
+  // --- BULK TOOL BUTTONS ---
+  bulkAddBtn.onclick = () => setBulkMode(bulkMode === 'add' ? null : 'add');
+  bulkDeleteBtn.onclick = () => setBulkMode(bulkMode === 'delete' ? null : 'delete');
 
-  // Brush with performance throttle
-  let brushHighlightTimeout = null;
-  function brushMoveHandler(ev) {
-    let latlng;
-    if (ev.latlng) latlng = ev.latlng;
-    else if (ev.touches && ev.touches[0]) latlng = map.mouseEventToLatLng(ev.touches[0]);
-    if (!latlng) return;
-    brushPath.push(latlng);
-    brushLayer.setLatLngs(brushPath);
-    // Debounced highlight (max 1 per frame)
-    if (bulkMode === 'delete' && editablePolyline) {
-      if (brushHighlightTimeout) cancelAnimationFrame(brushHighlightTimeout);
-      brushHighlightTimeout = requestAnimationFrame(() => {
-        highlightPolylinePoints(editablePolyline, brushPath, 22);
-      });
-    }
-  }
-  function brushEndHandler(ev) {
-    // Remove document listeners
-    document.removeEventListener('mousemove', brushMoveHandler);
-    document.removeEventListener('mouseup', brushEndHandler);
-    document.removeEventListener('touchmove', brushMoveHandler);
-    document.removeEventListener('touchend', brushEndHandler);
-    // Bulk actions
-    if (bulkMode === 'delete' && editablePolyline) {
-      const idxs = getPolylinePointsInBrush(editablePolyline, brushPath, 22);
-      if (idxs.length > 0) {
-        const latlngs = editablePolyline.getLatLngs();
-        idxs.sort((a, b) => b - a).forEach(idx => latlngs.splice(idx, 1));
-        editablePolyline.setLatLngs(latlngs);
-        pushEditHistory();
-      }
-    }
-    if (bulkMode === 'add' && editablePolyline) {
-      let latlngs = editablePolyline.getLatLngs();
-      let toAdd = brushPath.slice(1).map(ll => ({ lat: ll.lat, lng: ll.lng }));
-      latlngs = latlngs.concat(toAdd);
-      editablePolyline.setLatLngs(latlngs);
-      pushEditHistory();
-    }
-    if (brushLayer) { map.removeLayer(brushLayer); brushLayer = null; }
-    brushPath = [];
-    removeAllPointHighlights();
-  }
+  // --- BULK INTERACTIONS (Optimized) ---
   map.on('mousedown touchstart', function(e) {
     if (!isEditing || !bulkMode) return;
-    brushPath = [e.latlng];
-    if (brushLayer) { map.removeLayer(brushLayer); brushLayer = null; }
-    brushLayer = L.polyline([e.latlng], {
-      color: bulkMode === 'add' ? '#21c821' : '#ff3333',
-      weight: 6, opacity: 0.3, dashArray: '8 8'
-    }).addTo(map);
+    // Don't pan map in bulk modes!
+    map.dragging.disable();
+    if (editablePolyline && editablePolyline.editor) {
+      editablePolyline.editor.disable();
+    }
 
-    document.addEventListener('mousemove', brushMoveHandler);
-    document.addEventListener('mouseup', brushEndHandler);
-    document.addEventListener('touchmove', brushMoveHandler);
-    document.addEventListener('touchend', brushEndHandler);
+    brushPath = [e.latlng];
+    clearGhostsAndHighlights();
+    let color = bulkMode === 'add' ? '#21c821' : '#ff3333';
+    let lineOptions = { color, weight: 6, opacity: 0.3, dashArray: '8 8' };
+    brushLayer = L.polyline([e.latlng], lineOptions).addTo(map);
+
+    function onMove(ev) {
+      let now = Date.now();
+      if (now - lastBrushMove < 30) return; // Debounce for perf
+      lastBrushMove = now;
+      let latlng;
+      if (ev.latlng) {
+        latlng = ev.latlng;
+      } else if (ev.touches && ev.touches[0]) {
+        latlng = map.mouseEventToLatLng(ev.touches[0]);
+      }
+      if (!latlng) return;
+      brushPath.push(latlng);
+      brushLayer.setLatLngs(brushPath);
+
+      if (bulkMode === 'delete') {
+        // Live highlight: show markers on candidate points
+        highlightPolylinePointsBulk(editablePolyline, brushPath, 22);
+      }
+      if (bulkMode === 'add') {
+        // Live preview: show the new stretch (ghost line)
+        if (ghostAddLine) map.removeLayer(ghostAddLine);
+        ghostAddLine = L.polyline(brushPath, { color: '#21c821', weight: 5, opacity: 0.5, dashArray: '1 12' }).addTo(map);
+      }
+    }
+
+    function onUp(ev) {
+      map.off('mousemove', onMove);
+      map.off('mouseup', onUp);
+      map.off('touchmove', onMove);
+      map.off('touchend', onUp);
+
+      // ----- BULK DELETE -----
+      if (bulkMode === 'delete') {
+        if (editablePolyline) {
+          const idxs = getPolylinePointsInBrush(editablePolyline, brushPath, 22);
+          if (idxs.length > 0) {
+            const latlngs = editablePolyline.getLatLngs();
+            idxs.sort((a, b) => b - a).forEach(idx => latlngs.splice(idx, 1));
+            editablePolyline.setLatLngs(latlngs);
+            editHistory.push(latlngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
+            redoHistory = [];
+            saveEditBtn.disabled = latlngs.length < 2;
+            showToast(`Deleted ${idxs.length} point${idxs.length > 1 ? "s" : ""}.`, "delete");
+          }
+        }
+      }
+
+      // ----- BULK ADD -----
+      if (bulkMode === 'add' && ghostAddLine) {
+        if (editablePolyline) {
+          let latlngs = editablePolyline.getLatLngs();
+          let toAdd = brushPath.slice(1).map(ll => ({ lat: ll.lat, lng: ll.lng }));
+          if (toAdd.length > 0) {
+            latlngs = latlngs.concat(toAdd);
+            editablePolyline.setLatLngs(latlngs);
+            editHistory.push(latlngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
+            redoHistory = [];
+            saveEditBtn.disabled = latlngs.length < 2;
+            showToast(`Added ${toAdd.length} point${toAdd.length > 1 ? "s" : ""}.`, "add");
+          }
+        }
+      }
+      clearGhostsAndHighlights();
+      brushPath = [];
+      // Re-enable normal edit if bulk mode turned off
+      if (!bulkMode && editablePolyline && editablePolyline.editor) {
+        editablePolyline.editor.enable();
+      }
+      map.dragging.enable();
+    }
+
+    map.on('mousemove', onMove);
+    map.on('mouseup', onUp);
+    map.on('touchmove', onMove);
+    map.on('touchend', onUp);
   });
 
-  function highlightPolylinePoints(polyline, path, pxTolerance) {
-    removeAllPointHighlights();
+  // --- VISUAL FEEDBACK HELPERS ---
+  function highlightPolylinePointsBulk(polyline, path, pxTolerance) {
+    // Remove old highlights
+    highlightedDeleteMarkers.forEach(m => map.removeLayer(m));
+    highlightedDeleteMarkers = [];
     if (!polyline) return;
     const latlngs = polyline.getLatLngs();
     for (let i = 0; i < latlngs.length; i++) {
@@ -380,20 +464,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const d = pointToSegmentDistance(pt, p1, p2);
         if (d < pxTolerance) {
           const marker = L.circleMarker(latlngs[i], {
-            radius: 8, color: '#ff3333', weight: 2, fillColor: '#fff', fillOpacity: 0.6,
+            radius: 9, color: '#ff3333', weight: 2, fillColor: '#fff', fillOpacity: 0.7,
             className: 'bulk-delete-highlight'
           }).addTo(map);
-          if (!map._bulkHighlights) map._bulkHighlights = [];
-          map._bulkHighlights.push(marker);
+          highlightedDeleteMarkers.push(marker);
           break;
         }
       }
-    }
-  }
-  function removeAllPointHighlights() {
-    if (map._bulkHighlights) {
-      map._bulkHighlights.forEach(m => map.removeLayer(m));
-      map._bulkHighlights = [];
     }
   }
   function getPolylinePointsInBrush(polyline, path, pxTolerance) {
@@ -421,7 +498,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     return p.distanceTo(L.point(v.x + t * (w.x - v.x), v.y + t * (w.y - v.y)));
   }
 
-  // ========== SAVE AS NEW ROUTE ==========
+  // --- TOAST/SNACKBAR ---
+  function showToast(msg, mode = "info") {
+    let toast = document.createElement("div");
+    toast.className = "custom-toast";
+    toast.innerHTML = msg;
+    toast.style.position = "fixed";
+    toast.style.bottom = "2.5rem";
+    toast.style.left = "50%";
+    toast.style.transform = "translateX(-50%)";
+    toast.style.background = mode === "delete" ? "#ff3333" : (mode === "add" ? "#21c821" : "#333");
+    toast.style.color = "#fff";
+    toast.style.padding = "0.8em 1.7em";
+    toast.style.fontSize = "1.13rem";
+    toast.style.borderRadius = "999px";
+    toast.style.boxShadow = "0 3px 14px #0004";
+    toast.style.zIndex = "99999";
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 450);
+    }, 1200);
+  }
+
+  // --- SAVE AS NEW ROUTE ---
   saveEditBtn.onclick = function() {
     if (!editablePolyline) return;
     const editedLatLngs = editablePolyline.getLatLngs();
@@ -441,13 +541,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     a.href = url; a.download = `${title.replace(/\s+/g, "_")}.gpx`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    cleanupEditMode();
-    if (trailPolyline) map.removeLayer(trailPolyline);
-    trailPolyline = L.polyline(editedPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
-  };
 
-  function cleanupEditMode() {
-    if (editablePolyline) { editablePolyline.remove(); editablePolyline = null; }
+    // Remove edit mode UI, reset
+    editablePolyline.remove();
+    editablePolyline = null;
     isEditing = false;
     setBulkMode(null);
     bulkAddBtn.style.display = 'none';
@@ -458,14 +555,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     redoEditBtn.style.display = 'none';
     editBtn.style.display = '';
     editHelp.style.display = 'none';
-    if (brushLayer) { map.removeLayer(brushLayer); brushLayer = null; }
-    removeAllPointHighlights();
-    editModeHint.innerHTML = '';
-    document.removeEventListener('mousemove', brushMoveHandler);
-    document.removeEventListener('mouseup', brushEndHandler);
-    document.removeEventListener('touchmove', brushMoveHandler);
-    document.removeEventListener('touchend', brushEndHandler);
-  }
+    clearGhostsAndHighlights();
+    // Optionally: render the new route as main polyline
+    if (trailPolyline) map.removeLayer(trailPolyline);
+    trailPolyline = L.polyline(editedPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+  };
 
   function generateMinimalGPX(points, name = "Edited Route") {
     return `<?xml version="1.0"?>
@@ -486,7 +580,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
   }
 
-  // ========== NAV/ACTION BUTTONS ==========
+  // =====================================================
+  // SECTION 6: NAV/ACTION BUTTONS & UI INTERACTIONS
+  // =====================================================
   backBtn.addEventListener('click', () => {
     window.location.href = 'dashboard.html';
   });
@@ -499,7 +595,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   showAnalyticsBtn.addEventListener('click', showAnalyticsSection);
 
-  // ========== GPX FILE UPLOAD ==========
+  // =====================================================
+  // SECTION 7: GPX FILE UPLOAD
+  // =====================================================
   uploadInput.addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -514,6 +612,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     reader.readAsText(file);
     hideAnalyticsSection();
   });
+
 
   // ========== CHARTS, ANALYTICS, PLAYBACK, SPEED BIN ==========
   function setupChart() {
