@@ -1,11 +1,18 @@
-// script.js
+// =============================================
+// Memory Lanes Ride Journal - script.js
+// =============================================
+// Full, progressive-disclosure UI logic
+// - GPX upload, summary, analytics, map playback
+// - Interactive editing: add/move/delete points
+// - Undo/redo in edit mode, "Save as New Route"
+// =============================================
+
+// --------- Import Supabase -----------
 import supabase from './supabaseClient.js';
 
+// --------- On DOM Ready -------------
 document.addEventListener('DOMContentLoaded', async () => {
-
-  // -------------
-  // UI Section References
-  // -------------
+  // --------- UI Element References -------------
   const uploadSection     = document.getElementById('upload-section');
   const saveForm          = document.getElementById('save-ride-form');
   const authSection       = document.getElementById('auth-section');
@@ -16,10 +23,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const exportVideo       = document.getElementById('export-video');
   const rideActions       = document.getElementById('ride-actions');
   const editControls      = document.getElementById('edit-controls');
-  
-  // -------------
-  // Helper functions for progressive disclosure
-  // -------------
+  const editBtn           = document.getElementById('edit-gpx-btn');
+  const saveEditBtn       = document.getElementById('save-edited-gpx-btn');
+  const undoEditBtn       = document.getElementById('undo-edit-btn');
+  const redoEditBtn       = document.getElementById('redo-edit-btn');
+  const editHelp          = document.getElementById('edit-help');
+
+  // --------- Initial Hide Edit Controls -------------
+  editControls.style.display = 'none';
+  editHelp.style.display = 'none';
+
+  // --------- Helper Functions for Progressive Disclosure -------------
   function resetUIToInitial() {
     uploadSection.style.display        = 'block';
     saveForm.style.display             = 'none';
@@ -31,36 +45,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     exportVideo.style.display          = 'none';
     rideActions.style.display          = 'none';
     editControls.style.display         = 'none';
+    editHelp.style.display             = 'none';
     document.getElementById('gpx-upload').value = '';
   }
 
-    function showUIAfterUpload(isLoggedIn) {
-      uploadSection.style.display        = 'block';
-      mainRideUI.style.display           = 'block';
-      saveForm.style.display             = 'block';
-      showAnalyticsBtn.style.display     = 'inline-block';
-      analyticsSection.style.display     = 'none';
-      downloadSummary.style.display      = 'inline-block';
-      exportVideo.style.display          = 'inline-block';
-      rideActions.style.display          = 'none';
-      authSection.style.display          = isLoggedIn ? 'none' : 'block';
-      setTimeout(() => map.invalidateSize(), 200);
-    }
+  function showUIAfterUpload(isLoggedIn) {
+    uploadSection.style.display        = 'block';
+    mainRideUI.style.display           = 'block';
+    saveForm.style.display             = 'block';
+    showAnalyticsBtn.style.display     = 'inline-block';
+    analyticsSection.style.display     = 'none';
+    downloadSummary.style.display      = 'inline-block';
+    exportVideo.style.display          = 'inline-block';
+    rideActions.style.display          = 'none';
+    authSection.style.display          = isLoggedIn ? 'none' : 'block';
+    setTimeout(() => map.invalidateSize(), 200);
+    // Only show edit controls if a route is loaded
+    editControls.style.display         = 'flex';
+  }
 
-
-    function showUIForSavedRide() {
-      uploadSection.style.display        = 'none';
-      mainRideUI.style.display           = 'block';
-      saveForm.style.display             = 'none';
-      authSection.style.display          = 'none';
-      showAnalyticsBtn.style.display     = 'inline-block';
-      analyticsSection.style.display     = 'none';
-      downloadSummary.style.display      = 'inline-block';
-      exportVideo.style.display          = 'inline-block';
-      rideActions.style.display          = 'flex';
-      setTimeout(() => map.invalidateSize(), 200);
-    }
-
+  function showUIForSavedRide() {
+    uploadSection.style.display        = 'none';
+    mainRideUI.style.display           = 'block';
+    saveForm.style.display             = 'none';
+    authSection.style.display          = 'none';
+    showAnalyticsBtn.style.display     = 'inline-block';
+    analyticsSection.style.display     = 'none';
+    downloadSummary.style.display      = 'inline-block';
+    exportVideo.style.display          = 'inline-block';
+    rideActions.style.display          = 'flex';
+    setTimeout(() => map.invalidateSize(), 200);
+    // Only show edit controls if a route is loaded
+    editControls.style.display         = 'flex';
+  }
 
   function showAnalyticsSection() {
     analyticsSection.style.display     = 'block';
@@ -73,14 +90,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     showAnalyticsBtn.style.display     = 'inline-block';
   }
 
-  // -------------
-  // Initial State: show only upload UI
-  // -------------
+  // --------- Initial State: show only upload UI -------------
   resetUIToInitial();
 
-  // -------------
-  // Frame/ride-related global references
-  // -------------
+  // --------- Map and Data State --------------------
   const FRAME_DELAY_MS    = 50;
   const slider            = document.getElementById('replay-slider');
   const playBtn           = document.getElementById('play-replay');
@@ -99,9 +112,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const showSaveForm      = () => saveForm.style.display = 'block';
   const hideSaveForm      = () => saveForm.style.display = 'none';
 
-  // -------------
-  // Ride data/Chart/Map state
-  // -------------
   let points = [], marker = null, trailPolyline = null, elevationChart = null;
   let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
   window.playInterval = null;
@@ -119,61 +129,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     { label: '200+', min: 200, max: Infinity }
   ];
 
-// -------------
-// Map Setup (ONE TIME, after DOMContentLoaded)
-// -------------
-const map = L.map('leaflet-map').setView([20, 0], 2);
+  // --------- Leaflet Map Setup (ONE TIME) ----------
+  const map = L.map('leaflet-map').setView([20, 0], 2);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap contributors'
-}).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
 
-// Initial invalidate, in case the map container is visible at load (harmless to keep)
-setTimeout(() => map.invalidateSize(), 0);
+  setTimeout(() => map.invalidateSize(), 0);
 
-let isEditing = false;
-let editablePolyline = null;
-let editHistory = [];
-let redoHistory = [];
-  
+  // --------- Editing State -------------
+  let isEditing = false;
+  let editablePolyline = null;
+  let editHistory = [];
+  let redoHistory = [];
 
-// -------------
-// UI Show Functions (call invalidateSize when revealing the map)
-// -------------
-function showUIAfterUpload(isLoggedIn) {
-  uploadSection.style.display        = 'block';
-  mainRideUI.style.display           = 'block';
-  saveForm.style.display             = 'block';
-  showAnalyticsBtn.style.display     = 'inline-block';
-  analyticsSection.style.display     = 'none';
-  downloadSummary.style.display      = 'inline-block';
-  exportVideo.style.display          = 'inline-block';
-  rideActions.style.display          = 'none';
-  authSection.style.display          = isLoggedIn ? 'none' : 'block';
-
-  // FIX: Tell Leaflet to resize map now that it's visible
-  setTimeout(() => map.invalidateSize(), 200);
-}
-
-function showUIForSavedRide() {
-  uploadSection.style.display        = 'none';
-  mainRideUI.style.display           = 'block';
-  saveForm.style.display             = 'none';
-  authSection.style.display          = 'none';
-  showAnalyticsBtn.style.display     = 'inline-block';
-  analyticsSection.style.display     = 'none';
-  downloadSummary.style.display      = 'inline-block';
-  exportVideo.style.display          = 'inline-block';
-  rideActions.style.display          = 'flex';
-
-  // FIX: Tell Leaflet to resize map now that it's visible
-  setTimeout(() => map.invalidateSize(), 200);
-}
-
-
-  // ---------------------------
-  // Nav/Action Button Handlers
-  // ---------------------------
+  // --------- Nav/Action Buttons -------------
   backBtn.addEventListener('click', () => {
     window.location.href = 'dashboard.html';
   });
@@ -185,28 +156,22 @@ function showUIForSavedRide() {
     history.replaceState({}, document.title, window.location.pathname);
   });
 
-  // ---------------------------
-  // Analytics Section Reveal Handler
-  // ---------------------------
   showAnalyticsBtn.addEventListener('click', () => {
     showAnalyticsSection();
   });
 
-  // ---------------------------
-  // GPX File Upload Handler
-  // ---------------------------
+  // --------- GPX File Upload Handler -------------
   uploadInput.addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
-
-    // Reset all UI sections to post-upload state
     const { data: { user } } = await supabase.auth.getUser();
     showUIAfterUpload(!!user);
 
-    // Clean up old data if re-uploading
+    // Cleanup old map state if re-uploading
     if (window.playInterval) clearInterval(window.playInterval);
     if (marker)       map.removeLayer(marker);
     if (trailPolyline) map.removeLayer(trailPolyline);
+    if (editablePolyline) { editablePolyline.remove(); editablePolyline = null; }
     points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
 
     const reader = new FileReader();
@@ -215,13 +180,13 @@ function showUIForSavedRide() {
 
     // Hide analytics (in case of re-upload)
     hideAnalyticsSection();
+    editControls.style.display = 'none';
+    editHelp.style.display = 'none';
   });
 
-  // ---------------------------
-  // GPX Parser & Renderer
-  // ---------------------------
+  // --------- GPX Parser & Renderer -------------
   function parseAndRenderGPX(gpxText) {
-    // Parse XML → trackpoints
+    // Parse GPX/XML to trackpoints
     const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
     const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
       lat: +tp.getAttribute('lat'),
@@ -232,7 +197,7 @@ function showUIForSavedRide() {
 
     if (!trkpts.length) return alert('No valid trackpoints found');
 
-    // ↓ Build points[], detect breaks, sample every 5s ↓
+    // Build points[], detect breaks, sample every 5s
     const SAMPLE = 5;
     points = [trkpts[0]];
     breakPoints = [];
@@ -257,23 +222,22 @@ function showUIForSavedRide() {
       points.push(trkpts.at(-1));
     }
 
-    // ↓ Compute cumulativeDistance, speedData, accelData ↓
+    // Compute cumulativeDistance, speedData, accelData
     cumulativeDistance = [0];
     speedData          = [0];
     accelData          = [0];
     for (let i = 1; i < points.length; i++) {
       const a = L.latLng(points[i-1].lat, points[i-1].lng);
       const b = L.latLng(points[i].lat,   points[i].lng);
-      const d = a.distanceTo(b); // meters
-      const t = (points[i].time - points[i-1].time) / 1000; // seconds
-      const v = t > 0 ? d / t : 0; // m/s
-
+      const d = a.distanceTo(b);
+      const t = (points[i].time - points[i-1].time) / 1000;
+      const v = t > 0 ? d / t : 0;
       cumulativeDistance[i] = cumulativeDistance[i-1] + d;
-      speedData[i]          = v * 3.6; // km/h for display only
-      accelData[i]          = t > 0 ? (v - (speedData[i-1] / 3.6)) / t : 0; // m/s²
+      speedData[i]          = v * 3.6;
+      accelData[i]          = t > 0 ? (v - (speedData[i-1] / 3.6)) / t : 0;
     }
 
-    // ↓ Update summary UI ↓
+    // Update summary UI
     const totalMs = points.at(-1).time - points[0].time;
     const totMin  = Math.floor(totalMs / 60000);
     distanceEl.textContent = `${(cumulativeDistance.at(-1) / 1000).toFixed(2)} km`;
@@ -287,29 +251,22 @@ function showUIForSavedRide() {
     elevationEl.textContent  = `${points.reduce((sum, p, i) =>
       i>0 && p.ele>points[i-1].ele ? sum + (p.ele - points[i-1].ele) : sum, 0).toFixed(0)} m`;
 
-    // ↓ Draw map trail and fit bounds ↓
-
+    // Draw map trail and fit bounds
     if (trailPolyline) map.removeLayer(trailPolyline);
     trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
       color: '#007bff', weight: 3, opacity: 0.7
     }).addTo(map).bringToBack();
-    
-    // ---- Always fit map to the polyline after rendering, with slight delay ----
+
     setTimeout(() => {
-      map.invalidateSize(); // Ensure correct sizing after UI transition
+      map.invalidateSize();
       if (trailPolyline && points.length > 1) {
         map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: true });
       } else if (points.length === 1) {
         map.setView([points[0].lat, points[0].lng], 13);
       }
-    }, 210); // 210ms to ensure map is visible
+    }, 210);
 
-
-
-    
-   
-
-    // ↓ Build charts & enable controls ↓
+    // Build charts & enable controls
     setupChart();
     renderSpeedFilter();
     renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
@@ -322,98 +279,97 @@ function showUIForSavedRide() {
       renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
     }
 
-    // Disable analytics until user clicks
+    // Hide analytics, show analytics button, show edit controls
     hideAnalyticsSection();
     showAnalyticsBtn.style.display = 'inline-block';
-    
     editControls.style.display = 'flex';
+    editHelp.style.display = 'none';
   }
 
- // ---- GPX Editing Integration ----
-const editBtn = document.getElementById('edit-gpx-btn');
-const saveEditBtn = document.getElementById('save-edited-gpx-btn');
-const undoEditBtn = document.getElementById('undo-edit-btn');
-const redoEditBtn = document.getElementById('redo-edit-btn');
-
-// Start Edit Mode
-editBtn.onclick = function() {
-  if (isEditing) return;
-  isEditing = true;
-  editBtn.style.display = 'none';
-  saveEditBtn.style.display = '';
-  undoEditBtn.style.display = '';
-  redoEditBtn.style.display = '';
-  redoHistory = [];
-  // Create editable polyline
-  editablePolyline = L.polyline(points.map(p => [p.lat, p.lng]), { color: '#ff9500', weight: 5 }).addTo(map);
-  editablePolyline.enableEdit();
-  editHistory = [editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }))];
-  // Save edit history on each change
-  editablePolyline.on('editable:vertex:dragend editable:vertex:deleted editable:vertex:new', () => {
-    editHistory.push(editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng })));
+  // --------- GPX Editing Integration -------------
+  // Enter Edit Mode
+  editBtn.onclick = function() {
+    if (isEditing) return;
+    isEditing = true;
+    editBtn.style.display = 'none';
+    saveEditBtn.style.display = '';
+    undoEditBtn.style.display = '';
+    redoEditBtn.style.display = '';
+    editHelp.style.display = '';
     redoHistory = [];
-  });
-  // Hide your normal polyline while editing (optional)
-  if (trailPolyline) map.removeLayer(trailPolyline);
-  // Optional: fit bounds to new polyline
-  map.fitBounds(editablePolyline.getBounds(), { padding: [30,30], animate: true });
-};
+    // Create editable polyline
+    editablePolyline = L.polyline(points.map(p => [p.lat, p.lng]), { color: '#ff9500', weight: 5 }).addTo(map);
+    editablePolyline.enableEdit();
+    editHistory = [editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng }))];
+    // Save edit history on each change
+    editablePolyline.on('editable:vertex:dragend editable:vertex:deleted editable:vertex:new', () => {
+      editHistory.push(editablePolyline.getLatLngs().map(ll => ({ lat: ll.lat, lng: ll.lng })));
+      redoHistory = [];
+      saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
+    });
+    // Hide your normal polyline while editing (optional)
+    if (trailPolyline) map.removeLayer(trailPolyline);
+    map.fitBounds(editablePolyline.getBounds(), { padding: [30,30], animate: true });
+    saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
+  };
 
-// Undo
-undoEditBtn.onclick = function() {
-  if (editHistory.length > 1) {
-    redoHistory.push(editHistory.pop());
-    const last = editHistory[editHistory.length - 1];
-    editablePolyline.setLatLngs(last.map(p => [p.lat, p.lng]));
-  }
-};
-// Redo
-redoEditBtn.onclick = function() {
-  if (redoHistory.length > 0) {
-    const next = redoHistory.pop();
-    editHistory.push(next);
-    editablePolyline.setLatLngs(next.map(p => [p.lat, p.lng]));
-  }
-};
+  // Undo Edit
+  undoEditBtn.onclick = function() {
+    if (editHistory.length > 1) {
+      redoHistory.push(editHistory.pop());
+      const last = editHistory[editHistory.length - 1];
+      editablePolyline.setLatLngs(last.map(p => [p.lat, p.lng]));
+      saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
+    }
+  };
+  // Redo Edit
+  redoEditBtn.onclick = function() {
+    if (redoHistory.length > 0) {
+      const next = redoHistory.pop();
+      editHistory.push(next);
+      editablePolyline.setLatLngs(next.map(p => [p.lat, p.lng]));
+      saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
+    }
+  };
 
-// Save as New Route
-saveEditBtn.onclick = function() {
-  const editedLatLngs = editablePolyline.getLatLngs();
-  if (editedLatLngs.length < 2) {
-    alert("A route must have at least two points.");
-    return;
-  }
-  const editedPoints = editedLatLngs.map(ll => ({
-    lat: ll.lat, lng: ll.lng, ele: 0, time: new Date().toISOString()
-  }));
-  // Prompt for new title
-  const title = prompt("Enter a name for your new route:");
-  if (!title) return;
+  // Save Edited GPX as New Route
+  saveEditBtn.onclick = function() {
+    const editedLatLngs = editablePolyline.getLatLngs();
+    if (editedLatLngs.length < 2) {
+      alert("A route must have at least two points.");
+      return;
+    }
+    const editedPoints = editedLatLngs.map(ll => ({
+      lat: ll.lat, lng: ll.lng, ele: 0, time: new Date().toISOString()
+    }));
+    const title = prompt("Enter a name for your new route:");
+    if (!title) return;
+    const gpxString = generateMinimalGPX(editedPoints, title);
+    const blob = new Blob([gpxString], { type: "application/gpx+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${title.replace(/\s+/g, "_")}.gpx`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 
-  // Create and download new GPX file
-  const gpxString = generateMinimalGPX(editedPoints, title);
-  const blob = new Blob([gpxString], { type: "application/gpx+xml" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `${title.replace(/\s+/g, "_")}.gpx`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+    // Remove edit mode UI, reset
+    editablePolyline.remove();
+    editablePolyline = null;
+    isEditing = false;
+    saveEditBtn.style.display = 'none';
+    editBtn.style.display = '';
+    undoEditBtn.style.display = 'none';
+    redoEditBtn.style.display = 'none';
+    editHelp.style.display = 'none';
+    // Render new route as main polyline
+    if (trailPolyline) map.removeLayer(trailPolyline);
+    trailPolyline = L.polyline(editedPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+    // Optionally, update summary/analytics for the edited route (advanced: re-parse new GPX)
+  };
 
-  // Remove edit mode UI, reset
-  editablePolyline.remove();
-  editablePolyline = null;
-  isEditing = false;
-  saveEditBtn.style.display = 'none';
-  editBtn.style.display = '';
-  undoEditBtn.style.display = 'none';
-  redoEditBtn.style.display = 'none';
-  // Optionally: render the new route as main polyline
-  if (trailPolyline) map.removeLayer(trailPolyline);
-  trailPolyline = L.polyline(editedPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
-};
- 
-function generateMinimalGPX(points, name = "Edited Route") {
-  return `<?xml version="1.0"?>
+  // Minimal GPX Exporter
+  function generateMinimalGPX(points, name = "Edited Route") {
+    return `<?xml version="1.0"?>
 <gpx version="1.1" creator="Memory Lanes Ride Journal" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>${name}</name>
@@ -422,7 +378,7 @@ function generateMinimalGPX(points, name = "Edited Route") {
     </trkseg>
   </trk>
 </gpx>`;
-}
+  }
 
   // ---------------------------
   // Ride Loading from Dashboard Logic
