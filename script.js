@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --------- Leaflet Map Setup (ONE TIME) ----------
   const map = L.map('leaflet-map').setView([20, 0], 2);
-
+  map.editTools = new L.Editable(map); // 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
