@@ -308,6 +308,7 @@ function showUIForSavedRide() {
     trailPolyline = L.polyline(points.map(p => [p.lat, p.lng]), {
       color: '#007bff', weight: 3, opacity: 0.7
     }).addTo(map).bringToBack();
+
     
    
 
