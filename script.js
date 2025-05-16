@@ -117,6 +117,7 @@ uploadInput.addEventListener('change', () => {
     fileStatus.textContent = 'No file selected';
     fileStatus.classList.remove('ready');
     postUploadActions.style.display = 'none';
+    document.getElementById('gpx-upload').value = '';
   }
 });
      
