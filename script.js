@@ -1170,55 +1170,96 @@ function sanitizeString(str) {
       : 'Signup OK! Check your email, then login above.';
   });
 
-  saveBtn.addEventListener('click', async () => {
-    const title = document.getElementById('ride-title').value.trim();
-    const statusEl = document.getElementById('save-status');
-    if (!title) {
-      statusEl.textContent = '❗ Please enter a ride title.';
-      return;
-    }
-    const sessionResult = await supabase.auth.getSession();
-    const user = sessionResult.data?.session?.user;
-    if (!user) {
-      statusEl.textContent = '❌ You must be logged in to save a ride.';
-      return;
-    }
-    const file = uploadInput.files[0];
-    if (!file) {
-      statusEl.textContent = '❗ No GPX file selected.';
-      return;
-    }
-    const ext      = file.name.split('.').pop();
-    const stamp    = Date.now();
-    const filePath = `${user.id}/${stamp}.${ext}`;
-    const { data: uploadData, error: uploadErr } = await supabase
-      .storage
-      .from('gpx-files')
-      .upload(filePath, file);
-    if (uploadErr) {
-      statusEl.textContent = `❌ GPX upload failed: ${uploadErr.message}`;
-      return;
-    }
-    const distance_km  = parseFloat(distanceEl.textContent);
-    const duration_min = parseFloat(rideTimeEl.textContent.split('h')[0]) * 60 +
-                         (parseFloat(rideTimeEl.textContent.split('h')[1]) || 0);
-    const elevation_m  = parseFloat(elevationEl.textContent);
-    const ride_date = points[0].time.toISOString();
-    const { data: insertData, error: insertErr } = await supabase
-      .from('ride_logs')
-      .insert({
-        title,
-        user_id:     user.id,
-        distance_km,
-        duration_min,
-        elevation_m,
-        ride_date,
-        gpx_path:    uploadData.path
-      });
-    statusEl.textContent = insertErr
-      ? `❌ Save failed: ${insertErr.message}`
-      : '✅ Ride saved!';
-  });
+saveBtn.addEventListener('click', async () => {
+  const title = document.getElementById('ride-title').value.trim();
+  const statusEl = document.getElementById('save-status');
+  statusEl.textContent = ''; // Clear old
+
+  // Check title
+  if (!title) {
+    showToast('❗ Please enter a ride title.', "info");
+    return;
+  }
+
+  // Check session
+  const sessionResult = await supabase.auth.getSession();
+  const user = sessionResult.data?.session?.user;
+  if (!user) {
+    // Show login section and only show "You must be logged in" if triggered by this error
+    authSection.style.display = 'block';
+    saveForm.style.display = 'none';
+    showToast('❌ You must be logged in to save a ride.', "delete");
+    return;
+  }
+
+  // Check GPX file
+  const file = uploadInput.files[0];
+  if (!file) {
+    showToast('❗ No GPX file selected.', "info");
+    return;
+  }
+
+  // File validation for security
+  const validTypes = ['application/gpx+xml', 'application/xml', 'text/xml'];
+  if (!validTypes.includes(file.type) && !file.name.endsWith('.gpx')) {
+    showToast('❌ Invalid file type. Please upload a .gpx file.', "delete");
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) { // 5 MB limit
+    showToast('❌ GPX file is too large (max 5MB).', "delete");
+    return;
+  }
+
+  // Upload to Supabase Storage
+  const ext      = file.name.split('.').pop();
+  const stamp    = Date.now();
+  const filePath = `${user.id}/${stamp}.${ext}`;
+  const { data: uploadData, error: uploadErr } = await supabase
+    .storage
+    .from('gpx-files')
+    .upload(filePath, file);
+  if (uploadErr) {
+    showToast(`❌ GPX upload failed: ${uploadErr.message}`, "delete");
+    return;
+  }
+
+  // Prepare data for insertion
+  const distance_km  = parseFloat(distanceEl.textContent);
+  const duration_min = parseFloat(rideTimeEl.textContent.split('h')[0]) * 60 +
+                       (parseFloat(rideTimeEl.textContent.split('h')[1]) || 0);
+  const elevation_m  = parseFloat(elevationEl.textContent);
+  const ride_date = points[0].time.toISOString();
+  const { data: insertData, error: insertErr } = await supabase
+    .from('ride_logs')
+    .insert({
+      title,
+      user_id:     user.id,
+      distance_km,
+      duration_min,
+      elevation_m,
+      ride_date,
+      gpx_path:    uploadData.path
+    });
+  if (insertErr) {
+    showToast(`❌ Save failed: ${insertErr.message}`, "delete");
+    return;
+  }
+
+  // Success — Show “Go to Dashboard” button, hide form
+  showToast('✅ Ride saved!', "add");
+  saveForm.style.display = 'none';
+
+  // Insert “Go to Dashboard” button
+  const navContainer = document.getElementById('ride-card-nav');
+  navContainer.innerHTML = ''; // Clear old
+  const dashBtn = document.createElement('button');
+  dashBtn.textContent = 'Go to Dashboard';
+  dashBtn.className = 'btn-muted';
+  dashBtn.style.marginLeft = '1.2rem';
+  dashBtn.onclick = () => window.location.href = 'dashboard.html';
+  navContainer.appendChild(dashBtn);
+});
+
 
   // ========== LOAD RIDE FROM DASHBOARD ==========
   const params = new URLSearchParams(window.location.search);
