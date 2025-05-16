@@ -187,6 +187,22 @@ input[type="file"].no-filename {
   cursor: pointer;
 }
 
+/* ===== Custom File Input Button (no filename shown) ===== */
+input[type="file"].no-filename {
+  position: relative;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0; /* hide text in Safari/Chrome */
+  width: 14rem;
+  height: auto;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0,123,255,0.12);
+  text-align: center;
+  cursor: pointer;
+}
+
 /* Hide native button, inject label text */
 input[type="file"].no-filename::-webkit-file-upload-button {
   visibility: hidden;
@@ -212,6 +228,7 @@ input[type="file"].no-filename:hover::before {
   transform: scale(1.03);
   transition: transform 0.2s ease;
 }
+
 
 
 
