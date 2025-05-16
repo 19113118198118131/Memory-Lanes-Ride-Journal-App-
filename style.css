@@ -158,12 +158,16 @@ nav { margin-top: 0.22rem; }
 }
 
 #ride-card-nav {
+  display: none;
   display: flex;
   justify-content: flex-start;
   margin-top: 1.6rem;
-  padding-left: 1.5rem; /* <-- Add this for alignment */
+  padding-left: 1.5rem; /* aligns with card content */
 }
 
+#ride-actions {
+  max-width: 520px;
+}
 
 /* ---------- MAIN CONTENT AREA ---------- */
 main {
