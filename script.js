@@ -1201,21 +1201,8 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     saveForm.style.display = 'block';
   }, 50);
 
-  // Create and show "Go to Dashboard" button
-  const dashBtn = document.createElement('button');
-  dashBtn.textContent = 'Go to Dashboard';
-  dashBtn.className = 'btn-muted';
-  dashBtn.style.marginLeft = '1.2rem';
-  dashBtn.onclick = () => window.location.href = 'dashboard.html';
-
-  const navContainer = document.getElementById('ride-card-nav');
-  if (navContainer) {
-    navContainer.innerHTML = ''; // Clear old
-    navContainer.appendChild(dashBtn);
-    navContainer.style.display = 'flex';
-    navContainer.style.justifyContent = 'flex-start';
-    navContainer.style.margin = '1.2rem 0';
-  }
+  // Optional: flash visual feedback (login success only)
+  statusEl.textContent = '✅ Login successful!';
 });
 
 
