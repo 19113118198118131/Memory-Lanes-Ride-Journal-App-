@@ -102,6 +102,29 @@ nav { margin-top: 0.22rem; }
   cursor: default;
 }
 
+.vibe-nav span {
+  position: relative;
+  font-weight: 600;
+  font-size: 0.98rem;
+  background: linear-gradient(90deg, #64ffda, #00c6ff, #64ffda);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 6s ease-in-out infinite;
+  text-shadow: 0 0 8px rgba(100, 255, 218, 0.15);
+  transition: transform 0.2s ease;
+}
+
+.vibe-nav span:hover {
+  transform: scale(1.08);
+  text-shadow: 0 0 14px rgba(100, 255, 218, 0.3);
+}
+
+@keyframes shimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 
 /* ---------- MAIN CONTENT AREA ---------- */
 main {
