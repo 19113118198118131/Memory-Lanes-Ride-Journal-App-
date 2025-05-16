@@ -1316,10 +1316,13 @@ saveBtn.addEventListener('click', async () => {
   dashBtn.onclick = () => window.location.href = 'dashboard.html';
   navContainer.appendChild(dashBtn);
   
-  // Make sure the nav container is visible
-  navContainer.style.display = 'block';
-  navContainer.style.textAlign = 'center';
+  // Make sure the nav container is visible and aligned left
+  navContainer.style.display = 'flex';
+  navContainer.style.justifyContent = 'flex-start';
+  navContainer.style.alignItems = 'center';
+  navContainer.style.paddingLeft = '1.5rem';
   navContainer.style.marginTop = '1.6rem';
+  navContainer.style.textAlign = 'left'; // reset override
 
 });
 
