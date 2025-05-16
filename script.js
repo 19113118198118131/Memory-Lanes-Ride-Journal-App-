@@ -522,13 +522,13 @@ function showToast(msg, mode = "info") {
   toast.className = "custom-toast";
   toast.innerHTML = msg;
   toast.style.position = "fixed";
-  toast.style.bottom = "2.5rem";
+  toast.style.top = "50%";
   toast.style.left = "50%";
-  toast.style.transform = "translateX(-50%)";
+  toast.style.transform = "translate(-50%, -50%)";
   toast.style.background = mode === "delete" ? "#ff3333" : (mode === "add" ? "#21c821" : "#333");
   toast.style.color = "#fff";
   toast.style.padding = "0.8em 1.7em";
-  toast.style.fontSize = "1.13rem";
+  toast.style.fontSize = "1.18rem";
   toast.style.borderRadius = "999px";
   toast.style.boxShadow = "0 3px 14px #0004";
   toast.style.zIndex = "99999";
