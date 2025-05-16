@@ -1264,18 +1264,59 @@ saveBtn.addEventListener('click', async () => {
   // ========== LOAD RIDE FROM DASHBOARD ==========
   const params = new URLSearchParams(window.location.search);
 
-  if (params.has('ride')) {
-    uploadSection.style.display = 'none';
+if (params.has('ride')) {
+  uploadSection.style.display = 'none';
+  try {
     const { data: ride, error: rideErr } = await supabase
       .from('ride_logs')
       .select('gpx_path, title')
       .eq('id', params.get('ride'))
       .single();
 
-    if (rideErr) {
-      alert('Failed to load ride metadata: ' + rideErr.message);
+    if (rideErr || !ride) {
+      // Show fallback nav
+      rideTitleDisplay.textContent = "❌ Failed to load ride. Please try another or return to dashboard.";
+      rideTitleDisplay.style.color = "#ff6b6b";
+      rideTitleDisplay.style.textAlign = "center";
+      document.getElementById('ride-controls').style.display = 'block';
+
+      // Show Back to Dashboard and Logout buttons
+      rideActions.style.display = 'flex';
       return;
     }
+    hideSaveForm();
+
+    rideTitleDisplay.textContent = ride?.title
+      ? `📍 Viewing: “${ride.title}”`
+      : `📍 Viewing Saved Ride`;
+
+    rideTitleDisplay.style.textAlign = "center";
+    document.getElementById('ride-controls').style.display = 'block';
+    rideActions.style.display = 'flex';
+
+    const { data: urlData, error: urlErr } = supabase
+      .storage
+      .from('gpx-files')
+      .getPublicUrl(ride.gpx_path);
+    if (urlErr) {
+      throw urlErr;
+    }
+
+    const resp = await fetch(urlData.publicUrl)
+    const gpxText = await resp.text()
+    await parseAndRenderGPX(gpxText);
+
+    showUIForSavedRide();
+    hideAnalyticsSection();
+    showAnalyticsBtn.style.display = 'inline-block';
+  } catch (err) {
+    rideTitleDisplay.textContent = "❌ Error loading ride data.";
+    rideTitleDisplay.style.color = "#ff6b6b";
+    rideTitleDisplay.style.textAlign = "center";
+    document.getElementById('ride-controls').style.display = 'block';
+    rideActions.style.display = 'flex';
+  }
+}
     hideSaveForm();
 
     rideTitleDisplay.textContent = ride?.title
