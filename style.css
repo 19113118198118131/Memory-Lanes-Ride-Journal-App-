@@ -803,6 +803,16 @@ input:focus, select:focus {
   margin-right: 0.4rem;
 }
 
+.footer-bmc-button:hover .heart-icon {
+  animation: pulse-heart 1s ease;
+}
+
+@keyframes pulse-heart {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
 /* ---------- OTHER UI POLISH ---------- */
 .break-dot {
   background: var(--accent);
