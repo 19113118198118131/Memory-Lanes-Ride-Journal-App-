@@ -285,9 +285,12 @@ function setBulkMode(mode) {
 editBtn.onclick = function() {
   if (isEditing) return;
   // --- Show experimental feature banner ---
-  editExperimentalBanner.style.display = '';
+  editExperimentalBanner.style.display = 'block'; // Use block for div, '' can inherit or be ignored
   editExperimentalBanner.innerHTML = `
-    <span style="color:#fff; background:#b48d07; padding:7px 18px; border-radius:8px; font-size:1.08em; font-weight:bold;">
+    <span style="
+      color:#fff; background:#b48d07; padding:7px 18px; border-radius:8px; 
+      font-size:1.08em; font-weight:bold; display:inline-block;
+      margin-bottom:1rem;">
       🚧 Edit Route is an <b>experimental feature</b> and is currently in testing. Results may be unpredictable!
     </span>
   `;
@@ -1245,9 +1248,24 @@ saveBtn.addEventListener('click', async () => {
     return;
   }
 
-  // Success — Show “Go to Dashboard” button, hide form
   showToast('✅ Ride saved!', "add");
   saveForm.style.display = 'none';
+  
+  // Insert “Go to Dashboard” button
+  const navContainer = document.getElementById('ride-card-nav');
+  navContainer.innerHTML = ''; // Clear old
+  const dashBtn = document.createElement('button');
+  dashBtn.textContent = 'Go to Dashboard';
+  dashBtn.className = 'btn-muted';
+  dashBtn.style.marginLeft = '1.2rem';
+  dashBtn.onclick = () => window.location.href = 'dashboard.html';
+  navContainer.appendChild(dashBtn);
+  
+  // Make sure the nav container is visible ---
+  navContainer.style.display = 'block';
+  navContainer.style.textAlign = 'center';
+  navContainer.style.marginTop = '1.6rem';
+
 
   // Insert “Go to Dashboard” button
   const navContainer = document.getElementById('ride-card-nav');
