@@ -471,6 +471,39 @@ button:active, .btn-muted:active, .download-buttons button:active {
   border-color: #90a0bb;
 }
 
+#ride-controls-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  background: var(--card-bg);
+  padding: 1.2rem 1.5rem;
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+  gap: 1.2rem;
+}
+
+.upload-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+@media (max-width: 700px) {
+  #ride-controls-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+
 .file-upload-status {
   display: inline-block;
   margin-left: 1rem;
