@@ -491,6 +491,34 @@ button:active, .btn-muted:active, .download-buttons button:active {
   border-color: #90a0bb;
 }
 
+/* Upload Ride button styled like Save Ride */
+.btn-primary {
+  background: var(--accent);
+  color: var(--main-bg);
+  border: none;
+  font-size: 1.07rem;
+  font-weight: 700;
+  padding: 0.68rem 1.7rem;
+  border-radius: 999px;
+  display: inline-block;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0, 123, 255, 0.08), 0 0.5px 4px rgba(100, 255, 218, 0.09);
+  transition: var(--fade-trans);
+  text-align: center;
+}
+
+.btn-primary:hover {
+  background: var(--accent-light);
+  color: var(--main-bg);
+  transform: translateY(-1.5px) scale(1.03);
+  box-shadow: 0 0 24px 0 var(--accent-fade);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+  box-shadow: 0 0 0 6px rgba(100, 255, 218, 0.18);
+}
+
 #ride-controls-toolbar {
   animation: fadeInSlide 0.4s ease-out forwards;
   opacity: 0;
