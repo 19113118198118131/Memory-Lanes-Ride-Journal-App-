@@ -51,6 +51,14 @@ function renderCornerChart(angleDegs, speedData) {
     responsive: true,
     animation: false,
     interaction: { mode: 'nearest', intersect: false },
+    scales: {
+      x: {
+        title: { display: true, text: 'Turn Angle (degrees)' }
+      },
+      y: {
+        title: { display: true, text: 'Speed (km/h)' }
+      }
+    },
 onClick: function(evt) {
   const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
   if (!elements.length) return;
