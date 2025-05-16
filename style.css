@@ -796,8 +796,11 @@ input:focus, select:focus {
 }
 
 .heart-icon {
-  transform: scale(1.1);
-  transition: transform 0.3s ease;
+  font-size: 1.28rem;
+  line-height: 1;
+  display: inline-block;
+  transform: translateY(1px);
+  margin-right: 0.4rem;
 }
 
 /* ---------- OTHER UI POLISH ---------- */
