@@ -803,8 +803,12 @@ input:focus, select:focus {
   margin-right: 0.4rem;
 }
 
-.footer-bmc-button:hover .heart-icon {
-  animation: pulse-heart 1s ease;
+.footer-bmc-button {
+  font-size: 1rem;
+  padding: 10px 24px;
+  margin-top: 0.6rem;
+  text-decoration: none;
+  display: inline-block;
 }
 
 @keyframes pulse-heart {
