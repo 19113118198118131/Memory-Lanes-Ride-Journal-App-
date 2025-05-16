@@ -157,6 +157,14 @@ nav { margin-top: 0.22rem; }
   transform: none;
 }
 
+#ride-card-nav {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 1.6rem;
+  padding-left: 1.5rem; /* <-- Add this for alignment */
+}
+
+
 /* ---------- MAIN CONTENT AREA ---------- */
 main {
   padding: 2.2rem 1.1rem 7rem 1.1rem;
