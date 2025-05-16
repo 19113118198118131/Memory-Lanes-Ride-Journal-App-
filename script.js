@@ -892,26 +892,41 @@ function sanitizeString(str) {
             window.jumpToPlaybackIndex(dataPoint.idx);
           }
         },
-        scales: {
-          x: {
-            type: 'linear',
-            title: { display: true, text: 'Distance (km)' },
-            ticks: { callback: v => v.toFixed(2) },
-            grid: { color: '#223' }
-          },
-          y: {
-            title: { display: true, text: 'Acceleration (m/s²)' },
-            position: 'left',
-            min: accelMin - accelBuffer,
-            max: accelMax + accelBuffer,
-            grid: { color: '#334' }
-          },
-          ySpeed: {
-            title: { display: true, text: 'Speed (km/h)' },
-            position: 'right',
-            grid: { drawOnChartArea: false }
-          }
+    scales: {
+      x: {
+        type: 'linear',
+        title: {
+          display: true,
+          text: 'Distance (km)',
+          color: '#fff',
+          font: { size: 16, weight: 'bold' }
         },
+        ticks: { callback: v => v.toFixed(2) },
+        grid: { color: '#223' }
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Acceleration (m/s²)',
+          color: '#fff',
+          font: { size: 16, weight: 'bold' }
+        },
+        position: 'left',
+        min: accelMin - accelBuffer,
+        max: accelMax + accelBuffer,
+        grid: { color: '#334' }
+      },
+      ySpeed: {
+        title: {
+          display: true,
+          text: 'Speed (km/h)',
+          color: '#fff',
+          font: { size: 16, weight: 'bold' }
+        },
+        position: 'right',
+        grid: { drawOnChartArea: false }
+      }
+    },
         plugins: {
           legend: { display: true },
           tooltip: {
@@ -1017,15 +1032,36 @@ function sanitizeString(str) {
           }
         },
         plugins: {
-          tooltip: {
-            callbacks: {
-              label: ctx => `Angle: ${ctx.raw.x.toFixed(1)}°, Speed: ${ctx.raw.y.toFixed(1)} km/h`
-            }
-          }
+      tooltip: {
+        callbacks: {
+          label: ctx => `Angle: ${ctx.raw.x.toFixed(1)}°, Speed: ${ctx.raw.y.toFixed(1)} km/h`
         }
       }
-    });
+    },
+    scales: {
+      x: {
+        type: 'linear',
+        title: {
+          display: true,
+          text: 'Turn Angle (°)',
+          color: '#fff', 
+          font: { size: 16, weight: 'bold' }
+        },
+        grid: { color: '#223' }
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Speed (km/h)',
+          color: '#fff', 
+          font: { size: 16, weight: 'bold' }
+        },
+        grid: { color: '#334' }
+      }
+    }
   }
+});
+}
 
   // ========== TIMELINE / PLAYBACK ==========
   window.jumpToPlaybackIndex = function(idx) {
