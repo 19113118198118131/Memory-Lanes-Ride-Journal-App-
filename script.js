@@ -1374,7 +1374,9 @@ const content = document.getElementById('footer-content');
 if (toggleBtn && content) {
   toggleBtn.addEventListener('click', () => {
     const expanded = content.classList.toggle('expanded');
-    toggleBtn.innerText = expanded ? '▼ Hide Footer' : '▲ Support with a coffee';
+    toggleBtn.innerText = expanded
+      ? '▼ Thanks, legend 🙌'
+      : '▲ Like the vibes of the app ☕ Tap to support the developers';
     toggleBtn.setAttribute('aria-expanded', expanded);
   });
 }
