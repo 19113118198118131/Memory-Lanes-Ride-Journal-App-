@@ -487,6 +487,19 @@ button:active, .btn-muted:active, .download-buttons button:active {
   border-color: #90a0bb;
 }
 
+.file-upload-status {
+  display: inline-block;
+  margin-left: 1rem;
+  font-size: 0.95rem;
+  color: #a8b7c8;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.file-upload-status.ready {
+  color: #64ffda; /* matches your accent-light */
+}
+
 /* ---------- SPEED BIN BUTTONS ---------- */
 #speed-bins .speed-bin-btn {
   margin: 0 7px 5px 0;
