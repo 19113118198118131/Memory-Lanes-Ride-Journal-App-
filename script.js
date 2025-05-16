@@ -1261,21 +1261,11 @@ saveBtn.addEventListener('click', async () => {
   dashBtn.onclick = () => window.location.href = 'dashboard.html';
   navContainer.appendChild(dashBtn);
   
-  // Make sure the nav container is visible ---
+  // Make sure the nav container is visible
   navContainer.style.display = 'block';
   navContainer.style.textAlign = 'center';
   navContainer.style.marginTop = '1.6rem';
 
-
-  // Insert “Go to Dashboard” button
-  const navContainer = document.getElementById('ride-card-nav');
-  navContainer.innerHTML = ''; // Clear old
-  const dashBtn = document.createElement('button');
-  dashBtn.textContent = 'Go to Dashboard';
-  dashBtn.className = 'btn-muted';
-  dashBtn.style.marginLeft = '1.2rem';
-  dashBtn.onclick = () => window.location.href = 'dashboard.html';
-  navContainer.appendChild(dashBtn);
 });
 
 
