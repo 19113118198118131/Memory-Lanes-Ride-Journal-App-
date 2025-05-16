@@ -712,6 +712,31 @@ input:focus, select:focus {
   }
 }
 
+.footer-donate-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #64ffda;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #64ffda;
+  border-radius: 999px;
+  transition: all 0.3s ease;
+  margin-top: 0.4rem;
+}
+
+.footer-donate-link:hover {
+  background-color: rgba(100, 255, 218, 0.1);
+  text-decoration: none;
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.heart-icon {
+  font-size: 1rem;
+}
 
 /* ---------- OTHER UI POLISH ---------- */
 .break-dot {
