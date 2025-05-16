@@ -573,6 +573,14 @@ input:focus, select:focus {
   cursor: not-allowed;
 }
 
+#ride-actions {
+  max-width: 520px;
+}
+#ride-actions .btn-muted {
+  min-width: 190px;
+  font-size: 1.06em;
+}
+
 /* ---------- MOBILE RESPONSIVENESS ---------- */
 @media (max-width: 1200px) {
   main, .dashboard-header, #leaflet-map, .chart-block, #elevationChart, #cornerChart, #accelChart {
