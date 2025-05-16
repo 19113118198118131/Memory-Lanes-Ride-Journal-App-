@@ -1155,55 +1155,52 @@ function sanitizeString(str) {
   });
 
   // ========== AUTH / SAVE LOGIC ==========
-  document.getElementById('login-btn').addEventListener('click', async () => {
-    const email = document.getElementById('auth-email').value;
-    const pass = document.getElementById('auth-password').value;
-    const statusEl = document.getElementById('auth-status');
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-    if (error) {
-      statusEl.textContent = `❌ Login failed: ${error.message}`;
-      return;
-    }
-    statusEl.textContent = '';
-    statusEl.innerHTML = `
-      ✅ Login successful!
-      <button id="go-dashboard" style="
-        margin-left: 1rem;
-        padding: 0.4rem 1rem;
-        font-weight: bold;
-        font-size: 0.9rem;
-        background: transparent;
-        color: #64ffda;
-        border: 1px solid #64ffda;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background 0.2s;
-      ">Go to Dashboard</button>
-    `;
-    document.getElementById('save-status').textContent = '';
-    statusEl.style.display = 'block';
-    statusEl.style.color = '#64ffda';
-    statusEl.style.padding = '0.75rem';
-    statusEl.style.fontWeight = 'bold';
-    statusEl.style.border = '1px solid #64ffda';
-    statusEl.style.background = '#112240';
-    statusEl.style.borderRadius = '5px';
-    statusEl.style.marginTop = '1rem';
-    setTimeout(() => {
-      authSection.style.display = 'none';
-      saveForm.style.display = 'block';
-    }, 50);
-    setTimeout(() => {
-      const dashBtn = document.getElementById('go-dashboard');
-      const navContainer = document.getElementById('ride-card-nav');
-      if (dashBtn && navContainer) {
-        navContainer.appendChild(dashBtn);
-        dashBtn.addEventListener('click', () => {
-          window.location.href = 'dashboard.html';
-        });
-      }
-    }, 0);
-  });
+document.getElementById('login-btn').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value;
+  const pass = document.getElementById('auth-password').value;
+  const statusEl = document.getElementById('auth-status');
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+
+  if (error) {
+    statusEl.textContent = `❌ Login failed: ${error.message}`;
+    return;
+  }
+
+  // Clear old messages
+  document.getElementById('save-status').textContent = '';
+  statusEl.textContent = '✅ Login successful!';
+  statusEl.style.display = 'block';
+  statusEl.style.color = '#64ffda';
+  statusEl.style.padding = '0.75rem';
+  statusEl.style.fontWeight = 'bold';
+  statusEl.style.border = '1px solid #64ffda';
+  statusEl.style.background = '#112240';
+  statusEl.style.borderRadius = '5px';
+  statusEl.style.marginTop = '1rem';
+
+  // Hide login and show save form
+  setTimeout(() => {
+    authSection.style.display = 'none';
+    saveForm.style.display = 'block';
+  }, 50);
+
+  // Create and show "Go to Dashboard" button
+  const dashBtn = document.createElement('button');
+  dashBtn.textContent = 'Go to Dashboard';
+  dashBtn.className = 'btn-muted';
+  dashBtn.style.marginLeft = '1.2rem';
+  dashBtn.onclick = () => window.location.href = 'dashboard.html';
+
+  const navContainer = document.getElementById('ride-card-nav');
+  if (navContainer) {
+    navContainer.innerHTML = ''; // Clear old
+    navContainer.appendChild(dashBtn);
+    navContainer.style.display = 'block';
+    navContainer.style.textAlign = 'center';
+    navContainer.style.marginTop = '1.6rem';
+  }
+});
+
 
   document.getElementById('signup-btn').addEventListener('click', async () => {
     const email = document.getElementById('auth-email').value;
