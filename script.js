@@ -922,8 +922,9 @@ function sanitizeString(str) {
         title: {
           display: true,
           text: 'Speed (km/h)',
-          color: '#fff',
-          font: { size: 16, weight: 'bold' }
+            color: '#4C525B',
+              font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
+                padding: { top: 12 }
         },
         position: 'right',
         grid: { drawOnChartArea: false }
