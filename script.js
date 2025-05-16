@@ -105,6 +105,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const showSaveForm      = () => saveForm.style.display = 'block';
   const hideSaveForm      = () => saveForm.style.display = 'none';
 
+  const fileStatus = document.getElementById('file-upload-status');
+
+    uploadInput.addEventListener('change', () => {
+      const file = uploadInput.files[0];
+      if (file) {
+        fileStatus.textContent = '✔️ File ready';
+        fileStatus.classList.add('ready');
+      } else {
+        fileStatus.textContent = 'No file selected';
+        fileStatus.classList.remove('ready');
+      }
+    });
+  
   let points = [], marker = null, trailPolyline = null, elevationChart = null;
   let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
   window.playInterval = null;
