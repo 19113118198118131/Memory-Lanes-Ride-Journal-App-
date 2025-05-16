@@ -101,7 +101,7 @@ nav { margin-top: 0.22rem; }
   font-size: 2.4rem;
   font-weight: 800;
   letter-spacing: 1.6px;
-  color: #fff;
+  color: #FFFDFB;
   background: linear-gradient(90deg, #64ffda, #00c6ff, #64ffda 95%);
   background-size: 200% 100%;
   -webkit-background-clip: text;
@@ -118,7 +118,7 @@ nav { margin-top: 0.22rem; }
 
 .tagline {
   font-size: 1.12rem;
-  color: #64ffda;
+  color: #FFFDFB;
   font-weight: 500;
   margin-top: 0.22em;
   margin-bottom: 0.11em;
