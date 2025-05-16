@@ -55,6 +55,30 @@ header h1 {
 }
 nav { margin-top: 0.22rem; }
 
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.brand-logo {
+  width: 66px;
+  height: 66px;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 3px 16px #64ffda33, 0 0.5px 8px #007bff22;
+  background: #16233e;
+  padding: 0.12rem 0.2rem;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.brand-logo:hover {
+  transform: scale(1.06) rotate(-3deg);
+  box-shadow: 0 0 32px #64ffda55, 0 0.5px 12px #007bff33;
+}
+
 .bmc-button {
   background: var(--accent);
   color: var(--main-bg) !important;
