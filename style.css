@@ -348,6 +348,22 @@ button:active, .btn-muted:active, .download-buttons button:active {
 }
 
 /* ---------- EDIT CONTROLS, HINTS ---------- */
+#edit-experimental-banner {
+  display: none;
+  background: #b48d07;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 9px;
+  padding: 13px 22px;
+  font-size: 1.09em;
+  margin-bottom: 16px;
+  margin-top: 8px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 3px 10px #0003;
+  letter-spacing: 0.02em;
+}
+
 #edit-controls button.active,
 #bulk-add-btn.active,
 #bulk-delete-btn.active {
