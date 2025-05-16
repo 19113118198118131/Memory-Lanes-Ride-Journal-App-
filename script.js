@@ -1370,4 +1370,15 @@ if (params.has('ride')) {
   })();
 }
 
+  // === Collapsible Footer Logic ===
+const toggleBtn = document.getElementById('footer-toggle');
+const content = document.getElementById('footer-content');
+
+if (toggleBtn && content) {
+  toggleBtn.addEventListener('click', () => {
+    const expanded = content.classList.toggle('expanded');
+    toggleBtn.innerText = expanded ? '▼ Hide Footer' : '▲ Support with a coffee';
+    toggleBtn.setAttribute('aria-expanded', expanded);
+  });
+}
 });
