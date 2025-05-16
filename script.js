@@ -1318,4 +1318,4 @@ if (params.has('ride')) {
 
 // ========== INIT ==========
 resetUIToInitial();
-}
+});
