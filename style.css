@@ -83,9 +83,17 @@ nav { margin-top: 0.22rem; }
   font-size: 1rem;
   padding: 10px 24px;
   margin-top: 0.6rem;
-  text-decoration: none !important;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+}
+
+.heart-icon,
+.coffee-icon {
+  font-size: 1.25rem;
+  display: inline-block;
+  transform: translateY(1px);
+  margin: 0 0.4rem;
 }
 
 .main-header {
@@ -806,13 +814,6 @@ input:focus, select:focus {
   border-color: #ffffff;
 }
 
-.heart-icon {
-  font-size: 1.28rem;
-  line-height: 1;
-  display: inline-block;
-  transform: translateY(1px);
-  margin-right: 0.4rem;
-}
 
 @keyframes pulse-heart {
   0% { transform: scale(1); }
