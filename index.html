@@ -1,146 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Memory Lanes Ride Journal</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <link rel="stylesheet" href="style.css">
-  <!-- Chart.js CDN for chart rendering -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Leaflet CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-editable/dist/Leaflet.Editable.js"></script>
-  <!-- Favicon -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Leaflet Core CSS (must come before custom styles) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <!-- Leaflet.Editable CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-editable@1.2.0/dist/Leaflet.Editable.css"/>
+  <!-- Main App Styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Favicon (optional, update the path as needed) -->
   <link rel="icon" type="image/png" href="favicon.png">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet Core JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet.Editable JS (must be after Leaflet) -->
+  <script src="https://unpkg.com/leaflet-editable@1.2.0/dist/Leaflet.Editable.min.js"></script>
 </head>
+
 <body>
+  <!-- ================= HEADER =================== -->
   <header>
-    <h1>Memory Lanes Ride Journal</h1>
+    <h1 id="main-title">Memory Lanes Ride Journal</h1>
+    <a class="coffee-btn" href="https://www.buymeacoffee.com/samarsharma" target="_blank" rel="noopener">☕ Buy Me a Coffee</a>
     <nav id="top-nav">
-      <a href="dashboard.html" id="back-dashboard-nav" style="display:none">🏠 Dashboard</a>
-      <a href="#" id="logout-btn" style="display:none">🚪 Logout</a>
+      <button id="back-dashboard-nav" style="display:none;">← Back to Dashboard</button>
+      <button id="logout-btn" style="display:none;">Logout</button>
     </nav>
   </header>
 
-  <!-- ========== UI SECTION: RIDE UPLOAD & AUTH ========== -->
-  <section id="upload-section">
-    <label for="gpx-upload" class="file-label">Choose .GPX Ride File:</label>
-    <input type="file" id="gpx-upload" accept=".gpx" />
-    <button id="upload-another" style="display:none">Upload Another Ride</button>
-    <div id="auth-section" style="display:none">
-      <input type="email" id="auth-email" placeholder="Email">
-      <input type="password" id="auth-password" placeholder="Password">
-      <button id="login-btn">Log In</button>
-      <button id="signup-btn">Sign Up</button>
-      <span id="auth-status"></span>
-    </div>
-    <form id="save-ride-form" style="display:none">
-      <input type="text" id="ride-title" placeholder="Name your ride…" />
-      <button id="save-ride-btn" type="button">Save Ride</button>
-      <span id="save-status"></span>
-    </form>
-  </section>
-
-  <!-- ========== UI SECTION: MAIN RIDE VIEW ========== -->
-  <main id="main-ride-ui" style="display:none">
-    <div id="ride-title-display"></div>
-    <div id="ride-controls" style="display:none">
-      <button id="back-dashboard">← Back to Dashboard</button>
-    </div>
-
-    <!-- Map container -->
-    <div id="leaflet-map"></div>
-
-    <!-- Map Edit Controls -->
-    <div id="edit-controls" style="display:none">
-      <button id="edit-gpx-btn">✏️ Edit Route</button>
-      <button id="save-edited-gpx-btn" style="display:none">💾 Save as New Route</button>
-      <button id="undo-edit-btn" style="display:none">↩️ Undo</button>
-      <button id="redo-edit-btn" style="display:none">↪️ Redo</button>
-      <button id="bulk-add-btn" style="display:none">Bulk Add</button>
-      <button id="bulk-delete-btn" style="display:none">Bulk Delete</button>
-      <button id="exit-edit-btn" style="display:none">Exit Edit Mode</button>
-      <span id="edit-mode-hint"></span>
-      <span id="edit-help" style="display:none">
-        <b>Experimental feature!</b> Editing mode is in testing.<br>
-        - Bulk Add: Draw with mouse/touch to add points.<br>
-        - Bulk Delete: Draw over points to erase.<br>
-        - <b>Note:</b> Saving/undo behavior may not be perfect!
-      </span>
-    </div>
-    <div id="experimental-edit-banner" style="display:none">
-      ⚠️ <b>Experimental feature:</b> Route editing is in early testing. Please report bugs!
-    </div>
-
-    <!-- Speed Highlight Panel -->
-    <section id="speed-filter">
-      <h3>Highlight Speed</h3>
-      <div id="speed-bins"></div>
+  <!-- =========== UPLOAD SECTION =========== -->
+  <main>
+    <section id="upload-section" class="card upload-section">
+      <form>
+        <label for="gpx-upload"><b>Choose .GPX Ride File:</b></label>
+        <input type="file" id="gpx-upload" accept=".gpx" required />
+      </form>
+      <div class="upload-actions">
+        <button id="download-summary" class="btn" style="display:none;">
+          <span>📁 Download Summary</span>
+        </button>
+        <button id="export-video" class="btn" style="display:none;">
+          <span>📹 Export Video</span>
+        </button>
+      </div>
     </section>
 
-    <!-- Key Ride Stats -->
-    <section id="ride-summary">
-      <div class="stat-group">
-        <div><span class="stat-label">Distance:</span> <span id="distance">0 km</span></div>
-        <div><span class="stat-label">Total Time:</span> <span id="duration">0h 0m</span></div>
-        <div><span class="stat-label">Ride Time:</span> <span id="ride-time">0h 0m</span></div>
-        <div><span class="stat-label">Elevation Gain:</span> <span id="elevation">0 m</span></div>
+    <!-- =========== FALLBACK ERROR (hidden unless error) =========== -->
+    <section id="fallback-error" style="display:none;">
+      <div class="error-message">
+        <span id="fallback-error-message"></span>
       </div>
-      <div id="ride-actions">
-        <button id="download-summary" style="display:none">Download Summary</button>
-        <button id="export-video" style="display:none">Export Video</button>
-        <button id="show-analytics-btn" style="display:none">Show Analytics</button>
+      <div class="error-actions">
+        <button id="back-dashboard-nav" style="display:none;">← Back to Dashboard</button>
+        <button id="logout-btn-fallback" style="display:none;">Logout</button>
       </div>
+    </section>
+
+    <!-- =========== SAVE RIDE FORM =========== -->
+    <section id="save-ride-form" class="card save-ride-form" style="display:none;">
+      <h3>Log this Ride</h3>
+      <label for="ride-title">Ride Title:</label>
+      <input type="text" id="ride-title" maxlength="64" autocomplete="off" />
+      <button id="save-ride-btn" class="btn">Save Ride</button>
+      <span id="save-status" class="status-msg"></span>
+    </section>
+
+    <!-- =========== AUTH SECTION =========== -->
+    <section id="auth-section" class="card" style="display:none;">
+      <h3>Login or Sign Up</h3>
+      <input type="email" id="auth-email" placeholder="Email" autocomplete="username" />
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
+      <button id="login-btn" class="btn">Login</button>
+      <button id="signup-btn" class="btn">Sign Up</button>
+      <span id="auth-status" class="status-msg"></span>
+    </section>
+
+    <!-- =========== MAIN RIDE UI =========== -->
+    <section id="main-ride-ui" style="display:none;">
+      <!-- Ride title display & navigation -->
+      <div id="ride-title-display" class="ride-title"></div>
+      <nav id="ride-card-nav"></nav>
+
+      <!-- Ride controls (upload another, back) -->
+      <div id="ride-controls" style="display:none;">
+        <button id="back-dashboard" class="btn">← Back to Dashboard</button>
+        <button id="upload-another" class="btn">Upload Another</button>
+      </div>
+
+      <!-- Ride Actions (after loading a saved ride) -->
+      <div id="ride-actions" style="display:none;">
+        <!-- Reserved for any post-save actions -->
+      </div>
+
+      <!-- =========== Edit Controls =========== -->
+      <div id="edit-controls" class="edit-controls" style="display:none;">
+        <div id="editExperimentalBanner" style="display:none;margin-bottom:1em;"></div>
+        <button id="edit-gpx-btn" class="btn-edit"><span>✏️ Edit Route</span></button>
+        <button id="save-edited-gpx-btn" class="btn" style="display:none;">💾 Save As New Route</button>
+        <button id="undo-edit-btn" class="btn" style="display:none;">Undo</button>
+        <button id="redo-edit-btn" class="btn" style="display:none;">Redo</button>
+        <button id="bulk-add-btn" class="btn" style="display:none;">Bulk Add</button>
+        <button id="bulk-delete-btn" class="btn" style="display:none;">Bulk Delete</button>
+        <button id="exit-edit-btn" class="btn" style="display:none;">Exit Edit</button>
+        <span id="edit-mode-hint"></span>
+        <div id="edit-help" class="edit-help" style="display:none;">
+          <small>Use the tools above to bulk add/delete or move points.<br>Save your edits as a <b>new</b> route. <br>Experimental feature, in testing!</small>
+        </div>
+      </div>
+
+      <!-- =========== Map & Analytics =========== -->
+      <section class="map-analytics-section">
+        <div id="leaflet-map" class="leaflet-map"></div>
+        <!-- Telemetry quick-stats -->
+        <div class="telemetry-summary">
+          <span>📏 <b>Distance:</b> <span id="distance">–</span></span>
+          <span>⏱️ <b>Total Duration:</b> <span id="duration">–</span></span>
+          <span>🏁 <b>Ride Time:</b> <span id="ride-time">–</span></span>
+          <span>⛰️ <b>Elevation Gain:</b> <span id="elevation">–</span></span>
+        </div>
+        <div class="replay-controls">
+          <input type="range" id="replay-slider" value="0" min="0" max="100" step="1" disabled />
+          <button id="play-replay" class="btn" disabled>▶️ Play</button>
+          <label for="playback-speed">Speed:</label>
+          <select id="playback-speed" disabled>
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+            <option value="4">4x</option>
+          </select>
+        </div>
+        <div id="telemetry-details">
+          <span>📈 <b>Elevation:</b> <span id="telemetry-elevation">–</span></span>
+          <span>📏 <b>Distance:</b> <span id="telemetry-distance">–</span></span>
+          <span>💨 <b>Speed:</b> <span id="telemetry-speed">–</span></span>
+        </div>
+      </section>
+
+      <!-- =========== Analytics Toggle Button =========== -->
+      <button id="show-analytics-btn" class="btn" style="display:none;">Show Ride Analytics ▼</button>
+
+      <!-- =========== Analytics Container =========== -->
+      <section id="analytics-container" style="display:none;">
+        <h2>Ride Analytics</h2>
+        <div class="analytics-charts">
+          <div class="chart-block">
+            <label>
+              <input type="radio" name="chartMode" value="elevation" checked /> Elevation
+            </label>
+            <label>
+              <input type="radio" name="chartMode" value="speed" /> Speed
+            </label>
+            <canvas id="elevationChart"></canvas>
+          </div>
+          <div class="chart-block">
+            <canvas id="accelChart"></canvas>
+          </div>
+          <div class="chart-block">
+            <canvas id="cornerChart"></canvas>
+          </div>
+        </div>
+        <div id="speed-bins-section">
+          <label for="speed-bins"><b>Highlight speed:</b></label>
+          <div id="speed-bins"></div>
+        </div>
+      </section>
     </section>
   </main>
-
-  <!-- ========== ANALYTICS & CHARTS SECTION ========== -->
-  <section id="analytics-container" style="display:none">
-    <h2>Ride Analytics</h2>
-    <div class="chart-section">
-      <label><input type="radio" name="chartMode" value="elevation" checked> Elevation</label>
-      <label><input type="radio" name="chartMode" value="speed"> Speed</label>
-      <canvas id="elevationChart" width="600" height="230"></canvas>
-    </div>
-    <div class="chart-section">
-      <h4>Cornering vs. Straight-Line Speed</h4>
-      <canvas id="cornerChart" width="600" height="230"></canvas>
-    </div>
-    <div class="chart-section">
-      <h4>Longitudinal Acceleration Profile</h4>
-      <canvas id="accelChart" width="600" height="230"></canvas>
-    </div>
-    <div id="telemetry">
-      <b>Telemetry:</b>
-      Elev: <span id="telemetry-elevation"></span> &nbsp;
-      Dist: <span id="telemetry-distance"></span> &nbsp;
-      Speed: <span id="telemetry-speed"></span>
-      <input type="range" id="replay-slider" min="0" max="0" value="0" />
-      <button id="play-replay">▶️ Play</button>
-      <select id="playback-speed">
-        <option value="1">1x</option>
-        <option value="2">2x</option>
-        <option value="0.5">0.5x</option>
-      </select>
-    </div>
-  </section>
-  <!-- Fallback error message area -->
-  <div id="fallback-error" style="display:none; text-align:center; color:#ff3333; margin:2em;">
-    <span id="fallback-error-message"></span>
-    <br><br>
-    <a href="dashboard.html" class="btn">← Back to Dashboard</a>
-    <button id="logout-btn-fallback" class="btn">Logout</button>
-  </div>
-
-  <!-- App JS -->
-  <!-- Leaflet CSS & JS (already included if your map works) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- Leaflet.Editable (add these lines!) -->
-<script src="https://unpkg.com/leaflet-editable@1.2.0/dist/Leaflet.Editable.min.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-editable@1.2.0/dist/Leaflet.Editable.css"/>
-<script type="module" src="script.js"></script>
+  
+  <!-- ========== SCRIPTS (must be last!) ========== -->
+  <script type="module" src="script.js"></script>
 </body>
 </html>
