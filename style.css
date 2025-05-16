@@ -1030,6 +1030,13 @@ input:focus, select:focus {
   animation: line-pulse 2.5s ease-in-out infinite;
 }
 
+@media (max-width: 600px) {
+  .brand-logo { width: 46px; height: 46px; }
+  .site-title { font-size: 1.28rem; }
+  .tagline { font-size: 0.95rem; }
+}
+
+
 /* ---------- Transitions & Fade-in ---------- */
 .fade-in {
   opacity: 0;
