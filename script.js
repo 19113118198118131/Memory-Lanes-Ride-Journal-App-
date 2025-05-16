@@ -898,7 +898,7 @@ function sanitizeString(str) {
         title: {
           display: true,
           text: 'Distance (km)',
-            color: '#64ffda',
+            color: '#4C525B',
               font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
                 padding: { top: 12 }
         },
@@ -909,8 +909,9 @@ function sanitizeString(str) {
         title: {
           display: true,
           text: 'Acceleration (m/s²)',
-          color: '#fff',
-          font: { size: 16, weight: 'bold' }
+            color: '#4C525B',
+              font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
+                padding: { top: 12 }
         },
         position: 'left',
         min: accelMin - accelBuffer,
@@ -1045,9 +1046,9 @@ function sanitizeString(str) {
         title: {
           display: true,
           text: 'Turn Angle (°)',
-          color: '#64ffda',
-            font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
-              padding: { top: 12 }
+            color: '#4C525B',
+              font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
+                padding: { top: 12 }
         },
         grid: { color: '#223' }
       },
@@ -1055,8 +1056,9 @@ function sanitizeString(str) {
         title: {
           display: true,
           text: 'Speed (km/h)',
-          color: '#fff', 
-          font: { size: 16, weight: 'bold' }
+            color: '#4C525B',
+              font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
+                padding: { top: 12 }
         },
         grid: { color: '#334' }
       }
