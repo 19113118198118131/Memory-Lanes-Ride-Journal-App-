@@ -171,37 +171,49 @@ main {
   margin-bottom: 2rem;
 }
 
-/* Hide file name text while preserving native button look */
+/* ===== Custom File Input Button (no filename shown) ===== */
+input[type="file"].no-filename {
+  position: relative;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0; /* hide text in Safari/Chrome */
+  width: 14rem;
+  height: auto;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0,123,255,0.12);
+  text-align: center;
+  cursor: pointer;
+}
+
+/* Hide native button, inject label text */
 input[type="file"].no-filename::-webkit-file-upload-button {
   visibility: hidden;
 }
+
 input[type="file"].no-filename::before {
-  content: '📤 Upload .gpx';
+  content: "📤 Upload Ride";
   display: inline-block;
-  background: var(--accent);
-  color: var(--main-bg);
-  padding: 0.65rem 1.5rem;
-  border-radius: 999px;
   font-weight: 600;
-  font-size: 1.05rem;
-  cursor: pointer;
-  box-shadow: 0 2px 12px rgba(0,123,255,0.12);
-}
-
-/* Safari: ensure spacing is correct */
-input[type="file"].no-filename {
-  color: transparent;
   background: none;
-  border: none;
-  font-size: 0;
-  width: auto;
+  color: var(--main-bg);
+  font-size: 1.02rem;
+  text-align: center;
+  padding: 0.6rem 1.2rem;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
 }
 
-/* Optional: hover/focus effect */
+/* Hover effect */
 input[type="file"].no-filename:hover::before {
-  background: var(--accent-light);
+  color: var(--accent-light);
   transform: scale(1.03);
+  transition: transform 0.2s ease;
 }
+
+
 
 /* ---------- MAP CONTAINER ---------- */
 #leaflet-map {
