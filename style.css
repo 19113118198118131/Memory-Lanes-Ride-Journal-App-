@@ -171,6 +171,38 @@ main {
   margin-bottom: 2rem;
 }
 
+/* Hide file name text while preserving native button look */
+input[type="file"].no-filename::-webkit-file-upload-button {
+  visibility: hidden;
+}
+input[type="file"].no-filename::before {
+  content: '📤 Upload .gpx';
+  display: inline-block;
+  background: var(--accent);
+  color: var(--main-bg);
+  padding: 0.65rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 1.05rem;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0,123,255,0.12);
+}
+
+/* Safari: ensure spacing is correct */
+input[type="file"].no-filename {
+  color: transparent;
+  background: none;
+  border: none;
+  font-size: 0;
+  width: auto;
+}
+
+/* Optional: hover/focus effect */
+input[type="file"].no-filename:hover::before {
+  background: var(--accent-light);
+  transform: scale(1.03);
+}
+
 /* ---------- MAP CONTAINER ---------- */
 #leaflet-map {
   height: 48vh;
