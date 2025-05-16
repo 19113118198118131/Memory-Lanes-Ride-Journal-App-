@@ -1195,9 +1195,9 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   if (navContainer) {
     navContainer.innerHTML = ''; // Clear old
     navContainer.appendChild(dashBtn);
-    navContainer.style.display = 'block';
-    navContainer.style.textAlign = 'center';
-    navContainer.style.marginTop = '1.6rem';
+    navContainer.style.display = 'flex';
+    navContainer.style.justifyContent = 'flex-start';
+    navContainer.style.margin = '1.2rem 0';
   }
 });
 
