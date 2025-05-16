@@ -102,10 +102,18 @@ nav { margin-top: 0.22rem; }
   cursor: default;
 }
 
+.vibe-nav {
+  font-size: 0.95rem;
+  letter-spacing: 0.4px;
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+  opacity: 0.9;
+}
+
 .vibe-nav span {
   position: relative;
   font-weight: 600;
-  font-size: 0.98rem;
   background: linear-gradient(90deg, #64ffda, #00c6ff, #64ffda);
   background-size: 300% 300%;
   -webkit-background-clip: text;
@@ -120,10 +128,14 @@ nav { margin-top: 0.22rem; }
   text-shadow: 0 0 14px rgba(100, 255, 218, 0.3);
 }
 
-@keyframes shimmer {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.vibe-nav span:nth-child(2),
+.vibe-nav span:nth-child(4) {
+  font-weight: 400;
+  animation: none;
+  -webkit-text-fill-color: #64ffda;
+  background: none;
+  text-shadow: none;
+  transform: none;
 }
 
 /* ---------- MAIN CONTENT AREA ---------- */
