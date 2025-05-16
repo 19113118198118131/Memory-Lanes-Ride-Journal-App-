@@ -1399,4 +1399,29 @@ if (toggleBtn && content) {
     toggleBtn.setAttribute('aria-expanded', expanded);
   });
 }
+
+// === Go to Dashboard Button Logic (Persistent Button) ===
+const dashboardBtn = document.getElementById('dashboard-check-btn');
+
+if (dashboardBtn) {
+  dashboardBtn.addEventListener('click', async () => {
+    const { data: sessionResult } = await supabase.auth.getSession();
+    const user = sessionResult?.session?.user;
+
+    if (user) {
+      // ✅ Logged in – direct to dashboard
+      window.location.href = 'dashboard.html';
+    } else {
+      // ❌ Not logged in – scroll to login section
+      authSection.style.display = 'block';
+      saveForm.style.display = 'none';
+      document.getElementById('auth-email').focus();
+      document.getElementById('auth-status').textContent = '🔐 Please login to access your dashboard.';
+      document.getElementById('auth-status').style.color = '#ffd700';
+      document.getElementById('auth-status').style.padding = '0.5rem';
+      document.getElementById('auth-status').style.fontWeight = '600';
+      authSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+}
 });
