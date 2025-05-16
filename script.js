@@ -8,6 +8,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
   // SECTION 1: UI ELEMENT REFERENCES & UI STATE HELPERS
   // =====================================================
+  
+  // Helper: Fade in any element with smooth transition
+    function fadeInElement(el) {
+      el.classList.remove('fade-in'); // reset in case it's already applied
+      void el.offsetWidth;            // force reflow
+      el.classList.add('fade-in');
+    }
+  
   const uploadSection     = document.getElementById('upload-section');
   const saveForm          = document.getElementById('save-ride-form');
   const authSection       = document.getElementById('auth-section');
@@ -1186,6 +1194,7 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   // Clear old messages
   document.getElementById('save-status').textContent = '';
   statusEl.textContent = '✅ Login successful!';
+  statusEl.classList.add('status-fade');
   statusEl.style.display = 'block';
   statusEl.style.color = '#64ffda';
   statusEl.style.padding = '0.75rem';
@@ -1232,6 +1241,7 @@ saveBtn.addEventListener('click', async () => {
   if (!user) {
     // Show login section and only show "You must be logged in" if triggered by this error
     authSection.style.display = 'block';
+    fadeInElement(authSection);
     saveForm.style.display = 'none';
     showToast('❌ You must be logged in to save a ride.', "delete");
     return;
@@ -1401,6 +1411,7 @@ if (dashboardBtn) {
     } else {
       // ❌ Not logged in – scroll to login section
       authSection.style.display = 'block';
+      fadeInElement(authSection);
       saveForm.style.display = 'none';
       document.getElementById('auth-email').focus();
       document.getElementById('auth-status').textContent = '🔐 Please login to access your dashboard.';
