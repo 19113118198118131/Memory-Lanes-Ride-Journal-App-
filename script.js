@@ -97,26 +97,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   const durationEl        = document.getElementById('duration');
   const rideTimeEl        = document.getElementById('ride-time');
   const elevationEl       = document.getElementById('elevation');
-  const uploadInput       = document.getElementById('gpx-upload');
   const saveBtn           = document.getElementById('save-ride-btn');
   const rideTitleDisplay  = document.getElementById('ride-title-display');
   const backBtn           = document.getElementById('back-dashboard');
   const uploadAnotherBtn  = document.getElementById('upload-another');
   const showSaveForm      = () => saveForm.style.display = 'block';
   const hideSaveForm      = () => saveForm.style.display = 'none';
-
+  const uploadInput = document.getElementById('gpx-upload');
   const fileStatus = document.getElementById('file-upload-status');
+  const postUploadActions = document.getElementById('post-upload-actions');
 
-    uploadInput.addEventListener('change', () => {
-      const file = uploadInput.files[0];
-      if (file) {
-        fileStatus.textContent = '✔️ File ready';
-        fileStatus.classList.add('ready');
-      } else {
-        fileStatus.textContent = 'No file selected';
-        fileStatus.classList.remove('ready');
-      }
-    });
+uploadInput.addEventListener('change', () => {
+  const file = uploadInput.files[0];
+  if (file) {
+    fileStatus.textContent = '✔️ File ready';
+    fileStatus.classList.add('ready');
+    postUploadActions.style.display = 'flex';
+  } else {
+    fileStatus.textContent = 'No file selected';
+    fileStatus.classList.remove('ready');
+    postUploadActions.style.display = 'none';
+  }
+});
+     
   
   let points = [], marker = null, trailPolyline = null, elevationChart = null;
   let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
