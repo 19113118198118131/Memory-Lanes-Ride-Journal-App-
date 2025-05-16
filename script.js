@@ -1284,39 +1284,7 @@ if (params.has('ride')) {
       rideActions.style.display = 'flex';
       return;
     }
-    hideSaveForm();
 
-    rideTitleDisplay.textContent = ride?.title
-      ? `📍 Viewing: “${ride.title}”`
-      : `📍 Viewing Saved Ride`;
-
-    rideTitleDisplay.style.textAlign = "center";
-    document.getElementById('ride-controls').style.display = 'block';
-    rideActions.style.display = 'flex';
-
-    const { data: urlData, error: urlErr } = supabase
-      .storage
-      .from('gpx-files')
-      .getPublicUrl(ride.gpx_path);
-    if (urlErr) {
-      throw urlErr;
-    }
-
-    const resp = await fetch(urlData.publicUrl)
-    const gpxText = await resp.text()
-    await parseAndRenderGPX(gpxText);
-
-    showUIForSavedRide();
-    hideAnalyticsSection();
-    showAnalyticsBtn.style.display = 'inline-block';
-  } catch (err) {
-    rideTitleDisplay.textContent = "❌ Error loading ride data.";
-    rideTitleDisplay.style.color = "#ff6b6b";
-    rideTitleDisplay.style.textAlign = "center";
-    document.getElementById('ride-controls').style.display = 'block';
-    rideActions.style.display = 'flex';
-  }
-}
     hideSaveForm();
 
     rideTitleDisplay.textContent = ride?.title
