@@ -472,6 +472,9 @@ button:active, .btn-muted:active, .download-buttons button:active {
 }
 
 #ride-controls-toolbar {
+  animation: fadeInSlide 0.4s ease-out forwards;
+  opacity: 0;
+  transform: translateY(-10px);
   display: flex;
   justify-content: space-between;
   align-items: center;
