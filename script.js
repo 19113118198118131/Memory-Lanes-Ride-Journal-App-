@@ -898,8 +898,9 @@ function sanitizeString(str) {
         title: {
           display: true,
           text: 'Distance (km)',
-          color: '#fff',
-          font: { size: 16, weight: 'bold' }
+            color: '#64ffda',
+              font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
+                padding: { top: 12 }
         },
         ticks: { callback: v => v.toFixed(2) },
         grid: { color: '#223' }
@@ -1044,8 +1045,9 @@ function sanitizeString(str) {
         title: {
           display: true,
           text: 'Turn Angle (°)',
-          color: '#fff', 
-          font: { size: 16, weight: 'bold' }
+          color: '#64ffda',
+            font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
+              padding: { top: 12 }
         },
         grid: { color: '#223' }
       },
