@@ -1262,7 +1262,9 @@ saveBtn.addEventListener('click', async () => {
 
 
   // ========== LOAD RIDE FROM DASHBOARD ==========
-  const params = new URLSearchParams(window.location.search);
+  // ... everything above ...
+
+const params = new URLSearchParams(window.location.search);
 
 if (params.has('ride')) {
   uploadSection.style.display = 'none';
@@ -1279,18 +1281,16 @@ if (params.has('ride')) {
       rideTitleDisplay.style.color = "#ff6b6b";
       rideTitleDisplay.style.textAlign = "center";
       document.getElementById('ride-controls').style.display = 'block';
-
-      // Show Back to Dashboard and Logout buttons
       rideActions.style.display = 'flex';
       return;
     }
-
     hideSaveForm();
 
     rideTitleDisplay.textContent = ride?.title
       ? `📍 Viewing: “${ride.title}”`
       : `📍 Viewing Saved Ride`;
 
+    rideTitleDisplay.style.textAlign = "center";
     document.getElementById('ride-controls').style.display = 'block';
     rideActions.style.display = 'flex';
 
@@ -1298,10 +1298,7 @@ if (params.has('ride')) {
       .storage
       .from('gpx-files')
       .getPublicUrl(ride.gpx_path);
-    if (urlErr) {
-      alert('Failed to get GPX URL: ' + urlErr.message)
-      return;
-    }
+    if (urlErr) throw urlErr;
 
     const resp = await fetch(urlData.publicUrl)
     const gpxText = await resp.text()
@@ -1310,8 +1307,14 @@ if (params.has('ride')) {
     showUIForSavedRide();
     hideAnalyticsSection();
     showAnalyticsBtn.style.display = 'inline-block';
+  } catch (err) {
+    rideTitleDisplay.textContent = "❌ Error loading ride data.";
+    rideTitleDisplay.style.color = "#ff6b6b";
+    rideTitleDisplay.style.textAlign = "center";
+    document.getElementById('ride-controls').style.display = 'block';
+    rideActions.style.display = 'flex';
   }
+}
 
-  // ========== INIT ==========
-  resetUIToInitial();
-});
+// ========== INIT ==========
+resetUIToInitial();
