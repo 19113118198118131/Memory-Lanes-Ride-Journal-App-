@@ -5,9 +5,9 @@
 import supabase from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // =====================================================
-  // SECTION 1: UI ELEMENT REFERENCES & UI STATE HELPERS
-  // =====================================================
+  // ===========================================
+  // SECTION 1: UI ELEMENT REFERENCES & STATE
+  // ===========================================
   const uploadSection     = document.getElementById('upload-section');
   const saveForm          = document.getElementById('save-ride-form');
   const authSection       = document.getElementById('auth-section');
@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const exportVideo       = document.getElementById('export-video');
   const rideActions       = document.getElementById('ride-actions');
   const editControls      = document.getElementById('edit-controls');
-  const editExperimentalBanner = document.getElementById('edit-experimental-banner');
   const editBtn           = document.getElementById('edit-gpx-btn');
   const saveEditBtn       = document.getElementById('save-edited-gpx-btn');
   const undoEditBtn       = document.getElementById('undo-edit-btn');
@@ -28,8 +27,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const exitEditBtn       = document.getElementById('exit-edit-btn');
   const editHelp          = document.getElementById('edit-help');
   const editModeHint      = document.getElementById('edit-mode-hint');
+  const rideTitleDisplay  = document.getElementById('ride-title-display');
+  const backBtn           = document.getElementById('back-dashboard');
+  const uploadAnotherBtn  = document.getElementById('upload-another');
+  const fallbackError     = document.getElementById('fallback-error');
+  const fallbackErrorMsg  = document.getElementById('fallback-error-message');
+  const logoutBtn         = document.getElementById('logout-btn');
+  const logoutBtnFallback = document.getElementById('logout-btn-fallback');
+  const topNavDashboard   = document.getElementById('back-dashboard-nav');
+  const summaryBtn        = document.getElementById('download-summary');
+  const videoBtn          = document.getElementById('export-video');
 
-  // ----- UI visibility logic -----
+  // =======================
+  // UI State Functions
+  // =======================
   function resetUIToInitial() {
     uploadSection.style.display        = 'block';
     saveForm.style.display             = 'none';
@@ -42,9 +53,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     rideActions.style.display          = 'none';
     editControls.style.display         = 'none';
     editHelp.style.display             = 'none';
+    rideTitleDisplay.textContent       = '';
+    fallbackError.style.display        = 'none';
     document.getElementById('gpx-upload').value = '';
   }
-
   function showUIAfterUpload(isLoggedIn) {
     uploadSection.style.display        = 'block';
     mainRideUI.style.display           = 'block';
@@ -57,8 +69,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     authSection.style.display          = isLoggedIn ? 'none' : 'block';
     setTimeout(() => map.invalidateSize(), 200);
     editControls.style.display         = 'flex';
+    fallbackError.style.display        = 'none';
   }
-
   function showUIForSavedRide() {
     uploadSection.style.display        = 'none';
     mainRideUI.style.display           = 'block';
@@ -71,27 +83,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     rideActions.style.display          = 'flex';
     setTimeout(() => map.invalidateSize(), 200);
     editControls.style.display         = 'flex';
+    fallbackError.style.display        = 'none';
   }
-
   function showAnalyticsSection() {
     analyticsSection.style.display     = 'block';
     showAnalyticsBtn.style.display     = 'none';
     analyticsSection.scrollIntoView({ behavior: 'smooth' });
   }
-
   function hideAnalyticsSection() {
     analyticsSection.style.display     = 'none';
     showAnalyticsBtn.style.display     = 'inline-block';
   }
 
-  // =====================================================
-  // SECTION 2: RIDE DATA & STATE
-  // =====================================================
+  // ===============================
+  // SECTION 2: DATA & MAP STATE
+  // ===============================
   const FRAME_DELAY_MS    = 50;
   const slider            = document.getElementById('replay-slider');
   const playBtn           = document.getElementById('play-replay');
-  const summaryBtn        = document.getElementById('download-summary');
-  const videoBtn          = document.getElementById('export-video');
   const speedSel          = document.getElementById('playback-speed');
   const distanceEl        = document.getElementById('distance');
   const durationEl        = document.getElementById('duration');
@@ -99,11 +108,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const elevationEl       = document.getElementById('elevation');
   const uploadInput       = document.getElementById('gpx-upload');
   const saveBtn           = document.getElementById('save-ride-btn');
-  const rideTitleDisplay  = document.getElementById('ride-title-display');
-  const backBtn           = document.getElementById('back-dashboard');
-  const uploadAnotherBtn  = document.getElementById('upload-another');
-  const showSaveForm      = () => saveForm.style.display = 'block';
-  const hideSaveForm      = () => saveForm.style.display = 'none';
 
   let points = [], marker = null, trailPolyline = null, elevationChart = null;
   let cumulativeDistance = [], speedData = [], breakPoints = [], accelData = [];
@@ -122,9 +126,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     { label: '200+', min: 200, max: Infinity }
   ];
 
-  // =====================================================
-  // SECTION 3: GPX PARSER & MAP RENDERING
-  // =====================================================
+  // ===============================
+  // SECTION 3: GPX PARSING & RENDER
+  // ===============================
   function parseAndRenderGPX(gpxText) {
     const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
     const trkpts = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
@@ -134,8 +138,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
     })).filter(p => p.lat && p.lng && p.time instanceof Date);
 
-    if (!trkpts.length) return alert('No valid trackpoints found');
-
+    if (!trkpts.length) {
+      showFallbackError('No valid trackpoints found in this GPX file.');
+      return;
+    }
     // Downsample, breakpoints
     const SAMPLE = 5;
     points = [trkpts[0]];
@@ -221,9 +227,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     showAnalyticsBtn.style.display = 'inline-block';
   }
 
-  // =====================================================
-  // SECTION 4: LEAFLET MAP SETUP
-  // =====================================================
+  // =========================
+  // SECTION 4: LEAFLET MAP
+  // =========================
   const map = L.map('leaflet-map').setView([20, 0], 2);
   map.editTools = new L.Editable(map); // Enable editing support!
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -650,9 +656,9 @@ function sanitizeString(str) {
 }
 
 
-  // =====================================================
-  // SECTION 6: NAV/ACTION BUTTONS & UI INTERACTIONS
-  // =====================================================
+  // =========================
+  // SECTION 5: EVENT LISTENERS
+  // =========================
   backBtn.addEventListener('click', () => {
     window.location.href = 'dashboard.html';
   });
@@ -662,12 +668,11 @@ function sanitizeString(str) {
     resetUIToInitial();
     history.replaceState({}, document.title, window.location.pathname);
   });
-
   showAnalyticsBtn.addEventListener('click', showAnalyticsSection);
 
-  // =====================================================
-  // SECTION 7: GPX FILE UPLOAD
-  // =====================================================
+  // =========================
+  // GPX UPLOAD & LOAD
+  // =========================
   uploadInput.addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -678,10 +683,41 @@ function sanitizeString(str) {
     if (trailPolyline) map.removeLayer(trailPolyline);
     points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
     const reader = new FileReader();
-    reader.onload = ev => parseAndRenderGPX(ev.target.result);
+    reader.onload = ev => {
+      try {
+        parseAndRenderGPX(ev.target.result);
+      } catch (err) {
+        showFallbackError('Failed to parse GPX file. Please try another file.');
+      }
+    };
     reader.readAsText(file);
     hideAnalyticsSection();
   });
+
+  // =========================
+  // FALLBACK NAV & LOGOUT
+  // =========================
+  function showFallbackError(message) {
+    mainRideUI.style.display = 'none';
+    analyticsSection.style.display = 'none';
+    uploadSection.style.display = 'none';
+    fallbackError.style.display = 'block';
+    fallbackErrorMsg.textContent = message;
+    if (topNavDashboard) topNavDashboard.style.display = '';
+    if (logoutBtnFallback) logoutBtnFallback.style.display = '';
+  }
+  if (logoutBtnFallback) {
+    logoutBtnFallback.onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = 'index.html';
+    };
+  }
+  if (logoutBtn) {
+    logoutBtn.onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = 'index.html';
+    };
+  }
 
 
   // ========== CHARTS, ANALYTICS, PLAYBACK, SPEED BIN ==========
@@ -1220,48 +1256,55 @@ function sanitizeString(str) {
       : '✅ Ride saved!';
   });
 
-  // ========== LOAD RIDE FROM DASHBOARD ==========
+  // =========================
+  // SECTION 6: ROUTE LOAD BY URL PARAM (Dashboard → index)
+  // =========================
   const params = new URLSearchParams(window.location.search);
-
   if (params.has('ride')) {
-    uploadSection.style.display = 'none';
-    const { data: ride, error: rideErr } = await supabase
-      .from('ride_logs')
-      .select('gpx_path, title')
-      .eq('id', params.get('ride'))
-      .single();
+    try {
+      uploadSection.style.display = 'none';
+      const { data: ride, error: rideErr } = await supabase
+        .from('ride_logs')
+        .select('gpx_path, title')
+        .eq('id', params.get('ride'))
+        .single();
+      if (rideErr || !ride) {
+        showFallbackError('Could not find this ride. It may have been deleted or is unavailable.');
+        return;
+      }
+      rideTitleDisplay.textContent = ride?.title
+        ? `📍 Viewing: “${ride.title}”`
+        : `📍 Viewing Saved Ride`;
+      document.getElementById('ride-controls').style.display = 'block';
+      rideActions.style.display = 'flex';
 
-    if (rideErr) {
-      alert('Failed to load ride metadata: ' + rideErr.message);
-      return;
+      const { data: urlData, error: urlErr } = supabase
+        .storage
+        .from('gpx-files')
+        .getPublicUrl(ride.gpx_path);
+      if (urlErr || !urlData) {
+        showFallbackError('Could not fetch GPX file for this ride. Please try again later.');
+        return;
+      }
+      const resp = await fetch(urlData.publicUrl);
+      const gpxText = await resp.text();
+      if (!gpxText) {
+        showFallbackError('GPX file could not be loaded.');
+        return;
+      }
+      await parseAndRenderGPX(gpxText);
+
+      showUIForSavedRide();
+      hideAnalyticsSection();
+      showAnalyticsBtn.style.display = 'inline-block';
+    } catch (e) {
+      showFallbackError('Unexpected error loading ride. Please try again or contact support.');
     }
-    hideSaveForm();
-
-    rideTitleDisplay.textContent = ride?.title
-      ? `📍 Viewing: “${ride.title}”`
-      : `📍 Viewing Saved Ride`;
-
-    document.getElementById('ride-controls').style.display = 'block';
-    rideActions.style.display = 'flex';
-
-    const { data: urlData, error: urlErr } = supabase
-      .storage
-      .from('gpx-files')
-      .getPublicUrl(ride.gpx_path);
-    if (urlErr) {
-      alert('Failed to get GPX URL: ' + urlErr.message)
-      return;
-    }
-
-    const resp = await fetch(urlData.publicUrl)
-    const gpxText = await resp.text()
-    await parseAndRenderGPX(gpxText);
-
-    showUIForSavedRide();
-    hideAnalyticsSection();
-    showAnalyticsBtn.style.display = 'inline-block';
   }
 
-  // ========== INIT ==========
+  // =========================
+  // INIT
+  // =========================
   resetUIToInitial();
+
 });
