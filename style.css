@@ -169,6 +169,14 @@ nav { margin-top: 0.22rem; }
   max-width: 520px;
 }
 
+.card-section {
+  background: var(--card-bg);
+  padding: 1.33rem 2.3rem;
+  border-radius: 22px;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow);
+}
+
 /* ---------- MAIN CONTENT AREA ---------- */
 main {
   padding: 2.2rem 1.1rem 7rem 1.1rem;
