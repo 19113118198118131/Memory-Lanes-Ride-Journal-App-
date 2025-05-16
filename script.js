@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const exportVideo       = document.getElementById('export-video');
   const rideActions       = document.getElementById('ride-actions');
   const editControls      = document.getElementById('edit-controls');
+  const editExperimentalBanner = document.getElementById('edit-experimental-banner');
   const editBtn           = document.getElementById('edit-gpx-btn');
   const saveEditBtn       = document.getElementById('save-edited-gpx-btn');
   const undoEditBtn       = document.getElementById('undo-edit-btn');
@@ -630,6 +631,29 @@ saveEditBtn.onclick = function() {
   // Optionally: render the new route as main polyline
   if (trailPolyline) map.removeLayer(trailPolyline);
   trailPolyline = L.polyline(segments[0].map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+
+  // Show "Go to Dashboard" button after saving an edited route
+  let dashboardBtn = document.createElement('button');
+  dashboardBtn.textContent = "Go to Dashboard";
+  dashboardBtn.className = "go-dashboard-btn"; // Style as you wish in CSS
+  dashboardBtn.style.cssText = `
+    margin: 1.2rem auto 0 auto;
+    display: block;
+    background: #64ffda;
+    color: #112240;
+    font-weight: bold;
+    border: none;
+    border-radius: 7px;
+    padding: 0.7em 2.2em;
+    font-size: 1.13em;
+    cursor: pointer;
+    box-shadow: 0 1px 10px #0002;
+    transition: background 0.15s;
+  `;
+  dashboardBtn.onclick = () => {
+    window.location.href = "dashboard.html";
+  };
+  document.body.appendChild(dashboardBtn);
 };
 
 // --- GPX GENERATION SUPPORTING MULTI-SEGMENT ---
