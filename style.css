@@ -665,34 +665,34 @@ input:focus, select:focus {
 #footer-toggle {
   background: none;
   border: none;
-  color: var(--accent-light);
-  font-weight: bold;
-  font-size: 1rem;
-  padding: 0.6rem 1rem;
+  color: #64ffda;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.7rem 1rem;
   width: 100%;
   cursor: pointer;
-}
-
-#footer-toggle:focus {
-  outline: none;
+  transition: color 0.3s ease;
 }
 
 #footer-content {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s ease;
+  transition: max-height 0.5s ease, opacity 0.4s ease;
   padding: 0 1rem;
+  opacity: 0;
 }
 
 #footer-content.expanded {
-  max-height: 100px;
-  padding: 0.8rem 1rem;
+  max-height: 200px;
+  padding: 0.8rem 1.2rem;
+  opacity: 1;
 }
 
-#footer-content p {
+.footer-message {
   color: white;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   margin: 0.4rem 0;
+  animation: fadeInUp 0.4s ease forwards;
 }
 
 #footer-content a {
@@ -700,6 +700,18 @@ input:focus, select:focus {
   font-weight: 600;
   text-decoration: underline;
 }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 
 /* ---------- OTHER UI POLISH ---------- */
 .break-dot {
