@@ -3,35 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Memory Lanes: The ultimate ride journal. Log, analyze, and relive your best journeys—add notes, moments, and more." />
   <title>Memory Lanes - journal your ride!</title>
-  <link rel="stylesheet" href="style.css" />
-  <!-- Leaflet CSS -->
+  <link rel="icon" type="image/png" href="assets/logo/favicon.png">
+  <!-- Leaflet CSS (load before custom CSS for best results) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <!-- ========================
        HEADER & TOP NAV
        ======================== -->
-<header class="main-header vibe-header">
-  <div class="brand-row">
-    <div class="logo-card">
-      <img src="https://github.com/19113118198118131/Memory-Lanes-Ride-Journal-App-/raw/main/assets/logo/Memory%20Lanes%20Logo.png"
-           alt="Memory Lanes Logo"
-           class="brand-logo" />
+  <header class="main-header vibe-header">
+    <div class="brand-row">
+      <div class="logo-card">
+        <img src="https://github.com/19113118198118131/Memory-Lanes-Ride-Journal-App-/raw/main/assets/logo/Memory%20Lanes%20Logo.png"
+             alt="Memory Lanes Logo"
+             class="brand-logo" />
+      </div>
+      <div class="brand-titlebox">
+        <h1 class="site-title">Memory Lanes</h1>
+        <div class="tagline">journal your ride!</div>
+      </div>
     </div>
-    <div class="brand-titlebox">
-      <h1 class="site-title">Memory Lanes</h1>
-      <div class="tagline">journal your ride!</div>
-    </div>
-  </div>
-  <nav class="site-nav vibe-nav">
-    <span>Logs</span>
-    <span class="nav-sep">|</span>
-    <span>Moments</span>
-    <span class="nav-sep">|</span>
-    <span>Journeys</span>
-  </nav>
-</header>
+    <nav class="site-nav vibe-nav">
+      <span>Logs</span>
+      <span class="nav-sep">|</span>
+      <span>Moments</span>
+      <span class="nav-sep">|</span>
+      <span>Journeys</span>
+    </nav>
+  </header>
 
   <!-- ========================
        RIDE CONTROLS & NAV
@@ -48,21 +50,20 @@
     <!-- ========================
          GPX UPLOAD
          ======================== -->
-<section id="upload-section">
-  <div id="ride-controls-toolbar">
-    <div class="upload-controls">
-      <label for="gpx-upload" class="btn-primary" id="upload-btn">📍 Upload .gpx</label>
-      <input type="file" id="gpx-upload" accept=".gpx" style="display: none;" />
-      <span id="file-upload-status" class="file-upload-status">No file selected</span>
-    </div>
-      <div id="post-upload-actions" class="action-buttons" style="display: none;">
-        <button id="download-summary" class="btn-muted">📁 Download Summary</button>
-        <button id="export-video" class="btn-muted">🎥 Export Video</button>
-        <button id="open-journal" class="btn-muted">📝 Ride Journal</button>
+    <section id="upload-section">
+      <div id="ride-controls-toolbar">
+        <div class="upload-controls">
+          <label for="gpx-upload" class="btn-primary" id="upload-btn" aria-label="Upload GPX">📍 Upload .gpx</label>
+          <input type="file" id="gpx-upload" accept=".gpx" style="display: none;" />
+          <span id="file-upload-status" class="file-upload-status">No file selected</span>
+        </div>
+        <div id="post-upload-actions" class="action-buttons" style="display: none;">
+          <button id="download-summary" class="btn-muted">📁 Download Summary</button>
+          <button id="export-video" class="btn-muted">🎥 Export Video</button>
+          <button id="open-journal" class="btn-muted">📝 Ride Journal</button>
+        </div>
       </div>
-  </div>
-</section>
-
+    </section>
 
     <!-- ========================
          SAVE RIDE FORM
@@ -80,8 +81,6 @@
     <div style="display: flex; justify-content: flex-start; margin-bottom: 2rem;">
       <button id="dashboard-check-btn" class="btn-muted">Go to Dashboard</button>
     </div>
-    </section>
-
 
     <!-- ========================
          AUTH SECTION
@@ -111,7 +110,7 @@
       <button id="bulk-delete-btn" class="btn-muted" style="display:none;">🗑️ Bulk Delete</button>
       <button id="exit-edit-btn" class="btn-muted" style="display:none;">❌ Exit Edit Mode</button>
     </div>
-     <div id="edit-help" style="display:none; margin-bottom:0.6rem; color:#ffe49b;">
+    <div id="edit-help" style="display:none; margin-bottom:0.6rem; color:#ffe49b;">
       <span id="edit-mode-hint"></span>
       <ul style="font-size:0.97rem; margin-top:0.2em;">
         <li> <b>Move:</b> Drag orange points</li>
@@ -210,15 +209,15 @@
         <canvas id="accelChart"></canvas>
       </div>
     </section>
-        <!-- ========== MOMENTS & MEMORIES SECTION ========== -->
-        <section id="moments-section" style="display:none; margin-bottom: 2rem;">
-          <h2>Moments & Memories</h2>
-          <button id="toggle-moments" class="btn-muted" style="margin-bottom: 1rem;">Add Moments & Journal</button>
-          <div id="moments-tools" style="display:none;">
-            <button id="add-moment-btn" class="btn-primary">➕ Add Moment</button>
-            <div id="moments-list" style="margin-top: 1.3rem;"></div>
-          </div>
-        </section> 
+    <!-- ========== MOMENTS & MEMORIES SECTION ========== -->
+    <section id="moments-section" style="display:none; margin-bottom: 2rem;">
+      <h2>Moments & Memories</h2>
+      <button id="toggle-moments" class="btn-muted" style="margin-bottom: 1rem;">Add Moments & Journal</button>
+      <div id="moments-tools" style="display:none;">
+        <button id="add-moment-btn" class="btn-primary">➕ Add Moment</button>
+        <div id="moments-list" style="margin-top: 1.3rem;"></div>
+      </div>
+    </section>
   </main>
 
   <!-- ========================
@@ -226,16 +225,15 @@
        ======================== -->
   <footer id="footer" class="collapsible-footer">
     <button id="footer-toggle" aria-expanded="false">▲ Like the vibes of the app ☕ Tap to support the developers</button>
-  <div id="footer-content" class="collapsed">
-<a href="https://buymeacoffee.com/sweetasrides"
-   class="bmc-button footer-bmc-button"
-   target="_blank"
-   aria-label="Buy developer a coffee via Buy Me a Coffee">
-  <span class="heart-icon">❤️</span> Buy developer a coffee <span class="coffee-icon">☕</span>
-</a>
-  </div>
+    <div id="footer-content" class="collapsed">
+      <a href="https://buymeacoffee.com/sweetasrides"
+         class="bmc-button footer-bmc-button"
+         target="_blank"
+         aria-label="Buy developer a coffee via Buy Me a Coffee">
+        <span class="heart-icon">❤️</span> Buy developer a coffee <span class="coffee-icon">☕</span>
+      </a>
+    </div>
   </footer>
-
 
   <!-- ========================
        JS LIBRARIES & APP SCRIPTS
@@ -246,6 +244,6 @@
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
   <script type="module" src="script.js"></script>
-  <script src="analytics.js"></script>
+  <script src="analytics.js" defer></script>
 </body>
 </html>
