@@ -170,27 +170,34 @@ function renderRides(rides) {
     return;
   }
 
-  rides.forEach(ride => {
-    const item = document.createElement('div');
-    item.className = 'ride-entry';
-    const rideDate = ride.ride_date ? new Date(ride.ride_date).toLocaleDateString() : '';
-    item.innerHTML = `
-      <div class="ride-title-row">
-        <div class="ride-title">${ride.title}</div>
-        <div class="ride-meta">
-          <span class="ride-date">${rideDate}</span>
-          <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">🗑️</div>
-        </div>
+rides.forEach(ride => {
+  const item = document.createElement('div');
+  item.className = 'ride-entry';
+  const rideDate = ride.ride_date ? new Date(ride.ride_date).toLocaleDateString() : '';
+  item.innerHTML = `
+    <div class="ride-title-row">
+      <div class="ride-title">
+        ${ride.title}
+        ${
+          Array.isArray(ride.moments) && ride.moments.length > 0
+            ? '<span class="moments-icon" title="This ride has moments!" style="margin-left:8px;font-size:1.2em;color:#8338ec;">★</span>'
+            : ''
+        }
       </div>
-      <div class="ride-details">
-        <span>📍 ${ride.distance_km.toFixed(1)} km</span>
-        <span>⏱ ${ride.duration_min} min</span>
-        <span>⛰️ ${ride.elevation_m} m</span>
+      <div class="ride-meta">
+        <span class="ride-date">${rideDate}</span>
+        <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">🗑️</div>
       </div>
-    `;
-    item.addEventListener('click', () => {
-      window.location.href = `index.html?ride=${ride.id}`;
-    });
+    </div>
+    <div class="ride-details">
+      <span>📍 ${ride.distance_km.toFixed(1)} km</span>
+      <span>⏱ ${ride.duration_min} min</span>
+      <span>⛰️ ${ride.elevation_m} m</span>
+    </div>
+  `;
+  item.addEventListener('click', () => {
+    window.location.href = `index.html?ride=${ride.id}`;
+  });
 
       const deleteIcon = item.querySelector('.delete-icon');
       deleteIcon.addEventListener('click', (e) => {
