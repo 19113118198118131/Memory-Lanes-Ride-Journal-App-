@@ -1351,12 +1351,10 @@ if (params.has('ride')) {
         .select('*')
         .eq('id', params.get('ride'))
         .single();
+
       console.log('Ride:', ride, rideErr);
-      console.log('Ride param:', params.get('ride'));
-      console.log('Supabase result:', ride, rideErr);
 
       if (rideErr || !ride) {
-        // Show fallback nav
         rideTitleDisplay.textContent = "❌ Failed to load ride. Please try another or return to dashboard.";
         rideTitleDisplay.style.color = "#ff6b6b";
         rideTitleDisplay.style.textAlign = "center";
@@ -1364,6 +1362,10 @@ if (params.has('ride')) {
         rideActions.style.display = 'flex';
         return;
       }
+
+      // Should get here!
+      console.log('Ride loaded:', ride);
+
       hideSaveForm();
 
       rideTitleDisplay.textContent = ride?.title
@@ -1374,12 +1376,14 @@ if (params.has('ride')) {
       document.getElementById('ride-controls').style.display = 'block';
       rideActions.style.display = 'flex';
 
+      // This is NOT async
       const { data: urlData, error: urlErr } = supabase
         .storage
         .from('gpx-files')
         .getPublicUrl(ride.gpx_path);
       if (urlErr) throw urlErr;
 
+      // Fetch and parse GPX
       const resp = await fetch(urlData.publicUrl)
       const gpxText = await resp.text()
       await parseAndRenderGPX(gpxText);
