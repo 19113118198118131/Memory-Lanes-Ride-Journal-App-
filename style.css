@@ -1164,20 +1164,22 @@ button:hover,
 }
 
 .moment-entry {
-  background: linear-gradient(90deg, #3a86ff 0%, #00f2fe 100%);
-  border-radius: 22px;
-  box-shadow: 0 8px 36px rgba(58,134,255,0.16), 0 2px 10px rgba(0,0,0,0.11);
-  padding: 1.2rem 1.5rem 1.3rem 2.4rem;  /* extra left padding for accent bar */
-  margin-bottom: 2.2rem;
+  background: linear-gradient(90deg, rgba(58,134,255,0.18) 0%, rgba(0,242,254,0.16) 100%);
+  /* Slightly more transparency and less saturation */
+  border-radius: 24px;
+  box-shadow: 0 6px 30px rgba(58,134,255,0.07), 0 2px 8px rgba(0,0,0,0.07);
+  padding: 1.1rem 1.5rem;
+  margin-bottom: 2rem;
   color: #fff;
   border: none;
-  position: relative;
-  transition: box-shadow 0.21s, transform 0.17s;
+  transition: box-shadow 0.2s, transform 0.2s;
+  backdrop-filter: blur(1px);
 }
 
 .moment-entry:focus-within, .moment-entry:hover {
-  box-shadow: 0 10px 44px rgba(58,134,255,0.21), 0 4px 12px rgba(0,0,0,0.18);
-  transform: translateY(-2px) scale(1.015);
+  box-shadow: 0 10px 36px rgba(58,134,255,0.11), 0 2px 8px rgba(0,0,0,0.14);
+  transform: translateY(-2px) scale(1.01);
+  background: linear-gradient(90deg, rgba(58,134,255,0.24) 0%, rgba(0,242,254,0.19) 100%);
 }
 
 .moment-entry::before {
