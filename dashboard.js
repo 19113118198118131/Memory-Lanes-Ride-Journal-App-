@@ -200,25 +200,23 @@ function renderRides(rides) {
     // Handle ride date
     const rideDate = ride.ride_date ? new Date(ride.ride_date).toLocaleDateString() : '';
 
-        // Compose the ride entry HTML (Moments icon only if moments present)
-        item.innerHTML = `
-          <div class="ride-title-row">
-            <div class="ride-title">
-              ${ride.title}
-              ${
-                Array.isArray(ride.moments) && ride.moments.length > 0
-                  ? `<span class="moments-icon" title="This ride has moments!" style="margin-left:8px;font-size:1.2em;vertical-align:middle;">
-                      <svg width="1.2em" height="1.2em" viewBox="0 0 24 24" fill="none" stroke="#8338ec" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="5" width="7" height="14" rx="2" fill="#fff" stroke="#8338ec"/>
-                        <rect x="14" y="5" width="7" height="14" rx="2" fill="#fff" stroke="#8338ec"/>
-                        <line x1="10" y1="8" x2="10" y2="16" stroke="#8338ec"/>
-                      </svg>
-                    </span>`
-                  : ''
-              }
-            </div>
-          </div>
-        `;
+    // Compose the ride entry HTML (Moments icon only if moments present)
+    item.innerHTML = `
+      <div class="ride-title-row">
+        <div class="ride-title">
+          ${ride.title}
+          ${
+            Array.isArray(ride.moments) && ride.moments.length > 0
+              ? `<span class="moments-icon" title="This ride has moments!" style="margin-left:8px;font-size:1.2em;vertical-align:middle;">
+                  <svg width="1.2em" height="1.2em" viewBox="0 0 24 24" fill="none" stroke="#8338ec" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="5" width="7" height="14" rx="2" fill="#fff" stroke="#8338ec"/>
+                    <rect x="14" y="5" width="7" height="14" rx="2" fill="#fff" stroke="#8338ec"/>
+                    <line x1="10" y1="8" x2="10" y2="16" stroke="#8338ec"/>
+                  </svg>
+                </span>`
+              : ''
+          }
+        </div>
         <div class="ride-meta">
           <span class="ride-date">${rideDate}</span>
           <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">🗑️</div>
@@ -230,6 +228,7 @@ function renderRides(rides) {
         <span>⛰️ ${ride.elevation_m || '--'} m</span>
       </div>
     `;
+
 
     // Navigate to ride detail on click (except delete icon)
     item.addEventListener('click', (e) => {
