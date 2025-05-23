@@ -1344,7 +1344,9 @@ const params = new URLSearchParams(window.location.search);
 
 if (params.has('ride')) {
   (async () => {
-    uploadSection.style.display = 'none';
+    // Always reset UI messages before a load
+    rideTitleDisplay.textContent = '';
+    rideTitleDisplay.style.color = '';
     try {
       const { data: ride, error: rideErr } = await supabase
         .from('ride_logs')
@@ -1355,6 +1357,7 @@ if (params.has('ride')) {
       console.log('Ride:', ride, rideErr);
 
       if (rideErr || !ride) {
+        // Only show error if actually failed
         rideTitleDisplay.textContent = "❌ Failed to load ride. Please try another or return to dashboard.";
         rideTitleDisplay.style.color = "#ff6b6b";
         rideTitleDisplay.style.textAlign = "center";
@@ -1363,48 +1366,48 @@ if (params.has('ride')) {
         return;
       }
 
-      // Should get here!
+      // All clear: update UI!
       console.log('Ride loaded:', ride);
 
       hideSaveForm();
-
-      rideTitleDisplay.textContent = ride?.title
+      rideTitleDisplay.textContent = ride.title
         ? `📍 Viewing: “${ride.title}”`
         : `📍 Viewing Saved Ride`;
 
+      rideTitleDisplay.style.color = ""; // clear any previous error color
       rideTitleDisplay.style.textAlign = "center";
       document.getElementById('ride-controls').style.display = 'block';
       rideActions.style.display = 'flex';
 
-      // This is NOT async
+      // GPX fetch
       const { data: urlData, error: urlErr } = supabase
         .storage
         .from('gpx-files')
         .getPublicUrl(ride.gpx_path);
       if (urlErr) throw urlErr;
 
-      // Fetch and parse GPX
-      const resp = await fetch(urlData.publicUrl)
-      const gpxText = await resp.text()
+      const resp = await fetch(urlData.publicUrl);
+      const gpxText = await resp.text();
       await parseAndRenderGPX(gpxText);
 
-      // --- Show and Render Moments if present ---
+      // Moments
       rideMoments = Array.isArray(ride.moments) ? ride.moments : [];
       if (momentsSection) {
         momentsSection.style.display = 'block';
         renderMoments();
       }
 
-      
       showUIForSavedRide();
       hideAnalyticsSection();
       showAnalyticsBtn.style.display = 'inline-block';
     } catch (err) {
+      // This only triggers on actual exceptions
       rideTitleDisplay.textContent = "❌ Error loading ride data.";
       rideTitleDisplay.style.color = "#ff6b6b";
       rideTitleDisplay.style.textAlign = "center";
       document.getElementById('ride-controls').style.display = 'block';
       rideActions.style.display = 'flex';
+      console.error("Load error", err);
     }
   })();
 }
