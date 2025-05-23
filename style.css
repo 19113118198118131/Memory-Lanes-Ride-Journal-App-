@@ -1164,15 +1164,49 @@ button:hover,
 }
 
 .moment-entry {
-  background: #223;
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 1.1rem;
-  box-shadow: 0 1px 8px rgba(100,255,218,0.08);
+  background: #192245;
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(20,20,60,0.12);
+  margin-bottom: 1.5rem;
+  padding: 1.2rem 1.5rem;
+  transition: box-shadow 0.16s;
+  max-width: 600px;
 }
 
-.moments-icon {
-  vertical-align: middle;
-  margin-left: 4px;
+.moment-entry:hover {
+  box-shadow: 0 6px 36px rgba(130,56,236,0.22);
 }
+
+.moment-title-input,
+.moment-note-input {
+  background: #111b2e;
+  border: 1px solid #2d3954;
+  border-radius: 12px;
+  color: #fff;
+  padding: 0.7em 1em;
+  margin-bottom: 0.7em;
+  font-size: 1.04rem;
+  width: 100%;
+}
+
+.jump-moment-btn, .delete-moment-btn {
+  border-radius: 100px;
+  font-weight: 600;
+  transition: box-shadow 0.15s;
+}
+.jump-moment-btn:hover {
+  box-shadow: 0 0 0 3px #64ffda33;
+  background: #2f3d62;
+}
+.delete-moment-btn:hover {
+  background: #ff4c4c;
+  color: #fff;
+  box-shadow: 0 0 0 3px #ff4c4c33;
+}
+
+#moments-section {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
 
