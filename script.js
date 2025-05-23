@@ -36,6 +36,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const exitEditBtn       = document.getElementById('exit-edit-btn');
   const editHelp          = document.getElementById('edit-help');
   const editModeHint      = document.getElementById('edit-mode-hint');
+  const momentsSection   = document.getElementById('moments-section');
+  const toggleMomentsBtn = document.getElementById('toggle-moments');
+  const momentsTools     = document.getElementById('moments-tools');
+  const addMomentBtn     = document.getElementById('add-moment-btn');
+  const momentsList      = document.getElementById('moments-list');
+  let rideMoments        = []; // Local array to store moments for current ride
+
 
   // ----- UI visibility logic -----
   function resetUIToInitial() {
@@ -146,6 +153,7 @@ uploadInput.addEventListener('change', () => {
     { label: '160–200', min: 160, max: 200 },
     { label: '200+', min: 200, max: Infinity }
   ];
+
 
   // =====================================================
   // SECTION 3: GPX PARSER & MAP RENDERING
@@ -1370,6 +1378,14 @@ if (params.has('ride')) {
       const gpxText = await resp.text()
       await parseAndRenderGPX(gpxText);
 
+      // --- Show and Render Moments if present ---
+      rideMoments = Array.isArray(ride.moments) ? ride.moments : [];
+      if (momentsSection) {
+        momentsSection.style.display = 'block';
+        renderMoments();
+      }
+
+      
       showUIForSavedRide();
       hideAnalyticsSection();
       showAnalyticsBtn.style.display = 'inline-block';
@@ -1422,4 +1438,140 @@ if (dashboardBtn) {
     }
   });
 }
+
+toggleMomentsBtn.addEventListener('click', () => {
+  const isOpen = momentsTools.style.display === 'block';
+  momentsTools.style.display = isOpen ? 'none' : 'block';
+  toggleMomentsBtn.textContent = isOpen ? 'Add Moments & Journal' : 'Hide Moments & Journal';
 });
+
+  
+addMomentBtn.addEventListener('click', () => {
+  if (rideMoments.length >= 5) {
+    showToast('You can only save up to 5 moments for this ride.', 'info');
+    return;
+  }
+  // Use current playback index, or let user click on map (for now, playback index)
+  const idx = window.fracIndex || 0;
+  const point = points[idx] || points[0];
+  const moment = {
+    idx,
+    lat: point.lat,
+    lng: point.lng,
+    speed: speedData[idx] || 0,
+    elevation: point.ele || 0,
+    title: '',
+    note: ''
+  };
+  rideMoments.push(moment);
+  saveMomentsToDB();
+  renderMoments();
+});
+
+
+
+
+});
+
+
+
+function renderMoments() {
+  momentsList.innerHTML = '';
+  if (!rideMoments.length) {
+    momentsList.innerHTML = '<em>No moments saved yet. Click "Add Moment" while replaying your ride to save your favorite spot or note.</em>';
+    addMomentBtn.disabled = false;
+    return;
+  }
+  addMomentBtn.disabled = rideMoments.length >= 5;
+  rideMoments.forEach((m, i) => {
+    const div = document.createElement('div');
+    div.className = 'moment-entry';
+    div.innerHTML = `
+      <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.3rem;">
+        <span style="font-size:1.15em;">📍</span>
+        <span>
+          <strong>Km:</strong> ${(cumulativeDistance[m.idx]/1000).toFixed(2) || '--'}<br>
+          <strong>Speed:</strong> ${m.speed?.toFixed(1) || '--'} km/h<br>
+          <strong>Elevation:</strong> ${m.elevation?.toFixed(0) || '--'} m
+        </span>
+        <button class="jump-moment-btn btn-muted" data-idx="${i}" style="margin-left:auto;">Jump</button>
+        <button class="delete-moment-btn btn-muted" data-idx="${i}" style="margin-left:0.8rem;color:#ff6b6b;">🗑️</button>
+      </div>
+      <input type="text" placeholder="Moment title (optional)" value="${m.title || ''}" class="moment-title-input" data-idx="${i}" style="width: 90%; margin-bottom: 0.3rem;" />
+      <textarea placeholder="Your notes or memory..." class="moment-note-input" data-idx="${i}" style="width: 90%; min-height: 48px;">${m.note || ''}</textarea>
+      <hr style="border:0; border-top:1px solid #223; margin: 0.7rem 0;">
+    `;
+    momentsList.appendChild(div);
+  });
+
+  // Add jump and delete logic
+  momentsList.querySelectorAll('.jump-moment-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const idx = +btn.dataset.idx;
+      if (rideMoments[idx]) {
+        window.jumpToPlaybackIndex(rideMoments[idx].idx);
+      }
+    });
+  });
+
+  momentsList.querySelectorAll('.delete-moment-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const idx = +btn.dataset.idx;
+      if (confirm('Delete this moment?')) {
+        rideMoments.splice(idx, 1);
+        saveMomentsToDB();
+        renderMoments();
+      }
+    });
+  });
+
+  // Add edit logic (auto-save on blur)
+  momentsList.querySelectorAll('.moment-title-input').forEach(input => {
+    input.addEventListener('change', e => {
+      const idx = +input.dataset.idx;
+      rideMoments[idx].title = input.value;
+      saveMomentsToDB();
+    });
+  });
+
+  momentsList.querySelectorAll('.moment-note-input').forEach(textarea => {
+    textarea.addEventListener('change', e => {
+      const idx = +textarea.dataset.idx;
+      rideMoments[idx].note = textarea.value;
+      saveMomentsToDB();
+    });
+  });
+
+
+// --- Add/refresh map markers for moments ---
+if (window.momentsMarkers) {
+  window.momentsMarkers.forEach(m => map.removeLayer(m));
+}
+window.momentsMarkers = [];
+rideMoments.forEach((m, i) => {
+  if (typeof m.lat === "number" && typeof m.lng === "number") {
+    const marker = L.marker([m.lat, m.lng], {
+      icon: L.divIcon({ className: 'moment-pin', html: `<span style="color:#8338ec;font-size:1.4em;">★</span>` })
+    }).addTo(map);
+    marker.on('click', () => {
+      window.jumpToPlaybackIndex(m.idx);
+    });
+    window.momentsMarkers.push(marker);
+  }
+});
+
+}
+
+
+async function saveMomentsToDB() {
+  const params = new URLSearchParams(window.location.search);
+  const rideId = params.get('ride');
+  const { error } = await supabase
+    .from('ride_logs')
+    .update({ moments: rideMoments })
+    .eq('id', rideId);
+  if (error) showToast('Failed to save moments', 'delete');
+}
+
+
+
