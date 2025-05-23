@@ -35,16 +35,18 @@
     </nav>
   </header>
 
-  <!-- ========================
-       RIDE CONTROLS & NAV
-       ======================== -->
-  <div id="ride-controls" style="display:none; margin: 1rem;">
-    <h2 id="ride-title-display" style="color: #64ffda; margin-bottom: 0.5rem; text-align:center;"></h2>
-    <div id="ride-actions" style="display:none; margin: 1rem 0 1.5rem 0; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start;">
-      <button id="upload-another" class="btn-muted">📤 Upload a New Ride</button>
-      
-    </div>
-  </div>
+<!-- ========================
+     RIDE CONTROLS & NAV
+     ======================== -->
+<div id="ride-controls" style="display:none; margin: 1rem;">
+  <h2 id="ride-title-display" style="color: #64ffda; margin-bottom: 0.5rem; text-align:center;"></h2>
+</div>
+
+<!-- Action buttons, now stacked vertically and aligned left -->
+<div style="display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; margin-bottom: 2rem;">
+  <button id="upload-another" class="btn-muted">📤 Upload a New Ride</button>
+  <button id="dashboard-check-btn" class="btn-muted">Go to Dashboard</button>
+</div>
 
   <main>
     <!-- ========================
