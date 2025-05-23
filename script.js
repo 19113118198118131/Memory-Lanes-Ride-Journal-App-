@@ -4,9 +4,6 @@
 
 import supabase from './supabaseClient.js';
 
-let momentsList;
-let rideMoments = [];
-
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
   // SECTION 1: UI ELEMENT REFERENCES & UI STATE HELPERS
@@ -43,10 +40,110 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleMomentsBtn = document.getElementById('toggle-moments');
   const momentsTools     = document.getElementById('moments-tools');
   const addMomentBtn     = document.getElementById('add-moment-btn');
-  momentsList = document.getElementById('moments-list'); 
+  const momentsList      = document.getElementById('moments-list'); 
   let rideMoments        = []; // Local array to store moments for current ride
 
 
+  
+function renderMoments() {
+  momentsList.innerHTML = '';
+  if (!rideMoments.length) {
+    momentsList.innerHTML = '<em>No moments saved yet. Click "Add Moment" while replaying your ride to save your favorite spot or note.</em>';
+    addMomentBtn.disabled = false;
+    return;
+  }
+  addMomentBtn.disabled = rideMoments.length >= 5;
+  rideMoments.forEach((m, i) => {
+    const div = document.createElement('div');
+    div.className = 'moment-entry';
+    div.innerHTML = `
+      <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.3rem;">
+        <span style="font-size:1.15em;">📍</span>
+        <span>
+          <strong>Km:</strong> ${(cumulativeDistance[m.idx]/1000).toFixed(2) || '--'}<br>
+          <strong>Speed:</strong> ${m.speed?.toFixed(1) || '--'} km/h<br>
+          <strong>Elevation:</strong> ${m.elevation?.toFixed(0) || '--'} m
+        </span>
+        <button class="jump-moment-btn btn-muted" data-idx="${i}" style="margin-left:auto;">Jump</button>
+        <button class="delete-moment-btn btn-muted" data-idx="${i}" style="margin-left:0.8rem;color:#ff6b6b;">🗑️</button>
+      </div>
+      <input type="text" placeholder="Moment title (optional)" value="${m.title || ''}" class="moment-title-input" data-idx="${i}" style="width: 90%; margin-bottom: 0.3rem;" />
+      <textarea placeholder="Your notes or memory..." class="moment-note-input" data-idx="${i}" style="width: 90%; min-height: 48px;">${m.note || ''}</textarea>
+      <hr style="border:0; border-top:1px solid #223; margin: 0.7rem 0;">
+    `;
+    momentsList.appendChild(div);
+  });
+
+  // Add jump and delete logic
+  momentsList.querySelectorAll('.jump-moment-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const idx = +btn.dataset.idx;
+      if (rideMoments[idx]) {
+        window.jumpToPlaybackIndex(rideMoments[idx].idx);
+      }
+    });
+  });
+
+  momentsList.querySelectorAll('.delete-moment-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const idx = +btn.dataset.idx;
+      if (confirm('Delete this moment?')) {
+        rideMoments.splice(idx, 1);
+        saveMomentsToDB();
+        renderMoments();
+      }
+    });
+  });
+
+  // Add edit logic (auto-save on blur)
+  momentsList.querySelectorAll('.moment-title-input').forEach(input => {
+    input.addEventListener('change', e => {
+      const idx = +input.dataset.idx;
+      rideMoments[idx].title = input.value;
+      saveMomentsToDB();
+    });
+  });
+
+  momentsList.querySelectorAll('.moment-note-input').forEach(textarea => {
+    textarea.addEventListener('change', e => {
+      const idx = +textarea.dataset.idx;
+      rideMoments[idx].note = textarea.value;
+      saveMomentsToDB();
+    });
+  });
+
+
+// --- Add/refresh map markers for moments ---
+if (window.momentsMarkers) {
+  window.momentsMarkers.forEach(m => map.removeLayer(m));
+}
+window.momentsMarkers = [];
+rideMoments.forEach((m, i) => {
+  if (typeof m.lat === "number" && typeof m.lng === "number") {
+    const marker = L.marker([m.lat, m.lng], {
+      icon: L.divIcon({ className: 'moment-pin', html: `<span style="color:#8338ec;font-size:1.4em;">★</span>` })
+    }).addTo(map);
+    marker.on('click', () => {
+      window.jumpToPlaybackIndex(m.idx);
+    });
+    window.momentsMarkers.push(marker);
+  }
+});
+
+}
+
+
+async function saveMomentsToDB() {
+  const params = new URLSearchParams(window.location.search);
+  const rideId = params.get('ride');
+  const { error } = await supabase
+    .from('ride_logs')
+    .update({ moments: rideMoments })
+    .eq('id', rideId);
+  if (error) showToast('Failed to save moments', 'delete');
+}
+
+  
   // ----- UI visibility logic -----
   function resetUIToInitial() {
     uploadSection.style.display        = 'block';
@@ -1490,104 +1587,6 @@ addMomentBtn.addEventListener('click', () => {
 });
 
 
-
-function renderMoments() {
-  momentsList.innerHTML = '';
-  if (!rideMoments.length) {
-    momentsList.innerHTML = '<em>No moments saved yet. Click "Add Moment" while replaying your ride to save your favorite spot or note.</em>';
-    addMomentBtn.disabled = false;
-    return;
-  }
-  addMomentBtn.disabled = rideMoments.length >= 5;
-  rideMoments.forEach((m, i) => {
-    const div = document.createElement('div');
-    div.className = 'moment-entry';
-    div.innerHTML = `
-      <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.3rem;">
-        <span style="font-size:1.15em;">📍</span>
-        <span>
-          <strong>Km:</strong> ${(cumulativeDistance[m.idx]/1000).toFixed(2) || '--'}<br>
-          <strong>Speed:</strong> ${m.speed?.toFixed(1) || '--'} km/h<br>
-          <strong>Elevation:</strong> ${m.elevation?.toFixed(0) || '--'} m
-        </span>
-        <button class="jump-moment-btn btn-muted" data-idx="${i}" style="margin-left:auto;">Jump</button>
-        <button class="delete-moment-btn btn-muted" data-idx="${i}" style="margin-left:0.8rem;color:#ff6b6b;">🗑️</button>
-      </div>
-      <input type="text" placeholder="Moment title (optional)" value="${m.title || ''}" class="moment-title-input" data-idx="${i}" style="width: 90%; margin-bottom: 0.3rem;" />
-      <textarea placeholder="Your notes or memory..." class="moment-note-input" data-idx="${i}" style="width: 90%; min-height: 48px;">${m.note || ''}</textarea>
-      <hr style="border:0; border-top:1px solid #223; margin: 0.7rem 0;">
-    `;
-    momentsList.appendChild(div);
-  });
-
-  // Add jump and delete logic
-  momentsList.querySelectorAll('.jump-moment-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      const idx = +btn.dataset.idx;
-      if (rideMoments[idx]) {
-        window.jumpToPlaybackIndex(rideMoments[idx].idx);
-      }
-    });
-  });
-
-  momentsList.querySelectorAll('.delete-moment-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      const idx = +btn.dataset.idx;
-      if (confirm('Delete this moment?')) {
-        rideMoments.splice(idx, 1);
-        saveMomentsToDB();
-        renderMoments();
-      }
-    });
-  });
-
-  // Add edit logic (auto-save on blur)
-  momentsList.querySelectorAll('.moment-title-input').forEach(input => {
-    input.addEventListener('change', e => {
-      const idx = +input.dataset.idx;
-      rideMoments[idx].title = input.value;
-      saveMomentsToDB();
-    });
-  });
-
-  momentsList.querySelectorAll('.moment-note-input').forEach(textarea => {
-    textarea.addEventListener('change', e => {
-      const idx = +textarea.dataset.idx;
-      rideMoments[idx].note = textarea.value;
-      saveMomentsToDB();
-    });
-  });
-
-
-// --- Add/refresh map markers for moments ---
-if (window.momentsMarkers) {
-  window.momentsMarkers.forEach(m => map.removeLayer(m));
-}
-window.momentsMarkers = [];
-rideMoments.forEach((m, i) => {
-  if (typeof m.lat === "number" && typeof m.lng === "number") {
-    const marker = L.marker([m.lat, m.lng], {
-      icon: L.divIcon({ className: 'moment-pin', html: `<span style="color:#8338ec;font-size:1.4em;">★</span>` })
-    }).addTo(map);
-    marker.on('click', () => {
-      window.jumpToPlaybackIndex(m.idx);
-    });
-    window.momentsMarkers.push(marker);
-  }
-});
-
-}
-
-
-async function saveMomentsToDB() {
-  const params = new URLSearchParams(window.location.search);
-  const rideId = params.get('ride');
-  const { error } = await supabase
-    .from('ride_logs')
-    .update({ moments: rideMoments })
-    .eq('id', rideId);
-  if (error) showToast('Failed to save moments', 'delete');
-}
 
 
 
