@@ -1162,3 +1162,17 @@ button:hover,
   transform: translateY(-2px) scale(1.035);
   transition: all 0.25s ease;
 }
+
+.moment-entry {
+  background: #223;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.1rem;
+  box-shadow: 0 1px 8px rgba(100,255,218,0.08);
+}
+
+.moments-icon {
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
