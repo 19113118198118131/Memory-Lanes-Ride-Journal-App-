@@ -1351,7 +1351,7 @@ if (params.has('ride')) {
         .select('*')
         .eq('id', params.get('ride'))
         .single();
-      
+      console.log('Ride:', ride, rideErr);
       console.log('Ride param:', params.get('ride'));
       console.log('Supabase result:', ride, rideErr);
 
