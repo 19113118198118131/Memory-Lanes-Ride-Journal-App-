@@ -1346,14 +1346,14 @@ if (params.has('ride')) {
   (async () => {
     uploadSection.style.display = 'none';
     try {
-    const { data: ride, error: rideErr } = await supabase
-      .from('ride_logs')
-      .select('*')
-       console.log('Ride param:', params.get('ride'));
-       console.log('Supabase result:', ride, rideErr);
-      .eq('id', params.get('ride'))
-      .single();
-
+      const { data: ride, error: rideErr } = await supabase
+        .from('ride_logs')
+        .select('*')
+        .eq('id', params.get('ride'))
+        .single();
+      
+      console.log('Ride param:', params.get('ride'));
+      console.log('Supabase result:', ride, rideErr);
 
       if (rideErr || !ride) {
         // Show fallback nav
