@@ -4,6 +4,9 @@
 
 import supabase from './supabaseClient.js';
 
+let momentsList;
+let rideMoments = [];
+
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
   // SECTION 1: UI ELEMENT REFERENCES & UI STATE HELPERS
@@ -40,7 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleMomentsBtn = document.getElementById('toggle-moments');
   const momentsTools     = document.getElementById('moments-tools');
   const addMomentBtn     = document.getElementById('add-moment-btn');
-  const momentsList      = document.getElementById('moments-list');
+  momentsList = document.getElementById('moments-list'); 
   let rideMoments        = []; // Local array to store moments for current ride
 
 
