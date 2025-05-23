@@ -1327,7 +1327,10 @@ saveBtn.addEventListener('click', async () => {
   navContainer.style.padding = '0 0 0 2.3rem';  // aligns with form card padding
   navContainer.style.textAlign = 'left';
 
-
+  // Hide the persistent dashboard button to prevent duplicate "Go to Dashboard" buttons after saving
+  const persistentDashBtn = document.getElementById('dashboard-check-btn');
+  if (persistentDashBtn) persistentDashBtn.style.display = 'none';
+  
 });
 
 
@@ -1343,11 +1346,14 @@ if (params.has('ride')) {
   (async () => {
     uploadSection.style.display = 'none';
     try {
-      const { data: ride, error: rideErr } = await supabase
-        .from('ride_logs')
-        .select('gpx_path, title')
-        .eq('id', params.get('ride'))
-        .single();
+    const { data: ride, error: rideErr } = await supabase
+      .from('ride_logs')
+      .select('*')
+       console.log('Ride param:', params.get('ride'));
+       console.log('Supabase result:', ride, rideErr);
+      .eq('id', params.get('ride'))
+      .single();
+
 
       if (rideErr || !ride) {
         // Show fallback nav
