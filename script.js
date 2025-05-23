@@ -214,7 +214,6 @@ async function saveMomentsToDB() {
   const elevationEl       = document.getElementById('elevation');
   const saveBtn           = document.getElementById('save-ride-btn');
   const rideTitleDisplay  = document.getElementById('ride-title-display');
-  const backBtn           = document.getElementById('back-dashboard');
   const uploadAnotherBtn  = document.getElementById('upload-another');
   const showSaveForm      = () => saveForm.style.display = 'block';
   const hideSaveForm      = () => saveForm.style.display = 'none';
@@ -789,9 +788,8 @@ function sanitizeString(str) {
   // =====================================================
   // SECTION 6: NAV/ACTION BUTTONS & UI INTERACTIONS
   // =====================================================
-  backBtn.addEventListener('click', () => {
-    window.location.href = 'dashboard.html';
-  });
+
+  
   uploadAnotherBtn.addEventListener('click', () => {
     rideTitleDisplay.textContent = '';
     document.getElementById('ride-controls').style.display = 'none';
