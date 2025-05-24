@@ -34,7 +34,16 @@
       <div id="journal-toggle-view" style="margin-bottom: 1.5rem;">
         <button id="timeline-view-btn" class="active" aria-pressed="true">🕒 Timeline</button>
         <button id="gallery-view-btn" aria-pressed="false">🖼️ Gallery</button>
+        <button id="flipbook-view-btn" aria-pressed="false">📖 Flipbook</button>
+        <span id="flip-style-toggle" style="margin-left:2em; display:none;">
+          <label for="flip-style-select" style="margin-right:0.4em;">Animation:</label>
+          <select id="flip-style-select">
+            <option value="slide">Slide</option>
+            <option value="flip">3D Flip</option>
+          </select>
+        </span>
       </div>
+      <div id="flipbook-container" style="display:none;"></div>
       <div id="journal-moments-list" class="journal-moments-list" aria-live="polite">Loading...</div>
     </section>
   </main>
