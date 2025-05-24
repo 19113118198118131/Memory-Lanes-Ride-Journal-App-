@@ -4,6 +4,7 @@ const momentsList = document.getElementById('journal-moments-list');
 const galleryBtn = document.getElementById('gallery-view-btn');
 const timelineBtn = document.getElementById('timeline-view-btn');
 const roadTimelineContainer = document.getElementById('road-timeline-container');
+const monthFilterContainer = document.getElementById('month-filter-container');
 
 // === Utility Functions ===
 
@@ -84,24 +85,52 @@ function renderRoadTimeline(yearsArray, activeYear, onSelectYear) {
 
   // Horizontal scrollable timeline styled as a road
   let html = `<div class="road-timeline">`;
-
-  // "Show All" marker
   html += `<button class="road-marker${!activeYear ? ' active' : ''}" data-year="" title="Show all years">🏁</button>`;
-
   yearsArray.forEach(year => {
     html += `<button class="road-marker${activeYear === year ? ' active' : ''}" data-year="${year}" title="Show ${year}">${year}</button>`;
   });
-
   html += `</div>`;
   roadTimelineContainer.innerHTML = html;
 
-  // Attach event listeners
   roadTimelineContainer.querySelectorAll('.road-marker').forEach(marker => {
-    marker.addEventListener('click', e => {
+    marker.addEventListener('click', () => {
       const year = marker.getAttribute('data-year');
       onSelectYear(year || null); // Pass null for "Show All"
     });
   });
+}
+
+// Render a month filter dropdown (based on filtered moments)
+function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
+  if (!monthFilterContainer) return;
+
+  // No months to filter (or only one) = hide dropdown
+  if (!Array.isArray(monthsArray) || monthsArray.length <= 1) {
+    monthFilterContainer.innerHTML = '';
+    return;
+  }
+
+  // Month names
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  let html = `<label for="month-filter">Month: </label>`;
+  html += `<select id="month-filter"><option value="">All Months</option>`;
+  monthsArray.forEach(m => {
+    html += `<option value="${m}"${activeMonth === m ? ' selected' : ''}>${monthNames[m - 1]}</option>`;
+  });
+  html += `</select>`;
+  monthFilterContainer.innerHTML = html;
+
+  // Attach event
+  const select = document.getElementById('month-filter');
+  if (select) {
+    select.addEventListener('change', () => {
+      onSelectMonth(select.value ? parseInt(select.value, 10) : null);
+    });
+  }
 }
 
 // ========== Main app logic ==========
@@ -167,34 +196,64 @@ function renderRoadTimeline(yearsArray, activeYear, onSelectYear) {
     return (b.idx || 0) - (a.idx || 0);
   });
 
-  // 5. Derive years (deduplicated, sorted)
+  // 5. Derive years
   const years = Array.from(new Set(
     allMoments
       .map(m => (m.rideDate ? new Date(m.rideDate).getFullYear() : null))
       .filter(Boolean)
   )).sort((a, b) => a - b);
 
-  // 6. State: currently selected year (null = all)
+  // ========== State ==========
   let selectedYear = null;
+  let selectedMonth = null;
 
-  // Helper: filter moments by selected year
-  function filterMomentsByYear(year) {
-    if (!year) return allMoments;
-    return allMoments.filter(m => m.rideDate && new Date(m.rideDate).getFullYear().toString() === year.toString());
+  // Helper: filter moments by year and month
+  function filterMoments(year, month) {
+    return allMoments.filter(m => {
+      if (!m.rideDate) return false;
+      const d = new Date(m.rideDate);
+      const y = d.getFullYear();
+      const mth = d.getMonth() + 1;
+      return (!year || y === parseInt(year, 10)) &&
+             (!month || mth === parseInt(month, 10));
+    });
+  }
+
+  // Helper: get all months (as numbers) for a given year in the data
+  function getMonthsForYear(year) {
+    return Array.from(new Set(
+      allMoments
+        .filter(m => m.rideDate && new Date(m.rideDate).getFullYear() === parseInt(year, 10))
+        .map(m => new Date(m.rideDate).getMonth() + 1)
+    )).sort((a, b) => a - b);
   }
 
   // Handler: when timeline marker is clicked
   function handleYearSelect(year) {
     selectedYear = year;
+    selectedMonth = null;
     renderRoadTimeline(years, selectedYear, handleYearSelect);
-    renderMoments(filterMomentsByYear(selectedYear));
+    // If year is selected, render month filter if >1 month in data
+    if (selectedYear) {
+      const months = getMonthsForYear(selectedYear);
+      renderMonthFilter(months, selectedMonth, handleMonthSelect);
+      renderMoments(filterMoments(selectedYear, null));
+    } else {
+      monthFilterContainer.innerHTML = '';
+      renderMoments(allMoments);
+    }
   }
 
-  // 7. Initial render: timeline + all moments
+  // Handler: when month is selected
+  function handleMonthSelect(month) {
+    selectedMonth = month;
+    renderMonthFilter(getMonthsForYear(selectedYear), selectedMonth, handleMonthSelect);
+    renderMoments(filterMoments(selectedYear, selectedMonth));
+  }
+
+  // ========== Initial render ==========
   renderRoadTimeline(years, selectedYear, handleYearSelect);
   renderMoments(allMoments);
-
-  // 8. Setup view toggles
   setupViewToggle();
 
   // Optionally: Add future hooks for advanced filters/search here
