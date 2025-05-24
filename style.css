@@ -1682,3 +1682,15 @@ button:hover,
   to   { opacity: 1; transform: rotateY(0) scale(1);}
 }
 
+/* Flipbook container - dark mode, no borders */
+#st-pageflip {
+  margin: 2.4em auto;
+  background: none;
+}
+.flipbook-card {
+  box-shadow: none;
+  background: none;
+}
+.page-wrapper {
+  background: transparent !important;
+}
