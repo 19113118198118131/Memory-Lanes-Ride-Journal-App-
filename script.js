@@ -1773,7 +1773,7 @@ addMomentBtn.addEventListener('click', () => {
     }
   };
 
-  window.showFireworks = function(duration = 2000) {
+  window.showFireworks = function(duration = 1000) {
     if (running) return;
     running = true;
     canvas.width = window.innerWidth;
