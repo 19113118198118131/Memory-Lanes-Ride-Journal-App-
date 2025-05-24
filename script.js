@@ -1590,83 +1590,7 @@ addMomentBtn.addEventListener('click', () => {
   const ctx = canvas.getContext('2d');
   let running = false;
 
-  function randomColor() {
-    const palette = [
-      '#64ffda','#ff6384','#ffd700','#fff','#00c6ff','#8338ec','#ffac00','#19ed7d'
-    ];
-    return palette[Math.floor(Math.random() * palette.length)];
-  }
-
-  function Firework() {
-    this.x = Math.random() * canvas.width * 0.65 + canvas.width * 0.175;
-    this.y = canvas.height * (0.45 + Math.random() * 0.2);
-    this.particles = [];
-    this.color = randomColor();
-    this.size = 1.0 + Math.random() * 1.1;
-    this.vx = (Math.random() - 0.5) * 2.4;
-    this.vy = -8.2 - Math.random() * 2.8;
-    this.state = "launch";
-    this.timer = 0;
-    this.maxTimer = 18 + Math.random() * 10;
-  }
-  Firework.prototype.update = function() {
-    if (this.state === "launch") {
-      this.x += this.vx;
-      this.y += this.vy;
-      this.vy += 0.18;
-      this.timer++;
-      if (this.timer >= this.maxTimer || this.vy > 0) {
-        this.state = "burst";
-        for (let i = 0; i < 54 + Math.random() * 36; i++) {
-          const angle = (i / (70 + Math.random()*12)) * Math.PI * 2;
-          const speed = Math.random() * 4.2 + 2.8;
-          this.particles.push({
-            x: this.x,
-            y: this.y,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed,
-            alpha: 0.97 + Math.random()*0.18,
-            color: randomColor(),
-            size: this.size * (0.7 + Math.random()*0.38)
-          });
-        }
-      }
-    } else {
-      this.particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.047;
-        p.alpha -= 0.012 + Math.random() * 0.012;
-      });
-      this.particles = this.particles.filter(p => p.alpha > 0);
-    }
-  };
-  Firework.prototype.draw = function(ctx) {
-    if (this.state === "launch") {
-      ctx.save();
-      ctx.globalAlpha = 0.44 + 0.18 * Math.random();
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.size * 2.1, 0, 2 * Math.PI);
-      ctx.fillStyle = "#fff";
-      ctx.shadowColor = this.color;
-      ctx.shadowBlur = 22;
-      ctx.fill();
-      ctx.restore();
-    } else {
-      this.particles.forEach(p => {
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, p.alpha);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
-        ctx.fillStyle = p.color;
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 28;
-        ctx.fill();
-        ctx.restore();
-      });
-    }
-  };
-
+  // Overlay vignette (smooth fade in/out)
   function showOverlay() {
     let overlay = document.getElementById('fireworks-premium-overlay');
     if (!overlay) {
@@ -1674,25 +1598,182 @@ addMomentBtn.addEventListener('click', () => {
       overlay.id = 'fireworks-premium-overlay';
       overlay.style.cssText = `
         position:fixed;left:0;top:0;width:100vw;height:100vh;
-        background:rgba(15,18,28,0.42);
+        background:radial-gradient(ellipse at center, rgba(0,0,0,0.42) 60%, rgba(10,15,30,0.76) 100%);
         z-index:99998;pointer-events:none;opacity:0;
-        transition:opacity 0.3s;`;
+        transition:opacity 0.7s cubic-bezier(.77,0,.18,1);`;
       document.body.appendChild(overlay);
     }
     overlay.style.opacity = '1';
     overlay.style.display = 'block';
     return overlay;
   }
-
   function hideOverlay(overlay) {
     if (overlay) {
       overlay.style.opacity = '0';
-      setTimeout(() => { overlay.style.display = 'none'; }, 420);
+      setTimeout(() => { overlay.style.display = 'none'; }, 700);
     }
   }
 
-  // --- Here is the key: fire for duration, then let fade out naturally
-  window.showFireworks = function(duration = 2000) {
+  // --- Burst Shapes: classic, heart, star, ring ---
+  function burstShape(type, n, i) {
+    const theta = (i / n) * 2 * Math.PI;
+    if (type === 'star') {
+      // 5-point star path
+      const points = 5, inner = 0.48, outer = 1;
+      const starI = i % (points*2);
+      return (starI % 2 === 0)
+        ? { r: outer, angle: (starI/2) * (2*Math.PI/points) }
+        : { r: inner, angle: ((starI-1)/2) * (2*Math.PI/points) + Math.PI/points };
+    }
+    if (type === 'heart') {
+      // Parametric heart curve
+      return {
+        r: 1.0,
+        angle: theta,
+        x: 16 * Math.pow(Math.sin(theta),3),
+        y: -(13 * Math.cos(theta) - 5*Math.cos(2*theta) - 2*Math.cos(3*theta) - Math.cos(4*theta))
+      };
+    }
+    // Ring (circle)
+    return { r: 1, angle: theta };
+  }
+
+  function randomColor() {
+    const palette = [
+      '#64ffda','#ff6384','#ffd700','#fff','#00c6ff','#8338ec','#ffac00','#19ed7d'
+    ];
+    return palette[Math.floor(Math.random() * palette.length)];
+  }
+
+  // --- Particle with trail history ---
+  function Particle(props) {
+    Object.assign(this, props);
+    this.history = [{x:this.x, y:this.y}];
+    this.maxTrail = 10 + Math.floor(Math.random()*6);
+  }
+  Particle.prototype.update = function(gravity, fade) {
+    // Add organic "wobble"
+    const wobble = 0.3 * Math.sin(this.life*0.2 + this.seed);
+    this.x += this.vx + wobble;
+    this.y += this.vy;
+    this.vy += gravity;
+    this.alpha -= fade;
+    this.life++;
+    this.history.push({x:this.x, y:this.y});
+    if (this.history.length > this.maxTrail) this.history.shift();
+  };
+  Particle.prototype.draw = function(ctx) {
+    // Draw trail (fade from oldest to newest)
+    for (let j=1;j<this.history.length;j++) {
+      ctx.save();
+      ctx.globalAlpha = (this.alpha * j / this.history.length) * 0.45;
+      ctx.beginPath();
+      ctx.moveTo(this.history[j-1].x, this.history[j-1].y);
+      ctx.lineTo(this.history[j].x, this.history[j].y);
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = Math.max(1, this.size * 0.7 * j / this.history.length);
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur = 10;
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Draw main particle
+    ctx.save();
+    ctx.globalAlpha = this.alpha;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, 2*Math.PI);
+    ctx.fillStyle = this.color;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 24;
+    ctx.fill();
+    ctx.restore();
+  };
+
+  function Firework() {
+    // Randomize burst center
+    this.x = Math.random() * canvas.width * 0.65 + canvas.width * 0.175;
+    this.y = canvas.height * (0.46 + Math.random() * 0.22);
+    this.color = randomColor();
+    this.size = 1.0 + Math.random() * 1.1;
+    this.vx = (Math.random() - 0.5) * 2.4;
+    this.vy = -8.2 - Math.random() * 2.8;
+    this.state = "launch";
+    this.timer = 0;
+    this.maxTimer = 16 + Math.random() * 8;
+    // 1 in 8 = special shape burst
+    const shapeType = Math.random();
+    if (shapeType > 0.875)      this.burstType = "star";
+    else if (shapeType > 0.75)  this.burstType = "heart";
+    else if (shapeType > 0.625) this.burstType = "ring";
+    else                        this.burstType = "classic";
+    this.particles = [];
+  }
+  Firework.prototype.update = function() {
+    if (this.state === "launch") {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.vy += 0.19;
+      this.timer++;
+      if (this.timer >= this.maxTimer || this.vy > 0) {
+        this.state = "burst";
+        let n = 56 + Math.floor(Math.random() * 32);
+        for (let i = 0; i < n; i++) {
+          let angle, speed, px, py;
+          let baseSize = this.size * (0.67 + Math.random()*0.39);
+          let type = this.burstType;
+          let shape = burstShape(type, n, i);
+          if (type === "star") {
+            angle = shape.angle;
+            speed = 3.3 + Math.random() * 1.7;
+          } else if (type === "heart") {
+            // heart-shaped, scaled for burst
+            px = this.x + shape.x * 5.4;
+            py = this.y + shape.y * 5.4;
+            angle = Math.atan2(py-this.y, px-this.x);
+            speed = 3.6 + Math.random() * 1.7;
+          } else if (type === "ring") {
+            angle = shape.angle;
+            speed = 5.1 + Math.random() * 0.9;
+          } else {
+            angle = (i / n) * 2 * Math.PI;
+            speed = Math.random() * 4.2 + 2.5;
+          }
+          let vx = Math.cos(angle) * speed * (type==="heart"?0.6:1);
+          let vy = Math.sin(angle) * speed * (type==="heart"?0.7:1);
+          this.particles.push(new Particle({
+            x: this.x, y: this.y,
+            vx: vx, vy: vy,
+            alpha: 0.96 + Math.random()*0.16,
+            color: randomColor(),
+            size: baseSize,
+            life: 0,
+            seed: Math.random()*1000
+          }));
+        }
+      }
+    } else {
+      // Physics: gravity increases as particle fades (gently)
+      this.particles.forEach(p => p.update(0.048 + 0.017*(1-p.alpha), 0.012 + Math.random() * 0.012));
+      this.particles = this.particles.filter(p => p.alpha > 0.04);
+    }
+  };
+  Firework.prototype.draw = function(ctx) {
+    if (this.state === "launch") {
+      ctx.save();
+      ctx.globalAlpha = 0.52 + 0.12 * Math.random();
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size * 2.0, 0, 2 * Math.PI);
+      ctx.fillStyle = "#fff";
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur = 18;
+      ctx.fill();
+      ctx.restore();
+    } else {
+      this.particles.forEach(p => p.draw(ctx));
+    }
+  };
+
+  window.showFireworks = function(duration = 2400) {
     if (running) return;
     running = true;
     canvas.width = window.innerWidth;
@@ -1705,8 +1786,9 @@ addMomentBtn.addEventListener('click', () => {
       if (!active) return;
       const count = 2 + Math.floor(Math.random()*2);
       for (let i = 0; i < count; i++) fireworks.push(new Firework());
-    }, 330);
+    }, 340);
 
+    // Animated overlay
     const overlay = showOverlay();
 
     function animate(ts) {
@@ -1716,10 +1798,9 @@ addMomentBtn.addEventListener('click', () => {
       fireworks.forEach(fw => fw.update());
       fireworks.forEach(fw => fw.draw(ctx));
       for (let i=fireworks.length-1; i>=0; i--) {
-        if (fireworks[i].state === "burst" && fireworks[i].particles.length === 0)
+        if (fw.state === "burst" && fw.particles.length === 0)
           fireworks.splice(i, 1);
       }
-      // After duration, stop launching new fireworks, but keep animating until all are faded out
       if (ts - start < duration) {
         requestAnimationFrame(animate);
       } else if (fireworks.length > 0) {
@@ -1732,11 +1813,9 @@ addMomentBtn.addEventListener('click', () => {
           canvas.style.display = "none";
           running = false;
           hideOverlay(overlay);
-        }, 530);
+        }, 800);
       }
     }
     requestAnimationFrame(animate);
   };
 })();
-
-
