@@ -1444,3 +1444,144 @@ button:hover,
   .road-marker { width: 38px; height: 38px; font-size: 1rem; }
   .road-timeline::before { height: 5px; }
 }
+
+/* --- Road Timeline Enhancements --- */
+.road-timeline {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  padding: 1rem 0 1.4rem 0;
+  position: relative;
+  margin-bottom: 0.7rem;
+  gap: 0.55rem;
+  animation: shimmerRoad 1.6s cubic-bezier(.45,0,.19,1) 0.1s both;
+}
+@keyframes shimmerRoad {
+  from { opacity: 0; transform: translateY(-18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.road-timeline::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0.7em;
+  right: 0.7em;
+  height: 7px;
+  background: linear-gradient(90deg, #007bff 30%, #64ffda 100%);
+  border-radius: 8px;
+  z-index: 0;
+  transform: translateY(-50%);
+  opacity: 0.33;
+  pointer-events: none;
+  transition: background 0.5s;
+}
+.road-marker {
+  position: relative;
+  z-index: 2;
+  border: none;
+  background: #0a192f;
+  color: #64ffda;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px #007bff22, 0 2px 8px #2238;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1.13rem;
+  font-weight: 700;
+  transition: box-shadow 0.15s, background 0.17s, color 0.15s, transform 0.14s;
+  margin-right: 0.16em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.road-marker.active {
+  background: linear-gradient(92deg, #64ffda 0%, #00c6ff 100%);
+  color: #0a192f;
+  box-shadow: 0 0 0 7px #64ffda33, 0 2px 18px #007bff29;
+  border: 2px solid #00c6ff;
+  font-size: 1.22rem;
+  animation: popIn 0.33s cubic-bezier(.29,1.3,.5,1.05);
+}
+@keyframes popIn {
+  from { transform: scale(0.82); }
+  to   { transform: scale(1); }
+}
+.road-marker:focus, .road-marker:hover {
+  outline: none;
+  background: #223f;
+  color: #fff;
+  box-shadow: 0 0 0 8px #007bff44, 0 2px 18px #64ffda30;
+  transform: scale(1.05);
+}
+
+/* --- Month Filter Upgrade --- */
+#month-filter-container {
+  margin-bottom: 1.2rem;
+}
+#month-filter {
+  border-radius: 999px;
+  padding: 0.42em 1.6em 0.42em 2.5em;
+  border: 2px solid #1c2c45;
+  font-size: 1.09em;
+  background: #132033 url('data:image/svg+xml;utf8,<svg fill="cyan" height="16" width="16" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 1.1em center/18px 18px;
+  color: #64ffda;
+  box-shadow: 0 2px 8px #007bff09;
+  appearance: none;
+  min-width: 170px;
+  font-weight: 600;
+  transition: border 0.2s, background 0.2s;
+}
+#month-filter:focus {
+  border-color: #64ffda;
+  background-color: #20324a;
+}
+#month-filter-container label {
+  font-size: 1.07em;
+  color: #b7beca;
+  font-weight: 500;
+  margin-right: 0.65em;
+  position: relative;
+  padding-left: 1.5em;
+}
+#month-filter-container label::before {
+  content: "📅";
+  position: absolute;
+  left: 0; top: -2px;
+  font-size: 1.1em;
+}
+
+/* --- Toggle Buttons Polished --- */
+#journal-toggle-view {
+  display: flex;
+  gap: 0.7rem;
+  margin-bottom: 1.4rem;
+}
+#journal-toggle-view button {
+  border-radius: 999px;
+  background: #223;
+  color: #64ffda;
+  font-size: 1.13em;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 1.5px 9px #007bff11;
+  padding: 0.51em 2.1em;
+  transition: background 0.15s, color 0.16s, box-shadow 0.16s, transform 0.11s;
+  cursor: pointer;
+  outline: none;
+}
+#journal-toggle-view button.active, #journal-toggle-view button:focus {
+  background: linear-gradient(90deg, #64ffda 0%, #00c6ff 100%);
+  color: #0a192f;
+  box-shadow: 0 0 0 5px #64ffda33;
+  transform: scale(1.04);
+}
+
+/* --- Moment Card Upgrades --- */
+.journal-moment-card {
+  background: linear-gradient(92deg, rgba(58,134,255,0.16) 0%, rgba(0,242,254,0.13) 100%);
+  border-radius: 22px;
+  box-shadow: 0 7px 32px rgba(58,134,255,0.11), 0 2px 8px rgba(0,0,0,0.10);
+  padding: 1.3rem 1.8re
+
