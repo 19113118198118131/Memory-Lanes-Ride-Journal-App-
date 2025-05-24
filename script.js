@@ -1582,25 +1582,57 @@ addMomentBtn.addEventListener('click', () => {
 
 });
 
-function showFireworksCSS(times = 5) {
+function showFireworksCSS(times = 5, showBadge = true) {
+  // Show overlay
+  const overlay = document.getElementById('fireworks-bg-css');
+  if (overlay) {
+    overlay.style.display = 'block';
+    overlay.style.opacity = '1';
+  }
+
+  // Show optional badge
+  let badge;
+  if (showBadge) {
+    badge = document.createElement('div');
+    badge.className = 'fireworks-badge';
+    badge.innerHTML = '🎉 Ride Saved!';
+    document.body.appendChild(badge);
+    setTimeout(() => badge.remove(), 1800);
+  }
+
+  // Fireworks bursts
   for (let t = 0; t < times; t++) {
     setTimeout(() => {
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < 16; i++) {
         const firework = document.createElement('div');
         firework.className = 'firework';
-        const angle = (i / 14) * 2 * Math.PI;
-        const distance = 90 + Math.random() * 50;
+        const angle = (i / 16) * 2 * Math.PI;
+        const distance = 98 + Math.random() * 56;
         const dx = Math.cos(angle) * distance;
         const dy = Math.sin(angle) * distance;
         firework.style.setProperty('--dx', `${dx}px`);
         firework.style.setProperty('--dy', `${dy}px`);
-        // Random color
-        firework.style.background = `hsl(${Math.floor(Math.random()*360)},98%,62%)`;
-        firework.style.boxShadow = `0 0 16px 3px ${firework.style.background}`;
+        // Premium color palette
+        const colors = [
+          '#64ffda', '#ff6384', '#8338ec', '#fff', '#00c6ff', '#ffd700',
+          '#f47d3d', '#19ed7d'
+        ];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        firework.style.background = color;
+        firework.style.boxShadow = `0 0 18px 6px ${color}, 0 0 32px 8px #fff2`;
         document.body.appendChild(firework);
-        setTimeout(() => firework.remove(), 1200);
+        setTimeout(() => firework.remove(), 1400);
       }
-    }, t * 280);
+    }, t * 270);
   }
+
+  // Hide overlay after animation
+  setTimeout(() => {
+    if (overlay) {
+      overlay.style.opacity = '0';
+      setTimeout(() => { overlay.style.display = 'none'; }, 420);
+    }
+  }, 270 * times + 900);
 }
 window.showFireworks = showFireworksCSS;
+
