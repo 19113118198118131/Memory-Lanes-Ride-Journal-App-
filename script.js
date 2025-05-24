@@ -1584,8 +1584,8 @@ addMomentBtn.addEventListener('click', () => {
 
 
 // =============== CANVAS FIREWORKS CELEBRATION ===============
+
 (function() {
-  // Minimal firework/particle system
   const canvas = document.getElementById('fireworks-canvas');
   const ctx = canvas.getContext('2d');
   let running = false;
@@ -1597,19 +1597,19 @@ addMomentBtn.addEventListener('click', () => {
     return palette[Math.floor(Math.random() * palette.length)];
   }
 
-  // Firework class (burst)
   function Firework() {
-    this.x = Math.random() * canvas.width * 0.6 + canvas.width * 0.2;
-    this.y = canvas.height * (0.62 + Math.random() * 0.2);
+    // Randomize burst origin (not just bottom)
+    this.x = Math.random() * canvas.width * 0.65 + canvas.width * 0.175;
+    this.y = canvas.height * (0.45 + Math.random() * 0.2);
     this.particles = [];
     this.color = randomColor();
-    this.size = 1.6 + Math.random() * 1.6;
-    // Launch upward first, then burst
-    this.vx = (Math.random() - 0.5) * 2.3;
-    this.vy = -8 - Math.random() * 3;
+    this.size = 2 + Math.random() * 2.1;
+    // Launch slightly off-center
+    this.vx = (Math.random() - 0.5) * 2.4;
+    this.vy = -8.2 - Math.random() * 2.8;
     this.state = "launch";
     this.timer = 0;
-    this.maxTimer = 18 + Math.random() * 8;
+    this.maxTimer = 18 + Math.random() * 10;
   }
   Firework.prototype.update = function() {
     if (this.state === "launch") {
@@ -1618,29 +1618,28 @@ addMomentBtn.addEventListener('click', () => {
       this.vy += 0.18;
       this.timer++;
       if (this.timer >= this.maxTimer || this.vy > 0) {
-        // Burst!
+        // Premium: 60–90 particles per burst
         this.state = "burst";
-        for (let i = 0; i < 36 + Math.random() * 24; i++) {
-          const angle = (i / 48) * Math.PI * 2;
-          const speed = Math.random() * 3.5 + 2.3;
+        for (let i = 0; i < 54 + Math.random() * 36; i++) {
+          const angle = (i / (70 + Math.random()*12)) * Math.PI * 2;
+          const speed = Math.random() * 4.2 + 2.8;
           this.particles.push({
             x: this.x,
             y: this.y,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
-            alpha: 1,
+            alpha: 0.97 + Math.random()*0.18,
             color: randomColor(),
-            size: this.size * (0.82 + Math.random()*0.36)
+            size: this.size * (0.9 + Math.random()*0.45)
           });
         }
       }
     } else {
-      // Update burst particles
       this.particles.forEach(p => {
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.046; // gravity
-        p.alpha -= 0.016 + Math.random() * 0.01;
+        p.vy += 0.047; // gravity
+        p.alpha -= 0.012 + Math.random() * 0.012; // slower fade
       });
       this.particles = this.particles.filter(p => p.alpha > 0);
     }
@@ -1648,12 +1647,12 @@ addMomentBtn.addEventListener('click', () => {
   Firework.prototype.draw = function(ctx) {
     if (this.state === "launch") {
       ctx.save();
-      ctx.globalAlpha = 0.42 + 0.16 * Math.random();
+      ctx.globalAlpha = 0.44 + 0.18 * Math.random();
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.size * 2, 0, 2 * Math.PI);
+      ctx.arc(this.x, this.y, this.size * 2.1, 0, 2 * Math.PI);
       ctx.fillStyle = "#fff";
       ctx.shadowColor = this.color;
-      ctx.shadowBlur = 16;
+      ctx.shadowBlur = 22;
       ctx.fill();
       ctx.restore();
     } else {
@@ -1664,26 +1663,54 @@ addMomentBtn.addEventListener('click', () => {
         ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
         ctx.fillStyle = p.color;
         ctx.shadowColor = p.color;
-        ctx.shadowBlur = 22;
+        ctx.shadowBlur = 28; // stronger, softer glow
         ctx.fill();
         ctx.restore();
       });
     }
   };
 
-  // Main function to show fireworks for a set duration
-  window.showFireworks = function(duration = 3000) {
+  // Optional: dark overlay
+  function showOverlay() {
+    let overlay = document.getElementById('fireworks-premium-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'fireworks-premium-overlay';
+      overlay.style.cssText = `
+        position:fixed;left:0;top:0;width:100vw;height:100vh;
+        background:rgba(15,18,28,0.42);
+        z-index:99998;pointer-events:none;opacity:0;
+        transition:opacity 0.3s;`;
+      document.body.appendChild(overlay);
+    }
+    overlay.style.opacity = '1';
+    overlay.style.display = 'block';
+    return overlay;
+  }
+
+  function hideOverlay(overlay) {
+    if (overlay) {
+      overlay.style.opacity = '0';
+      setTimeout(() => { overlay.style.display = 'none'; }, 420);
+    }
+  }
+
+  window.showFireworks = function(duration = 3400) {
     if (running) return;
     running = true;
-    // Prepare canvas
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     canvas.style.display = "block";
     let fireworks = [];
     let start = null;
+    // Premium: launch 2-3 fireworks per interval, for a denser effect
     let interval = setInterval(() => {
-      fireworks.push(new Firework());
-    }, 240);
+      const count = 2 + Math.floor(Math.random()*2);
+      for (let i = 0; i < count; i++) fireworks.push(new Firework());
+    }, 330);
+
+    // Overlay fade-in
+    const overlay = showOverlay();
 
     function animate(ts) {
       if (!start) start = ts;
@@ -1691,12 +1718,10 @@ addMomentBtn.addEventListener('click', () => {
 
       fireworks.forEach(fw => fw.update());
       fireworks.forEach(fw => fw.draw(ctx));
-      // Remove finished
       for (let i=fireworks.length-1; i>=0; i--) {
         if (fireworks[i].state === "burst" && fireworks[i].particles.length === 0)
           fireworks.splice(i, 1);
       }
-
       if (ts - start < duration) {
         requestAnimationFrame(animate);
       } else {
@@ -1704,10 +1729,10 @@ addMomentBtn.addEventListener('click', () => {
         setTimeout(() => {
           canvas.style.display = "none";
           running = false;
-        }, 430); // fade out after last burst
+          hideOverlay(overlay);
+        }, 530); // fade out after last burst
       }
     }
     requestAnimationFrame(animate);
   };
 })();
-
