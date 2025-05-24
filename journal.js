@@ -3,22 +3,26 @@ import supabase from './supabaseClient.js';
 const momentsList = document.getElementById('journal-moments-list');
 const galleryBtn = document.getElementById('gallery-view-btn');
 const timelineBtn = document.getElementById('timeline-view-btn');
+const roadTimelineContainer = document.getElementById('road-timeline-container');
+const monthFilterContainer = document.getElementById('month-filter-container');
 
-// Utility: Render an error message to the moments area
+// === Utility Functions ===
+
+// Render an error message to the moments area
 function renderError(message) {
   if (momentsList) {
     momentsList.innerHTML = `<div class="error-message">${message}</div>`;
   }
 }
 
-// Utility: Render a loading state
+// Render a loading state
 function renderLoading() {
   if (momentsList) {
     momentsList.innerHTML = `<div class="loading-message">Loading your moments...</div>`;
   }
 }
 
-// Utility: Render moments (accepts array of moment objects)
+// Render moments (accepts array of moment objects)
 function renderMoments(momentArr = []) {
   if (!momentsList) return;
 
@@ -27,7 +31,7 @@ function renderMoments(momentArr = []) {
     return;
   }
 
-  // Document fragment for better performance with large lists
+  // Use document fragment for performance with large lists
   const frag = document.createDocumentFragment();
 
   momentArr.forEach(m => {
@@ -48,12 +52,11 @@ function renderMoments(momentArr = []) {
     frag.appendChild(div);
   });
 
-  // Replace content at once for performance
   momentsList.innerHTML = '';
   momentsList.appendChild(frag);
 }
 
-// Utility: Toggle between Timeline and Gallery view
+// Setup Timeline/Gallery View Toggle
 function setupViewToggle() {
   if (!galleryBtn || !timelineBtn || !momentsList) return;
   galleryBtn.addEventListener('click', () => {
@@ -72,11 +75,69 @@ function setupViewToggle() {
   });
 }
 
-// Main app logic wrapped in IIFE for async/await
+// Render the horizontal "road" timeline by year and attach click events
+function renderRoadTimeline(yearsArray, activeYear, onSelectYear) {
+  if (!roadTimelineContainer) return;
+  if (!Array.isArray(yearsArray) || yearsArray.length === 0) {
+    roadTimelineContainer.innerHTML = '';
+    return;
+  }
+
+  // Horizontal scrollable timeline styled as a road
+  let html = `<div class="road-timeline">`;
+  html += `<button class="road-marker${!activeYear ? ' active' : ''}" data-year="" title="Show all years">🏁</button>`;
+  yearsArray.forEach(year => {
+    html += `<button class="road-marker${activeYear === year ? ' active' : ''}" data-year="${year}" title="Show ${year}">${year}</button>`;
+  });
+  html += `</div>`;
+  roadTimelineContainer.innerHTML = html;
+
+  roadTimelineContainer.querySelectorAll('.road-marker').forEach(marker => {
+    marker.addEventListener('click', () => {
+      const year = marker.getAttribute('data-year');
+      onSelectYear(year || null); // Pass null for "Show All"
+    });
+  });
+}
+
+// Render a month filter dropdown (based on filtered moments)
+function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
+  if (!monthFilterContainer) return;
+
+  // No months to filter (or only one) = hide dropdown
+  if (!Array.isArray(monthsArray) || monthsArray.length <= 1) {
+    monthFilterContainer.innerHTML = '';
+    return;
+  }
+
+  // Month names
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  let html = `<label for="month-filter">Month: </label>`;
+  html += `<select id="month-filter"><option value="">All Months</option>`;
+  monthsArray.forEach(m => {
+    html += `<option value="${m}"${activeMonth === m ? ' selected' : ''}>${monthNames[m - 1]}</option>`;
+  });
+  html += `</select>`;
+  monthFilterContainer.innerHTML = html;
+
+  // Attach event
+  const select = document.getElementById('month-filter');
+  if (select) {
+    select.addEventListener('change', () => {
+      onSelectMonth(select.value ? parseInt(select.value, 10) : null);
+    });
+  }
+}
+
+// ========== Main app logic ==========
 (async function main() {
   renderLoading();
 
-  // 1. Check if user is logged in
+  // 1. Authenticate user
   let user;
   try {
     const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -90,7 +151,7 @@ function setupViewToggle() {
     return;
   }
 
-  // 2. Fetch rides and handle DB errors
+  // 2. Fetch rides and handle errors
   let rides;
   try {
     const { data, error } = await supabase
@@ -114,7 +175,6 @@ function setupViewToggle() {
   rides.forEach(ride => {
     if (Array.isArray(ride.moments)) {
       ride.moments.forEach((moment, idx) => {
-        // Defensive: Only process objects
         if (moment && typeof moment === 'object') {
           allMoments.push({
             ...moment,
@@ -136,12 +196,65 @@ function setupViewToggle() {
     return (b.idx || 0) - (a.idx || 0);
   });
 
-  // 5. Render all moments or empty state
-  renderMoments(allMoments);
+  // 5. Derive years
+  const years = Array.from(new Set(
+    allMoments
+      .map(m => (m.rideDate ? new Date(m.rideDate).getFullYear() : null))
+      .filter(Boolean)
+  )).sort((a, b) => a - b);
 
-  // 6. Setup view toggles (once DOM is ready)
+  // ========== State ==========
+  let selectedYear = null;
+  let selectedMonth = null;
+
+  // Helper: filter moments by year and month
+  function filterMoments(year, month) {
+    return allMoments.filter(m => {
+      if (!m.rideDate) return false;
+      const d = new Date(m.rideDate);
+      const y = d.getFullYear();
+      const mth = d.getMonth() + 1;
+      return (!year || y === parseInt(year, 10)) &&
+             (!month || mth === parseInt(month, 10));
+    });
+  }
+
+  // Helper: get all months (as numbers) for a given year in the data
+  function getMonthsForYear(year) {
+    return Array.from(new Set(
+      allMoments
+        .filter(m => m.rideDate && new Date(m.rideDate).getFullYear() === parseInt(year, 10))
+        .map(m => new Date(m.rideDate).getMonth() + 1)
+    )).sort((a, b) => a - b);
+  }
+
+  // Handler: when timeline marker is clicked
+  function handleYearSelect(year) {
+    selectedYear = year;
+    selectedMonth = null;
+    renderRoadTimeline(years, selectedYear, handleYearSelect);
+    // If year is selected, render month filter if >1 month in data
+    if (selectedYear) {
+      const months = getMonthsForYear(selectedYear);
+      renderMonthFilter(months, selectedMonth, handleMonthSelect);
+      renderMoments(filterMoments(selectedYear, null));
+    } else {
+      monthFilterContainer.innerHTML = '';
+      renderMoments(allMoments);
+    }
+  }
+
+  // Handler: when month is selected
+  function handleMonthSelect(month) {
+    selectedMonth = month;
+    renderMonthFilter(getMonthsForYear(selectedYear), selectedMonth, handleMonthSelect);
+    renderMoments(filterMoments(selectedYear, selectedMonth));
+  }
+
+  // ========== Initial render ==========
+  renderRoadTimeline(years, selectedYear, handleYearSelect);
+  renderMoments(allMoments);
   setupViewToggle();
 
-  // Optionally: Add future hooks for filtering/search here
+  // Optionally: Add future hooks for advanced filters/search here
 })();
-
