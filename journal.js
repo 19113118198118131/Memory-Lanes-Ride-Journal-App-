@@ -1,4 +1,6 @@
 import supabase from './supabaseClient.js';
+import { PageFlip } from "https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/dist/js/page-flip.module.min.js";
+
 
 const momentsList = document.getElementById('journal-moments-list');
 const galleryBtn = document.getElementById('gallery-view-btn');
@@ -197,7 +199,7 @@ function renderStPageFlipBook(moments, animationStyle) {
   `);
 
   // Instantiate StPageFlip
-  pageFlipInstance = new window.PageFlip(flipbookContainer, {
+  pageFlipInstance = new PageFlip(flipbookContainer, {
     width: 480,
     height: 320,
     size: "fixed",
