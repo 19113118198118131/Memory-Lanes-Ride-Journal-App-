@@ -1691,8 +1691,8 @@ addMomentBtn.addEventListener('click', () => {
 
   function Firework() {
     // Randomize burst center
-    this.x = Math.random() * canvas.width * 0.65 + canvas.width * 0.175;
-    this.y = canvas.height * (0.46 + Math.random() * 0.22);
+    this.x = canvas.width / 2;
+    this.y = canvas.height / 2;
     this.color = randomColor();
     this.size = 1.0 + Math.random() * 1.1;
     this.vx = (Math.random() - 0.5) * 2.4;
@@ -1773,7 +1773,7 @@ addMomentBtn.addEventListener('click', () => {
     }
   };
 
-  window.showFireworks = function(duration = 1000) {
+  window.showFireworks = function(duration = 1500) {
     if (running) return;
     running = true;
     canvas.width = window.innerWidth;
