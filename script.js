@@ -1580,8 +1580,10 @@ addMomentBtn.addEventListener('click', () => {
   renderMoments();
 });
 
+});
+
 // === FIREWORKS CELEBRATION ===
-function showFireworks(duration = 2200) {
+function showFireworks(duration = 1800) {
   const canvas = document.getElementById('fireworks-canvas');
   if (!canvas) return;
   canvas.width = window.innerWidth;
@@ -1681,12 +1683,7 @@ function showFireworks(duration = 2200) {
   }
   animate();
 }
-
-
-
-});
-
-
+window.showFireworks = showFireworks;
 
 
 
