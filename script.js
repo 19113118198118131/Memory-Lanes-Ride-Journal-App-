@@ -1582,57 +1582,132 @@ addMomentBtn.addEventListener('click', () => {
 
 });
 
-function showFireworksCSS(times = 5, showBadge = true) {
-  // Show overlay
-  const overlay = document.getElementById('fireworks-bg-css');
-  if (overlay) {
-    overlay.style.display = 'block';
-    overlay.style.opacity = '1';
+
+// =============== CANVAS FIREWORKS CELEBRATION ===============
+(function() {
+  // Minimal firework/particle system
+  const canvas = document.getElementById('fireworks-canvas');
+  const ctx = canvas.getContext('2d');
+  let running = false;
+
+  function randomColor() {
+    const palette = [
+      '#64ffda','#ff6384','#ffd700','#fff','#00c6ff','#8338ec','#ffac00','#19ed7d'
+    ];
+    return palette[Math.floor(Math.random() * palette.length)];
   }
 
-  // Show optional badge
-  let badge;
-  if (showBadge) {
-    badge = document.createElement('div');
-    badge.className = 'fireworks-badge';
-    badge.innerHTML = '🎉 Ride Saved!';
-    document.body.appendChild(badge);
-    setTimeout(() => badge.remove(), 1800);
+  // Firework class (burst)
+  function Firework() {
+    this.x = Math.random() * canvas.width * 0.6 + canvas.width * 0.2;
+    this.y = canvas.height * (0.62 + Math.random() * 0.2);
+    this.particles = [];
+    this.color = randomColor();
+    this.size = 1.6 + Math.random() * 1.6;
+    // Launch upward first, then burst
+    this.vx = (Math.random() - 0.5) * 2.3;
+    this.vy = -8 - Math.random() * 3;
+    this.state = "launch";
+    this.timer = 0;
+    this.maxTimer = 18 + Math.random() * 8;
   }
-
-  // Fireworks bursts
-  for (let t = 0; t < times; t++) {
-    setTimeout(() => {
-      for (let i = 0; i < 16; i++) {
-        const firework = document.createElement('div');
-        firework.className = 'firework';
-        const angle = (i / 16) * 2 * Math.PI;
-        const distance = 98 + Math.random() * 56;
-        const dx = Math.cos(angle) * distance;
-        const dy = Math.sin(angle) * distance;
-        firework.style.setProperty('--dx', `${dx}px`);
-        firework.style.setProperty('--dy', `${dy}px`);
-        // Premium color palette
-        const colors = [
-          '#64ffda', '#ff6384', '#8338ec', '#fff', '#00c6ff', '#ffd700',
-          '#f47d3d', '#19ed7d'
-        ];
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        firework.style.background = color;
-        firework.style.boxShadow = `0 0 18px 6px ${color}, 0 0 32px 8px #fff2`;
-        document.body.appendChild(firework);
-        setTimeout(() => firework.remove(), 1400);
+  Firework.prototype.update = function() {
+    if (this.state === "launch") {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.vy += 0.18;
+      this.timer++;
+      if (this.timer >= this.maxTimer || this.vy > 0) {
+        // Burst!
+        this.state = "burst";
+        for (let i = 0; i < 36 + Math.random() * 24; i++) {
+          const angle = (i / 48) * Math.PI * 2;
+          const speed = Math.random() * 3.5 + 2.3;
+          this.particles.push({
+            x: this.x,
+            y: this.y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            alpha: 1,
+            color: randomColor(),
+            size: this.size * (0.82 + Math.random()*0.36)
+          });
+        }
       }
-    }, t * 270);
-  }
-
-  // Hide overlay after animation
-  setTimeout(() => {
-    if (overlay) {
-      overlay.style.opacity = '0';
-      setTimeout(() => { overlay.style.display = 'none'; }, 420);
+    } else {
+      // Update burst particles
+      this.particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.046; // gravity
+        p.alpha -= 0.016 + Math.random() * 0.01;
+      });
+      this.particles = this.particles.filter(p => p.alpha > 0);
     }
-  }, 270 * times + 900);
-}
-window.showFireworks = showFireworksCSS;
+  };
+  Firework.prototype.draw = function(ctx) {
+    if (this.state === "launch") {
+      ctx.save();
+      ctx.globalAlpha = 0.42 + 0.16 * Math.random();
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size * 2, 0, 2 * Math.PI);
+      ctx.fillStyle = "#fff";
+      ctx.shadowColor = this.color;
+      ctx.shadowBlur = 16;
+      ctx.fill();
+      ctx.restore();
+    } else {
+      this.particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 22;
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+  };
+
+  // Main function to show fireworks for a set duration
+  window.showFireworks = function(duration = 1700) {
+    if (running) return;
+    running = true;
+    // Prepare canvas
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    canvas.style.display = "block";
+    let fireworks = [];
+    let start = null;
+    let interval = setInterval(() => {
+      fireworks.push(new Firework());
+    }, 240);
+
+    function animate(ts) {
+      if (!start) start = ts;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      fireworks.forEach(fw => fw.update());
+      fireworks.forEach(fw => fw.draw(ctx));
+      // Remove finished
+      for (let i=fireworks.length-1; i>=0; i--) {
+        if (fireworks[i].state === "burst" && fireworks[i].particles.length === 0)
+          fireworks.splice(i, 1);
+      }
+
+      if (ts - start < duration) {
+        requestAnimationFrame(animate);
+      } else {
+        clearInterval(interval);
+        setTimeout(() => {
+          canvas.style.display = "none";
+          running = false;
+        }, 430); // fade out after last burst
+      }
+    }
+    requestAnimationFrame(animate);
+  };
+})();
 
