@@ -70,3 +70,21 @@ const momentsList = document.getElementById('journal-moments-list');
     momentsList.appendChild(div);
   });
 })();
+
+// ---- Timeline/Gallery View Toggle ----
+const galleryBtn = document.getElementById('gallery-view-btn');
+const timelineBtn = document.getElementById('timeline-view-btn');
+
+if (galleryBtn && timelineBtn && momentsList) {
+  galleryBtn.addEventListener('click', () => {
+    galleryBtn.classList.add('active');
+    timelineBtn.classList.remove('active');
+    momentsList.classList.add('gallery-view');
+  });
+  timelineBtn.addEventListener('click', () => {
+    timelineBtn.classList.add('active');
+    galleryBtn.classList.remove('active');
+    momentsList.classList.remove('gallery-view');
+  });
+}
+
