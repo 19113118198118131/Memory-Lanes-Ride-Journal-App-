@@ -1692,7 +1692,7 @@ addMomentBtn.addEventListener('click', () => {
   }
 
   // --- Here is the key: fire for duration, then let fade out naturally
-  window.showFireworks = function(duration = 3400) {
+  window.showFireworks = function(duration = 2000) {
     if (running) return;
     running = true;
     canvas.width = window.innerWidth;
