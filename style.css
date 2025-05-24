@@ -1694,3 +1694,36 @@ button:hover,
 .page-wrapper {
   background: transparent !important;
 }
+
+a {
+  color: #00c6ff;
+  text-decoration: none;    /* Removes underline */
+  font-weight: 500;
+  transition: color 0.17s, text-decoration 0.12s;
+}
+a:hover, a:focus-visible {
+  color: #64ffda;
+  text-decoration: underline; /* Only underline on hover/focus */
+  outline: none;
+}
+nav a, .site-nav a, .vibe-nav a {
+  color: #64ffda;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.16s, text-decoration 0.15s;
+}
+nav a:hover, .site-nav a:hover, .vibe-nav a:hover {
+  color: #fff;
+  text-shadow: 0 0 12px #64ffda22;
+  text-decoration: underline;
+}
+footer a {
+  color: #00c6ff;
+  font-weight: 700;
+  text-decoration: none;
+}
+footer a:hover {
+  color: #64ffda;
+  text-decoration: underline;
+}
+
