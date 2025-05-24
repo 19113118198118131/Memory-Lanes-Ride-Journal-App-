@@ -1807,7 +1807,7 @@ addMomentBtn.addEventListener('click', () => {
 
     // Centered for perf + style
     const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
+    const centerY = canvas.height * 0.25; // 25% from the top
 
     // Start a new firework every 260ms, 1 or 2 at a time
     let interval = setInterval(() => {
