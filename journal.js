@@ -3,22 +3,25 @@ import supabase from './supabaseClient.js';
 const momentsList = document.getElementById('journal-moments-list');
 const galleryBtn = document.getElementById('gallery-view-btn');
 const timelineBtn = document.getElementById('timeline-view-btn');
+const roadTimelineContainer = document.getElementById('road-timeline-container');
 
-// Utility: Render an error message to the moments area
+// === Utility Functions ===
+
+// Render an error message to the moments area
 function renderError(message) {
   if (momentsList) {
     momentsList.innerHTML = `<div class="error-message">${message}</div>`;
   }
 }
 
-// Utility: Render a loading state
+// Render a loading state
 function renderLoading() {
   if (momentsList) {
     momentsList.innerHTML = `<div class="loading-message">Loading your moments...</div>`;
   }
 }
 
-// Utility: Render moments (accepts array of moment objects)
+// Render moments (accepts array of moment objects)
 function renderMoments(momentArr = []) {
   if (!momentsList) return;
 
@@ -27,7 +30,7 @@ function renderMoments(momentArr = []) {
     return;
   }
 
-  // Document fragment for better performance with large lists
+  // Use document fragment for performance with large lists
   const frag = document.createDocumentFragment();
 
   momentArr.forEach(m => {
@@ -48,12 +51,11 @@ function renderMoments(momentArr = []) {
     frag.appendChild(div);
   });
 
-  // Replace content at once for performance
   momentsList.innerHTML = '';
   momentsList.appendChild(frag);
 }
 
-// Utility: Toggle between Timeline and Gallery view
+// Setup Timeline/Gallery View Toggle
 function setupViewToggle() {
   if (!galleryBtn || !timelineBtn || !momentsList) return;
   galleryBtn.addEventListener('click', () => {
@@ -72,11 +74,41 @@ function setupViewToggle() {
   });
 }
 
-// Main app logic wrapped in IIFE for async/await
+// Render the horizontal "road" timeline by year and attach click events
+function renderRoadTimeline(yearsArray, activeYear, onSelectYear) {
+  if (!roadTimelineContainer) return;
+  if (!Array.isArray(yearsArray) || yearsArray.length === 0) {
+    roadTimelineContainer.innerHTML = '';
+    return;
+  }
+
+  // Horizontal scrollable timeline styled as a road
+  let html = `<div class="road-timeline">`;
+
+  // "Show All" marker
+  html += `<button class="road-marker${!activeYear ? ' active' : ''}" data-year="" title="Show all years">🏁</button>`;
+
+  yearsArray.forEach(year => {
+    html += `<button class="road-marker${activeYear === year ? ' active' : ''}" data-year="${year}" title="Show ${year}">${year}</button>`;
+  });
+
+  html += `</div>`;
+  roadTimelineContainer.innerHTML = html;
+
+  // Attach event listeners
+  roadTimelineContainer.querySelectorAll('.road-marker').forEach(marker => {
+    marker.addEventListener('click', e => {
+      const year = marker.getAttribute('data-year');
+      onSelectYear(year || null); // Pass null for "Show All"
+    });
+  });
+}
+
+// ========== Main app logic ==========
 (async function main() {
   renderLoading();
 
-  // 1. Check if user is logged in
+  // 1. Authenticate user
   let user;
   try {
     const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -90,7 +122,7 @@ function setupViewToggle() {
     return;
   }
 
-  // 2. Fetch rides and handle DB errors
+  // 2. Fetch rides and handle errors
   let rides;
   try {
     const { data, error } = await supabase
@@ -114,7 +146,6 @@ function setupViewToggle() {
   rides.forEach(ride => {
     if (Array.isArray(ride.moments)) {
       ride.moments.forEach((moment, idx) => {
-        // Defensive: Only process objects
         if (moment && typeof moment === 'object') {
           allMoments.push({
             ...moment,
@@ -136,12 +167,35 @@ function setupViewToggle() {
     return (b.idx || 0) - (a.idx || 0);
   });
 
-  // 5. Render all moments or empty state
+  // 5. Derive years (deduplicated, sorted)
+  const years = Array.from(new Set(
+    allMoments
+      .map(m => (m.rideDate ? new Date(m.rideDate).getFullYear() : null))
+      .filter(Boolean)
+  )).sort((a, b) => a - b);
+
+  // 6. State: currently selected year (null = all)
+  let selectedYear = null;
+
+  // Helper: filter moments by selected year
+  function filterMomentsByYear(year) {
+    if (!year) return allMoments;
+    return allMoments.filter(m => m.rideDate && new Date(m.rideDate).getFullYear().toString() === year.toString());
+  }
+
+  // Handler: when timeline marker is clicked
+  function handleYearSelect(year) {
+    selectedYear = year;
+    renderRoadTimeline(years, selectedYear, handleYearSelect);
+    renderMoments(filterMomentsByYear(selectedYear));
+  }
+
+  // 7. Initial render: timeline + all moments
+  renderRoadTimeline(years, selectedYear, handleYearSelect);
   renderMoments(allMoments);
 
-  // 6. Setup view toggles (once DOM is ready)
+  // 8. Setup view toggles
   setupViewToggle();
 
-  // Optionally: Add future hooks for filtering/search here
+  // Optionally: Add future hooks for advanced filters/search here
 })();
-
