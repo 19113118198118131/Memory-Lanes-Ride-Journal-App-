@@ -1672,7 +1672,7 @@ addMomentBtn.addEventListener('click', () => {
   };
 
   // Main function to show fireworks for a set duration
-  window.showFireworks = function(duration = 2200) {
+  window.showFireworks = function(duration = 3000) {
     if (running) return;
     running = true;
     // Prepare canvas
