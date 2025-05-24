@@ -1582,60 +1582,29 @@ addMomentBtn.addEventListener('click', () => {
 
 });
 
-function showFireworks(duration = 2000) {
-  const canvas = document.getElementById('fireworks-canvas');
-  if (!canvas) return;
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  canvas.style.display = 'block';
-  const ctx = canvas.getContext('2d');
-  const particles = [];
-
-  // Create a simple "burst"
-  for (let i = 0; i < 32; i++) {
-    const angle = (i / 32) * Math.PI * 2;
-    const speed = 6 + Math.random() * 4;
-    particles.push({
-      x: canvas.width/2,
-      y: canvas.height/2,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      alpha: 1,
-      color: '#ffd700'
-    });
+function showFireworksCSS(times = 5) {
+  for (let t = 0; t < times; t++) {
+    setTimeout(() => {
+      for (let i = 0; i < 14; i++) {
+        const firework = document.createElement('div');
+        firework.className = 'firework';
+        const angle = (i / 14) * 2 * Math.PI;
+        const distance = 90 + Math.random() * 50;
+        const dx = Math.cos(angle) * distance;
+        const dy = Math.sin(angle) * distance;
+        firework.style.setProperty('--dx', `${dx}px`);
+        firework.style.setProperty('--dy', `${dy}px`);
+        // Random color
+        firework.style.background = `hsl(${Math.floor(Math.random()*360)},98%,62%)`;
+        firework.style.boxShadow = `0 0 16px 3px ${firework.style.background}`;
+        document.body.appendChild(firework);
+        setTimeout(() => firework.remove(), 1200);
+      }
+    }, t * 280);
   }
-
-  let start = null;
-  function animate(ts) {
-    if (!start) start = ts;
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    particles.forEach(p => {
-      ctx.save();
-      ctx.globalAlpha = p.alpha;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 6, 0, 2*Math.PI);
-      ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 10;
-      ctx.fill();
-      ctx.restore();
-      // Move
-      p.x += p.vx;
-      p.y += p.vy;
-      p.alpha -= 0.018;
-    });
-
-    if (ts - start < duration && particles.some(p=>p.alpha > 0)) {
-      requestAnimationFrame(animate);
-    } else {
-      canvas.style.display = 'none';
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-    }
-  }
-  animate();
 }
-window.showFireworks = showFireworks;
+window.showFireworks = showFireworksCSS;
+
 
 
 
