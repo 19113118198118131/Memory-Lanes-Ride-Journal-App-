@@ -1407,7 +1407,7 @@ saveBtn.addEventListener('click', async () => {
   }
 
   showToast('✅ Ride saved!', "add");
-  showFireworks();
+  showFireworks(2200);
   saveForm.style.display = 'none';
   
   // Insert “Go to Dashboard” button
