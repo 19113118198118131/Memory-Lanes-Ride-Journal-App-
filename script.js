@@ -1407,7 +1407,7 @@ saveBtn.addEventListener('click', async () => {
   }
 
   showToast('✅ Ride saved!', "add");
-  showFireworks(2200);
+  showFireworks();
   saveForm.style.display = 'none';
   
   // Insert “Go to Dashboard” button
@@ -1581,7 +1581,7 @@ addMomentBtn.addEventListener('click', () => {
 });
 
 // === FIREWORKS CELEBRATION ===
-function showFireworks(duration = 1800) {
+function showFireworks(duration = 2200) {
   const canvas = document.getElementById('fireworks-canvas');
   if (!canvas) return;
   canvas.width = window.innerWidth;
