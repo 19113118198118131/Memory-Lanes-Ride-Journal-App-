@@ -1583,6 +1583,9 @@ addMomentBtn.addEventListener('click', () => {
 });
 
 function showFireworks(duration = 2000) {
+  const bg = document.getElementById('fireworks-bg');
+  if (bg) bg.style.display = 'block';
+
   const canvas = document.getElementById('fireworks-canvas');
   if (!canvas) return;
   canvas.width = window.innerWidth;
@@ -1687,14 +1690,10 @@ function showFireworks(duration = 2000) {
     } else {
       canvas.style.display = 'none';
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (bg) bg.style.display = 'none';
     }
   }
   animate();
 }
 window.showFireworks = showFireworks;
-
-
-
-
-
 
