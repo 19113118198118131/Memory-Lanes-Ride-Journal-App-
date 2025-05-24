@@ -1584,13 +1584,21 @@ addMomentBtn.addEventListener('click', () => {
 
 
 // =============== CANVAS FIREWORKS CELEBRATION ===============
+// Premium, performant, robust. Triggers a short celebration at screen center.
+// Requires: <canvas id="fireworks-canvas"></canvas> somewhere in HTML.
 
 (function() {
+  // --- Get and validate canvas ---
   const canvas = document.getElementById('fireworks-canvas');
+  if (!canvas || !canvas.getContext) {
+    console.warn('[Fireworks] Canvas element not found or unsupported.');
+    window.showFireworks = () => {};
+    return;
+  }
   const ctx = canvas.getContext('2d');
-  let running = false;
+  let running = false;      // Prevent overlapping shows
 
-  // Overlay vignette (smooth fade in/out)
+  // --- (Optional) Overlay vignette for drama ---
   function showOverlay() {
     let overlay = document.getElementById('fireworks-premium-overlay');
     if (!overlay) {
@@ -1598,7 +1606,7 @@ addMomentBtn.addEventListener('click', () => {
       overlay.id = 'fireworks-premium-overlay';
       overlay.style.cssText = `
         position:fixed;left:0;top:0;width:100vw;height:100vh;
-        background:radial-gradient(ellipse at center, rgba(0,0,0,0.42) 60%, rgba(10,15,30,0.76) 100%);
+        background:radial-gradient(ellipse at center, rgba(0,0,0,0.36) 60%, rgba(10,15,30,0.69) 100%);
         z-index:99998;pointer-events:none;opacity:0;
         transition:opacity 0.7s cubic-bezier(.77,0,.18,1);`;
       document.body.appendChild(overlay);
@@ -1614,19 +1622,28 @@ addMomentBtn.addEventListener('click', () => {
     }
   }
 
-  // --- Burst Shapes: classic, heart, star, ring ---
+  // --- Window resize: always keep canvas full-window size ---
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', () => {
+    if (running) resizeCanvas();
+  });
+
+  // --- Burst shape: classic, heart, star, ring ---
   function burstShape(type, n, i) {
     const theta = (i / n) * 2 * Math.PI;
     if (type === 'star') {
-      // 5-point star path
+      // 5-point star: alternate between inner/outer points
       const points = 5, inner = 0.48, outer = 1;
-      const starI = i % (points*2);
+      const starI = i % (points * 2);
       return (starI % 2 === 0)
         ? { r: outer, angle: (starI/2) * (2*Math.PI/points) }
         : { r: inner, angle: ((starI-1)/2) * (2*Math.PI/points) + Math.PI/points };
     }
     if (type === 'heart') {
-      // Parametric heart curve
+      // Parametric heart
       return {
         r: 1.0,
         angle: theta,
@@ -1634,26 +1651,27 @@ addMomentBtn.addEventListener('click', () => {
         y: -(13 * Math.cos(theta) - 5*Math.cos(2*theta) - 2*Math.cos(3*theta) - Math.cos(4*theta))
       };
     }
-    // Ring (circle)
+    // Ring or classic
     return { r: 1, angle: theta };
   }
 
   function randomColor() {
+    // Brand palette + white/gold for premium feel
     const palette = [
       '#64ffda','#ff6384','#ffd700','#fff','#00c6ff','#8338ec','#ffac00','#19ed7d'
     ];
     return palette[Math.floor(Math.random() * palette.length)];
   }
 
-  // --- Particle with trail history ---
+  // --- Particle (each firework spark), includes trail ---
   function Particle(props) {
     Object.assign(this, props);
-    this.history = [{x:this.x, y:this.y}];
-    this.maxTrail = 10 + Math.floor(Math.random()*6);
+    this.history = [{x:this.x, y:this.y}]; // Store trail points
+    this.maxTrail = 6 + Math.floor(Math.random()*3); // Shorter for perf
   }
   Particle.prototype.update = function(gravity, fade) {
-    // Add organic "wobble"
-    const wobble = 0.3 * Math.sin(this.life*0.2 + this.seed);
+    // Add slight path "wobble" for realism
+    const wobble = 0.19 * Math.sin(this.life*0.22 + this.seed);
     this.x += this.vx + wobble;
     this.y += this.vy;
     this.vy += gravity;
@@ -1663,44 +1681,45 @@ addMomentBtn.addEventListener('click', () => {
     if (this.history.length > this.maxTrail) this.history.shift();
   };
   Particle.prototype.draw = function(ctx) {
-    // Draw trail (fade from oldest to newest)
-    for (let j=1;j<this.history.length;j++) {
+    // Draw trailing tail
+    for (let j=1; j<this.history.length; j++) {
       ctx.save();
-      ctx.globalAlpha = (this.alpha * j / this.history.length) * 0.45;
+      ctx.globalAlpha = (this.alpha * j / this.history.length) * 0.34;
       ctx.beginPath();
       ctx.moveTo(this.history[j-1].x, this.history[j-1].y);
       ctx.lineTo(this.history[j].x, this.history[j].y);
       ctx.strokeStyle = this.color;
-      ctx.lineWidth = Math.max(1, this.size * 0.7 * j / this.history.length);
+      ctx.lineWidth = Math.max(1, this.size * 0.6 * j / this.history.length);
       ctx.shadowColor = this.color;
       ctx.shadowBlur = 10;
       ctx.stroke();
       ctx.restore();
     }
-    // Draw main particle
+    // Draw main dot
     ctx.save();
     ctx.globalAlpha = this.alpha;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, 2*Math.PI);
     ctx.fillStyle = this.color;
     ctx.shadowColor = this.color;
-    ctx.shadowBlur = 24;
+    ctx.shadowBlur = 20;
     ctx.fill();
     ctx.restore();
   };
 
-  function Firework() {
-    // Randomize burst center
-    this.x = canvas.width / 2;
-    this.y = canvas.height / 2;
+  // --- Firework (single burst) ---
+  function Firework(centerX, centerY) {
+    // Center burst for performance/premium
+    this.x = centerX;
+    this.y = centerY;
     this.color = randomColor();
-    this.size = 1.0 + Math.random() * 1.1;
-    this.vx = (Math.random() - 0.5) * 2.4;
-    this.vy = -8.2 - Math.random() * 2.8;
+    this.size = 0.7 + Math.random() * 0.6; // Smaller = less overlap, more premium
+    this.vx = (Math.random() - 0.5) * 1.7;
+    this.vy = -6.2 - Math.random() * 2.1;
     this.state = "launch";
     this.timer = 0;
-    this.maxTimer = 16 + Math.random() * 8;
-    // 1 in 8 = special shape burst
+    this.maxTimer = 11 + Math.random() * 7;
+    // 1 in 8 = special burst
     const shapeType = Math.random();
     if (shapeType > 0.875)      this.burstType = "star";
     else if (shapeType > 0.75)  this.burstType = "heart";
@@ -1712,38 +1731,39 @@ addMomentBtn.addEventListener('click', () => {
     if (this.state === "launch") {
       this.x += this.vx;
       this.y += this.vy;
-      this.vy += 0.19;
+      this.vy += 0.13;
       this.timer++;
       if (this.timer >= this.maxTimer || this.vy > 0) {
+        // Burst into sparks
         this.state = "burst";
-        let n = 56 + Math.floor(Math.random() * 32);
+        let n = 26 + Math.floor(Math.random() * 12); // Fewer for performance
         for (let i = 0; i < n; i++) {
           let angle, speed, px, py;
-          let baseSize = this.size * (0.67 + Math.random()*0.39);
+          let baseSize = this.size * (0.69 + Math.random()*0.29);
           let type = this.burstType;
           let shape = burstShape(type, n, i);
           if (type === "star") {
             angle = shape.angle;
-            speed = 3.3 + Math.random() * 1.7;
+            speed = 2.7 + Math.random() * 1.3;
           } else if (type === "heart") {
-            // heart-shaped, scaled for burst
-            px = this.x + shape.x * 5.4;
-            py = this.y + shape.y * 5.4;
+            // Heart-shaped, scaled for burst
+            px = this.x + shape.x * 5.2;
+            py = this.y + shape.y * 5.2;
             angle = Math.atan2(py-this.y, px-this.x);
-            speed = 3.6 + Math.random() * 1.7;
+            speed = 2.8 + Math.random() * 1.0;
           } else if (type === "ring") {
             angle = shape.angle;
-            speed = 5.1 + Math.random() * 0.9;
+            speed = 4.1 + Math.random() * 0.7;
           } else {
             angle = (i / n) * 2 * Math.PI;
-            speed = Math.random() * 4.2 + 2.5;
+            speed = Math.random() * 3.3 + 1.8;
           }
           let vx = Math.cos(angle) * speed * (type==="heart"?0.6:1);
           let vy = Math.sin(angle) * speed * (type==="heart"?0.7:1);
           this.particles.push(new Particle({
             x: this.x, y: this.y,
             vx: vx, vy: vy,
-            alpha: 0.96 + Math.random()*0.16,
+            alpha: 0.95 + Math.random()*0.08,
             color: randomColor(),
             size: baseSize,
             life: 0,
@@ -1752,20 +1772,20 @@ addMomentBtn.addEventListener('click', () => {
         }
       }
     } else {
-      // Physics: gravity increases as particle fades (gently)
-      this.particles.forEach(p => p.update(0.048 + 0.017*(1-p.alpha), 0.012 + Math.random() * 0.012));
+      // Physics: gentle gravity, fade
+      this.particles.forEach(p => p.update(0.038 + 0.011*(1-p.alpha), 0.012 + Math.random() * 0.011));
       this.particles = this.particles.filter(p => p.alpha > 0.04);
     }
   };
   Firework.prototype.draw = function(ctx) {
     if (this.state === "launch") {
       ctx.save();
-      ctx.globalAlpha = 0.52 + 0.12 * Math.random();
+      ctx.globalAlpha = 0.52 + 0.09 * Math.random();
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.size * 2.0, 0, 2 * Math.PI);
+      ctx.arc(this.x, this.y, this.size * 1.7, 0, 2 * Math.PI);
       ctx.fillStyle = "#fff";
       ctx.shadowColor = this.color;
-      ctx.shadowBlur = 18;
+      ctx.shadowBlur = 13;
       ctx.fill();
       ctx.restore();
     } else {
@@ -1773,27 +1793,36 @@ addMomentBtn.addEventListener('click', () => {
     }
   };
 
-  window.showFireworks = function(duration = 1500) {
-    if (running) return;
+  // --- Main public function ---
+  window.showFireworks = function(duration = 2000) {
+    if (running) return; // Prevent overlap
     running = true;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvas();
     canvas.style.display = "block";
+    canvas.style.opacity = "1";
+
     let fireworks = [];
     let start = null;
     let active = true;
+
+    // Centered for perf + style
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // Start a new firework every 260ms, 1 or 2 at a time
     let interval = setInterval(() => {
       if (!active) return;
-      const count = 1 + Math.floor(Math.random()*2);
-      for (let i = 0; i < count; i++) fireworks.push(new Firework());
-    }, 340);
+      const count = 1 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < count; i++) fireworks.push(new Firework(centerX, centerY));
+    }, 260);
 
-    // Animated overlay
-    const overlay = showOverlay();
+    // Optional vignette overlay
+    // const overlay = showOverlay();
 
+    // Animation frame handler
     function animate(ts) {
       if (!start) start = ts;
-      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       fireworks.forEach(fw => fw.update());
       fireworks.forEach(fw => fw.draw(ctx));
@@ -1809,11 +1838,18 @@ addMomentBtn.addEventListener('click', () => {
         requestAnimationFrame(animate);
       } else {
         clearInterval(interval);
+        // Optional overlay fade-out
+        // hideOverlay(overlay);
+
+        // Fade out canvas gently
+        canvas.style.transition = "opacity 0.5s";
+        canvas.style.opacity = "0";
         setTimeout(() => {
           canvas.style.display = "none";
+          canvas.style.opacity = "";
+          canvas.style.transition = "";
           running = false;
-          hideOverlay(overlay);
-        }, 800);
+        }, 520);
       }
     }
     requestAnimationFrame(animate);
