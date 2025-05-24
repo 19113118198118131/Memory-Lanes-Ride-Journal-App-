@@ -1798,7 +1798,7 @@ addMomentBtn.addEventListener('click', () => {
       fireworks.forEach(fw => fw.update());
       fireworks.forEach(fw => fw.draw(ctx));
       for (let i=fireworks.length-1; i>=0; i--) {
-        if (fw.state === "burst" && fw.particles.length === 0)
+        if (fireworks[i].state === "burst" && fireworks[i].particles.length === 0)
           fireworks.splice(i, 1);
       }
       if (ts - start < duration) {
