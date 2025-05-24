@@ -1784,7 +1784,7 @@ addMomentBtn.addEventListener('click', () => {
     let active = true;
     let interval = setInterval(() => {
       if (!active) return;
-      const count = 2 + Math.floor(Math.random()*2);
+      const count = 1 + Math.floor(Math.random()*2);
       for (let i = 0; i < count; i++) fireworks.push(new Firework());
     }, 340);
 
