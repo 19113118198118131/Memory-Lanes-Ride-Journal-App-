@@ -1,5 +1,5 @@
 import supabase from './supabaseClient.js';
-import { PageFlip } from "https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/dist/js/page-flip.module.js";
+import { PageFlip } from "https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/pageflip/dist/page-flip.module.js";
 
 
 const momentsList = document.getElementById('journal-moments-list');
