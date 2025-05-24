@@ -265,6 +265,14 @@ if (newRideBtn) {
   });
 }
 
+// ========== Journal Button ==========
+const journalBtn = document.getElementById('journal-btn');
+if (journalBtn) {
+  journalBtn.addEventListener('click', () => {
+    window.location.href = 'journal.html';
+  });
+}
+
 // ========== Toast Utility ==========
 function showToast(msg, mode = "info") {
   let toast = document.createElement("div");
