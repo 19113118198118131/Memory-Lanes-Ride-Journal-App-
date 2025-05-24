@@ -147,7 +147,7 @@ function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
 // Ride Filter
 function renderRideFilter(ridesArray, activeRideId, onSelectRide) {
   if (!rideFilterContainer) return;
-  if (!Array.isArray(ridesArray) || ridesArray.length <= 1) {
+  if (!Array.isArray(ridesArray) || ridesArray.length === 0) {
     rideFilterContainer.innerHTML = '';
     return;
   }
@@ -165,6 +165,7 @@ function renderRideFilter(ridesArray, activeRideId, onSelectRide) {
     });
   }
 }
+
 
 // --- Magazine-Style Flipbook Rendering using StPageFlip ---
 function renderStPageFlipBook(moments, animationStyle) {
