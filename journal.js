@@ -7,13 +7,20 @@ const flipbookBtn = document.getElementById('flipbook-view-btn');
 const roadTimelineContainer = document.getElementById('road-timeline-container');
 const monthFilterContainer = document.getElementById('month-filter-container');
 const rideFilterContainer = document.getElementById('ride-filter-container');
-const flipbookContainer = document.getElementById('flipbook-container');
+const flipbookContainer = document.getElementById('st-pageflip');
 const flipStyleToggle = document.getElementById('flip-style-toggle');
 const flipStyleSelect = document.getElementById('flip-style-select');
 
+let pageFlipInstance = null; // Will hold the StPageFlip instance
+
 // Utility: Error/Loading
-function renderError(message) { if (momentsList) momentsList.innerHTML = `<div class="error-message">${message}</div>`; }
-function renderLoading() { if (momentsList) momentsList.innerHTML = `<div class="loading-message">Loading your moments...</div>`; }
+function renderError(message) {
+  if (momentsList) momentsList.innerHTML = `<div class="error-message">${message}</div>`;
+  if (flipbookContainer) flipbookContainer.innerHTML = `<div class="error-message">${message}</div>`;
+}
+function renderLoading() {
+  if (momentsList) momentsList.innerHTML = `<div class="loading-message">Loading your moments...</div>`;
+}
 
 // Core rendering: Moments as list/grid
 function renderMoments(momentArr = []) {
@@ -158,73 +165,72 @@ function renderRideFilter(ridesArray, activeRideId, onSelectRide) {
   }
 }
 
-// Flipbook Rendering
-function renderFlipbook(moments, index, animation) {
+// --- Magazine-Style Flipbook Rendering using StPageFlip ---
+function renderStPageFlipBook(moments, animationStyle) {
   if (!flipbookContainer) return;
-  flipbookContainer.innerHTML = ''; // Clear previous
+  flipbookContainer.style.display = '';
+  if (momentsList) momentsList.style.display = 'none';
 
+  // Destroy any previous flipbook instance
+  if (pageFlipInstance) {
+    pageFlipInstance.destroy();
+    pageFlipInstance = null;
+  }
+  flipbookContainer.innerHTML = '';
+
+  // If no moments, show message
   if (!Array.isArray(moments) || !moments.length) {
     flipbookContainer.innerHTML = `<em>No moments to display in flipbook.</em>`;
     return;
   }
 
-  // Clamp index
-  index = Math.max(0, Math.min(index, moments.length - 1));
-  const moment = moments[index];
-
-  // Card
-  const card = document.createElement('div');
-  card.className = 'flipbook-card ' + (animation === 'flip' ? 'flipIn' : animation === 'slide' ? 'slideIn' : 'fadeIn');
-  card.innerHTML = `
-    <div class="journal-moment-head">
-      <strong>${moment.title || 'Untitled Moment'}</strong>
-      <span style="color:#64ffda;margin-left:1em;">${moment.rideDate ? new Date(moment.rideDate).toLocaleDateString() : ''}</span>
+  // Prepare HTML pages for the flipbook (each moment = 1 page)
+  const pages = moments.map(m => `
+    <div class="flipbook-card" style="background:none; box-shadow:none; margin:0; padding:0;">
+      <div style="padding:2.2em 2em; border-radius:18px; background:linear-gradient(100deg, #1d2b43 70%, #132033 100%); box-shadow:0 6px 22px #1c2c4548;">
+        <div class="journal-moment-head" style="font-size:1.14em;"><strong>${m.title || 'Untitled Moment'}</strong></div>
+        <div class="journal-moment-meta" style="margin-top:0.5em;">${m.rideDate ? new Date(m.rideDate).toLocaleDateString() : ''} | <a href="index.html?ride=${m.rideId}" target="_blank">${m.rideTitle || '(untitled ride)'}</a></div>
+        <div class="journal-moment-note" style="margin-top:1em;">${m.note ? m.note : '<em>(No notes)</em>'}</div>
+        <div style="margin-top:2em; font-size:0.9em; color:#99e; text-align:right;">${typeof m.speed === 'number' ? `Speed: ${m.speed.toFixed(1)} km/h` : ''} ${typeof m.elevation === 'number' ? `&bull; Elev: ${m.elevation.toFixed(0)} m` : ''}</div>
+      </div>
     </div>
-    <div class="journal-moment-meta">
-      <span>From <a href="index.html?ride=${moment.rideId}" style="color:#00c6ff;text-decoration:underline;">${moment.rideTitle || '(untitled ride)'}</a></span>
-      ${typeof moment.speed === 'number' ? `<span>• ${moment.speed.toFixed(1)} km/h</span>` : ''}
-      ${typeof moment.elevation === 'number' ? `<span>• ${moment.elevation.toFixed(0)} m</span>` : ''}
-    </div>
-    <div class="journal-moment-note">${moment.note ? moment.note : '<em>(No notes)</em>'}</div>
-    <div class="flipbook-controls">
-      <button class="flipbook-btn" id="flipbook-prev" ${index === 0 ? 'disabled' : ''} aria-label="Previous moment">←</button>
-      <span class="flipbook-page-indicator">Moment ${index + 1} of ${moments.length}</span>
-      <button class="flipbook-btn" id="flipbook-next" ${index === moments.length - 1 ? 'disabled' : ''} aria-label="Next moment">→</button>
-    </div>
-  `;
-  flipbookContainer.appendChild(card);
+  `);
 
-  // Event listeners for prev/next
-  const prevBtn = document.getElementById('flipbook-prev');
-  const nextBtn = document.getElementById('flipbook-next');
-  if (prevBtn) prevBtn.onclick = () => onFlipbookNav('prev');
-  if (nextBtn) nextBtn.onclick = () => onFlipbookNav('next');
+  // Instantiate StPageFlip
+  pageFlipInstance = new window.PageFlip(flipbookContainer, {
+    width: 480,
+    height: 320,
+    size: "fixed",
+    minWidth: 320,
+    maxWidth: 780,
+    minHeight: 200,
+    maxHeight: 900,
+    maxShadowOpacity: 0.32,
+    showCover: false,
+    mobileScrollSupport: true,
+    usePortrait: false,
+    swipeDistance: 25,
+    disableFlipByClick: false,
+    startPage: 0,
+    drawShadow: true,
+    flippingTime: animationStyle === 'flip' ? 700 : 380,
+    startZIndex: 1,
+  });
 
-  // Keyboard navigation (←/→ keys)
+  // Load pages
+  pageFlipInstance.loadFromHTML(pages);
+
+  // Optional: Keyboard navigation
   document.onkeydown = (e) => {
-    if (!flipbookContainer.style.display || flipbookContainer.style.display === 'none') return;
-    if (e.key === "ArrowLeft") { if (index > 0) onFlipbookNav('prev'); }
-    else if (e.key === "ArrowRight") { if (index < moments.length - 1) onFlipbookNav('next'); }
+    if (flipbookContainer.style.display === 'none') return;
+    if (!pageFlipInstance) return;
+    if (e.key === "ArrowLeft") pageFlipInstance.flipPrev();
+    else if (e.key === "ArrowRight") pageFlipInstance.flipNext();
   };
-
-  // Store current state in flipbook
-  flipbookContainer.dataset.index = index;
 }
 
 // ========== Main app logic ==========
-let flipbookFiltered = [], flipbookIndex = 0, flipbookAnim = 'slide';
-
-function onFlipbookNav(direction) {
-  if (!flipbookFiltered.length) return;
-  if (direction === 'next' && flipbookIndex < flipbookFiltered.length - 1) {
-    flipbookIndex++;
-    renderFlipbook(flipbookFiltered, flipbookIndex, flipbookAnim);
-  }
-  if (direction === 'prev' && flipbookIndex > 0) {
-    flipbookIndex--;
-    renderFlipbook(flipbookFiltered, flipbookIndex, flipbookAnim);
-  }
-}
+let flipbookFiltered = [], flipbookAnim = 'slide';
 
 (async function main() {
   renderLoading();
@@ -332,7 +338,7 @@ function onFlipbookNav(direction) {
     return Array.from(rideMap.values()).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
   }
 
-  // Filter and update all three controls, and render
+  // Filter and update controls, and render
   function updateFiltersAndRender(renderFlip = false) {
     renderRoadTimeline(years, selectedYear, handleYearSelect);
     const months = selectedYear ? getMonthsForYear(selectedYear) : [];
@@ -340,12 +346,14 @@ function onFlipbookNav(direction) {
     const ridesForFilters = getRidesForYearMonth(selectedYear, selectedMonth);
     renderRideFilter(ridesForFilters, selectedRide, handleRideSelect);
     const filtered = filterMoments(selectedYear, selectedMonth, selectedRide);
+    flipbookFiltered = filtered;
     // List/grid or flipbook?
     if (flipbookBtn.classList.contains('active')) {
-      flipbookFiltered = filtered;
-      flipbookIndex = Math.min(flipbookIndex, Math.max(0, flipbookFiltered.length - 1));
-      renderFlipbook(flipbookFiltered, flipbookIndex, flipbookAnim);
+      renderStPageFlipBook(filtered, flipbookAnim);
     } else {
+      if (pageFlipInstance) { pageFlipInstance.destroy(); pageFlipInstance = null; }
+      flipbookContainer.style.display = 'none';
+      momentsList.style.display = '';
       renderMoments(filtered);
     }
   }
@@ -367,13 +375,12 @@ function onFlipbookNav(direction) {
     updateFiltersAndRender(true);
   }
 
-  // --- Flipbook setup ---
+  // --- Flipbook animation style ---
   if (flipStyleSelect) {
     flipStyleSelect.addEventListener('change', () => {
       flipbookAnim = flipStyleSelect.value;
-      // Re-render only if flipbook is active
       if (flipbookBtn.classList.contains('active')) {
-        renderFlipbook(flipbookFiltered, flipbookIndex, flipbookAnim);
+        renderStPageFlipBook(flipbookFiltered, flipbookAnim);
       }
     });
   }
