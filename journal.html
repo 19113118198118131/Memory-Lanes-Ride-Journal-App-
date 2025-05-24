@@ -5,6 +5,9 @@
   <title>Rider's Journal | Memory Lanes</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="style.css" />
+
+  <!-- StPageFlip Flipbook Library (MIT License) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/dist/css/page-flip.min.css"/>
 </head>
 <body>
   <header class="main-header vibe-header">
@@ -30,7 +33,7 @@
       <h2 id="journal-heading">Your Memories & Highlights</h2>
       <div id="road-timeline-container" style="margin-bottom: 1.2rem;"></div>
       <div id="month-filter-container" style="margin-bottom: 1.1rem;"></div>
-      <div id="journal-filters"></div>
+      <div id="ride-filter-container" style="margin-bottom: 1.1rem;"></div>
       <div id="journal-toggle-view" style="margin-bottom: 1.5rem;">
         <button id="timeline-view-btn" class="active" aria-pressed="true">🕒 Timeline</button>
         <button id="gallery-view-btn" aria-pressed="false">🖼️ Gallery</button>
@@ -43,13 +46,17 @@
           </select>
         </span>
       </div>
-      <div id="flipbook-container" style="display:none;"></div>
+      <!-- Flipbook Container (only visible in flipbook mode) -->
+      <div id="st-pageflip" style="width: 520px; height: 340px; margin: 2.5em auto 2em auto; display: none;"></div>
+      <!-- Moment List/Grid View (default) -->
       <div id="journal-moments-list" class="journal-moments-list" aria-live="polite">Loading...</div>
     </section>
   </main>
   <footer>
     <a href="dashboard.html">← Back to Dashboard</a>
   </footer>
+  <!-- StPageFlip Library -->
+  <script src="https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/dist/js/page-flip.browser.min.js"></script>
   <script type="module" src="journal.js"></script>
 </body>
 </html>
