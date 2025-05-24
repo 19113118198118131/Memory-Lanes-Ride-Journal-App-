@@ -3,43 +3,32 @@ import supabase from './supabaseClient.js';
 const momentsList = document.getElementById('journal-moments-list');
 const galleryBtn = document.getElementById('gallery-view-btn');
 const timelineBtn = document.getElementById('timeline-view-btn');
+const flipbookBtn = document.getElementById('flipbook-view-btn');
 const roadTimelineContainer = document.getElementById('road-timeline-container');
 const monthFilterContainer = document.getElementById('month-filter-container');
+const rideFilterContainer = document.getElementById('ride-filter-container');
+const flipbookContainer = document.getElementById('flipbook-container');
+const flipStyleToggle = document.getElementById('flip-style-toggle');
+const flipStyleSelect = document.getElementById('flip-style-select');
 
-// === Utility Functions ===
+// Utility: Error/Loading
+function renderError(message) { if (momentsList) momentsList.innerHTML = `<div class="error-message">${message}</div>`; }
+function renderLoading() { if (momentsList) momentsList.innerHTML = `<div class="loading-message">Loading your moments...</div>`; }
 
-// Render an error message to the moments area
-function renderError(message) {
-  if (momentsList) {
-    momentsList.innerHTML = `<div class="error-message">${message}</div>`;
-  }
-}
-
-// Render a loading state
-function renderLoading() {
-  if (momentsList) {
-    momentsList.innerHTML = `<div class="loading-message">Loading your moments...</div>`;
-  }
-}
-
-// Render moments (accepts array of moment objects)
+// Core rendering: Moments as list/grid
 function renderMoments(momentArr = []) {
   if (!momentsList) return;
-
   if (!Array.isArray(momentArr) || momentArr.length === 0) {
     momentsList.innerHTML = `<em>No moments found yet. Start adding moments on your rides!</em>`;
     return;
   }
-
-  // Use document fragment for performance with large lists
   const frag = document.createDocumentFragment();
-
   momentArr.forEach(m => {
     const div = document.createElement('div');
     div.className = 'moment-entry journal-moment-card';
     div.innerHTML = `
       <div class="journal-moment-head">
-        <strong>${m.title ? m.title : 'Untitled Moment'}</strong>
+        <strong>${m.title || 'Untitled Moment'}</strong>
         <span style="color:#64ffda;margin-left:1em;">${m.rideDate ? new Date(m.rideDate).toLocaleDateString() : ''}</span>
       </div>
       <div class="journal-moment-meta">
@@ -51,39 +40,61 @@ function renderMoments(momentArr = []) {
     `;
     frag.appendChild(div);
   });
-
   momentsList.innerHTML = '';
   momentsList.appendChild(frag);
 }
 
-// Setup Timeline/Gallery View Toggle
-function setupViewToggle() {
-  if (!galleryBtn || !timelineBtn || !momentsList) return;
+// Timeline/Gallery/Flipbook View Toggle
+function setupViewToggle({ onFlipbook, onList }) {
+  if (!galleryBtn || !timelineBtn || !momentsList || !flipbookBtn) return;
+
   galleryBtn.addEventListener('click', () => {
     galleryBtn.classList.add('active');
     timelineBtn.classList.remove('active');
+    flipbookBtn.classList.remove('active');
+    momentsList.style.display = '';
+    flipbookContainer.style.display = 'none';
     momentsList.classList.add('gallery-view');
     galleryBtn.setAttribute('aria-pressed', 'true');
     timelineBtn.setAttribute('aria-pressed', 'false');
+    flipbookBtn.setAttribute('aria-pressed', 'false');
+    if (flipStyleToggle) flipStyleToggle.style.display = 'none';
+    if (onList) onList();
   });
   timelineBtn.addEventListener('click', () => {
     timelineBtn.classList.add('active');
     galleryBtn.classList.remove('active');
+    flipbookBtn.classList.remove('active');
+    momentsList.style.display = '';
+    flipbookContainer.style.display = 'none';
     momentsList.classList.remove('gallery-view');
     timelineBtn.setAttribute('aria-pressed', 'true');
     galleryBtn.setAttribute('aria-pressed', 'false');
+    flipbookBtn.setAttribute('aria-pressed', 'false');
+    if (flipStyleToggle) flipStyleToggle.style.display = 'none';
+    if (onList) onList();
+  });
+  flipbookBtn.addEventListener('click', () => {
+    flipbookBtn.classList.add('active');
+    galleryBtn.classList.remove('active');
+    timelineBtn.classList.remove('active');
+    momentsList.style.display = 'none';
+    flipbookContainer.style.display = '';
+    flipbookBtn.setAttribute('aria-pressed', 'true');
+    galleryBtn.setAttribute('aria-pressed', 'false');
+    timelineBtn.setAttribute('aria-pressed', 'false');
+    if (flipStyleToggle) flipStyleToggle.style.display = '';
+    if (onFlipbook) onFlipbook();
   });
 }
 
-// Render the horizontal "road" timeline by year and attach click events
+// Road Timeline
 function renderRoadTimeline(yearsArray, activeYear, onSelectYear) {
   if (!roadTimelineContainer) return;
   if (!Array.isArray(yearsArray) || yearsArray.length === 0) {
     roadTimelineContainer.innerHTML = '';
     return;
   }
-
-  // Horizontal scrollable timeline styled as a road
   let html = `<div class="road-timeline">`;
   html += `<button class="road-marker${!activeYear ? ' active' : ''}" data-year="" title="Show all years">🏁</button>`;
   yearsArray.forEach(year => {
@@ -91,31 +102,25 @@ function renderRoadTimeline(yearsArray, activeYear, onSelectYear) {
   });
   html += `</div>`;
   roadTimelineContainer.innerHTML = html;
-
   roadTimelineContainer.querySelectorAll('.road-marker').forEach(marker => {
     marker.addEventListener('click', () => {
       const year = marker.getAttribute('data-year');
-      onSelectYear(year || null); // Pass null for "Show All"
+      onSelectYear(year || null);
     });
   });
 }
 
-// Render a month filter dropdown (based on filtered moments)
+// Month Filter
 function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
   if (!monthFilterContainer) return;
-
-  // No months to filter (or only one) = hide dropdown
   if (!Array.isArray(monthsArray) || monthsArray.length <= 1) {
     monthFilterContainer.innerHTML = '';
     return;
   }
-
-  // Month names
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
-
   let html = `<label for="month-filter">Month: </label>`;
   html += `<select id="month-filter"><option value="">All Months</option>`;
   monthsArray.forEach(m => {
@@ -123,8 +128,6 @@ function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
   });
   html += `</select>`;
   monthFilterContainer.innerHTML = html;
-
-  // Attach event
   const select = document.getElementById('month-filter');
   if (select) {
     select.addEventListener('change', () => {
@@ -133,11 +136,100 @@ function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
   }
 }
 
+// Ride Filter
+function renderRideFilter(ridesArray, activeRideId, onSelectRide) {
+  if (!rideFilterContainer) return;
+  if (!Array.isArray(ridesArray) || ridesArray.length <= 1) {
+    rideFilterContainer.innerHTML = '';
+    return;
+  }
+  let html = `<label for="ride-filter">Ride: </label>`;
+  html += `<select id="ride-filter"><option value="">All Rides</option>`;
+  ridesArray.forEach(r => {
+    html += `<option value="${r.id}"${activeRideId === r.id ? ' selected' : ''}>${r.title || '(untitled ride)'}</option>`;
+  });
+  html += `</select>`;
+  rideFilterContainer.innerHTML = html;
+  const select = document.getElementById('ride-filter');
+  if (select) {
+    select.addEventListener('change', () => {
+      onSelectRide(select.value || null);
+    });
+  }
+}
+
+// Flipbook Rendering
+function renderFlipbook(moments, index, animation) {
+  if (!flipbookContainer) return;
+  flipbookContainer.innerHTML = ''; // Clear previous
+
+  if (!Array.isArray(moments) || !moments.length) {
+    flipbookContainer.innerHTML = `<em>No moments to display in flipbook.</em>`;
+    return;
+  }
+
+  // Clamp index
+  index = Math.max(0, Math.min(index, moments.length - 1));
+  const moment = moments[index];
+
+  // Card
+  const card = document.createElement('div');
+  card.className = 'flipbook-card ' + (animation === 'flip' ? 'flipIn' : animation === 'slide' ? 'slideIn' : 'fadeIn');
+  card.innerHTML = `
+    <div class="journal-moment-head">
+      <strong>${moment.title || 'Untitled Moment'}</strong>
+      <span style="color:#64ffda;margin-left:1em;">${moment.rideDate ? new Date(moment.rideDate).toLocaleDateString() : ''}</span>
+    </div>
+    <div class="journal-moment-meta">
+      <span>From <a href="index.html?ride=${moment.rideId}" style="color:#00c6ff;text-decoration:underline;">${moment.rideTitle || '(untitled ride)'}</a></span>
+      ${typeof moment.speed === 'number' ? `<span>• ${moment.speed.toFixed(1)} km/h</span>` : ''}
+      ${typeof moment.elevation === 'number' ? `<span>• ${moment.elevation.toFixed(0)} m</span>` : ''}
+    </div>
+    <div class="journal-moment-note">${moment.note ? moment.note : '<em>(No notes)</em>'}</div>
+    <div class="flipbook-controls">
+      <button class="flipbook-btn" id="flipbook-prev" ${index === 0 ? 'disabled' : ''} aria-label="Previous moment">←</button>
+      <span class="flipbook-page-indicator">Moment ${index + 1} of ${moments.length}</span>
+      <button class="flipbook-btn" id="flipbook-next" ${index === moments.length - 1 ? 'disabled' : ''} aria-label="Next moment">→</button>
+    </div>
+  `;
+  flipbookContainer.appendChild(card);
+
+  // Event listeners for prev/next
+  const prevBtn = document.getElementById('flipbook-prev');
+  const nextBtn = document.getElementById('flipbook-next');
+  if (prevBtn) prevBtn.onclick = () => onFlipbookNav('prev');
+  if (nextBtn) nextBtn.onclick = () => onFlipbookNav('next');
+
+  // Keyboard navigation (←/→ keys)
+  document.onkeydown = (e) => {
+    if (!flipbookContainer.style.display || flipbookContainer.style.display === 'none') return;
+    if (e.key === "ArrowLeft") { if (index > 0) onFlipbookNav('prev'); }
+    else if (e.key === "ArrowRight") { if (index < moments.length - 1) onFlipbookNav('next'); }
+  };
+
+  // Store current state in flipbook
+  flipbookContainer.dataset.index = index;
+}
+
 // ========== Main app logic ==========
+let flipbookFiltered = [], flipbookIndex = 0, flipbookAnim = 'slide';
+
+function onFlipbookNav(direction) {
+  if (!flipbookFiltered.length) return;
+  if (direction === 'next' && flipbookIndex < flipbookFiltered.length - 1) {
+    flipbookIndex++;
+    renderFlipbook(flipbookFiltered, flipbookIndex, flipbookAnim);
+  }
+  if (direction === 'prev' && flipbookIndex > 0) {
+    flipbookIndex--;
+    renderFlipbook(flipbookFiltered, flipbookIndex, flipbookAnim);
+  }
+}
+
 (async function main() {
   renderLoading();
 
-  // 1. Authenticate user
+  // Authenticate
   let user;
   try {
     const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -151,7 +243,7 @@ function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
     return;
   }
 
-  // 2. Fetch rides and handle errors
+  // Fetch rides and handle errors
   let rides;
   try {
     const { data, error } = await supabase
@@ -170,7 +262,7 @@ function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
     return;
   }
 
-  // 3. Flatten all moments, add ride info, filter bad/empty moments
+  // Flatten all moments, add ride info, filter bad/empty moments
   const allMoments = [];
   rides.forEach(ride => {
     if (Array.isArray(ride.moments)) {
@@ -188,7 +280,7 @@ function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
     }
   });
 
-  // 4. Sort by ride date (desc), then by moment idx (desc)
+  // Sort by ride date (desc), then by moment idx (desc)
   allMoments.sort((a, b) => {
     const dateA = new Date(a.rideDate);
     const dateB = new Date(b.rideDate);
@@ -196,7 +288,7 @@ function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
     return (b.idx || 0) - (a.idx || 0);
   });
 
-  // 5. Derive years
+  // Derive years
   const years = Array.from(new Set(
     allMoments
       .map(m => (m.rideDate ? new Date(m.rideDate).getFullYear() : null))
@@ -204,22 +296,20 @@ function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
   )).sort((a, b) => a - b);
 
   // ========== State ==========
-  let selectedYear = null;
-  let selectedMonth = null;
+  let selectedYear = null, selectedMonth = null, selectedRide = null;
 
-  // Helper: filter moments by year and month
-  function filterMoments(year, month) {
+  // Helpers
+  function filterMoments(year, month, rideId) {
     return allMoments.filter(m => {
       if (!m.rideDate) return false;
       const d = new Date(m.rideDate);
       const y = d.getFullYear();
       const mth = d.getMonth() + 1;
       return (!year || y === parseInt(year, 10)) &&
-             (!month || mth === parseInt(month, 10));
+             (!month || mth === parseInt(month, 10)) &&
+             (!rideId || m.rideId === rideId);
     });
   }
-
-  // Helper: get all months (as numbers) for a given year in the data
   function getMonthsForYear(year) {
     return Array.from(new Set(
       allMoments
@@ -227,34 +317,84 @@ function renderMonthFilter(monthsArray, activeMonth, onSelectMonth) {
         .map(m => new Date(m.rideDate).getMonth() + 1)
     )).sort((a, b) => a - b);
   }
+  function getRidesForYearMonth(year, month) {
+    // Rides that have at least one moment in that year+month
+    const rideMap = new Map();
+    allMoments.forEach(m => {
+      if (!m.rideDate) return;
+      const d = new Date(m.rideDate);
+      const y = d.getFullYear();
+      const mth = d.getMonth() + 1;
+      if ((!year || y === parseInt(year, 10)) && (!month || mth === parseInt(month, 10))) {
+        if (!rideMap.has(m.rideId)) rideMap.set(m.rideId, { id: m.rideId, title: m.rideTitle });
+      }
+    });
+    return Array.from(rideMap.values()).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+  }
 
-  // Handler: when timeline marker is clicked
-  function handleYearSelect(year) {
-    selectedYear = year;
-    selectedMonth = null;
+  // Filter and update all three controls, and render
+  function updateFiltersAndRender(renderFlip = false) {
     renderRoadTimeline(years, selectedYear, handleYearSelect);
-    // If year is selected, render month filter if >1 month in data
-    if (selectedYear) {
-      const months = getMonthsForYear(selectedYear);
-      renderMonthFilter(months, selectedMonth, handleMonthSelect);
-      renderMoments(filterMoments(selectedYear, null));
+    const months = selectedYear ? getMonthsForYear(selectedYear) : [];
+    renderMonthFilter(months, selectedMonth, handleMonthSelect);
+    const ridesForFilters = getRidesForYearMonth(selectedYear, selectedMonth);
+    renderRideFilter(ridesForFilters, selectedRide, handleRideSelect);
+    const filtered = filterMoments(selectedYear, selectedMonth, selectedRide);
+    // List/grid or flipbook?
+    if (flipbookBtn.classList.contains('active')) {
+      flipbookFiltered = filtered;
+      flipbookIndex = Math.min(flipbookIndex, Math.max(0, flipbookFiltered.length - 1));
+      renderFlipbook(flipbookFiltered, flipbookIndex, flipbookAnim);
     } else {
-      monthFilterContainer.innerHTML = '';
-      renderMoments(allMoments);
+      renderMoments(filtered);
     }
   }
 
-  // Handler: when month is selected
+  // --- Filter handlers ---
+  function handleYearSelect(year) {
+    selectedYear = year;
+    selectedMonth = null;
+    selectedRide = null;
+    updateFiltersAndRender(true);
+  }
   function handleMonthSelect(month) {
     selectedMonth = month;
-    renderMonthFilter(getMonthsForYear(selectedYear), selectedMonth, handleMonthSelect);
-    renderMoments(filterMoments(selectedYear, selectedMonth));
+    selectedRide = null;
+    updateFiltersAndRender(true);
+  }
+  function handleRideSelect(rideId) {
+    selectedRide = rideId;
+    updateFiltersAndRender(true);
   }
 
-  // ========== Initial render ==========
+  // --- Flipbook setup ---
+  if (flipStyleSelect) {
+    flipStyleSelect.addEventListener('change', () => {
+      flipbookAnim = flipStyleSelect.value;
+      // Re-render only if flipbook is active
+      if (flipbookBtn.classList.contains('active')) {
+        renderFlipbook(flipbookFiltered, flipbookIndex, flipbookAnim);
+      }
+    });
+  }
+
+  // --- Setup all view toggles ---
+  setupViewToggle({
+    onFlipbook: () => {
+      updateFiltersAndRender(true);
+      if (flipStyleToggle) flipStyleToggle.style.display = '';
+    },
+    onList: () => {
+      updateFiltersAndRender();
+      if (flipStyleToggle) flipStyleToggle.style.display = 'none';
+    }
+  });
+
+  // --- Initial render ---
   renderRoadTimeline(years, selectedYear, handleYearSelect);
   renderMoments(allMoments);
-  setupViewToggle();
 
-  // Optionally: Add future hooks for advanced filters/search here
+  // Default to Timeline view on load
+  if (timelineBtn) timelineBtn.classList.add('active');
+  if (flipStyleToggle) flipStyleToggle.style.display = 'none';
 })();
