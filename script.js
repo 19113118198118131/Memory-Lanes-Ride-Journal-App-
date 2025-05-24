@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const addMomentBtn     = document.getElementById('add-moment-btn');
   const momentsList      = document.getElementById('moments-list'); 
   let rideMoments        = []; // Local array to store moments for current ride
-
+  
 
   
 function renderMoments() {
@@ -1582,118 +1582,25 @@ addMomentBtn.addEventListener('click', () => {
 
 });
 
-function showFireworks(duration = 2000) {
-  const bg = document.getElementById('fireworks-bg');
-  if (bg) bg.style.display = 'block';
-
-  const canvas = document.getElementById('fireworks-canvas');
-  if (!canvas) return;
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  canvas.style.display = 'block';
-  const ctx = canvas.getContext('2d');
-  const fireworks = [];
-
-  function randomColor() {
-    const colors = ['#64ffda', '#ff6384', '#8338ec', '#fff', '#00c6ff', '#ffd700'];
-    return colors[Math.floor(Math.random() * colors.length)];
-  }
-
-  function Firework() {
-    // Launch from bottom at random x
-    this.x = Math.random() * canvas.width * 0.8 + canvas.width * 0.1;
-    this.y = canvas.height + 10;
-    this.targetY = Math.random() * canvas.height * 0.6 + canvas.height * 0.18;
-    this.radius = 2 + Math.random() * 2;
-    this.color = randomColor();
-    this.vy = - (Math.random() * 7 + 11);
-    this.life = 0;
-    this.particles = [];
-    this.exploded = false;
-  }
-
-  Firework.prototype.update = function () {
-    if (!this.exploded) {
-      this.y += this.vy;
-      this.vy += 0.19;
-      if (this.y <= this.targetY || this.vy > 0) {
-        this.exploded = true;
-        // Burst particles
-        for (let i = 0; i < 34 + Math.random() * 16; i++) {
-          const angle = (i / 40) * Math.PI * 2;
-          const speed = Math.random() * 4.3 + 2.5;
-          this.particles.push({
-            x: this.x,
-            y: this.y,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed,
-            alpha: 1,
-            color: this.color,
-            radius: this.radius * 0.95 * (Math.random() * 0.6 + 0.75)
-          });
-        }
+function showFireworksCSS(times = 5) {
+  for (let t = 0; t < times; t++) {
+    setTimeout(() => {
+      for (let i = 0; i < 14; i++) {
+        const firework = document.createElement('div');
+        firework.className = 'firework';
+        const angle = (i / 14) * 2 * Math.PI;
+        const distance = 90 + Math.random() * 50;
+        const dx = Math.cos(angle) * distance;
+        const dy = Math.sin(angle) * distance;
+        firework.style.setProperty('--dx', `${dx}px`);
+        firework.style.setProperty('--dy', `${dy}px`);
+        // Random color
+        firework.style.background = `hsl(${Math.floor(Math.random()*360)},98%,62%)`;
+        firework.style.boxShadow = `0 0 16px 3px ${firework.style.background}`;
+        document.body.appendChild(firework);
+        setTimeout(() => firework.remove(), 1200);
       }
-    } else {
-      this.particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.13; // gravity
-        p.alpha -= 0.014 + Math.random() * 0.012;
-      });
-      this.particles = this.particles.filter(p => p.alpha > 0.05);
-    }
-    this.life++;
-  };
-
-  Firework.prototype.draw = function (ctx) {
-    if (!this.exploded) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.radius * 1.5, 0, 2 * Math.PI);
-      ctx.fillStyle = this.color;
-      ctx.shadowColor = this.color;
-      ctx.shadowBlur = 16;
-      ctx.globalAlpha = 0.95;
-      ctx.fill();
-      ctx.restore();
-    } else {
-      this.particles.forEach(p => {
-        ctx.save();
-        ctx.globalAlpha = Math.max(p.alpha, 0);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, 2 * Math.PI);
-        ctx.fillStyle = p.color;
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 12;
-        ctx.fill();
-        ctx.restore();
-      });
-    }
-  };
-
-  // Animate fireworks
-  let start = null;
-  function animate(ts) {
-    if (!start) start = ts;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Add new rockets during show
-    if ((ts - start < duration - 250) && Math.random() < 0.21) fireworks.push(new Firework());
-    fireworks.forEach(fw => fw.update());
-    fireworks.forEach(fw => fw.draw(ctx));
-    // Remove finished fireworks
-    for (let i = fireworks.length - 1; i >= 0; i--) {
-      if (fireworks[i].exploded && fireworks[i].particles.length === 0)
-        fireworks.splice(i, 1);
-    }
-    if (ts - start < duration || fireworks.length) {
-      requestAnimationFrame(animate);
-    } else {
-      canvas.style.display = 'none';
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (bg) bg.style.display = 'none';
-    }
+    }, t * 280);
   }
-  animate();
 }
-window.showFireworks = showFireworks;
-
+window.showFireworks = showFireworksCSS;
