@@ -812,11 +812,44 @@ function sanitizeString(str) {
 
   // =====================================================
   // SECTION 6.5: EXPORTS — RIDE CARD (PNG) & REPLAY VIDEO
+  // (map-backed via CARTO dark basemap © OpenStreetMap © CARTO)
   // =====================================================
 
   // [export-helpers-start]
-  // Fit the route into a box on a canvas, preserving aspect ratio.
-  // Returns a project(point) -> [x, y] function.
+  // --- Web Mercator helpers (0..1 world coordinates) ---
+  function mercX(lng) { return (lng + 180) / 360; }
+  function mercY(lat) {
+    const s = Math.sin(Math.max(-85.05, Math.min(85.05, lat)) * Math.PI / 180);
+    return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+  }
+
+  // Pick a zoom that fits the route inside the box (with padding) and return
+  // a project(point) -> [canvasX, canvasY] function anchored to that view.
+  function fitMapView(pts, boxX, boxY, boxW, boxH, maxZoom = 16) {
+    let minX = 1, maxX = 0, minY = 1, maxY = 0;
+    for (const p of pts) {
+      const x = mercX(p.lng), y = mercY(p.lat);
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    const pad = 0.12;
+    const usableW = boxW * (1 - pad * 2), usableH = boxH * (1 - pad * 2);
+    let z = maxZoom;
+    while (z > 3) {
+      const world = 256 * Math.pow(2, z);
+      if ((maxX - minX) * world <= usableW && (maxY - minY) * world <= usableH) break;
+      z--;
+    }
+    const world = 256 * Math.pow(2, z);
+    const cxWorld = (minX + maxX) / 2 * world;
+    const cyWorld = (minY + maxY) / 2 * world;
+    const originX = cxWorld - (boxX + boxW / 2); // world px at canvas x=0
+    const originY = cyWorld - (boxY + boxH / 2);
+    const project = p => [mercX(p.lng) * world - originX, mercY(p.lat) * world - originY];
+    return { z, world, originX, originY, project };
+  }
+
+  // Legacy projection (equirectangular, aspect-fit) — used when map tiles fail.
   function fitRouteProjection(pts, boxX, boxY, boxW, boxH) {
     let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
     for (const p of pts) {
@@ -826,10 +859,10 @@ function sanitizeString(str) {
       if (p.lng > maxLng) maxLng = p.lng;
     }
     const midLat = (minLat + maxLat) / 2;
-    const lngScale = Math.cos(midLat * Math.PI / 180); // correct east-west stretch
+    const lngScale = Math.cos(midLat * Math.PI / 180);
     const unitW = Math.max((maxLng - minLng) * lngScale, 1e-9);
     const unitH = Math.max(maxLat - minLat, 1e-9);
-    const scale = Math.min(boxW / unitW, boxH / unitH);
+    const scale = Math.min(boxW / unitW, boxH / unitH) * 0.86;
     const drawW = unitW * scale, drawH = unitH * scale;
     const offX = boxX + (boxW - drawW) / 2;
     const offY = boxY + (boxH - drawH) / 2;
@@ -839,12 +872,73 @@ function sanitizeString(str) {
     ];
   }
 
+  // Draw map tiles for a view into the region [rx, ry, rw, rh] of the canvas.
+  // Returns true if at least ~70% of tiles rendered. `loadFn` is injectable for tests.
+  async function drawMapTiles(ctx, view, rx, ry, rw, rh, loadFn) {
+    const load = loadFn || function loadTileImage(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        const timer = setTimeout(() => reject(new Error('tile timeout')), 8000);
+        img.onload = () => { clearTimeout(timer); resolve(img); };
+        img.onerror = () => { clearTimeout(timer); reject(new Error('tile error')); };
+        img.src = url;
+      });
+    };
+    const { z, originX, originY } = view;
+    const n = Math.pow(2, z);
+    const subs = ['a', 'b', 'c', 'd'];
+    const tx0 = Math.floor((originX + rx) / 256), tx1 = Math.floor((originX + rx + rw) / 256);
+    const ty0 = Math.floor((originY + ry) / 256), ty1 = Math.floor((originY + ry + rh) / 256);
+    const jobs = [];
+    let total = 0, okCount = 0;
+    for (let tx = tx0; tx <= tx1; tx++) {
+      for (let ty = ty0; ty <= ty1; ty++) {
+        if (ty < 0 || ty >= n) continue;
+        const wrappedX = ((tx % n) + n) % n;
+        const sub = subs[(Math.abs(tx) + Math.abs(ty)) % subs.length];
+        const url = `https://${sub}.basemaps.cartocdn.com/dark_all/${z}/${wrappedX}/${ty}@2x.png`;
+        const dx = tx * 256 - originX, dy = ty * 256 - originY;
+        total++;
+        jobs.push(
+          load(url)
+            .then(img => { ctx.drawImage(img, dx, dy, 256, 256); okCount++; })
+            .catch(() => {})
+        );
+      }
+    }
+    if (total === 0 || total > 120) return false; // sanity cap
+    await Promise.allSettled(jobs);
+    return okCount / total >= 0.7;
+  }
+
   function traceRoute(ctx, pts, project) {
     ctx.beginPath();
     pts.forEach((p, i) => {
       const [x, y] = project(p);
       i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     });
+  }
+
+  function strokeRoute(ctx, pts, project, W) {
+    ctx.save();
+    traceRoute(ctx, pts, project);
+    ctx.strokeStyle = 'rgba(100,255,218,0.30)';
+    ctx.lineWidth = Math.max(9, W * 0.010);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.shadowColor = '#64ffda';
+    ctx.shadowBlur = W * 0.016;
+    ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    traceRoute(ctx, pts, project);
+    ctx.strokeStyle = '#64ffda';
+    ctx.lineWidth = Math.max(3.5, W * 0.0042);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawDot(ctx, x, y, r, color, glow) {
@@ -856,12 +950,37 @@ function sanitizeString(str) {
     ctx.shadowBlur = r * 2.5;
     ctx.fill();
     ctx.restore();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#0a192f';
+    ctx.lineWidth = Math.max(2, r * 0.35);
+    ctx.stroke();
+    ctx.restore();
   }
 
-  // Draw the full shareable ride card. `data` = { title, dateStr, stats, points }
-  // stats = array of { label, value } (max 4)
-  function drawRideCard(ctx, W, H, data) {
-    // Background
+  function roundRectPath(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function drawAttribution(ctx, x, y) {
+    ctx.save();
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '400 15px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('© OpenStreetMap contributors © CARTO', x, y);
+    ctx.restore();
+  }
+
+  // Draw the full shareable ride card (async: fetches map tiles, falls back to styled line).
+  // data = { title, dateStr, stats, points }; loadFn only used by tests.
+  async function drawRideCard(ctx, W, H, data, loadFn) {
     ctx.fillStyle = '#0a192f';
     ctx.fillRect(0, 0, W, H);
     const vg = ctx.createRadialGradient(W / 2, H * 0.42, H * 0.1, W / 2, H * 0.42, H * 0.85);
@@ -870,17 +989,14 @@ function sanitizeString(str) {
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, W, H);
 
-    const M = Math.round(W * 0.074); // outer margin
+    const M = Math.round(W * 0.074);
 
-    // Brand line
+    // Brand
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#64ffda';
     ctx.font = `600 ${Math.round(W * 0.024)}px "Segoe UI", Arial, sans-serif`;
-    ctx.save();
-    const brand = 'M E M O R Y   L A N E S';
-    ctx.fillText(brand, M, M + W * 0.01);
-    ctx.restore();
+    ctx.fillText('M E M O R Y   L A N E S', M, M + W * 0.01);
     ctx.fillStyle = '#a8b7c8';
     ctx.font = `400 ${Math.round(W * 0.019)}px "Segoe UI", Arial, sans-serif`;
     ctx.fillText('journal your ride!', M, M + W * 0.042);
@@ -889,52 +1005,52 @@ function sanitizeString(str) {
     ctx.fillStyle = '#ffffff';
     let titleSize = Math.round(W * 0.062);
     ctx.font = `700 ${titleSize}px "Segoe UI", Arial, sans-serif`;
-    let title = data.title;
-    while (ctx.measureText(title).width > W - 2 * M && titleSize > 22) {
+    while (ctx.measureText(data.title).width > W - 2 * M && titleSize > 22) {
       titleSize -= 2;
       ctx.font = `700 ${titleSize}px "Segoe UI", Arial, sans-serif`;
     }
-    ctx.fillText(title, M, M + W * 0.125);
+    ctx.fillText(data.title, M, M + W * 0.125);
     ctx.fillStyle = '#8fa4bd';
     ctx.font = `400 ${Math.round(W * 0.026)}px "Segoe UI", Arial, sans-serif`;
     ctx.fillText(data.dateStr, M, M + W * 0.168);
 
-    // Route panel
+    // Route panel (rounded, map-filled)
     const routeTop = M + W * 0.21;
     const statsBandH = H * 0.16;
-    const routeBox = { x: M, y: routeTop, w: W - 2 * M, h: H - routeTop - statsBandH - M * 1.1 };
-    const project = fitRouteProjection(data.points, routeBox.x, routeBox.y, routeBox.w, routeBox.h);
+    const box = { x: M, y: routeTop, w: W - 2 * M, h: H - routeTop - statsBandH - M * 1.1 };
+    const radius = Math.round(W * 0.024);
 
-    // Route glow underlay
+    const view = fitMapView(data.points, box.x, box.y, box.w, box.h, 16);
     ctx.save();
-    traceRoute(ctx, data.points, project);
-    ctx.strokeStyle = 'rgba(100,255,218,0.25)';
-    ctx.lineWidth = Math.max(10, W * 0.012);
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.shadowColor = '#64ffda';
-    ctx.shadowBlur = W * 0.02;
-    ctx.stroke();
-    ctx.restore();
+    roundRectPath(ctx, box.x, box.y, box.w, box.h, radius);
+    ctx.clip();
+    ctx.fillStyle = '#0e1a2b';
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    const tilesOk = await drawMapTiles(ctx, view, box.x, box.y, box.w, box.h, loadFn);
+    let project = view.project;
+    if (tilesOk) {
+      // Gentle tint so the neon route pops and the card stays on-brand
+      ctx.fillStyle = 'rgba(10,25,47,0.22)';
+      ctx.fillRect(box.x, box.y, box.w, box.h);
+    } else {
+      project = fitRouteProjection(data.points, box.x, box.y, box.w, box.h);
+    }
 
-    // Route main stroke with gradient
-    ctx.save();
-    traceRoute(ctx, data.points, project);
-    const rg = ctx.createLinearGradient(routeBox.x, routeBox.y, routeBox.x + routeBox.w, routeBox.y + routeBox.h);
-    rg.addColorStop(0, '#64ffda');
-    rg.addColorStop(1, '#00c6ff');
-    ctx.strokeStyle = rg;
-    ctx.lineWidth = Math.max(4, W * 0.005);
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.stroke();
-    ctx.restore();
-
-    // Start & end markers
+    strokeRoute(ctx, data.points, project, W);
     const [sx, sy] = project(data.points[0]);
     const [ex, ey] = project(data.points[data.points.length - 1]);
-    drawDot(ctx, sx, sy, Math.max(6, W * 0.008), '#21c821');
-    drawDot(ctx, ex, ey, Math.max(6, W * 0.008), '#ff6384');
+    drawDot(ctx, sx, sy, Math.max(7, W * 0.009), '#21c821');
+    drawDot(ctx, ex, ey, Math.max(7, W * 0.009), '#ff6384');
+    if (tilesOk) drawAttribution(ctx, box.x + box.w - 12, box.y + box.h - 12);
+    ctx.restore();
+
+    // Panel border
+    ctx.save();
+    roundRectPath(ctx, box.x, box.y, box.w, box.h, radius);
+    ctx.strokeStyle = 'rgba(100,255,218,0.35)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
 
     // Stats band
     const bandY = H - statsBandH - M * 0.55;
@@ -995,28 +1111,40 @@ function sanitizeString(str) {
   }
 
   // ---- RIDE CARD (Download Summary) ----
-  summaryBtn.addEventListener('click', () => {
+  summaryBtn.addEventListener('click', async () => {
     if (!points.length) { showToast('Load a ride first.', 'info'); return; }
-    const W = 1080, H = 1350; // portrait, social-friendly
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    drawRideCard(ctx, W, H, {
-      title: currentRideTitle(),
-      dateStr: points[0].time.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
-      stats: currentRideStats(),
-      points
-    });
-    canvas.toBlob(blob => {
-      if (!blob) { showToast('Could not create the ride card.', 'delete'); return; }
-      downloadBlob(blob, `${safeFilename(currentRideTitle())}_ride_card.png`);
-      showToast('✅ Ride card downloaded!', 'add');
-    }, 'image/png');
+    if (summaryBtn.disabled) return;
+    const originalLabel = summaryBtn.textContent;
+    summaryBtn.disabled = true;
+    summaryBtn.textContent = '📁 Preparing…';
+    try {
+      const W = 1080, H = 1350;
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      await drawRideCard(ctx, W, H, {
+        title: currentRideTitle(),
+        dateStr: points[0].time.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
+        stats: currentRideStats(),
+        points
+      });
+      canvas.toBlob(blob => {
+        if (!blob) { showToast('Could not create the ride card.', 'delete'); return; }
+        downloadBlob(blob, `${safeFilename(currentRideTitle())}_ride_card.png`);
+        showToast('✅ Ride card downloaded!', 'add');
+      }, 'image/png');
+    } catch (err) {
+      console.error('Ride card export failed:', err);
+      showToast('Could not create the ride card.', 'delete');
+    } finally {
+      summaryBtn.disabled = false;
+      summaryBtn.textContent = originalLabel;
+    }
   });
 
   // ---- REPLAY VIDEO (Export Video) ----
-  videoBtn.addEventListener('click', () => {
+  videoBtn.addEventListener('click', async () => {
     if (!points.length) { showToast('Load a ride first.', 'info'); return; }
     if (videoBtn.disabled) return;
     if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream) {
@@ -1035,27 +1163,52 @@ function sanitizeString(str) {
     }
     const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
 
+    const originalLabel = videoBtn.textContent;
+    videoBtn.disabled = true;
+    videoBtn.textContent = '🎥 Preparing map…';
+
     const W = 1280, H = 720;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    const DURATION_MS = Math.min(30000, Math.max(12000, points.length * 25));
-    const project = fitRouteProjection(points, W * 0.28, H * 0.12, W * 0.66, H * 0.72);
     const title = currentRideTitle();
     const dateStr = points[0].time.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
     const lastIdx = points.length - 1;
+    const DURATION_MS = Math.min(30000, Math.max(12000, points.length * 25));
 
-    function roundRectPath(c, x, y, w, h, r) {
-      c.beginPath();
-      c.moveTo(x + r, y);
-      c.arcTo(x + w, y, x + w, y + h, r);
-      c.arcTo(x + w, y + h, x, y + h, r);
-      c.arcTo(x, y + h, x, y, r);
-      c.arcTo(x, y, x + w, y, r);
-      c.closePath();
+    // Route fits the right/centre area; map tiles fill the whole frame behind everything.
+    const view = fitMapView(points, W * 0.30, H * 0.15, W * 0.64, H * 0.64, 16);
+
+    // Pre-render the static background once (map + tint + header scrims)
+    const bg = document.createElement('canvas');
+    bg.width = W; bg.height = H;
+    const bctx = bg.getContext('2d');
+    bctx.fillStyle = '#0a192f';
+    bctx.fillRect(0, 0, W, H);
+    let tilesOk = false;
+    try {
+      tilesOk = await drawMapTiles(bctx, view, 0, 0, W, H);
+    } catch (_) { tilesOk = false; }
+    let project = view.project;
+    if (tilesOk) {
+      bctx.fillStyle = 'rgba(10,25,47,0.30)';
+      bctx.fillRect(0, 0, W, H);
+    } else {
+      project = fitRouteProjection(points, W * 0.30, H * 0.15, W * 0.64, H * 0.64);
     }
+    // Scrims for text legibility
+    let g = bctx.createLinearGradient(0, 0, 0, 150);
+    g.addColorStop(0, 'rgba(10,25,47,0.85)');
+    g.addColorStop(1, 'rgba(10,25,47,0)');
+    bctx.fillStyle = g;
+    bctx.fillRect(0, 0, W, 150);
+    g = bctx.createLinearGradient(0, H - 90, 0, H);
+    g.addColorStop(0, 'rgba(10,25,47,0)');
+    g.addColorStop(1, 'rgba(10,25,47,0.85)');
+    bctx.fillStyle = g;
+    bctx.fillRect(0, H - 90, W, 90);
 
     function drawFrame(t) { // t in [0,1]
       const f = Math.min(lastIdx, t * lastIdx);
@@ -1065,9 +1218,7 @@ function sanitizeString(str) {
       const [ax, ay] = project(p0), [bx, by] = project(p1);
       const cx = ax + (bx - ax) * frac, cy = ay + (by - ay) * frac;
 
-      // Background
-      ctx.fillStyle = '#0a192f';
-      ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(bg, 0, 0);
 
       // Header
       ctx.textAlign = 'left';
@@ -1077,21 +1228,21 @@ function sanitizeString(str) {
       ctx.fillStyle = '#ffffff';
       ctx.font = '700 34px "Segoe UI", Arial, sans-serif';
       ctx.fillText(title, 40, 92);
-      ctx.fillStyle = '#8fa4bd';
+      ctx.fillStyle = '#c7d3e3';
       ctx.font = '400 20px "Segoe UI", Arial, sans-serif';
       ctx.fillText(dateStr, 40, 122);
 
       // Full route, dim
       ctx.save();
       traceRoute(ctx, points, project);
-      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
       ctx.lineWidth = 4;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       ctx.stroke();
       ctx.restore();
 
-      // Progress route, bright with glow
+      // Progress route, bright
       ctx.save();
       ctx.beginPath();
       for (let i = 0; i <= idx; i++) {
@@ -1114,9 +1265,9 @@ function sanitizeString(str) {
       const px = 40, py = 170, pw = 250, ph = 220;
       ctx.save();
       roundRectPath(ctx, px, py, pw, ph, 18);
-      ctx.fillStyle = 'rgba(0,123,255,0.13)';
+      ctx.fillStyle = 'rgba(10,25,47,0.72)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(0,123,255,0.35)';
+      ctx.strokeStyle = 'rgba(0,123,255,0.45)';
       ctx.lineWidth = 2;
       ctx.stroke();
       ctx.restore();
@@ -1135,9 +1286,11 @@ function sanitizeString(str) {
       ctx.fillText(`📏 ${dist.toFixed(2)} km`, px + 22, py + 148);
       ctx.fillText(`⛰️ ${ele.toFixed(0)} m`, px + 22, py + 188);
 
+      if (tilesOk) drawAttribution(ctx, W - 40, H - 66);
+
       // Progress bar
       const bx0 = 40, bw0 = W - 80, byy = H - 52;
-      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      ctx.fillStyle = 'rgba(255,255,255,0.20)';
       roundRectPath(ctx, bx0, byy, bw0, 8, 4);
       ctx.fill();
       ctx.fillStyle = '#64ffda';
@@ -1150,9 +1303,6 @@ function sanitizeString(str) {
     const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6_000_000 });
     const chunks = [];
     recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-
-    const originalLabel = videoBtn.textContent;
-    videoBtn.disabled = true;
 
     recorder.onstop = () => {
       videoBtn.disabled = false;
@@ -1173,7 +1323,7 @@ function sanitizeString(str) {
       if (t < 1) {
         requestAnimationFrame(tick);
       } else {
-        setTimeout(() => recorder.stop(), 300); // let the last frame land
+        setTimeout(() => recorder.stop(), 300);
       }
     }
 
