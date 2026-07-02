@@ -811,6 +811,379 @@ function sanitizeString(str) {
   showAnalyticsBtn.addEventListener('click', showAnalyticsSection);
 
   // =====================================================
+  // SECTION 6.5: EXPORTS — RIDE CARD (PNG) & REPLAY VIDEO
+  // =====================================================
+
+  // [export-helpers-start]
+  // Fit the route into a box on a canvas, preserving aspect ratio.
+  // Returns a project(point) -> [x, y] function.
+  function fitRouteProjection(pts, boxX, boxY, boxW, boxH) {
+    let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+    for (const p of pts) {
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lng < minLng) minLng = p.lng;
+      if (p.lng > maxLng) maxLng = p.lng;
+    }
+    const midLat = (minLat + maxLat) / 2;
+    const lngScale = Math.cos(midLat * Math.PI / 180); // correct east-west stretch
+    const unitW = Math.max((maxLng - minLng) * lngScale, 1e-9);
+    const unitH = Math.max(maxLat - minLat, 1e-9);
+    const scale = Math.min(boxW / unitW, boxH / unitH);
+    const drawW = unitW * scale, drawH = unitH * scale;
+    const offX = boxX + (boxW - drawW) / 2;
+    const offY = boxY + (boxH - drawH) / 2;
+    return p => [
+      offX + ((p.lng - minLng) * lngScale / unitW) * drawW,
+      offY + ((maxLat - p.lat) / unitH) * drawH
+    ];
+  }
+
+  function traceRoute(ctx, pts, project) {
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      const [x, y] = project(p);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+  }
+
+  function drawDot(ctx, x, y, r, color, glow) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.shadowColor = glow || color;
+    ctx.shadowBlur = r * 2.5;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Draw the full shareable ride card. `data` = { title, dateStr, stats, points }
+  // stats = array of { label, value } (max 4)
+  function drawRideCard(ctx, W, H, data) {
+    // Background
+    ctx.fillStyle = '#0a192f';
+    ctx.fillRect(0, 0, W, H);
+    const vg = ctx.createRadialGradient(W / 2, H * 0.42, H * 0.1, W / 2, H * 0.42, H * 0.85);
+    vg.addColorStop(0, 'rgba(0,123,255,0.10)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.25)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+
+    const M = Math.round(W * 0.074); // outer margin
+
+    // Brand line
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#64ffda';
+    ctx.font = `600 ${Math.round(W * 0.024)}px "Segoe UI", Arial, sans-serif`;
+    ctx.save();
+    const brand = 'M E M O R Y   L A N E S';
+    ctx.fillText(brand, M, M + W * 0.01);
+    ctx.restore();
+    ctx.fillStyle = '#a8b7c8';
+    ctx.font = `400 ${Math.round(W * 0.019)}px "Segoe UI", Arial, sans-serif`;
+    ctx.fillText('journal your ride!', M, M + W * 0.042);
+
+    // Title + date
+    ctx.fillStyle = '#ffffff';
+    let titleSize = Math.round(W * 0.062);
+    ctx.font = `700 ${titleSize}px "Segoe UI", Arial, sans-serif`;
+    let title = data.title;
+    while (ctx.measureText(title).width > W - 2 * M && titleSize > 22) {
+      titleSize -= 2;
+      ctx.font = `700 ${titleSize}px "Segoe UI", Arial, sans-serif`;
+    }
+    ctx.fillText(title, M, M + W * 0.125);
+    ctx.fillStyle = '#8fa4bd';
+    ctx.font = `400 ${Math.round(W * 0.026)}px "Segoe UI", Arial, sans-serif`;
+    ctx.fillText(data.dateStr, M, M + W * 0.168);
+
+    // Route panel
+    const routeTop = M + W * 0.21;
+    const statsBandH = H * 0.16;
+    const routeBox = { x: M, y: routeTop, w: W - 2 * M, h: H - routeTop - statsBandH - M * 1.1 };
+    const project = fitRouteProjection(data.points, routeBox.x, routeBox.y, routeBox.w, routeBox.h);
+
+    // Route glow underlay
+    ctx.save();
+    traceRoute(ctx, data.points, project);
+    ctx.strokeStyle = 'rgba(100,255,218,0.25)';
+    ctx.lineWidth = Math.max(10, W * 0.012);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.shadowColor = '#64ffda';
+    ctx.shadowBlur = W * 0.02;
+    ctx.stroke();
+    ctx.restore();
+
+    // Route main stroke with gradient
+    ctx.save();
+    traceRoute(ctx, data.points, project);
+    const rg = ctx.createLinearGradient(routeBox.x, routeBox.y, routeBox.x + routeBox.w, routeBox.y + routeBox.h);
+    rg.addColorStop(0, '#64ffda');
+    rg.addColorStop(1, '#00c6ff');
+    ctx.strokeStyle = rg;
+    ctx.lineWidth = Math.max(4, W * 0.005);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.restore();
+
+    // Start & end markers
+    const [sx, sy] = project(data.points[0]);
+    const [ex, ey] = project(data.points[data.points.length - 1]);
+    drawDot(ctx, sx, sy, Math.max(6, W * 0.008), '#21c821');
+    drawDot(ctx, ex, ey, Math.max(6, W * 0.008), '#ff6384');
+
+    // Stats band
+    const bandY = H - statsBandH - M * 0.55;
+    ctx.strokeStyle = 'rgba(100,255,218,0.25)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(M, bandY);
+    ctx.lineTo(W - M, bandY);
+    ctx.stroke();
+
+    const n = data.stats.length;
+    const cellW = (W - 2 * M) / n;
+    data.stats.forEach((s, i) => {
+      const cx = M + cellW * i + cellW / 2;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 ${Math.round(W * 0.040)}px "Segoe UI", Arial, sans-serif`;
+      ctx.fillText(s.value, cx, bandY + statsBandH * 0.48);
+      ctx.fillStyle = '#8fa4bd';
+      ctx.font = `500 ${Math.round(W * 0.019)}px "Segoe UI", Arial, sans-serif`;
+      ctx.fillText(s.label.toUpperCase(), cx, bandY + statsBandH * 0.75);
+    });
+    ctx.textAlign = 'left';
+  }
+  // [export-helpers-end]
+
+  function currentRideTitle() {
+    const typed = document.getElementById('ride-title')?.value.trim();
+    if (typed) return typed;
+    const m = (rideTitleDisplay.textContent || '').match(/[“"](.+)[”"]/);
+    if (m) return m[1];
+    return 'My Ride';
+  }
+
+  function currentRideStats() {
+    const maxSpeed = speedData.reduce((mx, v) => (Number.isFinite(v) && v > mx ? v : mx), 0);
+    return [
+      { label: 'Distance', value: distanceEl.textContent },
+      { label: 'Ride Time', value: rideTimeEl.textContent },
+      { label: 'Elev Gain', value: elevationEl.textContent },
+      { label: 'Max Speed', value: `${maxSpeed.toFixed(0)} km/h` }
+    ];
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  function safeFilename(name) {
+    return name.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'ride';
+  }
+
+  // ---- RIDE CARD (Download Summary) ----
+  summaryBtn.addEventListener('click', () => {
+    if (!points.length) { showToast('Load a ride first.', 'info'); return; }
+    const W = 1080, H = 1350; // portrait, social-friendly
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    drawRideCard(ctx, W, H, {
+      title: currentRideTitle(),
+      dateStr: points[0].time.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
+      stats: currentRideStats(),
+      points
+    });
+    canvas.toBlob(blob => {
+      if (!blob) { showToast('Could not create the ride card.', 'delete'); return; }
+      downloadBlob(blob, `${safeFilename(currentRideTitle())}_ride_card.png`);
+      showToast('✅ Ride card downloaded!', 'add');
+    }, 'image/png');
+  });
+
+  // ---- REPLAY VIDEO (Export Video) ----
+  videoBtn.addEventListener('click', () => {
+    if (!points.length) { showToast('Load a ride first.', 'info'); return; }
+    if (videoBtn.disabled) return;
+    if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream) {
+      showToast("Video export isn't supported in this browser.", 'delete');
+      return;
+    }
+    const mime = [
+      'video/mp4;codecs=avc1',
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm'
+    ].find(t => MediaRecorder.isTypeSupported(t));
+    if (!mime) {
+      showToast("Video export isn't supported in this browser.", 'delete');
+      return;
+    }
+    const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+
+    const W = 1280, H = 720;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    const DURATION_MS = Math.min(30000, Math.max(12000, points.length * 25));
+    const project = fitRouteProjection(points, W * 0.28, H * 0.12, W * 0.66, H * 0.72);
+    const title = currentRideTitle();
+    const dateStr = points[0].time.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    const lastIdx = points.length - 1;
+
+    function roundRectPath(c, x, y, w, h, r) {
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r);
+      c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r);
+      c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+
+    function drawFrame(t) { // t in [0,1]
+      const f = Math.min(lastIdx, t * lastIdx);
+      const idx = Math.floor(f);
+      const frac = f - idx;
+      const p0 = points[idx], p1 = points[Math.min(idx + 1, lastIdx)];
+      const [ax, ay] = project(p0), [bx, by] = project(p1);
+      const cx = ax + (bx - ax) * frac, cy = ay + (by - ay) * frac;
+
+      // Background
+      ctx.fillStyle = '#0a192f';
+      ctx.fillRect(0, 0, W, H);
+
+      // Header
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#64ffda';
+      ctx.font = '600 20px "Segoe UI", Arial, sans-serif';
+      ctx.fillText('MEMORY LANES', 40, 48);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 34px "Segoe UI", Arial, sans-serif';
+      ctx.fillText(title, 40, 92);
+      ctx.fillStyle = '#8fa4bd';
+      ctx.font = '400 20px "Segoe UI", Arial, sans-serif';
+      ctx.fillText(dateStr, 40, 122);
+
+      // Full route, dim
+      ctx.save();
+      traceRoute(ctx, points, project);
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 4;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.restore();
+
+      // Progress route, bright with glow
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i <= idx; i++) {
+        const [x, y] = project(points[i]);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.lineTo(cx, cy);
+      ctx.strokeStyle = '#64ffda';
+      ctx.lineWidth = 5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.shadowColor = '#64ffda';
+      ctx.shadowBlur = 14;
+      ctx.stroke();
+      ctx.restore();
+
+      drawDot(ctx, cx, cy, 9, '#ffffff', '#64ffda');
+
+      // Telemetry panel
+      const px = 40, py = 170, pw = 250, ph = 220;
+      ctx.save();
+      roundRectPath(ctx, px, py, pw, ph, 18);
+      ctx.fillStyle = 'rgba(0,123,255,0.13)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,123,255,0.35)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      const speed = speedData[idx] || 0;
+      const dist = (cumulativeDistance[idx] || 0) / 1000;
+      const ele = p0.ele || 0;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 52px "Segoe UI", Arial, sans-serif';
+      ctx.fillText(speed.toFixed(1), px + 22, py + 74);
+      ctx.fillStyle = '#8fa4bd';
+      ctx.font = '500 18px "Segoe UI", Arial, sans-serif';
+      ctx.fillText('KM/H', px + 22, py + 100);
+      ctx.fillStyle = '#e3e8ef';
+      ctx.font = '500 22px "Segoe UI", Arial, sans-serif';
+      ctx.fillText(`📏 ${dist.toFixed(2)} km`, px + 22, py + 148);
+      ctx.fillText(`⛰️ ${ele.toFixed(0)} m`, px + 22, py + 188);
+
+      // Progress bar
+      const bx0 = 40, bw0 = W - 80, byy = H - 52;
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      roundRectPath(ctx, bx0, byy, bw0, 8, 4);
+      ctx.fill();
+      ctx.fillStyle = '#64ffda';
+      roundRectPath(ctx, bx0, byy, Math.max(8, bw0 * t), 8, 4);
+      ctx.fill();
+    }
+
+    // Record
+    const stream = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6_000_000 });
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+
+    const originalLabel = videoBtn.textContent;
+    videoBtn.disabled = true;
+
+    recorder.onstop = () => {
+      videoBtn.disabled = false;
+      videoBtn.textContent = originalLabel;
+      const blob = new Blob(chunks, { type: mime.split(';')[0] });
+      if (!blob.size) { showToast('Video export failed.', 'delete'); return; }
+      downloadBlob(blob, `${safeFilename(title)}_replay.${ext}`);
+      showToast('✅ Replay video downloaded!', 'add');
+    };
+
+    let startTs = null;
+    function tick(ts) {
+      if (startTs === null) startTs = ts;
+      const elapsed = ts - startTs;
+      const t = Math.min(1, elapsed / DURATION_MS);
+      drawFrame(t);
+      videoBtn.textContent = `🎥 Recording… ${(t * 100).toFixed(0)}%`;
+      if (t < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        setTimeout(() => recorder.stop(), 300); // let the last frame land
+      }
+    }
+
+    drawFrame(0);
+    recorder.start(250);
+    requestAnimationFrame(tick);
+    showToast(`Recording a ${(DURATION_MS / 1000).toFixed(0)}s replay — keep this tab visible.`, 'info');
+  });
+
+  // =====================================================
   // SECTION 7: GPX FILE UPLOAD
   // =====================================================
   uploadInput.addEventListener('change', async e => {
