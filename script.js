@@ -158,6 +158,9 @@ async function saveMomentsToDB() {
   // ----- UI visibility logic -----
   function resetUIToInitial() {
     uploadSection.style.display        = 'block';
+    const uc0 = document.querySelector('.upload-controls');
+    if (uc0) uc0.style.display = '';
+    postUploadActions.style.display    = 'none';
     saveForm.style.display             = 'none';
     authSection.style.display          = 'none';
     mainRideUI.style.display           = 'none';
@@ -186,7 +189,12 @@ async function saveMomentsToDB() {
   }
 
   function showUIForSavedRide() {
-    uploadSection.style.display        = 'none';
+    // Keep the toolbar so Download Summary / Export Video work on saved rides,
+    // but hide the upload picker itself.
+    uploadSection.style.display        = 'block';
+    const uc1 = document.querySelector('.upload-controls');
+    if (uc1) uc1.style.display = 'none';
+    postUploadActions.style.display    = 'flex';
     mainRideUI.style.display           = 'block';
     saveForm.style.display             = 'none';
     authSection.style.display          = 'none';
@@ -197,6 +205,26 @@ async function saveMomentsToDB() {
     rideActions.style.display          = 'flex';
     setTimeout(() => map.invalidateSize(), 200);
     editControls.style.display         = 'flex';
+  }
+
+  function showUIForSharedRide() {
+    uploadSection.style.display        = 'block';
+    const uc2 = document.querySelector('.upload-controls');
+    if (uc2) uc2.style.display = 'none';
+    postUploadActions.style.display    = 'flex';
+    const oj = document.getElementById('open-journal');
+    if (oj) oj.style.display = 'none';
+    mainRideUI.style.display           = 'block';
+    saveForm.style.display             = 'none';
+    authSection.style.display          = 'none';
+    showAnalyticsBtn.style.display     = 'inline-block';
+    analyticsSection.style.display     = 'none';
+    rideActions.style.display          = 'none';
+    editControls.style.display         = 'none';
+    editHelp.style.display             = 'none';
+    const dashBtn2 = document.getElementById('dashboard-check-btn');
+    if (dashBtn2) dashBtn2.style.display = 'none';
+    setTimeout(() => map.invalidateSize(), 200);
   }
 
   function showAnalyticsSection() {
@@ -362,6 +390,7 @@ uploadInput.addEventListener('change', () => {
 
     hideAnalyticsSection();
     showAnalyticsBtn.style.display = 'inline-block';
+    fetchAndShowWeather(); // fire-and-forget: fills the Weather line in the summary
   }
 
   // =====================================================
@@ -809,6 +838,65 @@ function sanitizeString(str) {
   });
 
   showAnalyticsBtn.addEventListener('click', showAnalyticsSection);
+
+
+  // =====================================================
+  // WEATHER AT RIDE TIME (Open-Meteo historical data, no API key)
+  // =====================================================
+  const WMO_WEATHER = {
+    0:['\u2600\uFE0F','Clear'],1:['\uD83C\uDF24\uFE0F','Mostly clear'],2:['\u26C5','Partly cloudy'],3:['\u2601\uFE0F','Overcast'],
+    45:['\uD83C\uDF2B\uFE0F','Fog'],48:['\uD83C\uDF2B\uFE0F','Freezing fog'],
+    51:['\uD83C\uDF26\uFE0F','Light drizzle'],53:['\uD83C\uDF26\uFE0F','Drizzle'],55:['\uD83C\uDF27\uFE0F','Heavy drizzle'],
+    56:['\uD83C\uDF27\uFE0F','Freezing drizzle'],57:['\uD83C\uDF27\uFE0F','Freezing drizzle'],
+    61:['\uD83C\uDF26\uFE0F','Light rain'],63:['\uD83C\uDF27\uFE0F','Rain'],65:['\uD83C\uDF27\uFE0F','Heavy rain'],
+    66:['\uD83C\uDF27\uFE0F','Freezing rain'],67:['\uD83C\uDF27\uFE0F','Freezing rain'],
+    71:['\uD83C\uDF28\uFE0F','Light snow'],73:['\uD83C\uDF28\uFE0F','Snow'],75:['\u2744\uFE0F','Heavy snow'],77:['\uD83C\uDF28\uFE0F','Snow grains'],
+    80:['\uD83C\uDF26\uFE0F','Light showers'],81:['\uD83C\uDF27\uFE0F','Showers'],82:['\u26C8\uFE0F','Heavy showers'],
+    85:['\uD83C\uDF28\uFE0F','Snow showers'],86:['\u2744\uFE0F','Snow showers'],
+    95:['\u26C8\uFE0F','Thunderstorm'],96:['\u26C8\uFE0F','Thunderstorm'],99:['\u26C8\uFE0F','Thunderstorm']
+  };
+
+  async function fetchAndShowWeather() {
+    const el = document.getElementById('weather');
+    if (!el) return;
+    if (!points.length || !(points[0].time instanceof Date) || isNaN(points[0].time)) {
+      el.textContent = '\u2013';
+      return;
+    }
+    el.textContent = 'Checking\u2026';
+    try {
+      const p = points[0];
+      const d = p.time;
+      const dateStr = d.toISOString().slice(0, 10);
+      const ageDays = (Date.now() - d.getTime()) / 86400000;
+      // Archive API lags ~5 days behind; recent rides use the forecast API's recent-past window.
+      const base = ageDays > 5.5
+        ? 'https://archive-api.open-meteo.com/v1/archive'
+        : 'https://api.open-meteo.com/v1/forecast';
+      const url = `${base}?latitude=${p.lat.toFixed(4)}&longitude=${p.lng.toFixed(4)}` +
+        `&start_date=${dateStr}&end_date=${dateStr}` +
+        `&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=UTC`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      const times = data?.hourly?.time || [];
+      const targetHour = d.toISOString().slice(0, 13); // e.g. "2026-06-28T09"
+      let idx = times.findIndex(t => t.slice(0, 13) === targetHour);
+      if (idx === -1) idx = 0;
+      const temp = data.hourly.temperature_2m?.[idx];
+      const wind = data.hourly.wind_speed_10m?.[idx];
+      const precip = data.hourly.precipitation?.[idx];
+      const code = data.hourly.weather_code?.[idx];
+      if (!Number.isFinite(temp)) throw new Error('no data');
+      const [emoji, desc] = WMO_WEATHER[code] || ['\uD83C\uDF24\uFE0F', ''];
+      let text = `${emoji} ${temp.toFixed(0)}\u00B0C${desc ? ', ' + desc.toLowerCase() : ''}`;
+      if (Number.isFinite(wind)) text += `, wind ${wind.toFixed(0)} km/h`;
+      if (Number.isFinite(precip) && precip >= 0.2) text += `, ${precip.toFixed(1)} mm rain that hour`;
+      el.textContent = text;
+    } catch (err) {
+      el.textContent = 'unavailable';
+    }
+  }
 
   // =====================================================
   // SECTION 6.5: EXPORTS — RIDE CARD (PNG) & REPLAY VIDEO
@@ -1993,6 +2081,124 @@ saveBtn.addEventListener('click', async () => {
 // ========== INIT ==========
 resetUIToInitial();
 
+
+// ========== SHARE RIDE (public read-only links) ==========
+const shareRideBtn = document.getElementById('share-ride-btn');
+const unshareRideBtn = document.getElementById('unshare-ride-btn');
+const openJournalBtn = document.getElementById('open-journal');
+
+if (openJournalBtn) {
+  openJournalBtn.addEventListener('click', () => { window.location.href = 'journal.html'; });
+}
+
+function shareLinkFor(token) {
+  return `${window.location.origin}${window.location.pathname}?share=${token}`;
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (_) {
+    window.prompt('Copy this share link:', text);
+    return false;
+  }
+}
+
+function refreshShareButtons(ride) {
+  if (!shareRideBtn) return;
+  if (ride && ride.is_public) {
+    shareRideBtn.textContent = '\uD83D\uDD17 Copy Share Link';
+    shareRideBtn.style.display = '';
+    unshareRideBtn.style.display = '';
+  } else {
+    shareRideBtn.textContent = '\uD83D\uDD17 Share Ride';
+    shareRideBtn.style.display = '';
+    unshareRideBtn.style.display = 'none';
+  }
+}
+
+let currentRideRow = null; // the ride being viewed, when the owner loaded it
+
+if (shareRideBtn) {
+  shareRideBtn.addEventListener('click', async () => {
+    if (!currentRideRow) return;
+    if (currentRideRow.share_token === undefined) {
+      showToast('Sharing needs a one-time database setup \u2014 see supabase-share-setup.sql in the repo.', 'info');
+      return;
+    }
+    if (!currentRideRow.is_public) {
+      const { data, error } = await supabase
+        .from('ride_logs')
+        .update({ is_public: true })
+        .eq('id', currentRideRow.id)
+        .select('is_public, share_token')
+        .single();
+      if (error || !data) {
+        showToast(`\u274C Could not share: ${error?.message || 'unknown error'}`, 'delete');
+        return;
+      }
+      currentRideRow.is_public = data.is_public;
+      currentRideRow.share_token = data.share_token;
+      refreshShareButtons(currentRideRow);
+      const copied = await copyText(shareLinkFor(currentRideRow.share_token));
+      showToast(copied ? '\u2705 Ride shared \u2014 link copied!' : '\u2705 Ride shared!', 'add');
+    } else {
+      const copied = await copyText(shareLinkFor(currentRideRow.share_token));
+      showToast(copied ? '\u2705 Share link copied!' : 'Here is your link.', 'add');
+    }
+  });
+}
+
+if (unshareRideBtn) {
+  unshareRideBtn.addEventListener('click', async () => {
+    if (!currentRideRow || !currentRideRow.is_public) return;
+    if (!confirm('Stop sharing this ride? Existing links will stop working.')) return;
+    const { error } = await supabase
+      .from('ride_logs')
+      .update({ is_public: false })
+      .eq('id', currentRideRow.id);
+    if (error) {
+      showToast(`\u274C Could not unshare: ${error.message}`, 'delete');
+      return;
+    }
+    currentRideRow.is_public = false;
+    refreshShareButtons(currentRideRow);
+    showToast('Ride is private again.', 'add');
+  });
+}
+
+// ========== READ-ONLY MOMENTS (for shared rides) ==========
+function renderSharedMoments(moments) {
+  if (!Array.isArray(moments) || !moments.length) {
+    momentsSection.style.display = 'none';
+    return;
+  }
+  momentsSection.style.display = 'block';
+  toggleMomentsBtn.style.display = 'none';
+  momentsTools.style.display = 'block';
+  addMomentBtn.style.display = 'none';
+  momentsList.innerHTML = moments.map(m => `
+    <div class="moment-entry">
+      <div style="display:flex; gap:1rem; align-items:center; margin-bottom:0.3rem;">
+        <span style="font-size:1.15em;">\uD83D\uDCCD</span>
+        <span>
+          <strong>${escapeHtml(m.title) || 'Moment'}</strong><br>
+          ${typeof m.speed === 'number' ? `${m.speed.toFixed(1)} km/h \u00B7 ` : ''}${typeof m.elevation === 'number' ? `${m.elevation.toFixed(0)} m` : ''}
+        </span>
+      </div>
+      ${m.note ? `<div style="color:#dce7f5; margin-left:2.3rem;">${escapeHtml(m.note)}</div>` : ''}
+    </div>`).join('');
+  moments.forEach(m => {
+    if (typeof m.lat === 'number' && typeof m.lng === 'number') {
+      const marker = L.marker([m.lat, m.lng], {
+        icon: L.divIcon({ className: 'moment-pin', html: '<span style="color:#8338ec;font-size:1.4em;">\u2605</span>' })
+      }).addTo(map);
+      marker.on('click', () => window.jumpToPlaybackIndex(Math.max(0, m.idx || 0)));
+    }
+  });
+}
+
 // ========== LOAD RIDE FROM DASHBOARD ==========
 
 const params = new URLSearchParams(window.location.search);
@@ -2055,6 +2261,13 @@ if (params.has('ride')) {
       showUIForSavedRide();
       hideAnalyticsSection();
       showAnalyticsBtn.style.display = 'inline-block';
+
+      // Sharing controls — owner only
+      const { data: { user: viewer } } = await supabase.auth.getUser();
+      if (viewer && ride.user_id === viewer.id) {
+        currentRideRow = ride;
+        refreshShareButtons(ride);
+      }
     } catch (err) {
       // This only triggers on actual exceptions
       rideTitleDisplay.textContent = "❌ Error loading ride data.";
@@ -2063,6 +2276,48 @@ if (params.has('ride')) {
       document.getElementById('ride-controls').style.display = 'block';
       rideActions.style.display = 'flex';
       console.error("Load error", err);
+    }
+  })();
+}
+
+if (params.has('share') && !params.has('ride')) {
+  (async () => {
+    rideTitleDisplay.textContent = '';
+    try {
+      const token = params.get('share');
+      const { data: ride, error: shareErr } = await supabase.rpc('get_shared_ride', { token });
+      if (shareErr || !ride) {
+        rideTitleDisplay.textContent = '\u274C This shared ride is unavailable \u2014 the link may have been revoked.';
+        rideTitleDisplay.style.color = '#ff6b6b';
+        rideTitleDisplay.style.textAlign = 'center';
+        document.getElementById('ride-controls').style.display = 'block';
+        resetUIToInitial();
+        return;
+      }
+
+      hideSaveForm();
+      rideTitleDisplay.textContent = ride.title
+        ? `\uD83D\uDD17 Shared Ride: \u201C${ride.title}\u201D`
+        : '\uD83D\uDD17 Shared Ride';
+      rideTitleDisplay.style.textAlign = 'center';
+      document.getElementById('ride-controls').style.display = 'block';
+
+      const { data: urlData } = supabase.storage.from('gpx-files').getPublicUrl(ride.gpx_path);
+      const resp = await fetch(urlData.publicUrl);
+      if (!resp.ok) throw new Error(`GPX fetch failed (${resp.status})`);
+      const gpxText = await resp.text();
+      parseAndRenderGPX(gpxText);
+
+      showUIForSharedRide();
+      renderSharedMoments(Array.isArray(ride.moments) ? ride.moments : []);
+      hideAnalyticsSection();
+      showAnalyticsBtn.style.display = 'inline-block';
+    } catch (err) {
+      console.error('Shared ride load error', err);
+      rideTitleDisplay.textContent = '\u274C Error loading this shared ride.';
+      rideTitleDisplay.style.color = '#ff6b6b';
+      rideTitleDisplay.style.textAlign = 'center';
+      document.getElementById('ride-controls').style.display = 'block';
     }
   })();
 }

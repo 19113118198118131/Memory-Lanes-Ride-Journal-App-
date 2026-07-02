@@ -280,6 +280,14 @@ if (journalBtn) {
   });
 }
 
+// ========== Stats Button ==========
+const statsBtn = document.getElementById('stats-btn');
+if (statsBtn) {
+  statsBtn.addEventListener('click', () => {
+    window.location.href = 'stats.html';
+  });
+}
+
 // ========== Toast Utility ==========
 function showToast(msg, mode = "info") {
   let toast = document.createElement("div");

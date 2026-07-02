@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lifetime Stats - Memory Lanes</title>
+  <link rel="icon" type="image/png" href="assets/logo/favicon.png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Page-scoped styles for the stats view */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 1.1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 1.35rem 1.1rem;
+      text-align: center;
+    }
+    .stat-card .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent-light);
+      letter-spacing: 0.5px;
+    }
+    .stat-card .stat-label {
+      margin-top: 0.35rem;
+      color: #8fa4bd;
+      font-size: 0.98rem;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+    .bests-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 1.1rem;
+    }
+    .best-card {
+      background: linear-gradient(90deg, rgba(58,134,255,0.16) 0%, rgba(0,242,254,0.12) 100%);
+      border-radius: 20px;
+      padding: 1.1rem 1.3rem;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.18s;
+    }
+    .best-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,123,255,0.18); }
+    .best-card .best-label { color: #8fa4bd; font-size: 0.92rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .best-card .best-value { font-size: 1.5rem; font-weight: 800; color: #fff; margin: 0.2rem 0; }
+    .best-card .best-title { color: var(--accent-light); font-size: 1.02rem; }
+    #all-routes-map {
+      height: 52vh;
+      min-height: 320px;
+      width: 100%;
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      background: #0e1a2b;
+    }
+    #routes-progress { color: #8fa4bd; margin: 0.6rem 0 0 0.3rem; font-size: 0.98rem; }
+    #stats-empty { color: #8fa4bd; padding: 2rem 0; }
+    #monthChart { max-height: 340px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="dashboard-header">
+      <h1>📊 Lifetime Stats</h1>
+      <div class="button-group">
+        <button id="back-dashboard-btn">⬅️ Dashboard</button>
+        <button id="new-ride-btn">➕ New Ride</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="stats-empty" style="display:none;">No rides yet — upload your first GPX and this page comes alive!</div>
+
+    <section class="stats-grid" id="totals-grid" style="display:none;">
+      <div class="stat-card"><div class="stat-value" id="total-rides">–</div><div class="stat-label">Rides</div></div>
+      <div class="stat-card"><div class="stat-value" id="total-distance">–</div><div class="stat-label">Total Distance</div></div>
+      <div class="stat-card"><div class="stat-value" id="total-elevation">–</div><div class="stat-label">Elevation Climbed</div></div>
+      <div class="stat-card"><div class="stat-value" id="total-time">–</div><div class="stat-label">Time Riding</div></div>
+    </section>
+
+    <section class="chart-block" id="month-block" style="display:none;">
+      <h3>Rides per Month</h3>
+      <p class="chart-desc">Kilometres ridden each month over the last 12 months. Hover a bar for the ride count.</p>
+      <canvas id="monthChart"></canvas>
+    </section>
+
+    <section class="card-section" id="bests-block" style="display:none;">
+      <h2 style="margin-top:0;">🏆 Personal Bests</h2>
+      <div class="bests-grid" id="bests-grid"></div>
+    </section>
+
+    <section class="card-section" id="map-block" style="display:none;">
+      <h2 style="margin-top:0;">🗺️ Everywhere You've Ridden</h2>
+      <div id="all-routes-map"></div>
+      <div id="routes-progress"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="stats.js"></script>
+</body>
+</html>
