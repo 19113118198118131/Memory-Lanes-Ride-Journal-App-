@@ -37,6 +37,13 @@ rideList.parentElement.insertBefore(filtersContainer, rideList);
 
 let allRides = [];
 
+// Escape user-entered text before injecting into innerHTML
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+}
+
 // ========== Main initialization ==========
 (async () => {
   // Get logged-in user, redirect to login if not authenticated
@@ -80,7 +87,7 @@ function applyFilters() {
   const sort = document.getElementById('sort-select').value;
 
   let filtered = allRides.filter(ride => {
-    const matchesKeyword = ride.title.toLowerCase().includes(keyword);
+    const matchesKeyword = (ride.title || '').toLowerCase().includes(keyword);
     const rideDate = ride.ride_date ? new Date(ride.ride_date) : null;
     const matchesMonth = !month || (rideDate && rideDate.getMonth() === Number(month));
     const matchesYear = !year || (rideDate && rideDate.getFullYear().toString() === year);
@@ -96,16 +103,16 @@ function applyFilters() {
       filtered.sort((a, b) => new Date(b.ride_date) - new Date(a.ride_date));
       break;
     case 'distance_asc':
-      filtered.sort((a, b) => a.distance_km - b.distance_km);
+      filtered.sort((a, b) => (a.distance_km || 0) - (b.distance_km || 0));
       break;
     case 'distance_desc':
-      filtered.sort((a, b) => b.distance_km - a.distance_km);
+      filtered.sort((a, b) => (b.distance_km || 0) - (a.distance_km || 0));
       break;
     case 'elevation_asc':
-      filtered.sort((a, b) => a.elevation_m - b.elevation_m);
+      filtered.sort((a, b) => (a.elevation_m || 0) - (b.elevation_m || 0));
       break;
     case 'elevation_desc':
-      filtered.sort((a, b) => b.elevation_m - a.elevation_m);
+      filtered.sort((a, b) => (b.elevation_m || 0) - (a.elevation_m || 0));
       break;
   }
 
@@ -204,7 +211,7 @@ function renderRides(rides) {
     item.innerHTML = `
       <div class="ride-title-row">
         <div class="ride-title">
-          ${ride.title}
+          ${escapeHtml(ride.title)}
           ${
             Array.isArray(ride.moments) && ride.moments.length > 0
               ? `<span class="moments-icon" title="This ride has moments!" style="margin-left:8px;font-size:1.2em;vertical-align:middle;">

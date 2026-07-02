@@ -9,6 +9,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // SECTION 1: UI ELEMENT REFERENCES & UI STATE HELPERS
   // =====================================================
   
+  // Helper: Escape user-entered text before injecting into innerHTML
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+    );
+  }
+
   // Helper: Fade in any element with smooth transition
     function fadeInElement(el) {
       el.classList.remove('fade-in'); // reset in case it's already applied
@@ -60,15 +67,15 @@ function renderMoments() {
       <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.3rem;">
         <span style="font-size:1.15em;">📍</span>
         <span>
-          <strong>Km:</strong> ${(cumulativeDistance[m.idx]/1000).toFixed(2) || '--'}<br>
+          <strong>Km:</strong> ${Number.isFinite(cumulativeDistance[m.idx]) ? (cumulativeDistance[m.idx]/1000).toFixed(2) : '--'}<br>
           <strong>Speed:</strong> ${m.speed?.toFixed(1) || '--'} km/h<br>
           <strong>Elevation:</strong> ${m.elevation?.toFixed(0) || '--'} m
         </span>
         <button class="jump-moment-btn btn-muted" data-idx="${i}" style="margin-left:auto;">Jump</button>
         <button class="delete-moment-btn btn-muted" data-idx="${i}" style="margin-left:0.8rem;color:#ff6b6b;">🗑️</button>
       </div>
-      <input type="text" placeholder="Moment title (optional)" value="${m.title || ''}" class="moment-title-input" data-idx="${i}" style="width: 90%; margin-bottom: 0.3rem;" />
-      <textarea placeholder="Your notes or memory..." class="moment-note-input" data-idx="${i}" style="width: 90%; min-height: 48px;">${m.note || ''}</textarea>
+      <input type="text" placeholder="Moment title (optional)" value="${escapeHtml(m.title)}" class="moment-title-input" data-idx="${i}" style="width: 90%; margin-bottom: 0.3rem;" />
+      <textarea placeholder="Your notes or memory..." class="moment-note-input" data-idx="${i}" style="width: 90%; min-height: 48px;">${escapeHtml(m.note)}</textarea>
       <hr style="border:0; border-top:1px solid #223; margin: 0.7rem 0;">
     `;
     momentsList.appendChild(div);
@@ -136,6 +143,10 @@ rideMoments.forEach((m, i) => {
 async function saveMomentsToDB() {
   const params = new URLSearchParams(window.location.search);
   const rideId = params.get('ride');
+  if (!rideId) {
+    showToast('Save this ride first to keep moments.', 'info');
+    return;
+  }
   const { error } = await supabase
     .from('ride_logs')
     .update({ moments: rideMoments })
@@ -289,7 +300,7 @@ uploadInput.addEventListener('change', () => {
         }
       }
     }
-    if (points.at(-1).time !== trkpts.at(-1).time) {
+    if (points.at(-1).time.getTime() !== trkpts.at(-1).time.getTime()) {
       points.push(trkpts.at(-1));
     }
 
@@ -805,6 +816,7 @@ function sanitizeString(str) {
   uploadInput.addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
+    if (isEditing && exitEditBtn) exitEditBtn.onclick(); // discard any in-progress route edits
     const { data: { user } } = await supabase.auth.getUser();
     showUIAfterUpload(!!user);
     if (window.playInterval) clearInterval(window.playInterval);
@@ -1145,7 +1157,10 @@ function sanitizeString(str) {
     });
 
     const ctx = document.getElementById('cornerChart').getContext('2d');
-    new Chart(ctx, {
+    if (window.cornerChart && typeof window.cornerChart.destroy === 'function') {
+      window.cornerChart.destroy();
+    }
+    window.cornerChart = new Chart(ctx, {
       type: 'scatter',
       data: {
         datasets: [
@@ -1261,6 +1276,11 @@ function sanitizeString(str) {
       return;
     }
     window.fracIndex = Number(slider.value);
+    // If we're at (or past) the end, restart the replay from the beginning
+    if (window.fracIndex >= points.length - 1) {
+      window.fracIndex = 0;
+      updatePlayback(0);
+    }
     playBtn.textContent = '⏸ Pause';
     const mult = parseFloat(speedSel.value) || 1;
     window.playInterval = setInterval(() => {
@@ -1331,6 +1351,7 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   });
 
 saveBtn.addEventListener('click', async () => {
+  if (saveBtn.disabled) return;
   const title = document.getElementById('ride-title').value.trim();
   const statusEl = document.getElementById('save-status');
   statusEl.textContent = ''; // Clear old
@@ -1371,6 +1392,15 @@ saveBtn.addEventListener('click', async () => {
     return;
   }
 
+  // Lock the button while saving so double clicks don't create duplicates
+  saveBtn.disabled = true;
+  const originalSaveLabel = saveBtn.textContent;
+  saveBtn.textContent = 'Saving…';
+  const unlockSave = () => {
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalSaveLabel;
+  };
+
   // Upload to Supabase Storage
   const ext      = file.name.split('.').pop();
   const stamp    = Date.now();
@@ -1381,6 +1411,7 @@ saveBtn.addEventListener('click', async () => {
     .upload(filePath, file);
   if (uploadErr) {
     showToast(`❌ GPX upload failed: ${uploadErr.message}`, "delete");
+    unlockSave();
     return;
   }
 
@@ -1403,9 +1434,11 @@ saveBtn.addEventListener('click', async () => {
     });
   if (insertErr) {
     showToast(`❌ Save failed: ${insertErr.message}`, "delete");
+    unlockSave();
     return;
   }
 
+  unlockSave();
   showToast('✅ Ride saved!', "add");
   showFireworks();
   saveForm.style.display = 'none';
@@ -1563,8 +1596,8 @@ addMomentBtn.addEventListener('click', () => {
     showToast('You can only save up to 5 moments for this ride.', 'info');
     return;
   }
-  // Use current playback index, or let user click on map (for now, playback index)
-  const idx = window.fracIndex || 0;
+  // Use current playback index (clamped to a valid whole index)
+  const idx = Math.min(Math.max(Math.floor(window.fracIndex || 0), 0), points.length - 1);
   const point = points[idx] || points[0];
   const moment = {
     idx,

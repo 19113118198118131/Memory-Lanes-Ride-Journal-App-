@@ -1,4 +1,11 @@
 // supabaseClient.js
+//
+// NOTE: The anon key below is designed to be public, BUT that is only safe if
+// Row Level Security (RLS) is enabled on the `ride_logs` table and the
+// `gpx-files` storage bucket. Recommended policies:
+//   ride_logs:  SELECT/INSERT/UPDATE/DELETE only where user_id = auth.uid()
+//   gpx-files:  users may only write/delete within a folder named after their uid
+// Verify these in the Supabase dashboard (Auth > Policies) before sharing the app.
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 const SUPABASE_URL     = 'https://vodujxiwkpxaxaqnwkdd.supabase.co';

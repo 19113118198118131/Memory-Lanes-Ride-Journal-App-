@@ -40,7 +40,7 @@
        ======================== -->
   <div id="ride-controls" style="display:none; margin: 1rem;">
     <h2 id="ride-title-display" style="color: #64ffda; margin-bottom: 0.5rem; text-align:center;"></h2>
-    <div id="ride-actions" style="display:none; margin: 1rem 0 1.5rem 0; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start;">
+    <div id="ride-actions" style="margin: 1rem 0 1.5rem 0; flex-direction: column; gap: 0.6rem; align-items: flex-start; display: none;">
       <button id="upload-another" class="btn-muted">📤 Upload a New Ride</button>
       <button id="back-dashboard" class="btn-muted">⬅️ Back to Dashboard</button>
     </div>
@@ -244,7 +244,8 @@
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
   <script type="module" src="script.js"></script>
-  <script src="analytics.js" defer></script>
+  <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
+
 
   
 <canvas id="fireworks-canvas" style="

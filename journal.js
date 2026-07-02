@@ -1,3 +1,10 @@
+// Escape user-entered text before injecting into innerHTML
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+}
+
 import supabase from './supabaseClient.js';
 
 
@@ -36,15 +43,15 @@ function renderMoments(momentArr = []) {
     div.className = 'moment-entry journal-moment-card';
     div.innerHTML = `
       <div class="journal-moment-head">
-        <strong>${m.title || 'Untitled Moment'}</strong>
+        <strong>${escapeHtml(m.title) || 'Untitled Moment'}</strong>
         <span style="color:#64ffda;margin-left:1em;">${m.rideDate ? new Date(m.rideDate).toLocaleDateString() : ''}</span>
       </div>
       <div class="journal-moment-meta">
-        <span>From <a href="index.html?ride=${m.rideId}" style="color:#00c6ff;text-decoration:underline;">${m.rideTitle || '(untitled ride)'}</a></span>
+        <span>From <a href="index.html?ride=${m.rideId}" style="color:#00c6ff;text-decoration:underline;">${escapeHtml(m.rideTitle) || '(untitled ride)'}</a></span>
         ${typeof m.speed === 'number' ? `<span>• ${m.speed.toFixed(1)} km/h</span>` : ''}
         ${typeof m.elevation === 'number' ? `<span>• ${m.elevation.toFixed(0)} m</span>` : ''}
       </div>
-      <div class="journal-moment-note">${m.note ? m.note : '<em>(No notes)</em>'}</div>
+      <div class="journal-moment-note">${m.note ? escapeHtml(m.note) : '<em>(No notes)</em>'}</div>
     `;
     frag.appendChild(div);
   });
@@ -154,7 +161,7 @@ function renderRideFilter(ridesArray, activeRideId, onSelectRide) {
   let html = `<label for="ride-filter">Ride: </label>`;
   html += `<select id="ride-filter"><option value="">All Rides</option>`;
   ridesArray.forEach(r => {
-    html += `<option value="${r.id}"${activeRideId === r.id ? ' selected' : ''}>${r.title || '(untitled ride)'}</option>`;
+    html += `<option value="${r.id}"${activeRideId === r.id ? ' selected' : ''}>${escapeHtml(r.title) || '(untitled ride)'}</option>`;
   });
   html += `</select>`;
   rideFilterContainer.innerHTML = html;
@@ -190,9 +197,9 @@ function renderStPageFlipBook(moments, animationStyle) {
   const pages = moments.map(m => `
     <div class="flipbook-card" style="background:none; box-shadow:none; margin:0; padding:0;">
       <div style="padding:2.2em 2em; border-radius:18px; background:linear-gradient(100deg, #1d2b43 70%, #132033 100%); box-shadow:0 6px 22px #1c2c4548;">
-        <div class="journal-moment-head" style="font-size:1.14em;"><strong>${m.title || 'Untitled Moment'}</strong></div>
-        <div class="journal-moment-meta" style="margin-top:0.5em;">${m.rideDate ? new Date(m.rideDate).toLocaleDateString() : ''} | <a href="index.html?ride=${m.rideId}" target="_blank">${m.rideTitle || '(untitled ride)'}</a></div>
-        <div class="journal-moment-note" style="margin-top:1em;">${m.note ? m.note : '<em>(No notes)</em>'}</div>
+        <div class="journal-moment-head" style="font-size:1.14em;"><strong>${escapeHtml(m.title) || 'Untitled Moment'}</strong></div>
+        <div class="journal-moment-meta" style="margin-top:0.5em;">${m.rideDate ? new Date(m.rideDate).toLocaleDateString() : ''} | <a href="index.html?ride=${m.rideId}" target="_blank">${escapeHtml(m.rideTitle) || '(untitled ride)'}</a></div>
+        <div class="journal-moment-note" style="margin-top:1em;">${m.note ? escapeHtml(m.note) : '<em>(No notes)</em>'}</div>
         <div style="margin-top:2em; font-size:0.9em; color:#99e; text-align:right;">${typeof m.speed === 'number' ? `Speed: ${m.speed.toFixed(1)} km/h` : ''} ${typeof m.elevation === 'number' ? `&bull; Elev: ${m.elevation.toFixed(0)} m` : ''}</div>
       </div>
     </div>
