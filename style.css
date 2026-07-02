@@ -1780,3 +1780,20 @@ header nav a:focus,
   text-decoration: underline !important;
   text-shadow: 0 0 12px #64ffda33;
 }
+
+
+/* ---------- RIDER SKILLS ---------- */
+.corner-card {
+  background: rgba(0,123,255,0.08);
+  border: 1px solid rgba(0,123,255,0.22);
+  border-radius: 16px;
+  padding: 0.9rem 1.2rem;
+  margin-bottom: 0.9rem;
+}
+.corner-head { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
+.corner-rank { color: #64ffda; font-weight: 800; font-size: 1.15rem; }
+.corner-geo { color: #8fa4bd; font-size: 0.98rem; flex: 1; }
+.corner-jump { padding: 0.3rem 1.1rem !important; font-size: 0.95rem !important; }
+.corner-speeds { color: #fff; font-size: 1.05rem; margin-bottom: 0.3rem; letter-spacing: 0.3px; }
+.corner-speeds strong { color: #64ffda; }
+.corner-note { color: #ffe49b; font-size: 0.97rem; }

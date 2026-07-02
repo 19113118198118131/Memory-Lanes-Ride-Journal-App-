@@ -3,6 +3,7 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
+import { analyzeRide, renderRiderSkills } from './riderskills.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -391,6 +392,42 @@ uploadInput.addEventListener('change', () => {
     hideAnalyticsSection();
     showAnalyticsBtn.style.display = 'inline-block';
     fetchAndShowWeather(); // fire-and-forget: fills the Weather line in the summary
+
+    // ---- Rider Skills: analyze on a high-resolution point stream ----
+    // (display pipeline samples every >=5s; skills need ~1s resolution)
+    try {
+      let skillPts = [];
+      let lastT = -Infinity;
+      for (const tp of trkpts) {
+        const ts = tp.time.getTime();
+        if (ts - lastT >= 950) { skillPts.push(tp); lastT = ts; }
+      }
+      if (skillPts.length > 15000) {
+        const stride = Math.ceil(skillPts.length / 15000);
+        skillPts = skillPts.filter((_, i) => i % stride === 0);
+      }
+      const jumpToNearestTime = (date) => {
+        if (!points.length) return;
+        const target = date.getTime();
+        let best = 0, bestD = Infinity;
+        for (let i = 0; i < points.length; i++) {
+          const d = Math.abs(points[i].time.getTime() - target);
+          if (d < bestD) { bestD = d; best = i; }
+        }
+        window.jumpToPlaybackIndex(best);
+      };
+      setTimeout(() => {
+        const analysis = analyzeRide(skillPts);
+        renderRiderSkills(analysis, {
+          radarCanvasId: 'riderRadar',
+          cornersListId: 'corners-list',
+          brakingSummaryId: 'braking-summary',
+          jumpToTime: jumpToNearestTime
+        });
+      }, 0);
+    } catch (skillErr) {
+      console.warn('Rider skills analysis failed:', skillErr);
+    }
   }
 
   // =====================================================
