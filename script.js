@@ -419,9 +419,7 @@ uploadInput.addEventListener('change', () => {
       setTimeout(() => {
         const analysis = analyzeRide(skillPts);
         renderRiderSkills(analysis, {
-          radarCanvasId: 'riderRadar',
-          cornersListId: 'corners-list',
-          brakingSummaryId: 'braking-summary',
+          containerId: 'rider-skills-content',
           jumpToTime: jumpToNearestTime
         });
       }, 0);

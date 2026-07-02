@@ -1782,18 +1782,125 @@ header nav a:focus,
 }
 
 
-/* ---------- RIDER SKILLS ---------- */
-.corner-card {
-  background: rgba(0,123,255,0.08);
-  border: 1px solid rgba(0,123,255,0.22);
-  border-radius: 16px;
-  padding: 0.9rem 1.2rem;
-  margin-bottom: 0.9rem;
+/* ---------- RIDER SKILLS — cockpit design ---------- */
+.num {
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
-.corner-head { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
-.corner-rank { color: #64ffda; font-weight: 800; font-size: 1.15rem; }
-.corner-geo { color: #8fa4bd; font-size: 0.98rem; flex: 1; }
-.corner-jump { padding: 0.3rem 1.1rem !important; font-size: 0.95rem !important; }
-.corner-speeds { color: #fff; font-size: 1.05rem; margin-bottom: 0.3rem; letter-spacing: 0.3px; }
-.corner-speeds strong { color: #64ffda; }
-.corner-note { color: #ffe49b; font-size: 0.97rem; }
+
+.skills-hero {
+  display: flex;
+  gap: 2.2rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 1.4rem 0 1.8rem;
+}
+.rider-ring-wrap { position: relative; width: 190px; height: 190px; flex: none; margin: 0 auto; }
+.rider-ring { width: 100%; height: 100%; }
+.rider-ring circle:last-child { transition: stroke-dashoffset 1.1s cubic-bezier(.25,.8,.3,1); }
+.rider-ring-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.rider-ring-score { font-size: 3.4rem; line-height: 1; color: #fff; text-shadow: 0 0 24px rgba(100,255,218,0.35); }
+.rider-ring-sub { font-size: 0.72rem; letter-spacing: 0.28em; color: #8fa4bd; margin-top: 0.3rem; }
+
+.skills-hero-side { flex: 1; min-width: 270px; }
+.rider-grade {
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 1.7rem; font-weight: 700; color: #64ffda;
+  letter-spacing: 0.04em; margin-bottom: 0.9rem;
+}
+
+.skill-meter { margin-bottom: 0.85rem; }
+.skill-meter-row { display: flex; justify-content: space-between; align-items: baseline; }
+.skill-meter-label { color: #c5d1e3; font-size: 0.98rem; font-weight: 600; letter-spacing: 0.03em; }
+.skill-meter-value { color: #fff; font-size: 1.25rem; }
+.skill-meter-track {
+  height: 7px; border-radius: 99px; background: rgba(255,255,255,0.09);
+  overflow: hidden; margin: 0.25rem 0 0.28rem;
+}
+.skill-meter-fill {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, #64ffda, #00c6ff);
+  box-shadow: 0 0 12px rgba(100,255,218,0.35);
+  transition: width 0.9s cubic-bezier(.25,.8,.3,1);
+}
+.skill-meter-cap { color: #8fa4bd; font-size: 0.9rem; }
+
+.braking-strip {
+  display: flex; flex-wrap: wrap; gap: 0.6rem 1.8rem; align-items: center;
+  background: rgba(0,123,255,0.08);
+  border: 1px solid rgba(0,123,255,0.20);
+  border-radius: 14px; padding: 0.75rem 1.2rem;
+  color: #c5d1e3; margin-bottom: 1.6rem; font-size: 1rem;
+}
+.braking-strip-item b { color: #fff; font-size: 1.15rem; }
+
+.corners-heading { color: #fff; margin: 0 0 0.8rem; font-size: 1.12rem; letter-spacing: 0.02em; }
+.corners-heading-sub { color: #8fa4bd; font-weight: 400; font-size: 0.9rem; margin-left: 0.5rem; }
+
+.corner-card {
+  display: flex; gap: 1.1rem; align-items: flex-start;
+  background: linear-gradient(120deg, rgba(0,123,255,0.10) 0%, rgba(100,255,218,0.05) 100%);
+  border: 1px solid rgba(0,123,255,0.22);
+  border-radius: 18px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 0.9rem;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.corner-card:hover { border-color: rgba(100,255,218,0.45); transform: translateY(-1px); }
+.corner-glyph { flex: none; margin-top: 0.2rem; }
+.corner-main { flex: 1; min-width: 0; }
+.corner-head { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.corner-rank { color: #64ffda; font-size: 1.35rem; opacity: 0.9; }
+.corner-geo { color: #8fa4bd; font-size: 0.95rem; flex: 1; min-width: 150px; }
+.corner-geo b { color: #e3e8ef; }
+.corner-jump { padding: 0.28rem 1.05rem !important; font-size: 0.92rem !important; }
+
+.corner-speeds { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.55rem; }
+.cs { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; }
+.cs-label { font-size: 0.62rem; letter-spacing: 0.22em; color: #8fa4bd; }
+.cs-val { font-size: 1.7rem; color: #e3e8ef; }
+.cs-apex .cs-val { color: #64ffda; text-shadow: 0 0 16px rgba(100,255,218,0.4); }
+.cs-arrow { color: #3a4d6b; font-size: 1.4rem; align-self: center; }
+.cs-unit { color: #8fa4bd; font-size: 0.82rem; align-self: flex-end; padding-bottom: 0.2rem; }
+
+.corner-chips { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 0.35rem; }
+.chip {
+  font-size: 0.82rem; font-weight: 600; letter-spacing: 0.02em;
+  padding: 0.22rem 0.75rem; border-radius: 999px; border: 1px solid;
+}
+.chip-good    { color: #64ffda; border-color: rgba(100,255,218,0.5); background: rgba(100,255,218,0.09); }
+.chip-tip     { color: #ffd166; border-color: rgba(255,209,102,0.5); background: rgba(255,209,102,0.08); }
+.chip-neutral { color: #9fb4d0; border-color: rgba(159,180,208,0.4); background: rgba(159,180,208,0.07); }
+
+.corner-focus { color: #ffe49b; font-size: 0.93rem; }
+.skills-empty { color: #8fa4bd; padding: 0.8rem 0; }
+.skills-warn {
+  color: #ffd166; background: rgba(255,209,102,0.08);
+  border: 1px solid rgba(255,209,102,0.3);
+  border-radius: 12px; padding: 0.6rem 1rem; margin-bottom: 1.2rem; font-size: 0.95rem;
+}
+
+/* Cockpit numerals across the app */
+#telemetry-overlay span, .stat-card .stat-value, .best-card .best-value { 
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif; 
+  font-weight: 700; 
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .skills-hero { gap: 1.2rem; }
+  .rider-ring-wrap { width: 150px; height: 150px; }
+  .rider-ring-score { font-size: 2.6rem; }
+  .corner-card { padding: 0.85rem 0.9rem; gap: 0.7rem; }
+  .cs-val { font-size: 1.4rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rider-ring circle:last-child, .skill-meter-fill { transition: none; }
+  .corner-card:hover { transform: none; }
+}
