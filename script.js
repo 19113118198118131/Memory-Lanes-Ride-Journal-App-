@@ -3,7 +3,7 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills } from './riderskills.js';
+import { analyzeRide, renderRiderSkills } from './riderskills.js?v=27';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================

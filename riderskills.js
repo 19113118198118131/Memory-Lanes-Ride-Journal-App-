@@ -1,10 +1,10 @@
 // =====================================================
-// Memory Lanes — riderskills.js
+// Memory Lanes - riderskills.js
 // GPS-based rider skill analysis: cornering, braking,
 // entry/exit technique, acceleration smoothness.
 //
 // Design principle: scores reward SMOOTHNESS, TECHNIQUE and
-// CONSISTENCY — never outright speed or lean angle. Lean and
+// CONSISTENCY, never outright speed or lean angle. Lean and
 // lateral g are shown as information, not graded.
 //
 // All estimates derive from GPS positions, so treat them as
@@ -51,7 +51,7 @@ function circumradius(a, b, c) {
 }
 
 // =====================================================
-// analyzeRide(pts) — pts: [{lat, lng, ele, time:Date}]
+// analyzeRide(pts) - pts: [{lat, lng, ele, time:Date}]
 // high-resolution (ideally ~1s interval) trackpoints
 // =====================================================
 export function analyzeRide(pts) {
@@ -184,7 +184,7 @@ export function analyzeRide(pts) {
     if (apexPos >= 0.55) tags.push({ label: 'Late apex', tone: 'good' });
     else if (apexPos <= 0.35) {
       tags.push({ label: 'Early apex', tone: 'tip' });
-      if (!focus) focus = 'An early apex can run you wide on exit — turn in a touch later.';
+      if (!focus) focus = 'An early apex can run you wide on exit. Turn in a touch later.';
     } else tags.push({ label: 'Mid apex', tone: 'neutral' });
     if (drive >= 0.5 && exitSpeed > apexSpeed * 1.08) tags.push({ label: 'Strong drive', tone: 'good' });
     else if (drive < 0.1) {
@@ -232,7 +232,7 @@ export function analyzeRide(pts) {
     return { startIdx: s, endIdx: e, smoothness: clamp(100 - stdDev(jseg) * 55, 0, 100) };
   });
 
-  // ---------- Scores (0–100, technique-based) ----------
+  // ---------- Scores (0 to 100, technique-based) ----------
   const scores = {};
   if (cornerEvents.length >= 3) {
     scores.cornerEntry = Math.round(100 * cornerEvents.filter(c => c.brakeDepth <= 0.4).length / cornerEvents.length);
@@ -268,7 +268,8 @@ export function analyzeRide(pts) {
 }
 
 // =====================================================
-// RENDERING — "cockpit, not spreadsheet"
+// RENDERING: full-width layout, technique radar hero,
+// skill meters, corner ticket grid.
 // Pure HTML builders (testable) + a thin DOM wrapper.
 // =====================================================
 
@@ -281,19 +282,18 @@ function esc(v) {
 
 // SVG arc glyph: curvature reflects the corner's real radius, arc length its sweep
 export function cornerGlyphSVG(sweepDeg, radiusM) {
-  const size = 56, cx = size / 2, cy = size / 2 + 4;
-  const drawR = clamp(10 + (clamp(radiusM, 20, 300) / 300) * 13, 10, 23);
+  const size = 64, cx = size / 2, cy = size / 2 + 4;
+  const drawR = clamp(12 + (clamp(radiusM, 20, 300) / 300) * 14, 12, 26);
   const sweep = clamp(sweepDeg, 30, 300) * Math.PI / 180;
   const a0 = -Math.PI / 2 - sweep / 2;
   const a1 = -Math.PI / 2 + sweep / 2;
   const x0 = cx + drawR * Math.cos(a0), y0 = cy + drawR * Math.sin(a0);
   const x1 = cx + drawR * Math.cos(a1), y1 = cy + drawR * Math.sin(a1);
   const largeArc = sweep > Math.PI ? 1 : 0;
-  const apexX = cx, apexY = cy - drawR;
   return `<svg class="corner-glyph" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
     <path d="M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${drawR} ${drawR} 0 ${largeArc} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}"
-      fill="none" stroke="url(#corner-grad)" stroke-width="4" stroke-linecap="round"/>
-    <circle cx="${apexX}" cy="${apexY.toFixed(1)}" r="3.4" fill="#fff"/>
+      fill="none" stroke="url(#corner-grad)" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${(cy - drawR).toFixed(1)}" r="3.6" fill="#fff"/>
   </svg>`;
 }
 
@@ -301,36 +301,44 @@ const GRADE_BANDS = [
   [85, 'Silky smooth'],
   [70, 'Composed'],
   [55, 'Finding the rhythm'],
-  [0, 'Rough edges — plenty to gain']
+  [0, 'Rough edges, plenty to gain']
 ];
 
-const METER_DEFS = [
-  ['cornerEntry', 'Corner entry', {
-    hi: 'Braking is done before turn-in — the bike arrives settled.',
-    mid: 'Entries are mostly tidy; a few corners still get braking carried in.',
-    lo: 'Braking often runs deep into corners — the biggest single thing to work on.'
-  }],
-  ['exitDrive', 'Exit drive', {
+const AXIS_LABELS = {
+  cornerEntry: 'Corner entry',
+  exitDrive: 'Exit drive',
+  brakingSmoothness: 'Braking feel',
+  throttleSmoothness: 'Throttle feel',
+  consistency: 'Consistency'
+};
+
+const METER_CAPS = {
+  cornerEntry: {
+    hi: 'Braking is done before turn-in. The bike arrives settled.',
+    mid: 'Entries are mostly tidy. A few corners still get braking carried in.',
+    lo: 'Braking often runs deep into corners. The biggest single thing to work on.'
+  },
+  exitDrive: {
     hi: 'Strong, progressive throttle off the apex.',
-    mid: 'Decent drive out — there is more corner-exit speed on the table.',
-    lo: 'Exits are flat; practise opening the throttle earlier and smoother.'
-  }],
-  ['brakingSmoothness', 'Braking feel', {
-    hi: 'Progressive on the lever — smooth, controlled stops.',
+    mid: 'Decent drive out. There is more corner-exit speed on the table.',
+    lo: 'Exits are flat. Practise opening the throttle earlier and smoother.'
+  },
+  brakingSmoothness: {
+    hi: 'Progressive on the lever. Smooth, controlled stops.',
     mid: 'Mostly smooth braking with the occasional grab.',
-    lo: 'Braking is abrupt — squeeze, don\u2019t snatch.'
-  }],
-  ['throttleSmoothness', 'Throttle feel', {
+    lo: 'Braking is abrupt. Squeeze, don\u2019t snatch.'
+  },
+  throttleSmoothness: {
     hi: 'Clean, progressive acceleration.',
     mid: 'Throttle work is decent, sometimes jumpy.',
-    lo: 'Acceleration comes in bursts — smooth it out.'
-  }],
-  ['consistency', 'Consistency', {
-    hi: 'Similar corners get near-identical treatment. Repeatable = skilled.',
+    lo: 'Acceleration comes in bursts. Smooth it out.'
+  },
+  consistency: {
+    hi: 'Similar corners get near-identical treatment. Repeatable is skilled.',
     mid: 'Corner speeds vary a fair bit between similar corners.',
-    lo: 'Similar corners are ridden very differently — aim for repeatability.'
-  }]
-];
+    lo: 'Similar corners are ridden very differently. Aim for repeatability.'
+  }
+};
 
 export function buildSkillsHTML(analysis) {
   if (!analysis.ok) {
@@ -338,58 +346,47 @@ export function buildSkillsHTML(analysis) {
   }
   const parts = [];
 
-  // SVG gradient defs shared by all glyphs
   parts.push(`<svg width="0" height="0" style="position:absolute"><defs>
     <linearGradient id="corner-grad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#64ffda"/><stop offset="100%" stop-color="#00c6ff"/>
     </linearGradient></defs></svg>`);
 
   if (analysis.sampleIntervalS > 3.5) {
-    parts.push(`<div class="skills-warn">⚠️ This GPX logs a point every ~${analysis.sampleIntervalS.toFixed(0)}s — coarse for skill analysis. A 1-second logging interval gives much sharper feedback.</div>`);
+    parts.push(`<div class="skills-warn">⚠️ This GPX logs a point every ~${analysis.sampleIntervalS.toFixed(0)}s, which is coarse for skill analysis. A 1-second logging interval gives much sharper feedback.</div>`);
   }
 
   const scoreKeys = Object.keys(analysis.scores).filter(k => Number.isFinite(analysis.scores[k]));
   if (scoreKeys.length >= 3) {
     const overall = Math.round(scoreKeys.reduce((s, k) => s + analysis.scores[k], 0) / scoreKeys.length);
     const grade = GRADE_BANDS.find(([min]) => overall >= min)[1];
-    const CIRC = 2 * Math.PI * 52;
-    const dash = (CIRC * (1 - overall / 100)).toFixed(1);
 
-    const meters = METER_DEFS
-      .filter(([k]) => Number.isFinite(analysis.scores[k]))
-      .map(([k, label, caps]) => {
-        const v = analysis.scores[k];
-        const cap = v >= 70 ? caps.hi : v >= 45 ? caps.mid : caps.lo;
-        return `<div class="skill-meter">
-          <div class="skill-meter-row">
-            <span class="skill-meter-label">${label}</span>
-            <span class="skill-meter-value num">${v}</span>
-          </div>
-          <div class="skill-meter-track"><div class="skill-meter-fill" style="width:${v}%"></div></div>
-          <div class="skill-meter-cap">${cap}</div>
-        </div>`;
-      }).join('');
-
-    parts.push(`<div class="skills-hero">
-      <div class="rider-ring-wrap">
-        <svg class="rider-ring" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="9"/>
-          <circle cx="60" cy="60" r="52" fill="none" stroke="url(#corner-grad)" stroke-width="9"
-            stroke-linecap="round" stroke-dasharray="${CIRC.toFixed(1)}" stroke-dashoffset="${dash}"
-            transform="rotate(-90 60 60)"/>
-        </svg>
-        <div class="rider-ring-center">
-          <div class="rider-ring-score num">${overall}</div>
-          <div class="rider-ring-sub">RIDER SCORE</div>
+    const meters = scoreKeys.map(k => {
+      const v = analysis.scores[k];
+      const caps = METER_CAPS[k];
+      const cap = v >= 70 ? caps.hi : v >= 45 ? caps.mid : caps.lo;
+      return `<div class="skill-meter">
+        <div class="skill-meter-row">
+          <span class="skill-meter-label">${AXIS_LABELS[k]}</span>
+          <span class="skill-meter-value num">${v}</span>
         </div>
-      </div>
-      <div class="skills-hero-side">
-        <div class="rider-grade">${grade}</div>
-        ${meters}
-      </div>
+        <div class="skill-meter-track"><div class="skill-meter-fill" style="width:${v}%"></div></div>
+        <div class="skill-meter-cap">${cap}</div>
+      </div>`;
+    }).join('');
+
+    parts.push(`<div class="skills-headline">
+      <span class="skills-headline-score num">${overall}</span>
+      <span class="skills-headline-text">
+        <span class="skills-headline-label">RIDER SCORE</span>
+        <span class="rider-grade">${grade}</span>
+      </span>
+    </div>
+    <div class="skills-hero">
+      <div class="radar-panel"><canvas id="riderSkillsRadar"></canvas></div>
+      <div class="meters-panel">${meters}</div>
     </div>`);
   } else {
-    parts.push(`<div class="skills-empty">Not enough corners and braking events in this ride for technique scores — the corners found are below.</div>`);
+    parts.push(`<div class="skills-empty">Not enough corners and braking events in this ride for technique scores. The corners found are below.</div>`);
   }
 
   if (analysis.brakeZones.length) {
@@ -397,17 +394,18 @@ export function buildSkillsHTML(analysis) {
     const meanSmooth = analysis.brakeZones.reduce((s, z) => s + z.smoothness, 0) / analysis.brakeZones.length;
     const verdict = meanSmooth >= 70 ? 'progressive and controlled'
       : meanSmooth >= 45 ? 'mostly smooth, occasionally grabby'
-      : 'abrupt — practise squeezing the lever progressively';
+      : 'abrupt. Practise squeezing the lever progressively';
     parts.push(`<div class="braking-strip">
       <span class="braking-strip-item">🛑 <b class="num">${analysis.brakeZones.length}</b> braking zones</span>
       <span class="braking-strip-item">hardest stop <b class="num">${(Math.abs(peak) / G).toFixed(2)}</b> g</span>
-      <span class="braking-strip-item">${verdict}</span>
+      <span class="braking-strip-item">overall: ${verdict}</span>
     </div>`);
   }
 
   const top = [...analysis.corners].sort((x, y) => y.maxLatG - x.maxLatG).slice(0, 10);
   if (top.length) {
-    parts.push(`<h4 class="corners-heading">Top corners <span class="corners-heading-sub">by lateral load — tap Jump to relive one</span></h4>`);
+    parts.push(`<h4 class="corners-heading">Top corners <span class="corners-heading-sub">by lateral load. Tap Jump to relive one.</span></h4>`);
+    parts.push('<div class="corners-grid">');
     parts.push(top.map((c, i) => `
       <div class="corner-card">
         ${cornerGlyphSVG(c.sweepDeg, c.radiusM)}
@@ -431,6 +429,7 @@ export function buildSkillsHTML(analysis) {
           ${c.focus ? `<div class="corner-focus">💡 ${esc(c.focus)}</div>` : ''}
         </div>
       </div>`).join(''));
+    parts.push('</div>');
   } else {
     parts.push('<div class="skills-empty">No significant corners detected in this ride.</div>');
   }
@@ -438,12 +437,54 @@ export function buildSkillsHTML(analysis) {
   return parts.join('\n');
 }
 
-// Thin DOM wrapper
+// Thin DOM wrapper: injects HTML, wires Jump buttons, draws the technique radar
 export function renderRiderSkills(analysis, opts) {
   const container = document.getElementById(opts.containerId);
   if (!container) return;
   container.innerHTML = buildSkillsHTML(analysis);
   container.querySelectorAll('.corner-jump').forEach(btn => {
     btn.addEventListener('click', () => opts.jumpToTime(new Date(+btn.dataset.tapex)));
+  });
+
+  const canvas = container.querySelector('#riderSkillsRadar');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const scoreKeys = Object.keys(analysis.scores).filter(k => Number.isFinite(analysis.scores[k]));
+  if (window.riderSkillsRadarChart && typeof window.riderSkillsRadarChart.destroy === 'function') {
+    window.riderSkillsRadarChart.destroy();
+  }
+  window.riderSkillsRadarChart = new Chart(canvas.getContext('2d'), {
+    type: 'radar',
+    data: {
+      labels: scoreKeys.map(k => AXIS_LABELS[k]),
+      datasets: [{
+        data: scoreKeys.map(k => analysis.scores[k]),
+        backgroundColor: 'rgba(100,255,218,0.20)',
+        borderColor: '#64ffda',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#00c6ff',
+        pointBorderColor: '#fff',
+        pointRadius: 4.5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          min: 0, max: 100,
+          ticks: { stepSize: 25, display: false },
+          grid: { color: 'rgba(100,255,218,0.14)' },
+          angleLines: { color: 'rgba(100,255,218,0.14)' },
+          pointLabels: {
+            color: '#c5d1e3',
+            font: { size: 14, weight: '600', family: "'Rajdhani','Segoe UI',Arial,sans-serif" }
+          }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.raw} / 100` } }
+      }
+    }
   });
 }
