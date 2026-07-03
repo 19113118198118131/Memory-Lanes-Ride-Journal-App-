@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=27" />
+  <link rel="stylesheet" href="style.css?v=28" />
 </head>
 <body>
   <!-- ========================
@@ -215,11 +215,11 @@
         <canvas id="accelChart"></canvas>
       </div>
       <div class="chart-block" id="rider-skills-block">
-        <h3>🏍️ Rider Skills</h3>
+        <h3>🏍️ Ride Coach</h3>
         <p class="chart-desc">
-          GPS-estimated technique feedback: corner entry, exit drive, braking &amp; throttle smoothness, and consistency.<br>
-          Scores reward smoothness and technique — never speed. These are estimates from GPS data:
-          use them for reflection, and always ride within your limits and the law.
+          Technique feedback from GPS: smoothness, entry, exit, braking and consistency.<br>
+          Scores reward technique, never speed. These are estimates: use them for reflection,
+          and always ride within your limits and the law.
         </p>
         <div id="rider-skills-content"></div>
       </div>
@@ -258,7 +258,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=27"></script>
+  <script type="module" src="script.js?v=28"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 
 

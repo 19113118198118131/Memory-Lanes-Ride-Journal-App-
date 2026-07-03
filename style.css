@@ -1790,12 +1790,20 @@ header nav a:focus,
   font-variant-numeric: tabular-nums;
 }
 
-/* Headline: big score + grade, full width */
+/* The debrief: score + verdict, the section's visual anchor */
+.debrief-card {
+  background: linear-gradient(125deg, rgba(0,123,255,0.13) 0%, rgba(100,255,218,0.06) 70%);
+  border: 1px solid rgba(100,255,218,0.22);
+  border-radius: 22px;
+  padding: 1.5rem 1.8rem;
+  margin: 1.2rem 0 1.8rem;
+  box-shadow: 0 6px 32px rgba(0,123,255,0.10), inset 0 0 60px rgba(100,255,218,0.03);
+}
 .skills-headline {
   display: flex;
   align-items: center;
   gap: 1.4rem;
-  margin: 1.2rem 0 1.6rem;
+  margin-bottom: 0.7rem;
 }
 .skills-headline-score {
   font-size: 4.4rem;
@@ -1876,9 +1884,25 @@ header nav a:focus,
 .corner-main { flex: 1; min-width: 0; }
 .corner-head { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.45rem; }
 .corner-rank { color: #64ffda; font-size: 1.4rem; opacity: 0.9; }
-.corner-geo { color: #8fa4bd; font-size: 0.95rem; flex: 1; min-width: 140px; }
-.corner-geo b { color: #e3e8ef; }
-.corner-jump { padding: 0.28rem 1.05rem !important; font-size: 0.92rem !important; }
+.corner-title { color: #e3e8ef; font-weight: 600; font-size: 1rem; letter-spacing: 0.03em; flex: 1; }
+.corner-jump {
+  background: transparent;
+  border: 1px solid rgba(100,255,218,0.35);
+  color: #64ffda;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.22rem 0.85rem;
+  border-radius: 999px;
+  box-shadow: none;
+  margin-left: auto;
+}
+.corner-jump:hover {
+  background: rgba(100,255,218,0.10);
+  color: #64ffda;
+  border-color: rgba(100,255,218,0.6);
+  transform: none;
+  box-shadow: 0 0 14px rgba(100,255,218,0.18);
+}
 
 .corner-speeds { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
 .cs { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; }
@@ -1926,4 +1950,40 @@ header nav a:focus,
 @media (prefers-reduced-motion: reduce) {
   .skill-meter-fill { transition: none; }
   .corner-card:hover { transform: none; }
+}
+
+/* Ride Coach v28 additions */
+.debrief-verdict { color: #e9f2ff; font-size: 1.12rem; line-height: 1.45; }
+.debrief-next { color: #64ffda; font-size: 1.02rem; margin-top: 0.35rem; font-weight: 600; }
+
+.corner-meta {
+  color: #6d82a0;
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+  margin-top: 0.5rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 0.45rem;
+}
+.corner-hidden { display: none; }
+.show-all-corners {
+  display: block;
+  margin: 1.1rem auto 0;
+  background: transparent;
+  border: 1px solid rgba(100,255,218,0.35);
+  color: #64ffda;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.5rem 1.6rem;
+  border-radius: 999px;
+  box-shadow: none;
+}
+.show-all-corners:hover {
+  background: rgba(100,255,218,0.10);
+  color: #64ffda;
+  transform: none;
+  box-shadow: 0 0 16px rgba(100,255,218,0.18);
+}
+@media (max-width: 640px) {
+  .debrief-card { padding: 1.1rem 1.2rem; }
+  .debrief-verdict { font-size: 1.02rem; }
 }

@@ -340,6 +340,45 @@ const METER_CAPS = {
   }
 };
 
+// Plain-English debrief: turns the score spread into a coach's summary.
+const STRENGTH_CLAUSE = {
+  cornerEntry: 'entries were settled, with braking done before turn-in',
+  exitDrive: 'drive off the corners was strong',
+  brakingSmoothness: 'braking was progressive and controlled',
+  throttleSmoothness: 'throttle work was clean',
+  consistency: 'similar corners got near-identical treatment'
+};
+const WEAKNESS_CLAUSE = {
+  cornerEntry: 'braking often ran into the corners',
+  exitDrive: 'exits were flatter than they could be',
+  brakingSmoothness: 'braking was on the abrupt side',
+  throttleSmoothness: 'throttle inputs were a little jumpy',
+  consistency: 'similar corners were ridden quite differently'
+};
+const FOCUS_PHRASE = {
+  cornerEntry: 'finishing your braking before turn-in, so the bike arrives settled',
+  exitDrive: 'picking the bike up earlier, then rolling the throttle on progressively',
+  brakingSmoothness: 'squeezing the brake progressively rather than snatching it',
+  throttleSmoothness: 'smoother, earlier throttle once the corner opens up',
+  consistency: 'treating similar corners the same way, ride after ride'
+};
+
+export function buildDebrief(scores) {
+  const keys = Object.keys(scores).filter(k => Number.isFinite(scores[k]));
+  if (keys.length < 2) return null;
+  const hi = keys.reduce((a, b) => (scores[a] >= scores[b] ? a : b));
+  const lo = keys.reduce((a, b) => (scores[a] <= scores[b] ? a : b));
+  if (scores[hi] - scores[lo] < 12) {
+    return {
+      verdict: 'A balanced ride across the board.',
+      next: 'Next ride: keep building on this consistency.'
+    };
+  }
+  const strong = STRENGTH_CLAUSE[hi];
+  const verdict = strong.charAt(0).toUpperCase() + strong.slice(1) + ', but ' + WEAKNESS_CLAUSE[lo] + '.';
+  return { verdict, next: 'Next ride: focus on ' + FOCUS_PHRASE[lo] + '.' };
+}
+
 export function buildSkillsHTML(analysis) {
   if (!analysis.ok) {
     return `<div class="skills-empty">${esc(analysis.reason)}</div>`;
@@ -374,12 +413,17 @@ export function buildSkillsHTML(analysis) {
       </div>`;
     }).join('');
 
-    parts.push(`<div class="skills-headline">
-      <span class="skills-headline-score num">${overall}</span>
-      <span class="skills-headline-text">
-        <span class="skills-headline-label">RIDER SCORE</span>
-        <span class="rider-grade">${grade}</span>
-      </span>
+    const debrief = buildDebrief(analysis.scores);
+    parts.push(`<div class="debrief-card">
+      <div class="skills-headline">
+        <span class="skills-headline-score num">${overall}</span>
+        <span class="skills-headline-text">
+          <span class="skills-headline-label">RIDER SCORE</span>
+          <span class="rider-grade">${grade}</span>
+        </span>
+      </div>
+      ${debrief ? `<div class="debrief-verdict">${debrief.verdict}</div>
+      <div class="debrief-next">${debrief.next}</div>` : ''}
     </div>
     <div class="skills-hero">
       <div class="radar-panel"><canvas id="riderSkillsRadar"></canvas></div>
@@ -393,12 +437,12 @@ export function buildSkillsHTML(analysis) {
     const peak = Math.min(...analysis.brakeZones.map(z => z.peakDecel));
     const meanSmooth = analysis.brakeZones.reduce((s, z) => s + z.smoothness, 0) / analysis.brakeZones.length;
     const verdict = meanSmooth >= 70 ? 'progressive and controlled'
-      : meanSmooth >= 45 ? 'mostly smooth, occasionally grabby'
-      : 'abrupt. Practise squeezing the lever progressively';
+      : meanSmooth >= 45 ? 'mostly progressive, occasionally grabby'
+      : 'abrupt; work on squeezing, not snatching';
     parts.push(`<div class="braking-strip">
       <span class="braking-strip-item">🛑 <b class="num">${analysis.brakeZones.length}</b> braking zones</span>
-      <span class="braking-strip-item">hardest stop <b class="num">${(Math.abs(peak) / G).toFixed(2)}</b> g</span>
-      <span class="braking-strip-item">overall: ${verdict}</span>
+      <span class="braking-strip-item">Hardest <b class="num">${(Math.abs(peak) / G).toFixed(2)}</b> g</span>
+      <span class="braking-strip-item">Feel: ${verdict}</span>
     </div>`);
   }
 
@@ -407,13 +451,13 @@ export function buildSkillsHTML(analysis) {
     parts.push(`<h4 class="corners-heading">Top corners <span class="corners-heading-sub">by lateral load. Tap Jump to relive one.</span></h4>`);
     parts.push('<div class="corners-grid">');
     parts.push(top.map((c, i) => `
-      <div class="corner-card">
+      <div class="corner-card${i >= 3 ? ' corner-hidden' : ''}">
         ${cornerGlyphSVG(c.sweepDeg, c.radiusM)}
         <div class="corner-main">
           <div class="corner-head">
             <span class="corner-rank num">${String(i + 1).padStart(2, '0')}</span>
-            <span class="corner-geo">${c.sweepDeg.toFixed(0)}° · r≈${c.radiusM.toFixed(0)} m · lean ~<b>${c.leanDeg.toFixed(0)}°</b> (${c.maxLatG.toFixed(2)} g)</span>
-            <button class="btn-muted corner-jump" data-tapex="${c.tApex.getTime()}">Jump</button>
+            <span class="corner-title">Corner ${String(i + 1).padStart(2, '0')}</span>
+            <button class="corner-jump" data-tapex="${c.tApex.getTime()}">↗ Replay</button>
           </div>
           <div class="corner-speeds">
             <span class="cs"><span class="cs-label">IN</span><span class="cs-val num">${c.entryKmh.toFixed(0)}</span></span>
@@ -427,9 +471,13 @@ export function buildSkillsHTML(analysis) {
             ${c.tags.map(t => `<span class="chip ${TONE_CLASS[t.tone] || 'chip-neutral'}">${esc(t.label)}</span>`).join('')}
           </div>
           ${c.focus ? `<div class="corner-focus">💡 ${esc(c.focus)}</div>` : ''}
+          <div class="corner-meta">${c.sweepDeg.toFixed(0)}° sweep · r≈${c.radiusM.toFixed(0)} m · lean ~${c.leanDeg.toFixed(0)}° · ${c.maxLatG.toFixed(2)} g</div>
         </div>
       </div>`).join(''));
     parts.push('</div>');
+    if (top.length > 3) {
+      parts.push(`<button class="show-all-corners" data-count="${top.length}">Show all ${top.length} corners</button>`);
+    }
   } else {
     parts.push('<div class="skills-empty">No significant corners detected in this ride.</div>');
   }
@@ -445,6 +493,14 @@ export function renderRiderSkills(analysis, opts) {
   container.querySelectorAll('.corner-jump').forEach(btn => {
     btn.addEventListener('click', () => opts.jumpToTime(new Date(+btn.dataset.tapex)));
   });
+
+  const showAll = container.querySelector('.show-all-corners');
+  if (showAll) {
+    showAll.addEventListener('click', () => {
+      container.querySelectorAll('.corner-hidden').forEach(el => el.classList.remove('corner-hidden'));
+      showAll.remove();
+    });
+  }
 
   const canvas = container.querySelector('#riderSkillsRadar');
   if (!canvas || typeof Chart === 'undefined') return;
