@@ -1583,7 +1583,8 @@ button:hover,
   background: linear-gradient(92deg, rgba(58,134,255,0.16) 0%, rgba(0,242,254,0.13) 100%);
   border-radius: 22px;
   box-shadow: 0 7px 32px rgba(58,134,255,0.11), 0 2px 8px rgba(0,0,0,0.10);
-  padding: 1.3rem 1.8re
+  padding: 1.3rem 1.8rem;
+}
 
    #flipbook-container {
   display: flex;
