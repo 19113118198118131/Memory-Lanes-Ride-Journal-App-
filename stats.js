@@ -3,7 +3,7 @@
 // Lifetime stats: totals, monthly chart, personal bests, all-routes map
 // ===============================
 import supabase from './supabaseClient.js';
-import { analyzeRide, summarizeForStorage } from './riderskills.js?v=30';
+import { analyzeRide, summarizeForStorage } from './riderskills.js?v=31';
 
 const ROUTE_COLORS = ['#64ffda', '#00c6ff', '#8338ec', '#ff6384', '#ffd700', '#21c821', '#ff9500'];
 const MAX_ROUTES_ON_MAP = 100;   // safety cap for very large journals
@@ -323,3 +323,11 @@ function fmtDuration(totalMin) {
 // Nav buttons
 document.getElementById('back-dashboard-btn')?.addEventListener('click', () => window.location.href = 'dashboard.html');
 document.getElementById('new-ride-btn')?.addEventListener('click', () => window.location.href = 'index.html?home=1');
+
+
+// ========== PWA: register the service worker ==========
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW registration failed:', err));
+  });
+}

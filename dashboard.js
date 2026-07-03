@@ -288,6 +288,70 @@ if (statsBtn) {
   });
 }
 
+// ========== Export All Data ==========
+const exportBtn = document.getElementById('export-data-btn');
+if (exportBtn) {
+  exportBtn.addEventListener('click', async () => {
+    if (exportBtn.disabled) return;
+    if (typeof JSZip === 'undefined') {
+      showToast('Export library failed to load. Check your connection and refresh.', 'delete');
+      return;
+    }
+    exportBtn.disabled = true;
+    const original = exportBtn.textContent;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { showToast('Please log in first.', 'info'); return; }
+      exportBtn.textContent = '⬇️ Preparing…';
+      const { data: rows, error } = await supabase
+        .from('ride_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('ride_date', { ascending: false });
+      if (error) throw error;
+      const zip = new JSZip();
+      zip.file('rides.json', JSON.stringify(rows, null, 2));
+      zip.file('README.txt',
+        'Memory Lanes data export\n\n' +
+        'rides.json: every ride record, including titles, stats, moments, and Ride Coach skill summaries.\n' +
+        'gpx/: the original GPX track for each ride.\n\n' +
+        'Exported: ' + new Date().toISOString() + '\n');
+      const withGpx = rows.filter(r => r.gpx_path);
+      let done = 0, failed = 0;
+      for (const ride of withGpx) {
+        try {
+          const { data: urlData } = supabase.storage.from('gpx-files').getPublicUrl(ride.gpx_path);
+          const resp = await fetch(urlData.publicUrl);
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const safe = (ride.title || 'ride').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'ride';
+          zip.file(`gpx/${safe}_${String(ride.id).slice(0, 8)}.gpx`, await resp.blob());
+        } catch (e) {
+          failed++;
+          console.warn('Export: GPX fetch failed for', ride.id, e);
+        }
+        done++;
+        exportBtn.textContent = `⬇️ Fetching GPX ${done}/${withGpx.length}`;
+      }
+      exportBtn.textContent = '⬇️ Zipping…';
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `memory-lanes-export-${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      showToast(failed ? `✅ Exported (${failed} GPX files could not be fetched).` : '✅ Export downloaded!', 'add');
+    } catch (e) {
+      console.error('Export failed:', e);
+      showToast('❌ Export failed: ' + (e.message || e), 'delete');
+    } finally {
+      exportBtn.disabled = false;
+      exportBtn.textContent = original;
+    }
+  });
+}
+
 // ========== Toast Utility ==========
 function showToast(msg, mode = "info") {
   let toast = document.createElement("div");
@@ -309,4 +373,12 @@ function showToast(msg, mode = "info") {
     toast.style.opacity = "0";
     setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 450);
   }, 1200);
+}
+
+
+// ========== PWA: register the service worker ==========
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW registration failed:', err));
+  });
 }

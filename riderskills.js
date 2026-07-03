@@ -411,6 +411,28 @@ export function summarizeForStorage(analysis) {
   return { v: 1, at: new Date().toISOString(), scores: analysis.scores, comp, corners };
 }
 
+// Trend line: compares this ride's scores against the rider's recent average.
+export function buildTrendLine(scores, prevScores) {
+  if (!scores || !prevScores) return null;
+  const LABELS = {
+    cornerEntry: 'Corner entry', exitDrive: 'Exit drive',
+    brakingSmoothness: 'Braking feel', throttleSmoothness: 'Throttle feel',
+    consistency: 'Consistency'
+  };
+  let bestKey = null, bestDelta = 0;
+  Object.keys(LABELS).forEach(k => {
+    if (Number.isFinite(scores[k]) && Number.isFinite(prevScores[k])) {
+      const d = scores[k] - prevScores[k];
+      if (Math.abs(d) > Math.abs(bestDelta)) { bestDelta = d; bestKey = k; }
+    }
+  });
+  if (!bestKey || Math.abs(bestDelta) < 6) return 'Right in line with your recent rides.';
+  const pts = Math.round(Math.abs(bestDelta));
+  return bestDelta > 0
+    ? `${LABELS[bestKey]} is up ${pts} points on your recent rides. Nice work.`
+    : `${LABELS[bestKey]} is ${pts} points below your recent rides. One off day proves nothing; keep an eye on it.`;
+}
+
 // Plain-English debrief: turns the score spread into a coach's summary.
 const STRENGTH_CLAUSE = {
   cornerEntry: 'entries were settled, with braking done before turn-in',
@@ -475,7 +497,7 @@ export function compositionBarHTML(comp) {
   return `<div class="comp-bar">${bar}</div><div class="comp-legend">${legend}</div>`;
 }
 
-export function buildSkillsHTML(analysis) {
+export function buildSkillsHTML(analysis, prevScores) {
   if (!analysis.ok) {
     return `<div class="skills-empty">${esc(analysis.reason)}</div>`;
   }
@@ -520,6 +542,7 @@ export function buildSkillsHTML(analysis) {
       </div>
       ${debrief ? `<div class="debrief-verdict">${debrief.verdict}</div>
       <div class="debrief-next">${debrief.next}</div>` : ''}
+      ${(() => { const tl = buildTrendLine(analysis.scores, prevScores); return tl ? `<div class="debrief-trend">📈 ${tl}</div>` : ''; })()}
       ${compositionBarHTML(analysis.composition)}
     </div>
     <div class="skills-hero">
@@ -586,7 +609,7 @@ export function buildSkillsHTML(analysis) {
 export function renderRiderSkills(analysis, opts) {
   const container = document.getElementById(opts.containerId);
   if (!container) return;
-  container.innerHTML = buildSkillsHTML(analysis);
+  container.innerHTML = buildSkillsHTML(analysis, opts.prevScores);
   container.querySelectorAll('.corner-jump').forEach(btn => {
     btn.addEventListener('click', () => opts.jumpToTime(new Date(+btn.dataset.tapex)));
   });

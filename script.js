@@ -3,7 +3,7 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=30';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=31';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -157,7 +157,13 @@ async function saveMomentsToDB() {
 
   
   // ----- UI visibility logic -----
+  function setHeroVisible(visible) {
+    const hero = document.getElementById('landing-hero');
+    if (hero) hero.style.display = visible ? 'block' : 'none';
+  }
+
   function resetUIToInitial() {
+    setHeroVisible(true);
     uploadSection.style.display        = 'block';
     const uc0 = document.querySelector('.upload-controls');
     if (uc0) uc0.style.display = '';
@@ -176,6 +182,7 @@ async function saveMomentsToDB() {
   }
 
   function showUIAfterUpload(isLoggedIn) {
+    setHeroVisible(false);
     uploadSection.style.display        = 'block';
     mainRideUI.style.display           = 'block';
     saveForm.style.display             = 'block';
@@ -190,6 +197,7 @@ async function saveMomentsToDB() {
   }
 
   function showUIForSavedRide() {
+    setHeroVisible(false);
     // Keep the toolbar so Download Summary / Export Video work on saved rides,
     // but hide the upload picker itself.
     uploadSection.style.display        = 'block';
@@ -209,6 +217,7 @@ async function saveMomentsToDB() {
   }
 
   function showUIForSharedRide() {
+    setHeroVisible(false);
     uploadSection.style.display        = 'block';
     const uc2 = document.querySelector('.upload-controls');
     if (uc2) uc2.style.display = 'none';
@@ -412,11 +421,13 @@ uploadInput.addEventListener('change', () => {
         }
         window.jumpToPlaybackIndex(best);
       };
-      setTimeout(() => {
+      setTimeout(async () => {
         const analysis = analyzeRide(skillPts);
+        const prevScores = await fetchRecentAvgScores(new URLSearchParams(window.location.search).get('ride'));
         renderRiderSkills(analysis, {
           containerId: 'rider-skills-content',
-          jumpToTime: jumpToNearestTime
+          jumpToTime: jumpToNearestTime,
+          prevScores
         });
         if (analysis.ok) {
           renderCornerRadiusChart(analysis, jumpToNearestTime);
@@ -1463,6 +1474,30 @@ function sanitizeString(str) {
   // =====================================================
   // SECTION 7: GPX FILE UPLOAD
   // =====================================================
+  // ---- Sample ride (synthetic demo GPX bundled with the app) ----
+  document.getElementById('try-demo-btn')?.addEventListener('click', async () => {
+    try {
+      const resp = await fetch('assets/demo-ride.gpx');
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const gpxText = await resp.text();
+      if (isEditing && exitEditBtn) exitEditBtn.onclick();
+      if (window.playInterval) clearInterval(window.playInterval);
+      if (marker) map.removeLayer(marker);
+      if (trailPolyline) map.removeLayer(trailPolyline);
+      points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
+      showUIAfterUpload(true); // hide auth prompt for the demo
+      saveForm.style.display = 'none'; // demo rides cannot be saved
+      rideTitleDisplay.textContent = '🎬 Demo ride (synthetic data): explore everything, then upload your own';
+      rideTitleDisplay.style.textAlign = 'center';
+      document.getElementById('ride-controls').style.display = 'block';
+      parseAndRenderGPX(gpxText);
+      hideAnalyticsSection();
+    } catch (err) {
+      console.error('Demo load failed:', err);
+      showToast('Could not load the sample ride.', 'delete');
+    }
+  });
+
   uploadInput.addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -2082,6 +2117,33 @@ async function storeSkillsForCurrentRide(summary) {
     .eq('id', rideId)
     .eq('user_id', user.id);
   if (error) console.warn('Skill storage skipped (run supabase-skills-setup.sql to enable trends):', error.message);
+}
+
+// Average scores across the rider's recent scored rides (for trend-aware coaching)
+async function fetchRecentAvgScores(excludeId) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    let q = supabase
+      .from('ride_logs')
+      .select('skills, ride_date')
+      .eq('user_id', user.id)
+      .not('skills', 'is', null)
+      .order('ride_date', { ascending: false })
+      .limit(8);
+    if (excludeId) q = q.neq('id', excludeId);
+    const { data, error } = await q;
+    if (error || !data || !data.length) return null;
+    const sums = {}, counts = {};
+    data.forEach(r => {
+      Object.entries(r.skills?.scores || {}).forEach(([k, v]) => {
+        if (Number.isFinite(v)) { sums[k] = (sums[k] || 0) + v; counts[k] = (counts[k] || 0) + 1; }
+      });
+    });
+    const avg = {};
+    Object.keys(sums).forEach(k => { avg[k] = sums[k] / counts[k]; });
+    return Object.keys(avg).length ? avg : null;
+  } catch (_) { return null; }
 }
 
 function havMeters(lat1, lng1, lat2, lng2) {
@@ -2719,3 +2781,11 @@ addMomentBtn.addEventListener('click', () => {
     requestAnimationFrame(animate);
   };
 })();
+
+
+// ========== PWA: register the service worker ==========
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW registration failed:', err));
+  });
+}

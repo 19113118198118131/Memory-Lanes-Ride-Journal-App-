@@ -2018,3 +2018,51 @@ header nav a:focus,
 /* g-g diagram: square, centred */
 .gg-wrap { max-width: 480px; margin: 0 auto; }
 #ggChart { background: #fff2; border-radius: 22px; }
+
+
+/* ---------- LANDING HERO ---------- */
+#landing-hero { text-align: center; padding: 1rem 0 2.2rem; }
+.hero-title {
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 2.6rem; font-weight: 700; letter-spacing: 0.02em;
+  color: #fff; margin: 0 0 0.4rem;
+  text-shadow: 0 0 30px rgba(100,255,218,0.25);
+}
+.hero-sub { color: #a8b7c8; font-size: 1.12rem; max-width: 620px; margin: 0 auto 1.8rem; line-height: 1.5; }
+.hero-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1.1rem;
+  max-width: 980px;
+  margin: 0 auto 1.8rem;
+}
+.hero-card {
+  background: var(--card-bg);
+  border: 1px solid rgba(100,255,218,0.14);
+  border-radius: 20px;
+  padding: 1.4rem 1.2rem;
+  text-align: left;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.hero-card:hover { border-color: rgba(100,255,218,0.4); transform: translateY(-2px); }
+.hero-card-icon { font-size: 1.9rem; margin-bottom: 0.5rem; }
+.hero-card-title { color: #64ffda; font-weight: 700; font-size: 1.08rem; margin-bottom: 0.35rem; }
+.hero-card-text { color: #a8b7c8; font-size: 0.96rem; line-height: 1.45; }
+.hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.hero-note { color: #6d82a0; font-size: 0.9rem; margin-top: 0.9rem; }
+
+/* ---------- CHART EXPLAINERS ---------- */
+.chart-help { margin-top: 0.8rem; }
+.chart-help summary {
+  cursor: pointer; color: #64ffda; font-size: 0.94rem; font-weight: 600;
+  list-style: none; display: inline-block;
+  border: 1px solid rgba(100,255,218,0.3); border-radius: 999px; padding: 0.25rem 0.95rem;
+}
+.chart-help summary::-webkit-details-marker { display: none; }
+.chart-help[open] summary { background: rgba(100,255,218,0.08); }
+.chart-help p {
+  color: #a8b7c8; font-size: 0.96rem; line-height: 1.55;
+  background: rgba(255,255,255,0.03); border-radius: 14px; padding: 0.9rem 1.1rem; margin: 0.7rem 0 0;
+}
+
+.debrief-trend { color: #9fd8ff; font-size: 0.98rem; margin-top: 0.45rem; }

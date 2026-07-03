@@ -11,7 +11,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=30" />
+  <link rel="stylesheet" href="style.css?v=31" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0a192f">
 </head>
 <body>
   <!-- ========================
@@ -52,6 +54,36 @@
   </div>
 
   <main>
+    <!-- ========================
+         LANDING HERO
+         ======================== -->
+    <section id="landing-hero">
+      <h2 class="hero-title">Relive every ride.</h2>
+      <p class="hero-sub">Upload a GPX track and Memory Lanes turns it into a replay, a coaching debrief, and a journal entry worth keeping.</p>
+      <div class="hero-cards">
+        <div class="hero-card">
+          <div class="hero-card-icon">🗺️</div>
+          <div class="hero-card-title">Replay &amp; Analytics</div>
+          <div class="hero-card-text">Watch your ride back on the map with live telemetry, elevation and speed charts, and weather from the day.</div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-card-icon">🏍️</div>
+          <div class="hero-card-title">Ride Coach</div>
+          <div class="hero-card-text">GPS-based technique feedback: corner entry, exit drive, braking feel, and one thing to practise next ride.</div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-card-icon">📓</div>
+          <div class="hero-card-title">Journal &amp; Share</div>
+          <div class="hero-card-text">Pin moments to the map, build a rider's journal, export ride cards and replay videos, share read-only links.</div>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <label for="gpx-upload" class="btn-primary">📍 Upload your ride</label>
+        <button id="try-demo-btn" class="btn-muted">🎬 Try a sample ride</button>
+      </div>
+      <p class="hero-note">The sample is a synthetic 11 km loop, so you can explore every feature before uploading your own GPX.</p>
+    </section>
+
     <!-- ========================
          GPX UPLOAD
          ======================== -->
@@ -205,6 +237,12 @@
           Click a corner to jump the map to that moment.
         </p>
         <canvas id="cornerChart"></canvas>
+        <details class="chart-help"><summary>How to read this</summary>
+          <p>Dots low and left of a grip line mean you are using less of that grip level. If your dots hug the 0.4 g
+          line in open sweepers but sit far below it in tight corners, you are more confident in fast bends than slow ones,
+          which is common. Consistent vertical spread at one radius means similar corners taken at very different speeds.
+          None of this says "go faster": it shows where your comfort zone sits so you can decide what to practise.</p>
+        </details>
       </div>
       <div class="chart-block">
         <h3>Acceleration Profile</h3>
@@ -213,6 +251,11 @@
           green bands are drive zones: a glance shows the rhythm of where you worked the controls.
         </p>
         <canvas id="accelChart"></canvas>
+        <details class="chart-help"><summary>How to read this</summary>
+          <p>The blue line is how hard you were accelerating or decelerating. Red bands are braking zones, green bands are
+          drive zones. A ride with clean rhythm shows tidy alternation: brake, corner, drive, cruise. Long red bands ending
+          right where a corner starts suggest braking finished late. Spiky, ragged shapes inside a band suggest abrupt inputs.</p>
+        </details>
       </div>
       <div class="chart-block">
         <h3>Grip Usage (g-g diagram)</h3>
@@ -222,6 +265,12 @@
           trail braking fills the lower corners. This is a picture, not a score: there is nothing to maximise here.
         </p>
         <div class="gg-wrap"><canvas id="ggChart"></canvas></div>
+        <details class="chart-help"><summary>How to read this</summary>
+          <p>Left/right is cornering force, down is braking, up is drive. A plus-sign shaped cloud means you brake and
+          accelerate only when upright, then corner without much overlap: the classic safe road style. Points in the lower
+          corners of the circle mean braking while leaned over (trail braking). A tight, symmetric cloud is a smooth rider;
+          a scattered one suggests abrupt inputs. The dashed circles are reference levels, not targets.</p>
+        </details>
       </div>
       <div class="chart-block" id="rider-skills-block">
         <h3>🏍️ Ride Coach</h3>
@@ -267,7 +316,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=30"></script>
+  <script type="module" src="script.js?v=31"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 
 
