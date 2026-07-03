@@ -3,7 +3,7 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills } from './riderskills.js?v=29';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=30';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -379,15 +379,11 @@ uploadInput.addEventListener('change', () => {
 
     setupChart();
     renderSpeedFilter();
-    renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
     [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
     slider.min = 0; slider.max = points.length - 1; slider.value = 0;
     playBtn.textContent = '▶️ Play';
 
-    if (window.Analytics) {
-      Analytics.initAnalytics(points, speedData, cumulativeDistance);
-      renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
-    }
+
 
     hideAnalyticsSection();
     showAnalyticsBtn.style.display = 'inline-block';
@@ -422,6 +418,14 @@ uploadInput.addEventListener('change', () => {
           containerId: 'rider-skills-content',
           jumpToTime: jumpToNearestTime
         });
+        if (analysis.ok) {
+          renderCornerRadiusChart(analysis, jumpToNearestTime);
+          renderAccelProfile(analysis);
+          renderGGChart(analysis);
+          lastSkillsSummary = summarizeForStorage(analysis);
+          storeSkillsForCurrentRide(lastSkillsSummary);
+          enhanceRepeatCorners(analysis);
+        }
       }, 0);
     } catch (skillErr) {
       console.warn('Rider skills analysis failed:', skillErr);
@@ -1600,130 +1604,66 @@ function sanitizeString(str) {
     });
   }
 
-  function renderAccelChart(accelData, dist, speed, selectedBins, bins) {
-    const ctx = document.getElementById('accelChart')?.getContext('2d');
+  // =====================================================
+  // ANALYTICS CHARTS v2 (driven by the Ride Coach analysis)
+  // =====================================================
+
+  // --- Corner speed vs radius, with iso-g reference curves ---
+  function renderCornerRadiusChart(analysis, jumpToTime) {
+    const ctx = document.getElementById('cornerChart')?.getContext('2d');
     if (!ctx) return;
-    if (window.accelChart && typeof window.accelChart.destroy === 'function') {
-      window.accelChart.destroy();
+    if (window.cornerChart && typeof window.cornerChart.destroy === 'function') {
+      window.cornerChart.destroy();
     }
-
-    const accel = dist.map((x, i) => {
-      const y = accelData[i];
-      return Number.isFinite(y) ? { x: x / 1000, y } : null;
-    }).filter(Boolean);
-
-    let highlightPoints = dist.map((x, i) => {
-      const y = speed[i];
-      return Number.isFinite(y) ? { x: x / 1000, y, idx: i } : null;
-    }).filter(Boolean);
-
-    if (selectedBins.length > 0) {
-      highlightPoints = highlightPoints.filter(p =>
-        selectedBins.some(binIdx => p.y >= bins[binIdx].min && p.y < bins[binIdx].max)
-      );
-    }
-
-    const accelValues = accel.map(p => p.y);
-    const accelMin = Math.min(...accelValues);
-    const accelMax = Math.max(...accelValues);
-    const accelBuffer = (accelMax - accelMin) * 0.1 || 1;
-
-    const datasets = [
-      {
-        label: 'Point in Ride',
-        data: [{ x: 0, y: 0 }],
-        type: 'scatter',
-        pointRadius: 5,
-        pointBackgroundColor: '#ffffff',
-        borderColor: '#ffffff',
-        showLine: false,
-        yAxisID: 'y'
-      },
-      {
-        label: 'Acceleration',
-        data: accel,
-        borderColor: '#0168D9',
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: false,
-        yAxisID: 'y'
-      },
-      {
-        label: 'Highlighted Speeds',
-        data: highlightPoints,
-        type: 'scatter',
-        pointRadius: 4,
-        pointBackgroundColor: '#8338EC',
-        borderColor: '#8338EC',
-        borderWidth: 1,
-        showLine: false,
-        yAxisID: 'ySpeed'
+    const corners = analysis.corners.filter(c => c.radiusM <= 320);
+    const maxR = Math.max(80, ...corners.map(c => c.radiusM)) * 1.1;
+    const isoLine = (gFrac, color) => {
+      const data = [];
+      for (let r = 10; r <= maxR; r += maxR / 60) {
+        data.push({ x: r, y: 3.6 * Math.sqrt(gFrac * 9.81 * r) });
       }
-    ];
-
-    window.accelChart = new Chart(ctx, {
-      type: 'line',
-      data: { datasets },
+      return {
+        label: `${gFrac.toFixed(1)} g`, data, type: 'line',
+        borderColor: color, borderWidth: 1.5, borderDash: [6, 6],
+        pointRadius: 0, fill: false, order: 10
+      };
+    };
+    window.cornerChart = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Corners', order: 1,
+            data: corners.map(c => ({ x: c.radiusM, y: c.apexKmh, t: c.tApex.getTime() })),
+            pointBackgroundColor: '#64ffda', pointBorderColor: '#0a192f',
+            pointRadius: 6, pointHoverRadius: 8
+          },
+          isoLine(0.2, 'rgba(159,180,208,0.5)'),
+          isoLine(0.4, 'rgba(255,209,102,0.55)'),
+          isoLine(0.6, 'rgba(255,99,132,0.55)')
+        ]
+      },
       options: {
         responsive: true,
         animation: false,
-        interaction: { mode: 'nearest', intersect: false },
+        interaction: { mode: 'nearest', intersect: true },
         onClick: function(evt) {
-          if (window.playInterval) {
-            clearInterval(window.playInterval);
-            window.playInterval = null;
-            playBtn.textContent = '▶️ Play';
-          }
-          const elements = this.getElementsAtEventForMode(evt,'nearest',{ intersect:false },true);
-          if (!elements.length) return;
-          const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-          if (dataPoint && typeof dataPoint.idx === 'number') {
-            window.jumpToPlaybackIndex(dataPoint.idx);
-          }
+          const els = this.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+          if (!els.length) return;
+          const dp = this.data.datasets[els[0].datasetIndex].data[els[0].index];
+          if (dp && dp.t) jumpToTime(new Date(dp.t));
         },
-    scales: {
-      x: {
-        type: 'linear',
-        title: {
-          display: true,
-          text: 'Distance (km)',
-            color: '#4C525B',
-              font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
-                padding: { top: 12 }
+        scales: {
+          x: { type: 'linear', min: 0, title: { display: true, text: 'Corner radius (m)' }, grid: { color: '#223' } },
+          y: { min: 0, title: { display: true, text: 'Apex speed (km/h)' }, grid: { color: '#334' } }
         },
-        ticks: { callback: v => v.toFixed(2) },
-        grid: { color: '#223' }
-      },
-      y: {
-        title: {
-          display: true,
-          text: 'Acceleration (m/s²)',
-            color: '#4C525B',
-              font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
-                padding: { top: 12 }
-        },
-        position: 'left',
-        min: accelMin - accelBuffer,
-        max: accelMax + accelBuffer,
-        grid: { color: '#334' }
-      },
-      ySpeed: {
-        title: {
-          display: true,
-          text: 'Speed (km/h)',
-            color: '#4C525B',
-              font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
-                padding: { top: 12 }
-        },
-        position: 'right',
-        grid: { drawOnChartArea: false }
-      }
-    },
         plugins: {
-          legend: { display: true },
+          legend: { display: true, labels: { filter: item => item.text !== 'Corners' } },
           tooltip: {
             callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${ctx.raw.y.toFixed(2)}`
+              label: ctx2 => ctx2.dataset.label === 'Corners'
+                ? `r≈${ctx2.raw.x.toFixed(0)} m at ${ctx2.raw.y.toFixed(0)} km/h`
+                : `${ctx2.dataset.label} grip line`
             }
           }
         }
@@ -1731,6 +1671,114 @@ function sanitizeString(str) {
     });
   }
 
+  // --- Acceleration profile with braking/drive zone bands ---
+  function renderAccelProfile(analysis) {
+    const ctx = document.getElementById('accelChart')?.getContext('2d');
+    if (!ctx) return;
+    if (window.accelChart && typeof window.accelChart.destroy === 'function') {
+      window.accelChart.destroy();
+    }
+    const zones = [
+      ...analysis.brakeZones.map(z => ({ ...z, kind: 'brake' })),
+      ...analysis.accelZones.map(z => ({ ...z, kind: 'drive' }))
+    ];
+    const zoneBands = {
+      id: 'zoneBands',
+      beforeDatasetsDraw(chart) {
+        const { ctx: c, chartArea, scales: { x } } = chart;
+        if (!chartArea) return;
+        zones.forEach(z => {
+          const x0 = x.getPixelForValue(z.startKm);
+          const x1 = x.getPixelForValue(z.endKm);
+          c.fillStyle = z.kind === 'brake' ? 'rgba(255,99,132,0.13)' : 'rgba(33,200,33,0.11)';
+          c.fillRect(x0, chartArea.top, Math.max(x1 - x0, 2), chartArea.bottom - chartArea.top);
+        });
+      }
+    };
+    window.accelChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Point in Ride', type: 'scatter', order: 0,
+            data: [{ x: 0, y: 0 }],
+            pointRadius: 5, pointBackgroundColor: '#ffffff', borderColor: '#ffffff',
+            showLine: false
+          },
+          {
+            label: 'Acceleration (smoothed)', order: 1,
+            data: analysis.accelSeries,
+            borderColor: '#0168D9', borderWidth: 2, pointRadius: 0, fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        interaction: { mode: 'nearest', intersect: false },
+        scales: {
+          x: { type: 'linear', title: { display: true, text: 'Distance (km)' }, grid: { color: '#223' },
+               ticks: { callback: v => v.toFixed(1) } },
+          y: { title: { display: true, text: 'Acceleration (m/s²)' }, grid: { color: '#334' } }
+        },
+        plugins: {
+          legend: { display: true, labels: { filter: item => item.text !== 'Point in Ride' } },
+          tooltip: { callbacks: { label: c2 => `${c2.raw.y.toFixed(2)} m/s²` } }
+        }
+      },
+      plugins: [zoneBands]
+    });
+  }
+
+  // --- g-g diagram (friction circle): your grip-usage signature ---
+  function renderGGChart(analysis) {
+    const ctx = document.getElementById('ggChart')?.getContext('2d');
+    if (!ctx) return;
+    if (window.ggChart && typeof window.ggChart.destroy === 'function') {
+      window.ggChart.destroy();
+    }
+    const circle = (gFrac, color) => {
+      const data = [];
+      for (let a = 0; a <= 360; a += 6) {
+        data.push({ x: gFrac * Math.cos(a * Math.PI / 180), y: gFrac * Math.sin(a * Math.PI / 180) });
+      }
+      return { label: `${gFrac.toFixed(1)} g`, data, type: 'line', borderColor: color,
+               borderWidth: 1.2, borderDash: [5, 5], pointRadius: 0, fill: false, order: 10 };
+    };
+    const lim = 0.8;
+    window.ggChart = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Samples', order: 1,
+            data: analysis.ggPoints,
+            pointBackgroundColor: 'rgba(100,255,218,0.45)', pointBorderColor: 'transparent',
+            pointRadius: 2.4
+          },
+          circle(0.2, 'rgba(159,180,208,0.45)'),
+          circle(0.4, 'rgba(255,209,102,0.5)'),
+          circle(0.6, 'rgba(255,99,132,0.5)')
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1,
+        animation: false,
+        scales: {
+          x: { min: -lim, max: lim, title: { display: true, text: 'Lateral g  (left ‹ › right)' }, grid: { color: '#223' } },
+          y: { min: -lim, max: lim, title: { display: true, text: 'Longitudinal g (brake ‹ › drive)' }, grid: { color: '#334' } }
+        },
+        plugins: {
+          legend: { display: true, labels: { filter: item => item.text !== 'Samples' } },
+          tooltip: { enabled: false }
+        }
+      }
+    });
+  }
+
+  // ========== SPEED FILTER (map highlight) ==========
   function renderSpeedFilter() {
     const container = document.getElementById('speed-bins');
     container.innerHTML = '';
@@ -1743,16 +1791,14 @@ function sanitizeString(str) {
       container.appendChild(btn);
     });
   }
+
   function highlightSpeedBin(i) {
     const btn = document.querySelector(`#speed-bins .speed-bin-btn[data-index="${i}"]`);
     const isActive = selectedSpeedBins.has(i);
     isActive ? selectedSpeedBins.delete(i) : selectedSpeedBins.add(i);
     btn.classList.toggle('active', !isActive);
     if (speedHighlightLayer) map.removeLayer(speedHighlightLayer);
-    if (selectedSpeedBins.size === 0) {
-      renderAccelChart(accelData, cumulativeDistance, speedData, [], speedBins);
-      return;
-    }
+    if (selectedSpeedBins.size === 0) return;
     const segments = [];
     for (let j = 1; j < points.length; j++) {
       const speed = speedData[j];
@@ -1764,101 +1810,7 @@ function sanitizeString(str) {
       }
     }
     speedHighlightLayer = L.layerGroup(segments.map(seg => L.polyline(seg, { color: '#8338ec', weight: 5, opacity: 0.8 }))).addTo(map);
-    renderAccelChart(accelData, cumulativeDistance, speedData, Array.from(selectedSpeedBins), speedBins);
   }
-
-  // ========== CORNER CHART & ANALYTICS ==========
-  window.Analytics = {
-    initAnalytics: function(points, speedData, cumulativeDistance) {
-      const angleDegs = Array(points.length).fill(0);
-      const accelData = [0];
-      for (let i = 1; i < points.length - 1; i++) {
-        const p0 = points[i - 1], p1 = points[i], p2 = points[i + 1];
-        const v1 = { x: p1.lng - p0.lng, y: p1.lat - p0.lat };
-        const v2 = { x: p2.lng - p1.lng, y: p2.lat - p1.lat };
-        const dot = v1.x * v2.x + v1.y * v2.y;
-        const m1 = Math.hypot(v1.x, v1.y), m2 = Math.hypot(v2.x, v2.y);
-        if (m1 && m2) {
-          const cosA = Math.min(1, Math.max(-1, dot / (m1 * m2)));
-          angleDegs[i] = Math.acos(cosA) * 180 / Math.PI;
-        }
-      }
-      for (let i = 1; i < speedData.length; i++) {
-        const dt = (points[i].time - points[i - 1].time) / 1000;
-        const dv = speedData[i] - speedData[i - 1];
-        accelData[i] = dt ? (dv / dt) * (1000 / 3600) : 0;
-      }
-      requestAnimationFrame(() => renderCornerChart(angleDegs, speedData));
-      window.accelData = accelData;
-    }
-  };
-
-  function renderCornerChart(angleDegs, speedData) {
-    const cornerThreshold = 20;
-    const cornerPts = [], straightPts = [];
-    angleDegs.forEach((ang, i) => {
-      if (i === 0) return;
-      const pt = { x: ang, y: speedData[i], idx: i };
-      (ang > cornerThreshold ? cornerPts : straightPts).push(pt);
-    });
-
-    const ctx = document.getElementById('cornerChart').getContext('2d');
-    if (window.cornerChart && typeof window.cornerChart.destroy === 'function') {
-      window.cornerChart.destroy();
-    }
-    window.cornerChart = new Chart(ctx, {
-      type: 'scatter',
-      data: {
-        datasets: [
-          { label: 'Corners', data: cornerPts, pointBackgroundColor: '#8338EC' },
-          { label: 'Straights', data: straightPts, pointBackgroundColor: '#FF6384' }
-        ]
-      },
-      options: {
-        responsive: true,
-        animation: false,
-        interaction: { mode: 'nearest', intersect: false },
-        onClick: function(evt) {
-          const elements = this.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true);
-          if (!elements.length) return;
-          const dataPoint = this.data.datasets[elements[0].datasetIndex].data[elements[0].index];
-          if (dataPoint && typeof dataPoint.idx === 'number') {
-            window.jumpToPlaybackIndex(dataPoint.idx);
-          }
-        },
-        plugins: {
-      tooltip: {
-        callbacks: {
-          label: ctx => `Angle: ${ctx.raw.x.toFixed(1)}°, Speed: ${ctx.raw.y.toFixed(1)} km/h`
-        }
-      }
-    },
-    scales: {
-      x: {
-        type: 'linear',
-        title: {
-          display: true,
-          text: 'Turn Angle (°)',
-            color: '#4C525B',
-              font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
-                padding: { top: 12 }
-        },
-        grid: { color: '#223' }
-      },
-      y: {
-        title: {
-          display: true,
-          text: 'Speed (km/h)',
-            color: '#4C525B',
-              font: { size: 14, weight: 'bold', family: "'Inter', 'Roboto', 'Arial', sans-serif" },
-                padding: { top: 12 }
-        },
-        grid: { color: '#334' }
-      }
-    }
-  }
-});
-}
 
   // ========== TIMELINE / PLAYBACK ==========
   window.jumpToPlaybackIndex = function(idx) {
@@ -1890,11 +1842,7 @@ function sanitizeString(str) {
     elevationChart.update('none');
 
     if (window.accelChart) {
-      const accelCursor = window.accelChart.data.datasets.find(d => d.label === 'Point in Ride');
-      if (accelCursor) {
-        accelCursor.data[0] = { x: parseFloat(distKm), y: accelData[idx] };
-        window.accelChart.update('none');
-      }
+      // (cursor handled below)
     }
 
     slider.value = idx;
@@ -1904,11 +1852,7 @@ function sanitizeString(str) {
 
     const posAccelDs = window.accelChart?.data?.datasets?.find(d => d.label === 'Point in Ride');
     if (posAccelDs) {
-      posAccelDs.yAxisID = mode === 'speed' ? 'ySpeed' : 'y';
-      posAccelDs.data[0] = {
-        x: parseFloat(distKm),
-        y: mode === 'speed' ? speedData[idx] : accelData[idx]
-      };
+      posAccelDs.data[0] = { x: parseFloat(distKm), y: accelData[idx] || 0 };
       window.accelChart.update('none');
     }
   };
@@ -2067,17 +2011,22 @@ saveBtn.addEventListener('click', async () => {
                        (parseFloat(rideTimeEl.textContent.split('h')[1]) || 0);
   const elevation_m  = parseFloat(elevationEl.textContent);
   const ride_date = points[0].time.toISOString();
-  const { data: insertData, error: insertErr } = await supabase
+  const basePayload = {
+    title,
+    user_id:     user.id,
+    distance_km,
+    duration_min,
+    elevation_m,
+    ride_date,
+    gpx_path:    uploadData.path
+  };
+  let { data: insertData, error: insertErr } = await supabase
     .from('ride_logs')
-    .insert({
-      title,
-      user_id:     user.id,
-      distance_km,
-      duration_min,
-      elevation_m,
-      ride_date,
-      gpx_path:    uploadData.path
-    });
+    .insert(lastSkillsSummary ? { ...basePayload, skills: lastSkillsSummary } : basePayload);
+  if (insertErr && lastSkillsSummary && /skills/i.test(insertErr.message || '')) {
+    // skills column not migrated yet: save the ride anyway, without skills
+    ({ data: insertData, error: insertErr } = await supabase.from('ride_logs').insert(basePayload));
+  }
   if (insertErr) {
     showToast(`❌ Save failed: ${insertErr.message}`, "delete");
     unlockSave();
@@ -2116,6 +2065,75 @@ saveBtn.addEventListener('click', async () => {
 // ========== INIT ==========
 resetUIToInitial();
 
+
+// ========== SKILLS STORAGE & REPEAT-CORNER RECOGNITION ==========
+let lastSkillsSummary = null;
+
+async function storeSkillsForCurrentRide(summary) {
+  if (!summary) return;
+  const p = new URLSearchParams(window.location.search);
+  const rideId = p.get('ride');
+  if (!rideId) return; // fresh uploads store at save time instead
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { error } = await supabase
+    .from('ride_logs')
+    .update({ skills: summary })
+    .eq('id', rideId)
+    .eq('user_id', user.id);
+  if (error) console.warn('Skill storage skipped (run supabase-skills-setup.sql to enable trends):', error.message);
+}
+
+function havMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000, toR = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toR, dLng = (lng2 - lng1) * toR;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+function headingDiff(a, b) {
+  let d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
+async function enhanceRepeatCorners(analysis) {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const rideId = p.get('ride');
+    if (!rideId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: rows, error } = await supabase
+      .from('ride_logs')
+      .select('id, ride_date, skills')
+      .eq('user_id', user.id)
+      .neq('id', rideId)
+      .not('skills', 'is', null)
+      .limit(150);
+    if (error || !rows || !rows.length) return;
+    const past = [];
+    rows.forEach(r => (r.skills?.corners || []).forEach(c => past.push(c)));
+    if (!past.length) return;
+    const top = [...analysis.corners].sort((a, b) => b.maxLatG - a.maxLatG).slice(0, 10);
+    document.querySelectorAll('#rider-skills-content .corner-card').forEach((card, i) => {
+      const c = top[i];
+      if (!c) return;
+      const matches = past.filter(pc =>
+        havMeters(c.apexLat, c.apexLng, pc.la, pc.ln) < 35 &&
+        headingDiff(c.apexHeadingDeg, pc.hd) < 60
+      );
+      if (!matches.length) return;
+      const bestPast = Math.max(...matches.map(m => m.ak));
+      const cur = Math.round(c.apexKmh);
+      const cmp = cur > bestPast ? 'a new best!' : `best ${bestPast} km/h`;
+      const div = document.createElement('div');
+      div.className = 'corner-history';
+      div.textContent = `🔁 You have ridden this corner ${matches.length + 1} times. Apex today ${cur} km/h, ${cmp}`;
+      card.querySelector('.corner-main').appendChild(div);
+    });
+  } catch (e) {
+    console.warn('Repeat-corner check skipped:', e);
+  }
+}
 
 // ========== SHARE RIDE (public read-only links) ==========
 const shareRideBtn = document.getElementById('share-ride-btn');

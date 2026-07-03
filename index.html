@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=29" />
+  <link rel="stylesheet" href="style.css?v=30" />
 </head>
 <body>
   <!-- ========================
@@ -197,22 +197,31 @@
         <canvas id="elevationChart"></canvas>
       </div>
       <div class="chart-block">
-        <h3>Cornering vs Straight-Line Speed</h3>
+        <h3>Corner Speed vs Radius</h3>
         <p class="chart-desc">
-          This scatter plot shows your turn-angle in degrees (X-axis) versus your speed in km/h (Y-axis).<br>
-          Points above the 20° threshold are “corners,” below are “straights.”<br>
-          Click any point to jump the map to that exact moment.
+          Each dot is a detected corner: how tight it was (radius) against your apex speed.<br>
+          The dashed curves are constant-grip lines at 0.2, 0.4 and 0.6 g, so you can see how much
+          of the available grip you use in tight corners versus open sweepers.<br>
+          Click a corner to jump the map to that moment.
         </p>
         <canvas id="cornerChart"></canvas>
       </div>
       <div class="chart-block">
-        <h3>Longitudinal Acceleration Profile</h3>
+        <h3>Acceleration Profile</h3>
         <p class="chart-desc">
-          This chart shows your longitudinal acceleration (m/s²) over the ride distance (km).<br>
-          Blue spikes are throttle-on; dips are braking. Red dots show when your speed was in the selected range.<br>
-          Click any point to see its location on the map.
+          Smoothed acceleration (m/s²) over distance. Red bands are detected braking zones,
+          green bands are drive zones: a glance shows the rhythm of where you worked the controls.
         </p>
         <canvas id="accelChart"></canvas>
+      </div>
+      <div class="chart-block">
+        <h3>Grip Usage (g-g diagram)</h3>
+        <p class="chart-desc">
+          Every dot is a moment of the ride: cornering force left/right, braking and drive up/down.<br>
+          The shape of the cloud is your riding signature. Riders who brake only upright draw a plus sign;
+          trail braking fills the lower corners. This is a picture, not a score: there is nothing to maximise here.
+        </p>
+        <div class="gg-wrap"><canvas id="ggChart"></canvas></div>
       </div>
       <div class="chart-block" id="rider-skills-block">
         <h3>🏍️ Ride Coach</h3>
@@ -258,7 +267,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=29"></script>
+  <script type="module" src="script.js?v=30"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 
 

@@ -69,6 +69,10 @@ export function analyzeRide(pts) {
   }
   vRaw[0] = vRaw[1];
   const v = movingAvg(vRaw, 5);
+  const dist = new Array(pts.length).fill(0);
+  for (let i = 1; i < pts.length; i++) {
+    dist[i] = dist[i - 1] + Math.hypot(xy[i].x - xy[i - 1].x, xy[i].y - xy[i - 1].y);
+  }
   const medianDt = (() => {
     const dts = [];
     for (let i = 1; i < t.length; i++) dts.push(t[i] - t[i - 1]);
@@ -192,8 +196,11 @@ export function analyzeRide(pts) {
       if (!focus) focus = 'Pick the bike up and roll the throttle on progressively once you can see the exit.';
     }
 
+    let headingAtApex = heading[apex] * 180 / Math.PI;
+    if (headingAtApex < 0) headingAtApex += 360;
     cornerEvents.push({
       startIdx: s, apexIdx: apex, endIdx: e, entryIdx,
+      apexLat: pts[apex].lat, apexLng: pts[apex].lng, apexHeadingDeg: headingAtApex,
       tStart: pts[s].time, tApex: pts[apex].time,
       sweepDeg: sweep, radiusM: minR,
       entryKmh: entrySpeed * 3.6, apexKmh: apexSpeed * 3.6, exitKmh: exitSpeed * 3.6,
@@ -222,6 +229,7 @@ export function analyzeRide(pts) {
     const jseg = jerk.slice(s + 1, e + 1);
     return {
       startIdx: s, endIdx: e, tStart: pts[s].time,
+      startKm: dist[s] / 1000, endKm: dist[e] / 1000,
       fromKmh: v[s] * 3.6, toKmh: v[e] * 3.6,
       peakDecel: Math.min(...seg), meanDecel: seg.reduce((x, y) => x + y, 0) / seg.length,
       smoothness: clamp(100 - stdDev(jseg) * 55, 0, 100)
@@ -229,8 +237,47 @@ export function analyzeRide(pts) {
   });
   const accelZones = detectZones(i => a[i] >= 1.2 && v[i] > 3).map(([s, e]) => {
     const jseg = jerk.slice(s + 1, e + 1);
-    return { startIdx: s, endIdx: e, smoothness: clamp(100 - stdDev(jseg) * 55, 0, 100) };
+    return { startIdx: s, endIdx: e, startKm: dist[s] / 1000, endKm: dist[e] / 1000,
+      smoothness: clamp(100 - stdDev(jseg) * 55, 0, 100) };
   });
+
+  // ---------- Ride composition (each sample counted once, by priority) ----------
+  const inBrake = new Array(pts.length).fill(false);
+  brakeZones.forEach(z => { for (let i = z.startIdx; i <= z.endIdx; i++) inBrake[i] = true; });
+  const inDrive = new Array(pts.length).fill(false);
+  accelZones.forEach(z => { for (let i = z.startIdx; i <= z.endIdx; i++) inDrive[i] = true; });
+  const composition = { stopped: 0, cornering: 0, braking: 0, driving: 0, cruising: 0 };
+  for (let i = 1; i < pts.length; i++) {
+    const dt = Math.min(10, Math.max(0, t[i] - t[i - 1]));
+    if (v[i] < 1) composition.stopped += dt;
+    else if (inCorner[i]) composition.cornering += dt;
+    else if (inBrake[i]) composition.braking += dt;
+    else if (inDrive[i]) composition.driving += dt;
+    else composition.cruising += dt;
+  }
+
+  // ---------- g-g cloud (signed lateral, for the friction-circle diagram) ----------
+  const ggPoints = [];
+  {
+    const stride = Math.max(1, Math.ceil(pts.length / 1500));
+    for (let i = 1; i < pts.length - 1; i += stride) {
+      if (v[i] < 3) continue;
+      let dHead = heading[i + 1] - heading[i - 1];
+      while (dHead > Math.PI) dHead -= 2 * Math.PI;
+      while (dHead < -Math.PI) dHead += 2 * Math.PI;
+      const sign = dHead >= 0 ? 1 : -1;
+      ggPoints.push({ x: +(sign * latAccS[i] / G).toFixed(3), y: +(a[i] / G).toFixed(3) });
+    }
+  }
+
+  // ---------- Smoothed acceleration series over distance (for the profile chart) ----------
+  const accelSeries = [];
+  {
+    const stride = Math.max(1, Math.ceil(pts.length / 1500));
+    for (let i = 0; i < pts.length; i += stride) {
+      accelSeries.push({ x: +(dist[i] / 1000).toFixed(3), y: +a[i].toFixed(3) });
+    }
+  }
 
   // ---------- Scores (0 to 100, technique-based) ----------
   const scores = {};
@@ -262,7 +309,12 @@ export function analyzeRide(pts) {
     sampleIntervalS: medianDt,
     corners: cornerEvents,
     brakeZones,
+    accelZones,
     accelZonesCount: accelZones.length,
+    composition,
+    ggPoints,
+    accelSeries,
+    totalKm: dist[dist.length - 1] / 1000,
     scores
   };
 }
@@ -340,6 +392,25 @@ const METER_CAPS = {
   }
 };
 
+// Compact per-ride summary for storage in ride_logs.skills (jsonb).
+// Kept small: scores, composition, and up to 40 corner fingerprints
+// (location + heading + geometry) for trends and repeat-corner recognition.
+export function summarizeForStorage(analysis) {
+  if (!analysis.ok) return null;
+  const corners = [...analysis.corners]
+    .sort((a, b) => b.maxLatG - a.maxLatG)
+    .slice(0, 40)
+    .map(c => ({
+      la: +c.apexLat.toFixed(5), ln: +c.apexLng.toFixed(5),
+      hd: Math.round(c.apexHeadingDeg),
+      ak: Math.round(c.apexKmh), r: Math.round(c.radiusM),
+      sw: Math.round(c.sweepDeg), ld: Math.round(c.leanDeg)
+    }));
+  const comp = {};
+  Object.entries(analysis.composition).forEach(([k, sec]) => { comp[k] = Math.round(sec); });
+  return { v: 1, at: new Date().toISOString(), scores: analysis.scores, comp, corners };
+}
+
 // Plain-English debrief: turns the score spread into a coach's summary.
 const STRENGTH_CLAUSE = {
   cornerEntry: 'entries were settled, with braking done before turn-in',
@@ -377,6 +448,31 @@ export function buildDebrief(scores) {
   const strong = STRENGTH_CLAUSE[hi];
   const verdict = strong.charAt(0).toUpperCase() + strong.slice(1) + ', but ' + WEAKNESS_CLAUSE[lo] + '.';
   return { verdict, next: 'Next ride: focus on ' + FOCUS_PHRASE[lo] + '.' };
+}
+
+const COMP_META = {
+  cornering: ['Cornering', '#64ffda'],
+  braking: ['Braking', '#ff6384'],
+  driving: ['Driving', '#21c821'],
+  cruising: ['Cruising', '#3a86ff'],
+  stopped: ['Stopped', '#55607a']
+};
+
+export function compositionBarHTML(comp) {
+  if (!comp) return '';
+  const total = Object.values(comp).reduce((a, b) => a + b, 0);
+  if (total < 60) return '';
+  const order = ['cornering', 'braking', 'driving', 'cruising', 'stopped'];
+  const segs = order
+    .map(k => ({ k, pct: 100 * (comp[k] || 0) / total }))
+    .filter(sg => sg.pct >= 0.5);
+  const bar = segs.map(sg =>
+    `<span class="comp-seg" style="width:${sg.pct.toFixed(1)}%;background:${COMP_META[sg.k][1]}" title="${COMP_META[sg.k][0]} ${sg.pct.toFixed(0)}%"></span>`
+  ).join('');
+  const legend = segs.map(sg =>
+    `<span class="comp-key"><span class="comp-dot" style="background:${COMP_META[sg.k][1]}"></span>${COMP_META[sg.k][0]} <b class="num">${sg.pct.toFixed(0)}%</b></span>`
+  ).join('');
+  return `<div class="comp-bar">${bar}</div><div class="comp-legend">${legend}</div>`;
 }
 
 export function buildSkillsHTML(analysis) {
@@ -424,6 +520,7 @@ export function buildSkillsHTML(analysis) {
       </div>
       ${debrief ? `<div class="debrief-verdict">${debrief.verdict}</div>
       <div class="debrief-next">${debrief.next}</div>` : ''}
+      ${compositionBarHTML(analysis.composition)}
     </div>
     <div class="skills-hero">
       <div class="radar-panel"><canvas id="riderSkillsRadar"></canvas></div>

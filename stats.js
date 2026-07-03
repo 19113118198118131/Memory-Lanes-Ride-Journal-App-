@@ -3,6 +3,7 @@
 // Lifetime stats: totals, monthly chart, personal bests, all-routes map
 // ===============================
 import supabase from './supabaseClient.js';
+import { analyzeRide, summarizeForStorage } from './riderskills.js?v=30';
 
 const ROUTE_COLORS = ['#64ffda', '#00c6ff', '#8338ec', '#ff6384', '#ffd700', '#21c821', '#ff9500'];
 const MAX_ROUTES_ON_MAP = 100;   // safety cap for very large journals
@@ -22,11 +23,21 @@ function fmtDuration(totalMin) {
     return;
   }
 
-  const { data: rides, error: fetchErr } = await supabase
+  // Try to include skill summaries; fall back gracefully if the column is not migrated yet
+  let skillsAvailable = true;
+  let { data: rides, error: fetchErr } = await supabase
     .from('ride_logs')
-    .select('id, title, distance_km, duration_min, elevation_m, ride_date, gpx_path')
+    .select('id, title, distance_km, duration_min, elevation_m, ride_date, gpx_path, skills')
     .eq('user_id', user.id)
     .order('ride_date', { ascending: false });
+  if (fetchErr && /skills/i.test(fetchErr.message || '')) {
+    skillsAvailable = false;
+    ({ data: rides, error: fetchErr } = await supabase
+      .from('ride_logs')
+      .select('id, title, distance_km, duration_min, elevation_m, ride_date, gpx_path')
+      .eq('user_id', user.id)
+      .order('ride_date', { ascending: false }));
+  }
 
   if (fetchErr) {
     document.getElementById('stats-empty').style.display = 'block';
@@ -96,6 +107,120 @@ function fmtDuration(totalMin) {
         y: { title: { display: true, text: 'km' }, grid: { color: '#334' }, beginAtZero: true }
       }
     }
+  });
+
+  // ---------- Skill trends ----------
+  const trendsBlock = document.getElementById('trends-block');
+  const trendsStatus = document.getElementById('trends-status');
+  const analyzeBtn = document.getElementById('analyze-past-btn');
+  trendsBlock.style.display = 'block';
+
+  const AXES = [
+    ['cornerEntry', 'Corner entry', '#64ffda'],
+    ['exitDrive', 'Exit drive', '#00c6ff'],
+    ['brakingSmoothness', 'Braking feel', '#ff6384'],
+    ['throttleSmoothness', 'Throttle feel', '#ffd166'],
+    ['consistency', 'Consistency', '#8338ec']
+  ];
+  let trendsChart = null;
+
+  function renderTrends() {
+    const scored = rides
+      .filter(r => r.skills && r.skills.scores && r.ride_date)
+      .sort((a, b) => new Date(a.ride_date) - new Date(b.ride_date))
+      .slice(-30);
+    if (!skillsAvailable) {
+      trendsStatus.textContent = 'Skill trends need a one-time database setup: run supabase-skills-setup.sql in Supabase, then revisit a ride to record its scores.';
+      return;
+    }
+    if (scored.length < 2) {
+      trendsStatus.textContent = scored.length === 0
+        ? 'No skill scores recorded yet. Open a ride to analyze it, or use the button below to analyze your past rides in one go.'
+        : 'One ride scored so far. Trends appear once a second ride is analyzed.';
+      const unscored = rides.filter(r => !r.skills && r.gpx_path).length;
+      if (unscored > 0) {
+        analyzeBtn.style.display = 'inline-block';
+        analyzeBtn.textContent = `Analyze past rides (${Math.min(unscored, 25)} of ${unscored})`;
+      }
+      return;
+    }
+    const labels = scored.map(r => new Date(r.ride_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+    if (trendsChart) trendsChart.destroy();
+    trendsChart = new Chart(document.getElementById('trendsChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: AXES
+          .filter(([k]) => scored.some(r => Number.isFinite(r.skills.scores[k])))
+          .map(([k, label, color]) => ({
+            label,
+            data: scored.map(r => Number.isFinite(r.skills.scores[k]) ? r.skills.scores[k] : null),
+            borderColor: color, backgroundColor: color,
+            borderWidth: 2, pointRadius: 3, tension: 0.25, spanGaps: true
+          }))
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { min: 0, max: 100, grid: { color: '#334' } },
+          x: { grid: { color: '#223' } }
+        },
+        plugins: { legend: { labels: { color: '#c5d1e3' } } }
+      }
+    });
+    const unscored = rides.filter(r => !r.skills && r.gpx_path).length;
+    trendsStatus.textContent = `${scored.length} rides scored.` + (unscored ? ` ${unscored} older rides not yet analyzed.` : '');
+    if (unscored > 0) {
+      analyzeBtn.style.display = 'inline-block';
+      analyzeBtn.textContent = `Analyze past rides (${Math.min(unscored, 25)} of ${unscored})`;
+    } else {
+      analyzeBtn.style.display = 'none';
+    }
+  }
+  renderTrends();
+
+  // Backfill: fetch GPX for unscored rides, run the Ride Coach engine, store summaries
+  analyzeBtn?.addEventListener('click', async () => {
+    if (!skillsAvailable) return;
+    analyzeBtn.disabled = true;
+    const targets = rides.filter(r => !r.skills && r.gpx_path).slice(0, 25);
+    let done = 0, failed = 0;
+    for (const ride of targets) {
+      try {
+        const { data: urlData } = supabase.storage.from('gpx-files').getPublicUrl(ride.gpx_path);
+        const resp = await fetch(urlData.publicUrl);
+        if (!resp.ok) throw new Error('gpx ' + resp.status);
+        const xml = new DOMParser().parseFromString(await resp.text(), 'application/xml');
+        const raw = Array.from(xml.getElementsByTagName('trkpt')).map(tp => ({
+          lat: +tp.getAttribute('lat'),
+          lng: +tp.getAttribute('lon'),
+          ele: +(tp.getElementsByTagName('ele')[0]?.textContent || 0),
+          time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
+        })).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng) && !isNaN(p.time));
+        let hi = [];
+        let lastT = -Infinity;
+        for (const tp of raw) {
+          const ts = tp.time.getTime();
+          if (ts - lastT >= 950) { hi.push(tp); lastT = ts; }
+        }
+        if (hi.length > 15000) {
+          const stride = Math.ceil(hi.length / 15000);
+          hi = hi.filter((_, i) => i % stride === 0);
+        }
+        const analysis = analyzeRide(hi);
+        const summary = analysis.ok ? summarizeForStorage(analysis) : { v: 1, at: new Date().toISOString(), scores: {}, comp: {}, corners: [], note: 'insufficient data' };
+        const { error: upErr } = await supabase.from('ride_logs').update({ skills: summary }).eq('id', ride.id).eq('user_id', user.id);
+        if (upErr) throw upErr;
+        ride.skills = summary;
+        done++;
+      } catch (e) {
+        failed++;
+        console.warn('Backfill failed for ride', ride.id, e);
+      }
+      trendsStatus.textContent = `Analyzing past rides: ${done + failed}/${targets.length} (${failed} failed)`;
+    }
+    analyzeBtn.disabled = false;
+    renderTrends();
   });
 
   // ---------- Personal bests ----------

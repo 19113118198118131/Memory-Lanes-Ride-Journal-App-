@@ -1988,3 +1988,33 @@ header nav a:focus,
   .debrief-card { padding: 1.1rem 1.2rem; }
   .debrief-verdict { font-size: 1.02rem; }
 }
+
+/* Ride composition bar (in the debrief card) */
+.comp-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 1rem;
+  background: rgba(255,255,255,0.06);
+}
+.comp-seg { display: block; height: 100%; }
+.comp-legend {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem;
+  margin-top: 0.5rem; color: #8fa4bd; font-size: 0.88rem;
+}
+.comp-key { display: inline-flex; align-items: center; gap: 0.35rem; }
+.comp-key b { color: #e3e8ef; }
+.comp-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+/* Repeat-corner recognition badge */
+.corner-history {
+  color: #9fd8ff;
+  font-size: 0.88rem;
+  margin-top: 0.45rem;
+}
+
+
+/* g-g diagram: square, centred */
+.gg-wrap { max-width: 480px; margin: 0 auto; }
+#ggChart { background: #fff2; border-radius: 22px; }

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=29" />
+  <link rel="stylesheet" href="style.css?v=30" />
   <style>
     /* Page-scoped styles for the stats view */
     .stats-grid {
@@ -95,6 +95,16 @@
       <canvas id="monthChart"></canvas>
     </section>
 
+    <section class="chart-block" id="trends-block" style="display:none;">
+      <h3>📈 Skill Trends</h3>
+      <p class="chart-desc">
+        Your Ride Coach technique scores across recent rides. This is the question that matters: am I improving?
+      </p>
+      <canvas id="trendsChart" style="max-height:360px;"></canvas>
+      <div id="trends-status" style="color:#8fa4bd; margin-top:0.8rem;"></div>
+      <button id="analyze-past-btn" class="btn-muted" style="display:none; margin-top:0.6rem;">Analyze past rides</button>
+    </section>
+
     <section class="card-section" id="bests-block" style="display:none;">
       <h2 style="margin-top:0;">🏆 Personal Bests</h2>
       <div class="bests-grid" id="bests-grid"></div>
@@ -109,6 +119,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script type="module" src="stats.js?v=29"></script>
+  <script type="module" src="stats.js?v=30"></script>
 </body>
 </html>
