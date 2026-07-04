@@ -1,4 +1,4 @@
-// theme.js — theme toggle. The correct theme is already applied pre-paint by the
+// theme.js - theme toggle. The correct theme is already applied pre-paint by the
 // inline <head> script; this only handles the toggle button and persistence.
 (function () {
   function current() {

@@ -1,4 +1,4 @@
-// icons.js — Lucide-based inline SVG icon system for Memory Lanes.
+// icons.js - Lucide-based inline SVG icon system for Memory Lanes.
 // Zero dependencies, no network. Icons use currentColor so they inherit
 // the button/text colour. Paths are from Lucide (ISC licensed, lucide.dev).
 //

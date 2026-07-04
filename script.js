@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=42';
-import { buildRideInsights } from './insights.js?v=42';
-import { mlIconSVG } from './icons.js?v=42';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=43';
+import { buildRideInsights } from './insights.js?v=43';
+import { mlIconSVG } from './icons.js?v=43';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -968,7 +968,7 @@ function sanitizeString(str) {
   }
 
   // =====================================================
-  // SECTION 6.5: EXPORTS — RIDE CARD (PNG) & REPLAY VIDEO
+  // SECTION 6.5: EXPORTS - RIDE CARD (PNG) & REPLAY VIDEO
   // (map-backed via CARTO dark basemap © OpenStreetMap © CARTO)
   // =====================================================
 
@@ -1006,7 +1006,7 @@ function sanitizeString(str) {
     return { z, world, originX, originY, project };
   }
 
-  // Legacy projection (equirectangular, aspect-fit) — used when map tiles fail.
+  // Legacy projection (equirectangular, aspect-fit) - used when map tiles fail.
   function fitRouteProjection(pts, boxX, boxY, boxW, boxH) {
     let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
     for (const p of pts) {
@@ -1487,7 +1487,7 @@ function sanitizeString(str) {
     drawFrame(0);
     recorder.start(250);
     requestAnimationFrame(tick);
-    showToast(`Recording a ${(DURATION_MS / 1000).toFixed(0)}s replay — keep this tab visible.`, 'info');
+    showToast(`Recording a ${(DURATION_MS / 1000).toFixed(0)}s replay, keep this tab visible.`, 'info');
   });
 
   // =====================================================
@@ -1848,7 +1848,7 @@ function sanitizeString(str) {
             callbacks: {
               label: (ctx) => {
                 const ds = ctx.dataset;
-                if (ds.gValue) return `${ds.label} — ${ds.gValue} g`;
+                if (ds.gValue) return `${ds.label}: ${ds.gValue} g`;
                 return `lat ${ctx.parsed.x.toFixed(2)} g, long ${ctx.parsed.y.toFixed(2)} g`;
               }
             }
@@ -2434,7 +2434,7 @@ if (params.has('ride')) {
       hideAnalyticsSection();
       showAnalyticsBtn.style.display = 'inline-block';
 
-      // Sharing controls — owner only
+      // Sharing controls - owner only
       const { data: { user: viewer } } = await supabase.auth.getUser();
       if (viewer && ride.user_id === viewer.id) {
         currentRideRow = ride;

@@ -1,5 +1,5 @@
 /* ============================================================
-   THEME SYSTEM — semantic tokens, light + dark, extensible
+   THEME SYSTEM - semantic tokens, light + dark, extensible
    ------------------------------------------------------------
    Tier 1: primitive palette (raw colors, theme-agnostic)
    Tier 2: semantic tokens (what components actually use)
@@ -35,7 +35,7 @@
   --green-500: #21c821;
   --green-600: #128a12;
 
-  /* light-theme neutrals — "Alpine Journal": warm paper, ink, deep teal */
+  /* light-theme neutrals - "Alpine Journal": warm paper, ink, deep teal */
   --paper-0:   #ffffff;   /* card surface */
   --paper-warm:#f6f3ee;   /* warm base background */
   --paper-50:  #faf8f4;   /* raised warm */
@@ -56,7 +56,7 @@
 }
 
 /* ============================================================
-   Tier 2: SEMANTIC TOKENS — DARK (default, no JS needed)
+   Tier 2: SEMANTIC TOKENS - DARK (default, no JS needed)
    ============================================================ */
 :root,
 [data-theme="dark"] {
@@ -92,7 +92,7 @@
 }
 
 /* ============================================================
-   Tier 2: SEMANTIC TOKENS — LIGHT
+   Tier 2: SEMANTIC TOKENS - LIGHT
    ============================================================ */
 [data-theme="light"] {
   color-scheme: light;
@@ -2513,7 +2513,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 }
 
 /* ============================================================
-   LIGHT THEME — component surface overrides
+   LIGHT THEME - component surface overrides
    Translucent gradient washes are tuned for the dark canvas;
    in light mode they turn muddy, so remap them to clean surfaces.
    ============================================================ */
@@ -2555,7 +2555,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 [data-theme="light"] .chart-help p { background: var(--color-surface-sunken); }
 
 /* ============================================================
-   ALPINE JOURNAL — light-mode creative layer
+   ALPINE JOURNAL - light-mode creative layer
    Warm paper, road-atlas texture, frosted cards, paper-lift
    motion. Dark theme is untouched; these only apply in light.
    ============================================================ */
@@ -2577,7 +2577,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 }
 [data-theme="light"] body > * { position: relative; z-index: 1; }
 
-/* 2. Frosted-paper cards — translucent white, fine border, soft depth */
+/* 2. Frosted-paper cards - translucent white, fine border, soft depth */
 [data-theme="light"] .card-section,
 [data-theme="light"] .ride-entry,
 [data-theme="light"] .chart-block,
@@ -2627,7 +2627,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
   color: var(--teal-deep);
 }
 
-/* 5. Kill dark-mode shimmer / glow in light — replace with calm ink */
+/* 5. Kill dark-mode shimmer / glow in light - replace with calm ink */
 [data-theme="light"] .site-title {
   background: none;
   -webkit-text-fill-color: var(--ink-900);
@@ -2649,7 +2649,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 }
 [data-theme="light"] .speed-bin-btn.active { animation: none; }
 
-/* 6. Paper-lift motion — cards rise with a soft shadow, no glow */
+/* 6. Paper-lift motion - cards rise with a soft shadow, no glow */
 [data-theme="light"] .ride-entry,
 [data-theme="light"] .summary-card,
 [data-theme="light"] .chart-block,

@@ -1,4 +1,4 @@
-// insights.js — per-ride, plain-language insight generator for the four charts.
+// insights.js: per-ride, plain-language insight generator for the four charts.
 //
 // Every phrase is chosen by comparing a COMPUTED value against a threshold,
 // so the wording always tracks the data and nothing is static or invented.
@@ -59,7 +59,7 @@ export function buildRideInsights(analysis, hiPts) {
   const sigKey = combinedPct < 8 ? 'upright' : combinedPct < 18 ? 'road' : 'blended';
   const SIG = {
     upright: 'settling the bike before each bend, then driving out clean',
-    road: 'reading the road ahead — braking in a line, flowing through, rolling on after',
+    road: 'reading the road ahead: braking in a line, flowing through, rolling on after',
     blended: 'easing off the brakes as the bike leans, then picking the throttle back up mid-corner'
   };
   const sigName = sigKey === 'road' ? 'a composed road rider'
@@ -78,16 +78,16 @@ export function buildRideInsights(analysis, hiPts) {
       detail: `Your grip-usage cloud shows a rider ${SIG[sigKey]}. You spent ${pct('cornering')}% of the time cornering and ${pct('cruising')}% flowing between bends, with ${trailPhrase}. The inputs read as ${smoothWord} and deliberate.`
     },
     corner: {
-      summary: `You held ${paceWarm} through the bends — a typical ${medG.toFixed(2)} g.`,
-      detail: `Across ${(analysis.corners || []).length} corners your median cornering force was ${medG.toFixed(2)} g — ${pace}, ${reserve}. The spread was ${spread.toFixed(2)} g, ${spreadClause}.`
+      summary: `You held ${paceWarm} through the bends, a typical ${medG.toFixed(2)} g.`,
+      detail: `Across ${(analysis.corners || []).length} corners your median cornering force was ${medG.toFixed(2)} g, ${pace}, ${reserve}. The spread was ${spread.toFixed(2)} g, ${spreadClause}.`
     },
     elevation: {
-      summary: `The road rose and fell ${climb} m — and you moved with it.`,
+      summary: `The road rose and fell ${climb} m, and you moved with it.`,
       detail: `Climbing ${climb} m and dropping ${desc} m, this ride had real shape. Your pace tracked the terrain: easing back where it tightened and climbed, then opening up on the flowing, open stretches. A ride with rhythm.`
     },
     accel: {
-      summary: `${accelSummary} — ${brakes} braking points, ${hard === 0 ? 'none' : 'only ' + hard} firm.`,
-      detail: `Braking smoothness came out at ${bs}/100 and throttle at ${ts}/100. Of ${brakes} braking moments, ${hard} ${hard === 1 ? 'was' : 'were'} firm — the rest progressive. Overall the ride reads as ${smoothWord}, ${anticipation}.`
+      summary: `${accelSummary}, ${brakes} braking points, ${hard === 0 ? 'none' : 'only ' + hard} firm.`,
+      detail: `Braking smoothness came out at ${bs}/100 and throttle at ${ts}/100. Of ${brakes} braking moments, ${hard} ${hard === 1 ? 'was' : 'were'} firm, the rest progressive. Overall the ride reads as ${smoothWord}, ${anticipation}.`
     }
   };
 }

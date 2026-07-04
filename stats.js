@@ -3,7 +3,7 @@
 // Lifetime stats: totals, monthly chart, personal bests, all-routes map
 // ===============================
 import supabase from './supabaseClient.js';
-import { analyzeRide, summarizeForStorage } from './riderskills.js?v=42';
+import { analyzeRide, summarizeForStorage } from './riderskills.js?v=43';
 
 const ROUTE_COLORS = ['#64ffda', '#00c6ff', '#8338ec', '#ff6384', '#ffd700', '#21c821', '#ff9500'];
 const MAX_ROUTES_ON_MAP = 100;   // safety cap for very large journals
@@ -16,7 +16,7 @@ function fmtDuration(totalMin) {
 }
 
 (async () => {
-  // Auth gate — stats are personal
+  // Auth gate - stats are personal
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) {
     window.location.href = 'index.html';
