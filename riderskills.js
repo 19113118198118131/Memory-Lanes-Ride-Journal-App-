@@ -146,6 +146,7 @@ export function analyzeRide(pts) {
     if (e - s < Math.max(2, Math.round(2 / medianDt))) continue;
     const sweep = headingSweep(s, e);
     if (sweep < 25) continue; // ignore gentle bends
+    if (sweep > 400) continue; // parking loops / multi-turn maneuvers, not corners
 
     // Apex = point of minimum speed inside the corner (ties → max lateral load)
     let apex = s;
@@ -159,6 +160,10 @@ export function analyzeRide(pts) {
     const exitSpeed = v[e];
     let minR = Infinity;
     for (let i = s; i <= e; i++) if (radius[i] < minR) minR = radius[i];
+    // Junk filter: sub-walking-pace apexes and single-digit radii are U-turns,
+    // car parks, or GPS jitter, not riding. Including them fabricates absurd
+    // lean angles and pollutes the consistency score.
+    if (apexSpeed * 3.6 < 20 || minR < 12) continue;
     const maxLat = Math.max(...latAccS.slice(s, e + 1));
     const leanDeg = Math.atan(maxLat / G) * 180 / Math.PI;
 

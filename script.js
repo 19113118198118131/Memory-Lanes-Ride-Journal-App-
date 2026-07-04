@@ -3,7 +3,7 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=32';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=34';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -164,6 +164,12 @@ async function saveMomentsToDB() {
 
   function resetUIToInitial() {
     setHeroVisible(true);
+    const titleInput = document.getElementById('ride-title');
+    if (titleInput) titleInput.value = '';
+    if (fileStatus) {
+      fileStatus.textContent = 'No file selected';
+      fileStatus.classList.remove('ready');
+    }
     uploadSection.style.display        = 'block';
     const uc0 = document.querySelector('.upload-controls');
     if (uc0) uc0.style.display = '';
@@ -315,7 +321,11 @@ uploadInput.addEventListener('change', () => {
       time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
     })).filter(p => p.lat && p.lng && p.time instanceof Date);
 
-    if (!trkpts.length) return alert('No valid trackpoints found');
+    if (!trkpts.length) {
+      showToast('That file has no valid GPS trackpoints. Please upload a GPX recorded by a GPS device or app.', 'delete');
+      resetUIToInitial();
+      return;
+    }
 
     // Downsample, breakpoints
     const SAMPLE = 5;
@@ -2436,6 +2446,13 @@ if (params.has('share') && !params.has('ride')) {
     }
   })();
 }
+
+  // === Header nav (Logs | Moments | Journeys) ===
+  document.querySelectorAll('.vibe-nav [data-nav]').forEach(el => {
+    const go = () => { window.location.href = el.dataset.nav; };
+    el.addEventListener('click', go);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
 
   // === Collapsible Footer Logic ===
 const toggleBtn = document.getElementById('footer-toggle');

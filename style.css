@@ -2066,3 +2066,33 @@ header nav a:focus,
 }
 
 .debrief-trend { color: #9fd8ff; font-size: 0.98rem; margin-top: 0.45rem; }
+
+
+/* ---------- Dashboard ride-card internals (previously unstyled) ---------- */
+.ride-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.ride-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex: none;
+}
+.ride-date {
+  color: #8fa4bd;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+.moments-icon { display: inline-flex; align-items: center; }
+
+/* ---------- Journal state messages (previously unstyled) ---------- */
+.loading-message, .error-message {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #8fa4bd;
+  font-size: 1.05rem;
+}
+.error-message { color: #ff8f8f; }
