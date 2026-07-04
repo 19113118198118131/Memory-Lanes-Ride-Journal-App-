@@ -1,19 +1,19 @@
 // Memory Lanes service worker: app-shell caching (stale-while-revalidate).
 // Bump CACHE on each deploy so clients pick up fresh files.
-const CACHE = 'memory-lanes-v40';
+const CACHE = 'memory-lanes-v41';
 const CORE = [
   './',
   './index.html',
   './dashboard.html',
   './stats.html',
   './journal.html',
-  './style.css?v=40',
-  './script.js?v=40',
-  './icons.js?v=40',
-  './theme.js?v=40',
-  './riderskills.js?v=40',
-  './dashboard.js?v=40',
-  './stats.js?v=40',
+  './style.css?v=41',
+  './script.js?v=41',
+  './icons.js?v=41',
+  './theme.js?v=41',
+  './riderskills.js?v=41',
+  './dashboard.js?v=41',
+  './stats.js?v=41',
   './supabaseClient.js',
   './manifest.webmanifest',
   './assets/demo-ride.gpx',
