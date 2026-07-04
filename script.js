@@ -3,7 +3,7 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=34';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=35';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -181,7 +181,7 @@ async function saveMomentsToDB() {
     showAnalyticsBtn.style.display     = 'none';
     downloadSummary.style.display      = 'none';
     exportVideo.style.display          = 'none';
-    rideActions.style.display          = 'none';
+    if (rideActions) rideActions.style.display = 'none';
     editControls.style.display         = 'none';
     editHelp.style.display             = 'none';
     document.getElementById('gpx-upload').value = '';
@@ -196,7 +196,7 @@ async function saveMomentsToDB() {
     analyticsSection.style.display     = 'none';
     downloadSummary.style.display      = 'inline-block';
     exportVideo.style.display          = 'inline-block';
-    rideActions.style.display          = 'none';
+    if (rideActions) rideActions.style.display = 'none';
     authSection.style.display          = isLoggedIn ? 'none' : 'block';
     setTimeout(() => map.invalidateSize(), 200);
     editControls.style.display         = 'flex';
@@ -210,6 +210,8 @@ async function saveMomentsToDB() {
     const uc1 = document.querySelector('.upload-controls');
     if (uc1) uc1.style.display = 'none';
     postUploadActions.style.display    = 'flex';
+    const uaSaved = document.getElementById('upload-another');
+    if (uaSaved) uaSaved.style.display = '';
     mainRideUI.style.display           = 'block';
     saveForm.style.display             = 'none';
     authSection.style.display          = 'none';
@@ -217,7 +219,7 @@ async function saveMomentsToDB() {
     analyticsSection.style.display     = 'none';
     downloadSummary.style.display      = 'inline-block';
     exportVideo.style.display          = 'inline-block';
-    rideActions.style.display          = 'flex';
+    if (rideActions) rideActions.style.display = 'none';
     setTimeout(() => map.invalidateSize(), 200);
     editControls.style.display         = 'flex';
   }
@@ -230,16 +232,20 @@ async function saveMomentsToDB() {
     postUploadActions.style.display    = 'flex';
     const oj = document.getElementById('open-journal');
     if (oj) oj.style.display = 'none';
+    const uaShared = document.getElementById('upload-another');
+    if (uaShared) uaShared.style.display = 'none';
+    const shareShared = document.getElementById('share-ride-btn');
+    if (shareShared) shareShared.style.display = 'none';
+    const unshareShared = document.getElementById('unshare-ride-btn');
+    if (unshareShared) unshareShared.style.display = 'none';
     mainRideUI.style.display           = 'block';
     saveForm.style.display             = 'none';
     authSection.style.display          = 'none';
     showAnalyticsBtn.style.display     = 'inline-block';
     analyticsSection.style.display     = 'none';
-    rideActions.style.display          = 'none';
+    if (rideActions) rideActions.style.display = 'none';
     editControls.style.display         = 'none';
     editHelp.style.display             = 'none';
-    const dashBtn2 = document.getElementById('dashboard-check-btn');
-    if (dashBtn2) dashBtn2.style.display = 'none';
     setTimeout(() => map.invalidateSize(), 200);
   }
 
@@ -890,7 +896,7 @@ function sanitizeString(str) {
   // =====================================================
 
   
-  uploadAnotherBtn.addEventListener('click', () => {
+  if (uploadAnotherBtn) uploadAnotherBtn.addEventListener('click', () => {
     rideTitleDisplay.textContent = '';
     document.getElementById('ride-controls').style.display = 'none';
     resetUIToInitial();
@@ -2067,10 +2073,16 @@ saveBtn.addEventListener('click', async () => {
   };
   let { data: insertData, error: insertErr } = await supabase
     .from('ride_logs')
-    .insert(lastSkillsSummary ? { ...basePayload, skills: lastSkillsSummary } : basePayload);
+    .insert(lastSkillsSummary ? { ...basePayload, skills: lastSkillsSummary } : basePayload)
+    .select('*')
+    .single();
   if (insertErr && lastSkillsSummary && /skills/i.test(insertErr.message || '')) {
     // skills column not migrated yet: save the ride anyway, without skills
-    ({ data: insertData, error: insertErr } = await supabase.from('ride_logs').insert(basePayload));
+    ({ data: insertData, error: insertErr } = await supabase
+      .from('ride_logs')
+      .insert(basePayload)
+      .select('*')
+      .single());
   }
   if (insertErr) {
     showToast(`❌ Save failed: ${insertErr.message}`, "delete");
@@ -2079,29 +2091,35 @@ saveBtn.addEventListener('click', async () => {
   }
 
   unlockSave();
-  showToast('✅ Ride saved!', "add");
+  showToast('✅ Ride saved! You can now add moments or open Logs from the top nav.', "add");
   showFireworks();
   saveForm.style.display = 'none';
-  
-  // Insert “Go to Dashboard” button
-  const navContainer = document.getElementById('ride-card-nav');
-  navContainer.innerHTML = ''; // Clear old
-  const dashBtn = document.createElement('button');
-  dashBtn.textContent = 'Go to Dashboard';
-  dashBtn.className = 'btn-muted';
-  dashBtn.style.marginLeft = '1.2rem';
-  dashBtn.onclick = () => window.location.href = 'dashboard.html';
-  navContainer.appendChild(dashBtn);
-  
-  // Make sure the nav container is visible and fully aligned left
-  navContainer.style.display = 'block';
-  navContainer.style.marginTop = '1.5rem';
-  navContainer.style.padding = '0 0 0 2.3rem';  // aligns with form card padding
-  navContainer.style.textAlign = 'left';
 
-  // Hide the persistent dashboard button to prevent duplicate "Go to Dashboard" buttons after saving
-  const persistentDashBtn = document.getElementById('dashboard-check-btn');
-  if (persistentDashBtn) persistentDashBtn.style.display = 'none';
+  // Promote the current page into a saved-ride view immediately,
+  // so Moments can save without forcing a dashboard round-trip.
+  if (insertData?.id) {
+    currentRideRow = insertData;
+    history.replaceState({}, document.title, `${window.location.pathname}?ride=${insertData.id}`);
+
+    rideTitleDisplay.textContent = insertData.title
+      ? `📍 Viewing: “${insertData.title}”`
+      : `📍 Viewing Saved Ride`;
+    rideTitleDisplay.style.color = '';
+    rideTitleDisplay.style.textAlign = 'center';
+    document.getElementById('ride-controls').style.display = 'block';
+
+    rideMoments = Array.isArray(insertData.moments) ? insertData.moments : [];
+    if (momentsSection) {
+      momentsSection.style.display = 'block';
+      momentsTools.style.display = 'block';
+      toggleMomentsBtn.textContent = 'Hide Moments & Journal';
+      renderMoments();
+    }
+
+    if (typeof refreshShareButtons === 'function') {
+      refreshShareButtons(insertData);
+    }
+  }
   
 });
 
@@ -2348,7 +2366,7 @@ if (params.has('ride')) {
         rideTitleDisplay.style.color = "#ff6b6b";
         rideTitleDisplay.style.textAlign = "center";
         document.getElementById('ride-controls').style.display = 'block';
-        rideActions.style.display = 'flex';
+        if (rideActions) rideActions.style.display = 'none';
         return;
       }
 
@@ -2363,7 +2381,7 @@ if (params.has('ride')) {
       rideTitleDisplay.style.color = ""; // clear any previous error color
       rideTitleDisplay.style.textAlign = "center";
       document.getElementById('ride-controls').style.display = 'block';
-      rideActions.style.display = 'flex';
+      if (rideActions) rideActions.style.display = 'none';
 
       // GPX fetch
       const { data: urlData, error: urlErr } = supabase
@@ -2399,7 +2417,7 @@ if (params.has('ride')) {
       rideTitleDisplay.style.color = "#ff6b6b";
       rideTitleDisplay.style.textAlign = "center";
       document.getElementById('ride-controls').style.display = 'block';
-      rideActions.style.display = 'flex';
+      if (rideActions) rideActions.style.display = 'none';
       console.error("Load error", err);
     }
   })();
@@ -2468,40 +2486,15 @@ if (toggleBtn && content) {
   });
 }
 
-// === Go to Dashboard Button Logic (Persistent Button) ===
-const dashboardBtn = document.getElementById('dashboard-check-btn');
-
-if (dashboardBtn) {
-  dashboardBtn.addEventListener('click', async () => {
-    const { data: sessionResult } = await supabase.auth.getSession();
-    const user = sessionResult?.session?.user;
-
-    if (user) {
-      // ✅ Logged in – direct to dashboard
-      window.location.href = 'dashboard.html';
-    } else {
-      // ❌ Not logged in – scroll to login section
-      authSection.style.display = 'block';
-      fadeInElement(authSection);
-      saveForm.style.display = 'none';
-      document.getElementById('auth-email').focus();
-      document.getElementById('auth-status').textContent = '🔐 Please login to access your dashboard.';
-      document.getElementById('auth-status').style.color = '#ffd700';
-      document.getElementById('auth-status').style.padding = '0.5rem';
-      document.getElementById('auth-status').style.fontWeight = '600';
-      authSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  });
-}
-
-toggleMomentsBtn.addEventListener('click', () => {
+// === Moments toggle ===
+if (toggleMomentsBtn) toggleMomentsBtn.addEventListener('click', () => {
   const isOpen = momentsTools.style.display === 'block';
   momentsTools.style.display = isOpen ? 'none' : 'block';
   toggleMomentsBtn.textContent = isOpen ? 'Add Moments & Journal' : 'Hide Moments & Journal';
 });
 
   
-addMomentBtn.addEventListener('click', () => {
+if (addMomentBtn) addMomentBtn.addEventListener('click', () => {
   if (rideMoments.length >= 5) {
     showToast('You can only save up to 5 moments for this ride.', 'info');
     return;

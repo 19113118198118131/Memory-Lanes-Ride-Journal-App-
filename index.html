@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=34" />
+  <link rel="stylesheet" href="style.css?v=35" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
 </head>
@@ -41,16 +41,10 @@
   </header>
 
   <!-- ========================
-       RIDE CONTROLS & NAV
+       RIDE TITLE
        ======================== -->
-  <div id="ride-controls" style="display:none; margin: 1rem;">
-    <h2 id="ride-title-display" style="color: #64ffda; margin-bottom: 0.5rem; text-align:center;"></h2>
-    <div id="ride-actions" style="margin: 1rem 0 1.5rem 0; flex-direction: column; gap: 0.6rem; align-items: flex-start; display: none;">
-      <button id="upload-another" class="btn-muted">📤 Upload a New Ride</button>
-      <button id="back-dashboard" class="btn-muted">⬅️ Back to Dashboard</button>
-      <button id="share-ride-btn" class="btn-muted" style="display:none;">🔗 Share Ride</button>
-      <button id="unshare-ride-btn" class="btn-muted" style="display:none; color:#ff6b6b;">🚫 Stop Sharing</button>
-    </div>
+  <div id="ride-controls" class="ride-title-shell" style="display:none;">
+    <h2 id="ride-title-display"></h2>
   </div>
 
   <main>
@@ -98,6 +92,9 @@
           <button id="download-summary" class="btn-muted">📁 Download Summary</button>
           <button id="export-video" class="btn-muted">🎥 Export Video</button>
           <button id="open-journal" class="btn-muted">📝 Ride Journal</button>
+          <button id="share-ride-btn" class="btn-muted" style="display:none;">🔗 Share Ride</button>
+          <button id="unshare-ride-btn" class="btn-muted danger-action" style="display:none;">🚫 Stop Sharing</button>
+          <button id="upload-another" class="btn-muted">📤 Upload New Ride</button>
         </div>
       </div>
     </section>
@@ -113,10 +110,6 @@
         <button id="save-ride-btn">Save Ride</button>
       </div>
       <p id="save-status"></p>
-    </div>
-    <section id="ride-card-nav" style="display:none;" class="card-section"></section>
-    <div style="display: flex; justify-content: flex-start; margin-bottom: 2rem;">
-      <button id="dashboard-check-btn" class="btn-muted">Go to Dashboard</button>
     </div>
 
     <!-- ========================
@@ -204,6 +197,16 @@
         </select>
       </section>
 
+      <!-- ========== MOMENTS & MEMORIES SECTION ========== -->
+      <section id="moments-section" style="display:none; margin-bottom: 2rem;">
+        <h2>Moments & Memories</h2>
+          <button id="toggle-moments" class="btn-muted" style="margin-bottom: 1rem;">Add Moments & Journal</button>
+        <div id="moments-tools" style="display:none;">
+          <button id="add-moment-btn" class="btn-primary">➕ Add Moment</button>
+          <div id="moments-list" style="margin-top: 1.3rem;"></div>
+        </div>
+      </section>
+
       <!-- Show Analytics Button -->
       <div style="text-align:center; margin:2rem 0;">
         <button id="show-analytics-btn" style="display:none;">View Ride Analytics</button>
@@ -282,15 +285,6 @@
         <div id="rider-skills-content"></div>
       </div>
     </section>
-    <!-- ========== MOMENTS & MEMORIES SECTION ========== -->
-    <section id="moments-section" style="display:none; margin-bottom: 2rem;">
-      <h2>Moments & Memories</h2>
-      <button id="toggle-moments" class="btn-muted" style="margin-bottom: 1rem;">Add Moments & Journal</button>
-      <div id="moments-tools" style="display:none;">
-        <button id="add-moment-btn" class="btn-primary">➕ Add Moment</button>
-        <div id="moments-list" style="margin-top: 1.3rem;"></div>
-      </div>
-    </section>
   </main>
 
   <!-- ========================
@@ -316,7 +310,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=34"></script>
+  <script type="module" src="script.js?v=35"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 
 

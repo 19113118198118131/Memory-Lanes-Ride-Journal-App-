@@ -2096,3 +2096,112 @@ header nav a:focus,
   font-size: 1.05rem;
 }
 .error-message { color: #ff8f8f; }
+
+
+/* ===========================================
+   v35 RIDE VIEW CLEANUP: toolbar, title, moments
+   =========================================== */
+.ride-title-shell {
+  max-width: 1220px;
+  margin: 0 auto 1.1rem auto !important;
+  padding: 0 1.1rem;
+}
+
+#ride-title-display {
+  color: var(--accent-light) !important;
+  margin: 0.4rem 0 0.2rem 0 !important;
+  text-align: center !important;
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: clamp(1.15rem, 2.1vw, 1.85rem);
+  letter-spacing: 0.03em;
+}
+
+/* Legacy action stack: kept defensive so older cached HTML cannot create the left orphan buttons. */
+#ride-actions {
+  display: none !important;
+}
+
+#post-upload-actions.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+#post-upload-actions[style*="display: none"] {
+  display: none !important;
+}
+
+.upload-controls[style*="display: none"] + #post-upload-actions {
+  width: 100%;
+  justify-content: center;
+}
+
+button,
+.btn-muted,
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42em;
+  line-height: 1.05;
+}
+
+#post-upload-actions .btn-muted,
+#post-upload-actions .btn-primary {
+  min-height: 2.45rem;
+  padding-inline: 1.15rem;
+  white-space: nowrap;
+}
+
+.danger-action,
+#unshare-ride-btn {
+  color: #ff6b6b !important;
+  border-color: rgba(255,107,107,0.55) !important;
+}
+
+.danger-action:hover,
+#unshare-ride-btn:hover {
+  color: #fff !important;
+  background: #ff4c4c !important;
+  border-color: #ff4c4c !important;
+}
+
+#main-ride-ui #moments-section {
+  max-width: 1200px;
+  margin: 1.25rem auto 2.2rem auto;
+  padding: 1.25rem 1.25rem 1.35rem;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(100,255,218,0.12);
+  border-radius: 28px;
+  box-shadow: 0 7px 38px rgba(0,0,0,0.13), 0 2px 12px rgba(100,255,218,0.06);
+}
+
+#main-ride-ui #moments-section h2 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
+#main-ride-ui #toggle-moments,
+#main-ride-ui #add-moment-btn {
+  margin-bottom: 0.85rem;
+}
+
+@media (max-width: 760px) {
+  #post-upload-actions.action-buttons {
+    justify-content: center;
+    width: 100%;
+  }
+  #post-upload-actions .btn-muted,
+  #post-upload-actions .btn-primary {
+    flex: 1 1 155px;
+  }
+  .ride-title-shell {
+    padding: 0 0.6rem;
+  }
+  #main-ride-ui #moments-section {
+    margin-inline: 0.15rem;
+    padding: 1rem 0.85rem;
+  }
+}
