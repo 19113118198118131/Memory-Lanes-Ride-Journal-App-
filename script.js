@@ -3,8 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=41';
-import { mlIconSVG } from './icons.js?v=41';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=42';
+import { buildRideInsights } from './insights.js?v=42';
+import { mlIconSVG } from './icons.js?v=42';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -450,6 +451,7 @@ uploadInput.addEventListener('change', () => {
           renderCornerRadiusChart(analysis, jumpToNearestTime);
           renderAccelProfile(analysis);
           renderGGChart(analysis);
+          renderRideInsights(analysis, skillPts);
           lastSkillsSummary = summarizeForStorage(analysis);
           storeSkillsForCurrentRide(lastSkillsSummary);
           enhanceRepeatCorners(analysis);
@@ -1782,6 +1784,21 @@ function sanitizeString(str) {
     });
   }
 
+  // --- Per-ride chart insights (plain-language, computed from this ride) ---
+  function renderRideInsights(analysis, hiPts) {
+    let ins = null;
+    try { ins = buildRideInsights(analysis, hiPts); } catch (e) { console.warn('insights failed:', e); }
+    const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt || ''; };
+    if (!ins) {
+      ['elevation','corner','accel','grip'].forEach(k => { set('insight-'+k, ''); set('insight-'+k+'-detail', ''); });
+      return;
+    }
+    ['elevation','corner','accel','grip'].forEach(k => {
+      set('insight-' + k, ins[k].summary);
+      set('insight-' + k + '-detail', ins[k].detail);
+    });
+  }
+
   // --- g-g diagram (friction circle): your grip-usage signature ---
   function renderGGChart(analysis) {
     const ctx = document.getElementById('ggChart')?.getContext('2d');
@@ -1794,7 +1811,9 @@ function sanitizeString(str) {
       for (let a = 0; a <= 360; a += 6) {
         data.push({ x: gFrac * Math.cos(a * Math.PI / 180), y: gFrac * Math.sin(a * Math.PI / 180) });
       }
-      return { label: `${gFrac.toFixed(1)} g`, data, type: 'line', borderColor: color,
+      const NAME = { '0.2': 'Relaxed', '0.4': 'Spirited', '0.6': 'Performance' };
+      const key = gFrac.toFixed(1);
+      return { label: NAME[key] || `${key} g`, gValue: key, data, type: 'line', borderColor: color,
                borderWidth: 1.2, borderDash: [5, 5], pointRadius: 0, fill: false, order: 10 };
     };
     const lim = 0.8;
@@ -1824,7 +1843,16 @@ function sanitizeString(str) {
         },
         plugins: {
           legend: { display: true, labels: { filter: item => item.text !== 'Samples' } },
-          tooltip: { enabled: false }
+          tooltip: {
+            enabled: true,
+            callbacks: {
+              label: (ctx) => {
+                const ds = ctx.dataset;
+                if (ds.gValue) return `${ds.label} — ${ds.gValue} g`;
+                return `lat ${ctx.parsed.x.toFixed(2)} g, long ${ctx.parsed.y.toFixed(2)} g`;
+              }
+            }
+          }
         }
       }
     });

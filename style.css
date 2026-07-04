@@ -2696,3 +2696,22 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 /* 10. Gentle background crossfade when toggling themes */
 html { transition: background-color 0.4s ease; }
 [data-theme] body { transition: background-color 0.4s ease, color 0.3s ease; }
+
+/* ---------- PER-RIDE CHART INSIGHTS (v42) ---------- */
+.chart-insight {
+  margin: 0.1rem 0 0.9rem 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--color-accent);
+  border-left: 3px solid var(--color-accent-border);
+  padding-left: 0.8rem;
+}
+.chart-insight:empty { display: none; }
+.ride-insight-detail summary { color: var(--color-accent); }
+.ride-insight-detail p { color: var(--color-text-secondary); }
+.ride-insight-detail p:empty::before {
+  content: "Upload or open a ride to see its insight.";
+  color: var(--color-text-muted);
+  font-style: italic;
+}

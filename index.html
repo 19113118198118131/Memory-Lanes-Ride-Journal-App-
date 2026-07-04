@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=41" />
+  <link rel="stylesheet" href="style.css?v=42" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -249,6 +249,7 @@
       <h2>Ride Analytics</h2>
       <div class="chart-block">
         <h3>Elevation &amp; Speed Profile</h3>
+        <p class="chart-insight" id="insight-elevation"></p>
         <p class="chart-desc">
           This chart shows elevation and speed (km/h) over distance (km).<br>
           Toggle between Both, Elevation Only, and Speed Only.
@@ -259,9 +260,13 @@
           <label><input type="radio" name="chartMode" value="speed" /> Speed Only</label>
         </div>
         <canvas id="elevationChart"></canvas>
+        <details class="chart-help ride-insight-detail"><summary>Ride insight</summary>
+          <p id="insight-elevation-detail"></p>
+        </details>
       </div>
       <div class="chart-block">
         <h3>Corner Speed vs Radius</h3>
+        <p class="chart-insight" id="insight-corner"></p>
         <p class="chart-desc">
           Each dot is a detected corner: how tight it was (radius) against your apex speed.<br>
           The dashed curves are constant-grip lines at 0.2, 0.4 and 0.6 g, so you can see how much
@@ -269,6 +274,9 @@
           Click a corner to jump the map to that moment.
         </p>
         <canvas id="cornerChart"></canvas>
+        <details class="chart-help ride-insight-detail"><summary>Ride insight</summary>
+          <p id="insight-corner-detail"></p>
+        </details>
         <details class="chart-help"><summary>How to read this</summary>
           <p>Dots low and left of a grip line mean you are using less of that grip level. If your dots hug the 0.4 g
           line in open sweepers but sit far below it in tight corners, you are more confident in fast bends than slow ones,
@@ -278,11 +286,15 @@
       </div>
       <div class="chart-block">
         <h3>Acceleration Profile</h3>
+        <p class="chart-insight" id="insight-accel"></p>
         <p class="chart-desc">
           Smoothed acceleration (m/s²) over distance. Red bands are detected braking zones,
           green bands are drive zones: a glance shows the rhythm of where you worked the controls.
         </p>
         <canvas id="accelChart"></canvas>
+        <details class="chart-help ride-insight-detail"><summary>Ride insight</summary>
+          <p id="insight-accel-detail"></p>
+        </details>
         <details class="chart-help"><summary>How to read this</summary>
           <p>The blue line is how hard you were accelerating or decelerating. Red bands are braking zones, green bands are
           drive zones. A ride with clean rhythm shows tidy alternation: brake, corner, drive, cruise. Long red bands ending
@@ -291,12 +303,16 @@
       </div>
       <div class="chart-block">
         <h3>Grip Usage (g-g diagram)</h3>
+        <p class="chart-insight" id="insight-grip"></p>
         <p class="chart-desc">
           Every dot is a moment of the ride: cornering force left/right, braking and drive up/down.<br>
           The shape of the cloud is your riding signature. Riders who brake only upright draw a plus sign;
           trail braking fills the lower corners. This is a picture, not a score: there is nothing to maximise here.
         </p>
         <div class="gg-wrap"><canvas id="ggChart"></canvas></div>
+        <details class="chart-help ride-insight-detail"><summary>Ride insight</summary>
+          <p id="insight-grip-detail"></p>
+        </details>
         <details class="chart-help"><summary>How to read this</summary>
           <p>Left/right is cornering force, down is braking, up is drive. A plus-sign shaped cloud means you brake and
           accelerate only when upright, then corner without much overlap: the classic safe road style. Points in the lower
@@ -339,9 +355,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=41"></script>
-  <script type="module" src="icons.js?v=41"></script>
-  <script src="theme.js?v=41"></script>
+  <script type="module" src="script.js?v=42"></script>
+  <script type="module" src="icons.js?v=42"></script>
+  <script src="theme.js?v=42"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 
 
