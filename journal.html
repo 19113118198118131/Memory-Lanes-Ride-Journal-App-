@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>Rider's Journal | Memory Lanes</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="stylesheet" href="style.css?v=35" />
+  <link rel="stylesheet" href="style.css?v=38" />
 
   <!-- StPageFlip Flipbook Library (MIT License) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/dist/css/page-flip.min.css"/>
@@ -37,9 +37,9 @@
       <div id="month-filter-container" style="margin-bottom: 1.1rem;"></div>
       <div id="ride-filter-container" style="margin-bottom: 1.1rem;"></div>
       <div id="journal-toggle-view" style="margin-bottom: 1.5rem;">
-        <button id="timeline-view-btn" class="active" aria-pressed="true">🕒 Timeline</button>
-        <button id="gallery-view-btn" aria-pressed="false">🖼️ Gallery</button>
-        <button id="flipbook-view-btn" aria-pressed="false">📖 Flipbook</button>
+        <button id="timeline-view-btn" class="active" aria-pressed="true" data-icon="clock">Timeline</button>
+        <button id="gallery-view-btn" aria-pressed="false" data-icon="gallery">Gallery</button>
+        <button id="flipbook-view-btn" aria-pressed="false" data-icon="book">Flipbook</button>
         <span id="flip-style-toggle" style="margin-left:2em; display:none;">
           <label for="flip-style-select" style="margin-right:0.4em;">Animation:</label>
           <select id="flip-style-select">
@@ -62,7 +62,8 @@
   <!-- Always load the flipbook script first -->
   <script src="https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/dist/js/page-flip.browser.min.js"></script>
   <!-- Then load your app's main code as a module -->
-  <script type="module" src="journal.js?v=35"></script>
+  <script type="module" src="journal.js?v=38"></script>
+  <script type="module" src="icons.js?v=38"></script>
 </body>
 </html>
 

@@ -111,7 +111,7 @@ function renderRoadTimeline(yearsArray, activeYear, onSelectYear) {
     return;
   }
   let html = `<div class="road-timeline">`;
-  html += `<button class="road-marker${!activeYear ? ' active' : ''}" data-year="" title="Show all years">🏁</button>`;
+  html += `<button class="road-marker${!activeYear ? ' active' : ''}" data-year="" title="Show all years">All</button>`;
   yearsArray.forEach(year => {
     html += `<button class="road-marker${activeYear === year ? ' active' : ''}" data-year="${year}" title="Show ${year}">${year}</button>`;
   });

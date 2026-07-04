@@ -4,6 +4,7 @@
 
 // Supabase config
 import supabase from './supabaseClient.js';
+import { mlIconSVG } from './icons.js?v=38';
 
 // DOM references
 const rideList = document.getElementById('ride-list');
@@ -24,7 +25,7 @@ filtersContainer.innerHTML = `
       <option value="elevation_desc">Most Elevation</option>
       <option value="elevation_asc">Least Elevation</option>
     </select>
-    <input type="text" id="searchInput" placeholder="🔍 Search title..." />
+    <input type="text" id="searchInput" placeholder="Search title..." />
     <select id="monthFilter">
       <option value="">All Months</option>
     </select>
@@ -170,7 +171,7 @@ async function deleteRide(rideId, gpxPath) {
     .eq('id', rideId);
 
   if (deleteError) {
-    showToast(`❌ Failed to delete ride: ${deleteError.message}`, 'delete');
+    showToast(`Failed to delete ride: ${deleteError.message}`, 'delete');
     return;
   }
 
@@ -182,14 +183,14 @@ async function deleteRide(rideId, gpxPath) {
       .remove([gpxPath]);
     if (storageError) {
       // Warn but do not block UI if file deletion fails
-      console.warn('⚠️ GPX file deletion failed:', storageError.message);
+      console.warn(' GPX file deletion failed:', storageError.message);
     }
   }
 
   // Update the list after deletion
   allRides = allRides.filter(r => r.id !== rideId);
   applyFilters(); // Re-render the filtered list
-  showToast('✅ Ride deleted.', 'add');
+  showToast('Ride deleted.', 'add');
 }
 
 // ========== Rides Rendering ==========
@@ -226,13 +227,13 @@ function renderRides(rides) {
         </div>
         <div class="ride-meta">
           <span class="ride-date">${rideDate}</span>
-          <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">🗑️</div>
+          <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">${mlIconSVG('trash')}</div>
         </div>
       </div>
       <div class="ride-details">
-        <span>📍 ${ride.distance_km ? ride.distance_km.toFixed(1) : '--'} km</span>
+        <span>${mlIconSVG('pin')} ${ride.distance_km ? ride.distance_km.toFixed(1) : '--'} km</span>
         <span>⏱ ${ride.duration_min || '--'} min</span>
-        <span>⛰️ ${ride.elevation_m || '--'} m</span>
+        <span>${mlIconSVG('mountain')} ${ride.elevation_m || '--'} m</span>
       </div>
     `;
 
@@ -302,7 +303,7 @@ if (exportBtn) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { showToast('Please log in first.', 'info'); return; }
-      exportBtn.textContent = '⬇️ Preparing…';
+      exportBtn.textContent = ' Preparing…';
       const { data: rows, error } = await supabase
         .from('ride_logs')
         .select('*')
@@ -330,9 +331,9 @@ if (exportBtn) {
           console.warn('Export: GPX fetch failed for', ride.id, e);
         }
         done++;
-        exportBtn.textContent = `⬇️ Fetching GPX ${done}/${withGpx.length}`;
+        exportBtn.textContent = `Fetching GPX ${done}/${withGpx.length}`;
       }
-      exportBtn.textContent = '⬇️ Zipping…';
+      exportBtn.textContent = ' Zipping…';
       const blob = await zip.generateAsync({ type: 'blob' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -341,10 +342,10 @@ if (exportBtn) {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      showToast(failed ? `✅ Exported (${failed} GPX files could not be fetched).` : '✅ Export downloaded!', 'add');
+      showToast(failed ? `Exported (${failed} GPX files could not be fetched).` : 'Export downloaded!', 'add');
     } catch (e) {
       console.error('Export failed:', e);
-      showToast('❌ Export failed: ' + (e.message || e), 'delete');
+      showToast('Export failed: ' + (e.message || e), 'delete');
     } finally {
       exportBtn.disabled = false;
       exportBtn.textContent = original;

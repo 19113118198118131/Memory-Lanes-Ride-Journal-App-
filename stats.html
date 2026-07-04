@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=35" />
+  <link rel="stylesheet" href="style.css?v=38" />
   <style>
     /* Page-scoped styles for the stats view */
     .stats-grid {
@@ -73,10 +73,10 @@
 <body>
   <header>
     <div class="dashboard-header">
-      <h1>📊 Lifetime Stats</h1>
+      <h1 data-head-icon="stats">Lifetime Stats</h1>
       <div class="button-group">
-        <button id="back-dashboard-btn">⬅️ Dashboard</button>
-        <button id="new-ride-btn">➕ New Ride</button>
+        <button id="back-dashboard-btn">Dashboard</button>
+        <button id="new-ride-btn">New Ride</button>
       </div>
     </div>
   </header>
@@ -98,7 +98,7 @@
     </section>
 
     <section class="chart-block" id="trends-block" style="display:none;">
-      <h3>📈 Skill Trends</h3>
+      <h3 data-head-icon="trending">Skill Trends</h3>
       <p class="chart-desc">
         Your Ride Coach technique scores across recent rides. This is the question that matters: am I improving?
       </p>
@@ -108,12 +108,12 @@
     </section>
 
     <section class="card-section" id="bests-block" style="display:none;">
-      <h2 style="margin-top:0;">🏆 Personal Bests</h2>
+      <h2 data-head-icon="trophy" style="margin-top:0;">Personal Bests</h2>
       <div class="bests-grid" id="bests-grid"></div>
     </section>
 
     <section class="card-section" id="map-block" style="display:none;">
-      <h2 style="margin-top:0;">🗺️ Everywhere You've Ridden</h2>
+      <h2 data-head-icon="map" style="margin-top:0;">Everywhere You've Ridden</h2>
       <div id="all-routes-map"></div>
       <div id="routes-progress"></div>
     </section>
@@ -121,6 +121,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script type="module" src="stats.js?v=35"></script>
+  <script type="module" src="stats.js?v=38"></script>
+  <script type="module" src="icons.js?v=38"></script>
 </body>
 </html>

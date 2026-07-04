@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=35" />
+  <link rel="stylesheet" href="style.css?v=38" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
 </head>
@@ -56,24 +56,24 @@
       <p class="hero-sub">Upload a GPX track and Memory Lanes turns it into a replay, a coaching debrief, and a journal entry worth keeping.</p>
       <div class="hero-cards">
         <div class="hero-card">
-          <div class="hero-card-icon">🗺️</div>
+          <div class="hero-card-icon" data-icon="map"></div>
           <div class="hero-card-title">Replay &amp; Analytics</div>
           <div class="hero-card-text">Watch your ride back on the map with live telemetry, elevation and speed charts, and weather from the day.</div>
         </div>
         <div class="hero-card">
-          <div class="hero-card-icon">🏍️</div>
+          <div class="hero-card-icon" data-icon="gauge"></div>
           <div class="hero-card-title">Ride Coach</div>
           <div class="hero-card-text">GPS-based technique feedback: corner entry, exit drive, braking feel, and one thing to practise next ride.</div>
         </div>
         <div class="hero-card">
-          <div class="hero-card-icon">📓</div>
+          <div class="hero-card-icon" data-icon="book"></div>
           <div class="hero-card-title">Journal &amp; Share</div>
           <div class="hero-card-text">Pin moments to the map, build a rider's journal, export ride cards and replay videos, share read-only links.</div>
         </div>
       </div>
       <div class="hero-actions">
-        <label for="gpx-upload" class="btn-primary">📍 Upload your ride</label>
-        <button id="try-demo-btn" class="btn-muted">🎬 Try a sample ride</button>
+        <label for="gpx-upload" class="btn-primary">Upload your ride</label>
+        <button id="try-demo-btn" class="btn-muted">Try a sample ride</button>
       </div>
       <p class="hero-note">The sample is a synthetic 11 km loop, so you can explore every feature before uploading your own GPX.</p>
     </section>
@@ -84,17 +84,17 @@
     <section id="upload-section">
       <div id="ride-controls-toolbar">
         <div class="upload-controls">
-          <label for="gpx-upload" class="btn-primary" id="upload-btn" aria-label="Upload GPX">📍 Upload .gpx</label>
+          <label for="gpx-upload" class="btn-primary" id="upload-btn" aria-label="Upload GPX">Upload .gpx</label>
           <input type="file" id="gpx-upload" accept=".gpx" style="display: none;" />
           <span id="file-upload-status" class="file-upload-status">No file selected</span>
         </div>
         <div id="post-upload-actions" class="action-buttons" style="display: none;">
-          <button id="download-summary" class="btn-muted">📁 Download Summary</button>
-          <button id="export-video" class="btn-muted">🎥 Export Video</button>
-          <button id="open-journal" class="btn-muted">📝 Ride Journal</button>
-          <button id="share-ride-btn" class="btn-muted" style="display:none;">🔗 Share Ride</button>
-          <button id="unshare-ride-btn" class="btn-muted danger-action" style="display:none;">🚫 Stop Sharing</button>
-          <button id="upload-another" class="btn-muted">📤 Upload New Ride</button>
+          <button id="download-summary" class="btn-muted">Download Summary</button>
+          <button id="export-video" class="btn-muted">Export Video</button>
+          <button id="open-journal" class="btn-muted">Ride Journal</button>
+          <button id="share-ride-btn" class="btn-muted" style="display:none;">Share Ride</button>
+          <button id="unshare-ride-btn" class="btn-muted danger-action" style="display:none;">Stop Sharing</button>
+          <button id="upload-another" class="btn-muted">Upload New Ride</button>
         </div>
       </div>
     </section>
@@ -129,16 +129,16 @@
     <!-- ========================
          EDIT CONTROLS
          ======================== -->
-    <!-- 🚧 Experimental feature banner -->
+    <!-- Experimental feature banner -->
     <div id="edit-experimental-banner" style="display:none; margin:0 0 1rem 0; text-align:center;"></div>
     <div id="edit-controls" style="display:none; gap:0.5rem; margin-bottom:1rem;">
-      <button id="edit-gpx-btn" class="btn-muted">✏️ Edit Route</button>
-      <button id="save-edited-gpx-btn" class="btn-muted" style="display:none;">💾 Save as New Route</button>
-      <button id="undo-edit-btn" class="btn-muted" style="display:none;">↩️ Undo</button>
-      <button id="redo-edit-btn" class="btn-muted" style="display:none;">↪️ Redo</button>
-      <button id="bulk-add-btn" class="btn-muted" style="display:none;">➕ Bulk Add</button>
-      <button id="bulk-delete-btn" class="btn-muted" style="display:none;">🗑️ Bulk Delete</button>
-      <button id="exit-edit-btn" class="btn-muted" style="display:none;">❌ Exit Edit Mode</button>
+      <button id="edit-gpx-btn" class="btn-muted">Edit Route</button>
+      <button id="save-edited-gpx-btn" class="btn-muted" style="display:none;">Save as New Route</button>
+      <button id="undo-edit-btn" class="btn-muted" style="display:none;">Undo</button>
+      <button id="redo-edit-btn" class="btn-muted" style="display:none;">Redo</button>
+      <button id="bulk-add-btn" class="btn-muted" style="display:none;">Bulk Add</button>
+      <button id="bulk-delete-btn" class="btn-muted" style="display:none;">Bulk Delete</button>
+      <button id="exit-edit-btn" class="btn-muted" style="display:none;">Exit Edit Mode</button>
     </div>
     <div id="edit-help" style="display:none; margin-bottom:0.6rem; color:#ffe49b;">
       <span id="edit-mode-hint"></span>
@@ -160,9 +160,9 @@
         <div id="leaflet-map"></div>
         <!-- Telemetry Overlay -->
         <div id="telemetry-overlay">
-          <div>📍 <strong>Elevation:</strong> <span id="telemetry-elevation">–</span></div>
-          <div>📏 <strong>Distance:</strong>  <span id="telemetry-distance">–</span></div>
-          <div>⏱️ <strong>Speed:</strong>     <span id="telemetry-speed">–</span></div>
+          <div><strong>Elevation:</strong> <span id="telemetry-elevation">–</span></div>
+          <div><strong>Distance:</strong>  <span id="telemetry-distance">–</span></div>
+          <div><strong>Speed:</strong>     <span id="telemetry-speed">–</span></div>
         </div>
         <!-- Speed Filter Panel -->
         <div id="speed-filter">
@@ -174,13 +174,28 @@
       <!-- Ride Summary -->
       <section id="summary-section">
         <h2>Ride Summary</h2>
-        <ul>
-          <li><strong>Distance:</strong> <span id="distance">–</span></li>
-          <li><strong>Total Duration:</strong> <span id="duration">–</span></li>
-          <li><strong>Ride Time:</strong> <span id="ride-time">–</span></li>
-          <li><strong>Elevation Gain:</strong> <span id="elevation">–</span></li>
-          <li><strong>Weather:</strong> <span id="weather">–</span></li>
-        </ul>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-label">Distance</div>
+            <div class="summary-value num"><span id="distance">–</span></div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Total Duration</div>
+            <div class="summary-value num"><span id="duration">–</span></div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Ride Time</div>
+            <div class="summary-value num"><span id="ride-time">–</span></div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Elevation Gain</div>
+            <div class="summary-value num"><span id="elevation">–</span></div>
+          </div>
+          <div class="summary-card summary-card-wide">
+            <div class="summary-label">Weather</div>
+            <div class="summary-value"><span id="weather">–</span></div>
+          </div>
+        </div>
       </section>
 
       <!-- Timeline/Playback -->
@@ -202,7 +217,7 @@
         <h2>Moments & Memories</h2>
           <button id="toggle-moments" class="btn-muted" style="margin-bottom: 1rem;">Add Moments & Journal</button>
         <div id="moments-tools" style="display:none;">
-          <button id="add-moment-btn" class="btn-primary">➕ Add Moment</button>
+          <button id="add-moment-btn" class="btn-primary">Add Moment</button>
           <div id="moments-list" style="margin-top: 1.3rem;"></div>
         </div>
       </section>
@@ -276,7 +291,7 @@
         </details>
       </div>
       <div class="chart-block" id="rider-skills-block">
-        <h3>🏍️ Ride Coach</h3>
+        <h3 data-head-icon="gauge">Ride Coach</h3>
         <p class="chart-desc">
           Technique feedback from GPS: smoothness, entry, exit, braking and consistency.<br>
           Scores reward technique, never speed. These are estimates: use them for reflection,
@@ -291,13 +306,13 @@
        FOOTER
        ======================== -->
   <footer id="footer" class="collapsible-footer">
-    <button id="footer-toggle" aria-expanded="false">▲ Like the vibes of the app ☕ Tap to support the developers</button>
+    <button id="footer-toggle" aria-expanded="false">Like the vibes of the app? Tap to support the developers</button>
     <div id="footer-content" class="collapsed">
       <a href="https://buymeacoffee.com/sweetasrides"
          class="bmc-button footer-bmc-button"
          target="_blank"
          aria-label="Buy developer a coffee via Buy Me a Coffee">
-        <span class="heart-icon">❤️</span> Buy developer a coffee <span class="coffee-icon">☕</span>
+        Buy the developer a coffee
       </a>
     </div>
   </footer>
@@ -310,7 +325,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=35"></script>
+  <script type="module" src="script.js?v=38"></script>
+  <script type="module" src="icons.js?v=38"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 
 

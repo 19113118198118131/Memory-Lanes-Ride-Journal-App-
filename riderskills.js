@@ -1,3 +1,4 @@
+import { mlIconSVG } from './icons.js?v=38';
 // =====================================================
 // Memory Lanes - riderskills.js
 // GPS-based rider skill analysis: cornering, braking,
@@ -514,7 +515,7 @@ export function buildSkillsHTML(analysis, prevScores) {
     </linearGradient></defs></svg>`);
 
   if (analysis.sampleIntervalS > 3.5) {
-    parts.push(`<div class="skills-warn">⚠️ This GPX logs a point every ~${analysis.sampleIntervalS.toFixed(0)}s, which is coarse for skill analysis. A 1-second logging interval gives much sharper feedback.</div>`);
+    parts.push(`<div class="skills-warn">This GPX logs a point every ~${analysis.sampleIntervalS.toFixed(0)}s, which is coarse for skill analysis. A 1-second logging interval gives much sharper feedback.</div>`);
   }
 
   const scoreKeys = Object.keys(analysis.scores).filter(k => Number.isFinite(analysis.scores[k]));
@@ -547,7 +548,7 @@ export function buildSkillsHTML(analysis, prevScores) {
       </div>
       ${debrief ? `<div class="debrief-verdict">${debrief.verdict}</div>
       <div class="debrief-next">${debrief.next}</div>` : ''}
-      ${(() => { const tl = buildTrendLine(analysis.scores, prevScores); return tl ? `<div class="debrief-trend">📈 ${tl}</div>` : ''; })()}
+      ${(() => { const tl = buildTrendLine(analysis.scores, prevScores); return tl ? `<div class="debrief-trend">${mlIconSVG('trending')} ${tl}</div>` : ''; })()}
       ${compositionBarHTML(analysis.composition)}
     </div>
     <div class="skills-hero">
@@ -565,7 +566,7 @@ export function buildSkillsHTML(analysis, prevScores) {
       : meanSmooth >= 45 ? 'mostly progressive, occasionally grabby'
       : 'abrupt; work on squeezing, not snatching';
     parts.push(`<div class="braking-strip">
-      <span class="braking-strip-item">🛑 <b class="num">${analysis.brakeZones.length}</b> braking zones</span>
+      <span class="braking-strip-item">${mlIconSVG('brake')} <b class="num">${analysis.brakeZones.length}</b> braking zones</span>
       <span class="braking-strip-item">Hardest <b class="num">${(Math.abs(peak) / G).toFixed(2)}</b> g</span>
       <span class="braking-strip-item">Feel: ${verdict}</span>
     </div>`);
@@ -582,7 +583,7 @@ export function buildSkillsHTML(analysis, prevScores) {
           <div class="corner-head">
             <span class="corner-rank num">${String(i + 1).padStart(2, '0')}</span>
             <span class="corner-title">Corner ${String(i + 1).padStart(2, '0')}</span>
-            <button class="corner-jump" data-tapex="${c.tApex.getTime()}">↗ Replay</button>
+            <button class="corner-jump" data-tapex="${c.tApex.getTime()}">${mlIconSVG('arrowright')} Replay</button>
           </div>
           <div class="corner-speeds">
             <span class="cs"><span class="cs-label">IN</span><span class="cs-val num">${c.entryKmh.toFixed(0)}</span></span>
@@ -595,7 +596,7 @@ export function buildSkillsHTML(analysis, prevScores) {
           <div class="corner-chips">
             ${c.tags.map(t => `<span class="chip ${TONE_CLASS[t.tone] || 'chip-neutral'}">${esc(t.label)}</span>`).join('')}
           </div>
-          ${c.focus ? `<div class="corner-focus">💡 ${esc(c.focus)}</div>` : ''}
+          ${c.focus ? `<div class="corner-focus">${mlIconSVG('lightbulb')} ${esc(c.focus)}</div>` : ''}
           <div class="corner-meta">${c.sweepDeg.toFixed(0)}° sweep · r≈${c.radiusM.toFixed(0)} m · lean ~${c.leanDeg.toFixed(0)}° · ${c.maxLatG.toFixed(2)} g</div>
         </div>
       </div>`).join(''));

@@ -3,7 +3,8 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=35';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=38';
+import { mlIconSVG } from './icons.js?v=38';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -66,14 +67,14 @@ function renderMoments() {
     div.className = 'moment-entry';
     div.innerHTML = `
       <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.3rem;">
-        <span style="font-size:1.15em;">📍</span>
+        <span class="moment-pin-icon">${mlIconSVG('pin')}</span>
         <span>
           <strong>Km:</strong> ${Number.isFinite(cumulativeDistance[m.idx]) ? (cumulativeDistance[m.idx]/1000).toFixed(2) : '--'}<br>
           <strong>Speed:</strong> ${m.speed?.toFixed(1) || '--'} km/h<br>
           <strong>Elevation:</strong> ${m.elevation?.toFixed(0) || '--'} m
         </span>
         <button class="jump-moment-btn btn-muted" data-idx="${i}" style="margin-left:auto;">Jump</button>
-        <button class="delete-moment-btn btn-muted" data-idx="${i}" style="margin-left:0.8rem;color:#ff6b6b;">🗑️</button>
+        <button class="delete-moment-btn btn-muted" data-idx="${i}" style="margin-left:0.8rem;color:#ff6b6b;">${mlIconSVG('trash')}</button>
       </div>
       <input type="text" placeholder="Moment title (optional)" value="${escapeHtml(m.title)}" class="moment-title-input" data-idx="${i}" style="width: 90%; margin-bottom: 0.3rem;" />
       <textarea placeholder="Your notes or memory..." class="moment-note-input" data-idx="${i}" style="width: 90%; min-height: 48px;">${escapeHtml(m.note)}</textarea>
@@ -129,7 +130,7 @@ window.momentsMarkers = [];
 rideMoments.forEach((m, i) => {
   if (typeof m.lat === "number" && typeof m.lng === "number") {
     const marker = L.marker([m.lat, m.lng], {
-      icon: L.divIcon({ className: 'moment-pin', html: `<span style="color:#8338ec;font-size:1.4em;">★</span>` })
+      icon: L.divIcon({ className: 'moment-pin', html: `<span style="color:#8338ec;">${mlIconSVG('pin')}</span>` })
     }).addTo(map);
     marker.on('click', () => {
       window.jumpToPlaybackIndex(m.idx);
@@ -285,7 +286,7 @@ async function saveMomentsToDB() {
 uploadInput.addEventListener('change', () => {
   const file = uploadInput.files[0];
   if (file) {
-    fileStatus.textContent = '✔️ File ready';
+    fileStatus.textContent = 'File ready';
     fileStatus.classList.add('ready');
     postUploadActions.style.display = 'flex';
   } else {
@@ -529,7 +530,7 @@ editBtn.onclick = function() {
       color:#fff; background:#b48d07; padding:7px 18px; border-radius:8px; 
       font-size:1.08em; font-weight:bold; display:inline-block;
       margin-bottom:1rem;">
-      🚧 Edit Route is an <b>experimental feature</b> and is currently in testing. Results may be unpredictable!
+      Edit Route is an <b>experimental feature</b> and is currently in testing. Results may be unpredictable!
     </span>
   `;
   isEditing = true;
@@ -1270,7 +1271,7 @@ function sanitizeString(str) {
     if (summaryBtn.disabled) return;
     const originalLabel = summaryBtn.textContent;
     summaryBtn.disabled = true;
-    summaryBtn.textContent = '📁 Preparing…';
+    summaryBtn.textContent = 'Preparing…';
     try {
       const W = 1080, H = 1350;
       const canvas = document.createElement('canvas');
@@ -1286,7 +1287,7 @@ function sanitizeString(str) {
       canvas.toBlob(blob => {
         if (!blob) { showToast('Could not create the ride card.', 'delete'); return; }
         downloadBlob(blob, `${safeFilename(currentRideTitle())}_ride_card.png`);
-        showToast('✅ Ride card downloaded!', 'add');
+        showToast('Ride card downloaded!', 'add');
       }, 'image/png');
     } catch (err) {
       console.error('Ride card export failed:', err);
@@ -1319,7 +1320,7 @@ function sanitizeString(str) {
 
     const originalLabel = videoBtn.textContent;
     videoBtn.disabled = true;
-    videoBtn.textContent = '🎥 Preparing map…';
+    videoBtn.textContent = 'Preparing map…';
 
     const W = 1280, H = 720;
     const canvas = document.createElement('canvas');
@@ -1437,8 +1438,8 @@ function sanitizeString(str) {
       ctx.fillText('KM/H', px + 22, py + 100);
       ctx.fillStyle = '#e3e8ef';
       ctx.font = '500 22px "Segoe UI", Arial, sans-serif';
-      ctx.fillText(`📏 ${dist.toFixed(2)} km`, px + 22, py + 148);
-      ctx.fillText(`⛰️ ${ele.toFixed(0)} m`, px + 22, py + 188);
+      ctx.fillText(`${dist.toFixed(2)} km`, px + 22, py + 148);
+      ctx.fillText(`${ele.toFixed(0)} m`, px + 22, py + 188);
 
       if (tilesOk) drawAttribution(ctx, W - 40, H - 66);
 
@@ -1464,7 +1465,7 @@ function sanitizeString(str) {
       const blob = new Blob(chunks, { type: mime.split(';')[0] });
       if (!blob.size) { showToast('Video export failed.', 'delete'); return; }
       downloadBlob(blob, `${safeFilename(title)}_replay.${ext}`);
-      showToast('✅ Replay video downloaded!', 'add');
+      showToast('Replay video downloaded!', 'add');
     };
 
     let startTs = null;
@@ -1473,7 +1474,7 @@ function sanitizeString(str) {
       const elapsed = ts - startTs;
       const t = Math.min(1, elapsed / DURATION_MS);
       drawFrame(t);
-      videoBtn.textContent = `🎥 Recording… ${(t * 100).toFixed(0)}%`;
+      videoBtn.textContent = `Recording… ${(t * 100).toFixed(0)}%`;
       if (t < 1) {
         requestAnimationFrame(tick);
       } else {
@@ -1503,7 +1504,7 @@ function sanitizeString(str) {
       points = []; breakPoints = []; cumulativeDistance = []; speedData = []; accelData = [];
       showUIAfterUpload(true); // hide auth prompt for the demo
       saveForm.style.display = 'none'; // demo rides cannot be saved
-      rideTitleDisplay.textContent = '🎬 Demo ride (synthetic data): explore everything, then upload your own';
+      rideTitleDisplay.textContent = 'Demo ride (synthetic data): explore everything, then upload your own';
       rideTitleDisplay.style.textAlign = 'center';
       document.getElementById('ride-controls').style.display = 'block';
       parseAndRenderGPX(gpxText);
@@ -1930,7 +1931,7 @@ function sanitizeString(str) {
       if (idx >= points.length) {
         clearInterval(window.playInterval);
         window.playInterval = null;
-        playBtn.textContent = '🔁 Replay';
+        playBtn.textContent = 'Replay';
         return;
       }
       updatePlayback(idx);
@@ -1954,13 +1955,13 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
 
   if (error) {
-    statusEl.textContent = `❌ Login failed: ${error.message}`;
+    statusEl.textContent = `Login failed: ${error.message}`;
     return;
   }
 
   // Clear old messages
   document.getElementById('save-status').textContent = '';
-  statusEl.textContent = '✅ Login successful!';
+  statusEl.textContent = 'Login successful!';
   statusEl.classList.add('status-fade');
   statusEl.style.display = 'block';
   statusEl.style.color = '#64ffda';
@@ -1978,7 +1979,7 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   }, 50);
 
   // Optional: flash visual feedback (login success only)
-  statusEl.textContent = '✅ Login successful!';
+  statusEl.textContent = 'Login successful!';
 });
 
 
@@ -1999,7 +2000,7 @@ saveBtn.addEventListener('click', async () => {
 
   // Check title
   if (!title) {
-    showToast('❗ Please enter a ride title.', "info");
+    showToast('Please enter a ride title.', "info");
     return;
   }
 
@@ -2011,25 +2012,25 @@ saveBtn.addEventListener('click', async () => {
     authSection.style.display = 'block';
     fadeInElement(authSection);
     saveForm.style.display = 'none';
-    showToast('❌ You must be logged in to save a ride.', "delete");
+    showToast('You must be logged in to save a ride.', "delete");
     return;
   }
 
   // Check GPX file
   const file = uploadInput.files[0];
   if (!file) {
-    showToast('❗ No GPX file selected.', "info");
+    showToast('No GPX file selected.', "info");
     return;
   }
 
   // File validation for security
   const validTypes = ['application/gpx+xml', 'application/xml', 'text/xml'];
   if (!validTypes.includes(file.type) && !file.name.endsWith('.gpx')) {
-    showToast('❌ Invalid file type. Please upload a .gpx file.', "delete");
+    showToast('Invalid file type. Please upload a .gpx file.', "delete");
     return;
   }
   if (file.size > 5 * 1024 * 1024) { // 5 MB limit
-    showToast('❌ GPX file is too large (max 5MB).', "delete");
+    showToast('GPX file is too large (max 5MB).', "delete");
     return;
   }
 
@@ -2051,7 +2052,7 @@ saveBtn.addEventListener('click', async () => {
     .from('gpx-files')
     .upload(filePath, file);
   if (uploadErr) {
-    showToast(`❌ GPX upload failed: ${uploadErr.message}`, "delete");
+    showToast(`GPX upload failed: ${uploadErr.message}`, "delete");
     unlockSave();
     return;
   }
@@ -2085,13 +2086,13 @@ saveBtn.addEventListener('click', async () => {
       .single());
   }
   if (insertErr) {
-    showToast(`❌ Save failed: ${insertErr.message}`, "delete");
+    showToast(`Save failed: ${insertErr.message}`, "delete");
     unlockSave();
     return;
   }
 
   unlockSave();
-  showToast('✅ Ride saved! You can now add moments or open Logs from the top nav.', "add");
+  showToast('Ride saved! You can now add moments or open Logs from the top nav.', "add");
   showFireworks();
   saveForm.style.display = 'none';
 
@@ -2102,8 +2103,8 @@ saveBtn.addEventListener('click', async () => {
     history.replaceState({}, document.title, `${window.location.pathname}?ride=${insertData.id}`);
 
     rideTitleDisplay.textContent = insertData.title
-      ? `📍 Viewing: “${insertData.title}”`
-      : `📍 Viewing Saved Ride`;
+      ? `Viewing: “${insertData.title}”`
+      : `Viewing Saved Ride`;
     rideTitleDisplay.style.color = '';
     rideTitleDisplay.style.textAlign = 'center';
     document.getElementById('ride-controls').style.display = 'block';
@@ -2217,7 +2218,7 @@ async function enhanceRepeatCorners(analysis) {
       const cmp = cur > bestPast ? 'a new best!' : `best ${bestPast} km/h`;
       const div = document.createElement('div');
       div.className = 'corner-history';
-      div.textContent = `🔁 You have ridden this corner ${matches.length + 1} times. Apex today ${cur} km/h, ${cmp}`;
+      div.textContent = `You have ridden this corner ${matches.length + 1} times. Apex today ${cur} km/h, ${cmp}`;
       card.querySelector('.corner-main').appendChild(div);
     });
   } catch (e) {
@@ -2362,7 +2363,7 @@ if (params.has('ride')) {
 
       if (rideErr || !ride) {
         // Only show error if actually failed
-        rideTitleDisplay.textContent = "❌ Failed to load ride. Please try another or return to dashboard.";
+        rideTitleDisplay.textContent = "Failed to load ride. Please try another or return to dashboard.";
         rideTitleDisplay.style.color = "#ff6b6b";
         rideTitleDisplay.style.textAlign = "center";
         document.getElementById('ride-controls').style.display = 'block';
@@ -2375,8 +2376,8 @@ if (params.has('ride')) {
 
       hideSaveForm();
       rideTitleDisplay.textContent = ride.title
-        ? `📍 Viewing: “${ride.title}”`
-        : `📍 Viewing Saved Ride`;
+        ? `Viewing: “${ride.title}”`
+        : `Viewing Saved Ride`;
 
       rideTitleDisplay.style.color = ""; // clear any previous error color
       rideTitleDisplay.style.textAlign = "center";
@@ -2413,7 +2414,7 @@ if (params.has('ride')) {
       }
     } catch (err) {
       // This only triggers on actual exceptions
-      rideTitleDisplay.textContent = "❌ Error loading ride data.";
+      rideTitleDisplay.textContent = "Error loading ride data.";
       rideTitleDisplay.style.color = "#ff6b6b";
       rideTitleDisplay.style.textAlign = "center";
       document.getElementById('ride-controls').style.display = 'block';
@@ -2480,8 +2481,8 @@ if (toggleBtn && content) {
   toggleBtn.addEventListener('click', () => {
     const expanded = content.classList.toggle('expanded');
     toggleBtn.innerText = expanded
-      ? '▼ Thanks, legend 🙌'
-      : '▲ Like the vibes of the app ☕ Tap to support the developers';
+      ? '▼ Thanks, legend'
+      : '▲ Like the vibes of the app? Tap to support the developers';
     toggleBtn.setAttribute('aria-expanded', expanded);
   });
 }
