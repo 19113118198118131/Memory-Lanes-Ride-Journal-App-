@@ -1,3 +1,170 @@
+/* ============================================================
+   THEME SYSTEM — semantic tokens, light + dark, extensible
+   ------------------------------------------------------------
+   Tier 1: primitive palette (raw colors, theme-agnostic)
+   Tier 2: semantic tokens (what components actually use)
+   Add a new theme by adding one [data-theme="name"] block.
+   No JS required on first paint: :root defaults to dark.
+   ============================================================ */
+
+:root {
+  /* --- Tier 1: primitive palette (shared across themes) --- */
+  --cyan-300: #9dffe9;
+  --cyan-400: #64ffda;
+  --cyan-500: #2ee6c0;
+  --cyan-600: #12b89a;
+  --cyan-700: #0c8f78;
+  --blue-400: #00c6ff;
+  --blue-500: #0a84ff;
+  --blue-600: #0069d9;
+  --navy-900: #0a192f;
+  --navy-850: #0e1a2b;
+  --navy-800: #132033;
+  --navy-700: #16233e;
+  --navy-600: #1c2c45;
+  --slate-400: #8fa4bd;
+  --slate-300: #a8b7c8;
+  --slate-200: #c5d1e3;
+  --slate-100: #e3e8ef;
+  --white: #ffffff;
+  --black: #05080f;
+  --red-400: #ff6b6b;
+  --red-500: #e5484d;
+  --amber-400: #ffd166;
+  --amber-600: #b8860b;
+  --green-500: #21c821;
+  --green-600: #128a12;
+
+  /* light-theme neutrals */
+  --paper-0: #ffffff;
+  --paper-50: #f6f8fb;
+  --paper-100: #eef2f7;
+  --paper-200: #e2e8f0;
+  --paper-300: #cbd5e1;
+  --ink-900: #0c1524;
+  --ink-700: #26364b;
+  --ink-500: #4a5c73;
+  --cyan-ink: #0c7a66;   /* darkened cyan that passes AA on light bg */
+  --blue-ink: #0059c9;
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   Tier 2: SEMANTIC TOKENS — DARK (default, no JS needed)
+   ============================================================ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg:              var(--navy-900);
+  --color-surface:         var(--navy-800);
+  --color-surface-raised:  var(--navy-700);
+  --color-surface-sunken:  var(--navy-850);
+  --color-border:          var(--navy-600);
+  --color-border-strong:   #24395c;
+
+  --color-text-primary:    var(--white);
+  --color-text-secondary:  var(--slate-200);
+  --color-text-muted:      var(--slate-400);
+  --color-text-on-accent:  var(--navy-900);
+
+  --color-accent:          var(--cyan-400);
+  --color-accent-hover:    var(--cyan-300);
+  --color-accent-soft:     rgba(100, 255, 218, 0.13);
+  --color-accent-border:   rgba(100, 255, 218, 0.30);
+
+  --color-info:            var(--blue-400);
+  --color-success:         var(--cyan-400);
+  --color-danger:          var(--red-400);
+  --color-warning:         var(--amber-400);
+
+  --color-chart-grid:      #2a3a55;
+  --color-shadow:          rgba(0, 0, 0, 0.28);
+
+  --shadow:        0 10px 40px 0 rgba(0,0,0,0.30), 0 2px 10px rgba(0,123,255,0.10);
+  --shadow-light:  0 2px 16px 0 rgba(100,255,218,0.09);
+}
+
+/* ============================================================
+   Tier 2: SEMANTIC TOKENS — LIGHT
+   ============================================================ */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg:              var(--paper-50);
+  --color-surface:         var(--paper-0);
+  --color-surface-raised:  var(--paper-0);
+  --color-surface-sunken:  var(--paper-100);
+  --color-border:          var(--paper-200);
+  --color-border-strong:   var(--paper-300);
+
+  --color-text-primary:    var(--ink-900);
+  --color-text-secondary:  var(--ink-700);
+  --color-text-muted:      var(--ink-500);
+  --color-text-on-accent:  var(--white);
+
+  --color-accent:          var(--cyan-ink);
+  --color-accent-hover:    var(--cyan-700);
+  --color-accent-soft:     rgba(12, 122, 102, 0.10);
+  --color-accent-border:   rgba(12, 122, 102, 0.30);
+
+  --color-info:            var(--blue-ink);
+  --color-success:         var(--cyan-700);
+  --color-danger:          var(--red-500);
+  --color-warning:         var(--amber-600);
+
+  --color-chart-grid:      #d6deea;
+  --color-shadow:          rgba(20, 40, 80, 0.12);
+
+  --shadow:        0 10px 30px 0 rgba(20,40,80,0.10), 0 2px 8px rgba(20,40,80,0.06);
+  --shadow-light:  0 2px 16px 0 rgba(12,122,102,0.08);
+}
+
+/* Respect OS preference when the user hasn't explicitly chosen.
+   (An explicit [data-theme] on <html> always wins over this.) */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --color-bg: var(--paper-50);
+    --color-surface: var(--paper-0);
+    --color-surface-raised: var(--paper-0);
+    --color-surface-sunken: var(--paper-100);
+    --color-border: var(--paper-200);
+    --color-border-strong: var(--paper-300);
+    --color-text-primary: var(--ink-900);
+    --color-text-secondary: var(--ink-700);
+    --color-text-muted: var(--ink-500);
+    --color-text-on-accent: var(--white);
+    --color-accent: var(--cyan-ink);
+    --color-accent-hover: var(--cyan-700);
+    --color-accent-soft: rgba(12,122,102,0.10);
+    --color-accent-border: rgba(12,122,102,0.30);
+    --color-info: var(--blue-ink);
+    --color-success: var(--cyan-700);
+    --color-danger: var(--red-500);
+    --color-warning: var(--amber-600);
+    --color-chart-grid: #d6deea;
+    --color-shadow: rgba(20,40,80,0.12);
+    --shadow: 0 10px 30px 0 rgba(20,40,80,0.10), 0 2px 8px rgba(20,40,80,0.06);
+    --shadow-light: 0 2px 16px 0 rgba(12,122,102,0.08);
+  }
+}
+
+/* --- Bridge: map legacy variable names to the new semantic tokens
+   so existing rules theme correctly without a full rewrite --- */
+:root {
+  --main-bg:        var(--color-bg);
+  --card-bg:        var(--color-surface);
+  --accent:         var(--color-info);
+  --accent-light:   var(--color-accent);
+  --accent-fade:    var(--color-accent-soft);
+  --border:         var(--color-border);
+  --text-main:      var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+}
+
+html, body { background: var(--color-bg); color: var(--color-text-primary); }
 /* ===========================================
    MEMORY LANES RIDE JOURNAL - style.css
    =========================================== */
@@ -305,12 +472,6 @@ main {
   width: 100%;
 }
 
-#upload-section,
-#summary-section,
-#timeline {
-  margin-bottom: 2rem;
-}
-
 /* ===== Custom File Input Button (no filename shown) ===== */
 input[type="file"].no-filename {
   position: relative;
@@ -353,9 +514,6 @@ input[type="file"].no-filename:hover::before {
   transition: transform 0.2s ease;
 }
 
-
-
-
 /* ---------- MAP CONTAINER ---------- */
 #leaflet-map {
   height: 48vh;
@@ -386,26 +544,8 @@ input[type="file"].no-filename:hover::before {
 @keyframes fadeIn { to { opacity: 1; } }
 
 /* ---------- RIDE SUMMARY ---------- */
-#summary-section ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-#summary-section li {
-  margin: 0.55rem 0;
-}
 
 /* ---------- TIMELINE CONTROLS ---------- */
-#timeline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.9rem;
-}
-#timeline input[type="range"] {
-  flex: 1;
-  min-width: 190px;
-}
 
 /* ---------- FOOTER ---------- */
 footer {
@@ -669,14 +809,12 @@ button:active, .btn-muted:active, .download-buttons button:active {
   opacity: 1;
 }
 
-
 @media (max-width: 700px) {
   #ride-controls-toolbar {
     flex-direction: column;
     align-items: flex-start;
   }
 }
-
 
 .file-upload-status {
   display: inline-block;
@@ -969,8 +1107,7 @@ input:focus, select:focus {
 }
 @media (max-width: 600px) {
   main { padding: 0.7rem 0.1rem 6rem 0.1rem; }
-  #timeline { flex-direction: column; align-items: center; text-align: center; }
-  #timeline input[type="range"] { width: 100%; }
+
   header h1 { font-size: 1.16rem; }
   .bmc-button { font-size: 0.99rem; padding: 6px 12px; }
   .chart-block { max-width: 99vw; }
@@ -1006,7 +1143,6 @@ input:focus, select:focus {
     width: 100%;
   }
 }
-
 
 .collapsible-footer {
   position: fixed;
@@ -1092,7 +1228,6 @@ input:focus, select:focus {
   border-color: #ffffff;
 }
 
-
 @keyframes pulse-heart {
   0% { transform: scale(1); }
   50% { transform: scale(1.25); }
@@ -1131,7 +1266,6 @@ input:focus, select:focus {
   .site-title { font-size: 1.28rem; }
   .tagline { font-size: 0.95rem; }
 }
-
 
 /* ---------- Transitions & Fade-in ---------- */
 .fade-in {
@@ -1782,7 +1916,6 @@ header nav a:focus,
   text-shadow: 0 0 12px #64ffda33;
 }
 
-
 /* ---------- RIDER SKILLS (cockpit layout) ---------- */
 .num {
   font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
@@ -2014,11 +2147,9 @@ header nav a:focus,
   margin-top: 0.45rem;
 }
 
-
 /* g-g diagram: square, centred */
 .gg-wrap { max-width: 480px; margin: 0 auto; }
 #ggChart { background: #fff2; border-radius: 22px; }
-
 
 /* ---------- LANDING HERO ---------- */
 #landing-hero { text-align: center; padding: 1rem 0 2.2rem; }
@@ -2067,7 +2198,6 @@ header nav a:focus,
 
 .debrief-trend { color: #9fd8ff; font-size: 0.98rem; margin-top: 0.45rem; }
 
-
 /* ---------- Dashboard ride-card internals (previously unstyled) ---------- */
 .ride-title-row {
   display: flex;
@@ -2096,7 +2226,6 @@ header nav a:focus,
   font-size: 1.05rem;
 }
 .error-message { color: #ff8f8f; }
-
 
 /* ===========================================
    v35 RIDE VIEW CLEANUP: toolbar, title, moments
@@ -2230,195 +2359,63 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 .braking-strip-item .ml-icon, .debrief-trend .ml-icon, .corner-focus .ml-icon { color: #9fd8ff; vertical-align: -0.18em; }
 .corner-jump .ml-icon { width: 0.9em; height: 0.9em; }
 
-
 /* ===========================================
-   RIDE SUMMARY - BALANCED DASHBOARD STRIP
-   =========================================== */
-
-#summary-section {
-  max-width: 1220px;
-  margin: 0 auto 1.5rem auto;
-}
-
-#summary-section h2 {
-  margin-bottom: 1rem;
-}
-
-#summary-section ul {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(145px, 1fr)) minmax(320px, 1.6fr);
-  gap: 1rem;
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-#summary-section li {
-  margin: 0;
-  min-height: 82px;
-  padding: 1rem 1.2rem;
-  border-radius: 18px;
-  background: rgba(19, 32, 51, 0.88);
-  border: 1px solid rgba(100, 255, 218, 0.12);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-#summary-section li strong {
-  display: block;
-  margin-bottom: 0.45rem;
-  color: #9fd8ff;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-#summary-section li span {
-  color: #ffffff;
-  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
-  font-size: 1.35rem;
-  font-weight: 800;
-  line-height: 1.1;
-}
-
-/* Weather card: slightly more conversational */
-#summary-section li:last-child span {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  font-size: 1.02rem;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-/* Replay controls belong visually to the same dashboard area */
-#timeline {
-  max-width: 1220px;
-  margin: 1.6rem auto 2rem auto;
-  padding: 1rem 1.2rem;
-  border-radius: 18px;
-  background: rgba(19, 32, 51, 0.58);
-  border: 1px solid rgba(100, 255, 218, 0.10);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.10);
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-#timeline input[type="range"] {
-  flex: 1;
-}
-
-/* Tablet */
-@media (max-width: 950px) {
-  #summary-section ul {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  #summary-section li:last-child {
-    grid-column: 1 / -1;
-  }
-}
-
-/* Mobile */
-@media (max-width: 600px) {
-  #summary-section ul {
-    grid-template-columns: 1fr;
-  }
-
-  #timeline {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  #timeline input[type="range"],
-  #timeline button,
-  #timeline select {
-    width: 100%;
-  }
-}
-
-/* ===========================================
-   RIDE SUMMARY - FINAL FIX
-   Supports BOTH current .summary-grid markup and legacy ul/li markup.
-   Restores the card look, but fixes the wasted right-side space.
+   RIDE SUMMARY - balanced dashboard strip
+   (single source of truth; theme-token driven)
    =========================================== */
 
 #summary-section {
   max-width: 1220px;
   margin: 0 auto 1.35rem auto;
 }
-
 #summary-section h2 {
   margin: 0 0 1rem 0;
-  color: #fff;
+  color: var(--color-text-primary);
 }
 
-/* Works whether the summary is a <ul> or a .summary-grid div */
-#summary-section ul,
+/* Four stat cards + a wider Weather card on desktop */
 #summary-section .summary-grid {
-  display: grid !important;
-  grid-template-columns: repeat(4, minmax(145px, 1fr)) minmax(320px, 1.6fr) !important;
-  gap: 1rem !important;
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(145px, 1fr)) minmax(320px, 1.6fr);
+  gap: 1rem;
   width: 100%;
 }
-
-/* Works whether each item is an <li> or a .summary-card */
-#summary-section li,
 #summary-section .summary-card {
-  margin: 0 !important;
   min-height: 82px;
   padding: 1rem 1.2rem;
   border-radius: 18px;
-  background: rgba(19, 32, 51, 0.88);
-  border: 1px solid rgba(100, 255, 218, 0.12);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+  background: var(--color-surface);
+  border: 1px solid var(--color-accent-border);
+  box-shadow: var(--shadow-light);
   display: flex;
   flex-direction: column;
   justify-content: center;
   box-sizing: border-box;
-}
-
-#summary-section li:hover,
-#summary-section .summary-card:hover {
-  border-color: rgba(100, 255, 218, 0.30);
-  transform: translateY(-1px);
   transition: border-color 0.2s ease, transform 0.15s ease;
 }
-
-#summary-section li strong,
+#summary-section .summary-card:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
 #summary-section .summary-label {
   display: block;
   margin-bottom: 0.45rem;
-  color: #9fd8ff;
+  color: var(--color-info);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1.15;
 }
-
-#summary-section li span,
 #summary-section .summary-value {
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
   font-size: 1.35rem;
   font-weight: 800;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
-
-/* Weather should be the wider fifth card on desktop, not a full-width second row */
-#summary-section li:last-child,
-#summary-section .summary-card-wide {
-  grid-column: auto !important;
-}
-
-#summary-section li:last-child span,
+/* Weather reads as a sentence, not a stat */
 #summary-section .summary-card-wide .summary-value {
   font-family: 'Segoe UI', Arial, sans-serif;
   font-size: 1.02rem;
@@ -2427,50 +2424,48 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
   font-variant-numeric: normal;
 }
 
+/* Replay controls share the same dashboard band */
 #timeline {
   max-width: 1220px;
   margin: 1.45rem auto 2rem auto;
   padding: 1rem 1.2rem;
   border-radius: 18px;
-  background: rgba(19, 32, 51, 0.58);
-  border: 1px solid rgba(100, 255, 218, 0.10);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.10);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-light);
   display: flex;
   align-items: center;
   gap: 1rem;
 }
-
-#timeline input[type="range"] {
-  flex: 1;
-  min-width: 220px;
-}
+#timeline input[type="range"] { flex: 1; min-width: 220px; }
 
 @media (max-width: 1050px) {
-  #summary-section ul,
-  #summary-section .summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
-  #summary-section li:last-child,
-  #summary-section .summary-card-wide {
-    grid-column: 1 / -1 !important;
-  }
+  #summary-section .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #summary-section .summary-card-wide { grid-column: 1 / -1; }
 }
-
 @media (max-width: 600px) {
-  #summary-section ul,
-  #summary-section .summary-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  #timeline {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  #timeline input[type="range"],
-  #timeline button,
-  #timeline select {
-    width: 100%;
-  }
+  #summary-section .summary-grid { grid-template-columns: 1fr; }
+  #timeline { flex-direction: column; align-items: stretch; }
+  #timeline input[type="range"], #timeline button, #timeline select { width: 100%; }
 }
+
+/* ---------- LIGHT-MODE READABILITY FIXES ----------
+   The Leaflet map uses light OSM tiles; its overlay panel and a few
+   glass surfaces need adjusting so text stays legible in light mode. */
+[data-theme="light"] .leaflet-container { border: 1px solid var(--color-border); }
+[data-theme="light"] #telemetry-overlay {
+  background: rgba(255,255,255,0.92);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+[data-theme="light"] #telemetry-overlay span { color: var(--color-text-primary); }
+[data-theme="light"] .chart-help p,
+[data-theme="light"] .summary-card,
+[data-theme="light"] .hero-card,
+[data-theme="light"] .corner-card,
+[data-theme="light"] .debrief-card {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+[data-theme="light"] .skill-meter-track,
+[data-theme="light"] .comp-bar { background: var(--color-surface-sunken); }
