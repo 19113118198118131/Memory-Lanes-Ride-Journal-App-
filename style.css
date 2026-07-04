@@ -2575,7 +2575,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
   background-size: auto, auto, auto, 44px 44px;
   opacity: 0.9;
 }
-[data-theme="light"] body > * { position: relative; z-index: 1; }
+[data-theme="light"] body > *:not(.theme-toggle-corner) { position: relative; z-index: 1; }
 
 /* 2. Frosted-paper cards - translucent white, fine border, soft depth */
 [data-theme="light"] .card-section,
