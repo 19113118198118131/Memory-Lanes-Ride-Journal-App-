@@ -2206,37 +2206,6 @@ button,
   }
 }
 
-/* ---------- RIDE SUMMARY as stat cards (v35 polish) ---------- */
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 1rem;
-}
-.summary-card {
-  background: var(--card-bg);
-  border: 1px solid rgba(100,255,218,0.12);
-  border-radius: 18px;
-  padding: 1.1rem 1.2rem;
-  transition: border-color 0.2s, transform 0.15s;
-}
-.summary-card:hover { border-color: rgba(100,255,218,0.32); transform: translateY(-2px); }
-.summary-label {
-  color: #8fa4bd;
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 0.4rem;
-}
-.summary-value { color: #fff; font-size: 1.5rem; font-weight: 700; line-height: 1.15; }
-.summary-value.num { font-family: 'Rajdhani','Segoe UI',Arial,sans-serif; font-variant-numeric: tabular-nums; }
-.summary-card-wide { grid-column: 1 / -1; }
-.summary-card-wide .summary-value { font-size: 1.15rem; font-weight: 600; }
-@media (max-width: 600px) {
-  .summary-grid { grid-template-columns: repeat(2, 1fr); gap: 0.7rem; }
-  .summary-value { font-size: 1.25rem; }
-}
-
 /* ---------- LUCIDE ICON SYSTEM (v37) ---------- */
 .ml-icon {
   width: 1.05em;
@@ -2277,7 +2246,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 
 #summary-section ul {
   display: grid;
-  grid-template-columns: repeat(4, minmax(145px, 1fr)) minmax(260px, 1.45fr);
+  grid-template-columns: repeat(4, minmax(145px, 1fr)) minmax(320px, 1.6fr);
   gap: 1rem;
   list-style: none;
   padding: 0;
