@@ -2338,3 +2338,139 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
     width: 100%;
   }
 }
+
+/* ===========================================
+   RIDE SUMMARY - FINAL FIX
+   Supports BOTH current .summary-grid markup and legacy ul/li markup.
+   Restores the card look, but fixes the wasted right-side space.
+   =========================================== */
+
+#summary-section {
+  max-width: 1220px;
+  margin: 0 auto 1.35rem auto;
+}
+
+#summary-section h2 {
+  margin: 0 0 1rem 0;
+  color: #fff;
+}
+
+/* Works whether the summary is a <ul> or a .summary-grid div */
+#summary-section ul,
+#summary-section .summary-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(145px, 1fr)) minmax(320px, 1.6fr) !important;
+  gap: 1rem !important;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+/* Works whether each item is an <li> or a .summary-card */
+#summary-section li,
+#summary-section .summary-card {
+  margin: 0 !important;
+  min-height: 82px;
+  padding: 1rem 1.2rem;
+  border-radius: 18px;
+  background: rgba(19, 32, 51, 0.88);
+  border: 1px solid rgba(100, 255, 218, 0.12);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+#summary-section li:hover,
+#summary-section .summary-card:hover {
+  border-color: rgba(100, 255, 218, 0.30);
+  transform: translateY(-1px);
+  transition: border-color 0.2s ease, transform 0.15s ease;
+}
+
+#summary-section li strong,
+#summary-section .summary-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #9fd8ff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.15;
+}
+
+#summary-section li span,
+#summary-section .summary-value {
+  color: #ffffff;
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Weather should be the wider fifth card on desktop, not a full-width second row */
+#summary-section li:last-child,
+#summary-section .summary-card-wide {
+  grid-column: auto !important;
+}
+
+#summary-section li:last-child span,
+#summary-section .summary-card-wide .summary-value {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.35;
+  font-variant-numeric: normal;
+}
+
+#timeline {
+  max-width: 1220px;
+  margin: 1.45rem auto 2rem auto;
+  padding: 1rem 1.2rem;
+  border-radius: 18px;
+  background: rgba(19, 32, 51, 0.58);
+  border: 1px solid rgba(100, 255, 218, 0.10);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.10);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+#timeline input[type="range"] {
+  flex: 1;
+  min-width: 220px;
+}
+
+@media (max-width: 1050px) {
+  #summary-section ul,
+  #summary-section .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  #summary-section li:last-child,
+  #summary-section .summary-card-wide {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 600px) {
+  #summary-section ul,
+  #summary-section .summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  #timeline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #timeline input[type="range"],
+  #timeline button,
+  #timeline select {
+    width: 100%;
+  }
+}
