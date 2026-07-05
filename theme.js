@@ -8,6 +8,7 @@
   function apply(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     try { localStorage.setItem('ml-theme', theme); } catch (e) {}
+    window.dispatchEvent(new CustomEvent('ml-themechange', { detail: { theme } }));
     document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
       btn.setAttribute('aria-label', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
       btn.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');

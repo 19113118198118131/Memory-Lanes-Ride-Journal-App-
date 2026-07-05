@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=44';
-import { buildRideInsights } from './insights.js?v=44';
-import { mlIconSVG } from './icons.js?v=44';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=45';
+import { buildRideInsights } from './insights.js?v=45';
+import { mlIconSVG } from './icons.js?v=45';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -327,7 +327,13 @@ uploadInput.addEventListener('change', () => {
       lng: +tp.getAttribute('lon'),
       ele: +tp.getElementsByTagName('ele')[0]?.textContent || 0,
       time: new Date(tp.getElementsByTagName('time')[0]?.textContent)
-    })).filter(p => p.lat && p.lng && p.time instanceof Date);
+    })).filter(p =>
+      // Use Number.isFinite so 0 (equator / prime meridian) is valid, and
+      // check the timestamp is a REAL date (an Invalid Date is still a Date instance).
+      Number.isFinite(p.lat) && p.lat >= -90 && p.lat <= 90 &&
+      Number.isFinite(p.lng) && p.lng >= -180 && p.lng <= 180 &&
+      p.time instanceof Date && !isNaN(p.time.getTime())
+    );
 
     if (!trkpts.length) {
       showToast('That file has no valid GPS trackpoints. Please upload a GPX recorded by a GPS device or app.', 'delete');
@@ -441,6 +447,7 @@ uploadInput.addEventListener('change', () => {
       };
       setTimeout(async () => {
         const analysis = analyzeRide(skillPts);
+        window.lastAnalysis = analysis;
         const prevScores = await fetchRecentAvgScores(new URLSearchParams(window.location.search).get('ride'));
         renderRiderSkills(analysis, {
           containerId: 'rider-skills-content',
@@ -1538,6 +1545,7 @@ function sanitizeString(str) {
   function setupChart() {
     const ctx = document.getElementById('elevationChart').getContext('2d');
     if (elevationChart) elevationChart.destroy();
+    const _tc = chartThemeColors();
     elevationChart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -1615,14 +1623,14 @@ function sanitizeString(str) {
           x: {
             type: 'linear',
             title: { display: true, text: 'Distance (km)' },
-            grid: { color: '#223' },
-            ticks: { callback: v => v.toFixed(2) }
+            grid: { color: _tc.grid },
+            ticks: { callback: v => v.toFixed(2), color: _tc.tick }
           },
           yElevation: {
             display: true,
             position: 'left',
             title: { display: true, text: 'Elevation (m)' },
-            grid: { color: '#334' }
+            grid: { color: _tc.grid2 }, ticks: { color: _tc.tick }
           },
           ySpeed: {
             title: { display: true, text: 'Speed (km/h)' },
@@ -1663,7 +1671,24 @@ function sanitizeString(str) {
   // =====================================================
 
   // --- Corner speed vs radius, with iso-g reference curves ---
+// Theme-aware chart colors: canvas can't read CSS vars, so resolve them at draw time.
+function chartThemeColors() {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => (cs.getPropertyValue(name).trim() || fallback);
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light'
+    || (!document.documentElement.getAttribute('data-theme')
+        && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+  return {
+    grid:  isLight ? 'rgba(15,23,42,0.10)' : 'rgba(255,255,255,0.10)',
+    grid2: isLight ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.06)',
+    tick:  v('--color-text-muted', isLight ? '#5f6b7a' : '#8fa4bd'),
+    title: v('--color-text-secondary', isLight ? '#556070' : '#c5d1e3'),
+    isLight
+  };
+}
+
   function renderCornerRadiusChart(analysis, jumpToTime) {
+    const _tc = chartThemeColors();
     const ctx = document.getElementById('cornerChart')?.getContext('2d');
     if (!ctx) return;
     if (window.cornerChart && typeof window.cornerChart.destroy === 'function') {
@@ -1708,8 +1733,8 @@ function sanitizeString(str) {
           if (dp && dp.t) jumpToTime(new Date(dp.t));
         },
         scales: {
-          x: { type: 'linear', min: 0, title: { display: true, text: 'Corner radius (m)' }, grid: { color: '#223' } },
-          y: { min: 0, title: { display: true, text: 'Apex speed (km/h)' }, grid: { color: '#334' } }
+          x: { type: 'linear', min: 0, title: { display: true, text: 'Corner radius (m)', color: _tc.title }, grid: { color: _tc.grid }, ticks: { color: _tc.tick } },
+          y: { min: 0, title: { display: true, text: 'Apex speed (km/h)', color: _tc.title }, grid: { color: _tc.grid2 }, ticks: { color: _tc.tick } }
         },
         plugins: {
           legend: { display: true, labels: { filter: item => item.text !== 'Corners' } },
@@ -1727,6 +1752,7 @@ function sanitizeString(str) {
 
   // --- Acceleration profile with braking/drive zone bands ---
   function renderAccelProfile(analysis) {
+    const _tc = chartThemeColors();
     const ctx = document.getElementById('accelChart')?.getContext('2d');
     if (!ctx) return;
     if (window.accelChart && typeof window.accelChart.destroy === 'function') {
@@ -1771,9 +1797,9 @@ function sanitizeString(str) {
         animation: false,
         interaction: { mode: 'nearest', intersect: false },
         scales: {
-          x: { type: 'linear', title: { display: true, text: 'Distance (km)' }, grid: { color: '#223' },
-               ticks: { callback: v => v.toFixed(1) } },
-          y: { title: { display: true, text: 'Acceleration (m/s²)' }, grid: { color: '#334' } }
+          x: { type: 'linear', title: { display: true, text: 'Distance (km)', color: _tc.title }, grid: { color: _tc.grid },
+               ticks: { callback: v => v.toFixed(1), color: _tc.tick } },
+          y: { title: { display: true, text: 'Acceleration (m/s²)', color: _tc.title }, grid: { color: _tc.grid2 }, ticks: { color: _tc.tick } }
         },
         plugins: {
           legend: { display: true, labels: { filter: item => item.text !== 'Point in Ride' } },
@@ -1801,6 +1827,7 @@ function sanitizeString(str) {
 
   // --- g-g diagram (friction circle): your grip-usage signature ---
   function renderGGChart(analysis) {
+    const _tc = chartThemeColors();
     const ctx = document.getElementById('ggChart')?.getContext('2d');
     if (!ctx) return;
     if (window.ggChart && typeof window.ggChart.destroy === 'function') {
@@ -1838,8 +1865,8 @@ function sanitizeString(str) {
         aspectRatio: 1,
         animation: false,
         scales: {
-          x: { min: -lim, max: lim, title: { display: true, text: 'Lateral g  (left ‹ › right)' }, grid: { color: '#223' } },
-          y: { min: -lim, max: lim, title: { display: true, text: 'Longitudinal g (brake ‹ › drive)' }, grid: { color: '#334' } }
+          x: { min: -lim, max: lim, title: { display: true, text: 'Lateral g  (left ‹ › right)', color: _tc.title }, grid: { color: _tc.grid }, ticks: { color: _tc.tick } },
+          y: { min: -lim, max: lim, title: { display: true, text: 'Longitudinal g (brake ‹ › drive)', color: _tc.title }, grid: { color: _tc.grid2 }, ticks: { color: _tc.tick } }
         },
         plugins: {
           legend: { display: true, labels: { filter: item => item.text !== 'Samples' } },
@@ -2114,6 +2141,13 @@ saveBtn.addEventListener('click', async () => {
       .single());
   }
   if (insertErr) {
+    // The GPX already uploaded but the ride record failed to save. Remove the
+    // orphaned file so storage does not accumulate files with no matching ride.
+    try {
+      await supabase.storage.from('gpx-files').remove([uploadData.path]);
+    } catch (cleanupErr) {
+      console.warn('Could not remove orphaned GPX after failed save:', cleanupErr);
+    }
     showToast(`Save failed: ${insertErr.message}`, "delete");
     unlockSave();
     return;
@@ -2494,6 +2528,20 @@ if (params.has('share') && !params.has('ride')) {
   })();
 }
 
+// Re-render charts when the theme changes so their grid/text colours follow.
+  window.addEventListener('ml-themechange', () => {
+    try {
+      if (typeof points !== 'undefined' && points && points.length) {
+        if (elevationChart) setupChart();
+        if (window.lastAnalysis) {
+          renderCornerRadiusChart(window.lastAnalysis, jumpToNearestTime);
+          renderAccelProfile(window.lastAnalysis);
+          renderGGChart(window.lastAnalysis);
+        }
+      }
+    } catch (e) { console.warn('chart theme refresh failed:', e); }
+  });
+
   // === Header nav (Logs | Moments | Journeys) ===
   document.querySelectorAll('.vibe-nav [data-nav]').forEach(el => {
     const go = () => { window.location.href = el.dataset.nav; };
@@ -2828,3 +2876,4 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW registration failed:', err));
   });
 }
+

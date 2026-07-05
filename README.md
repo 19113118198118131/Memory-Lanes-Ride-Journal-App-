@@ -2,7 +2,7 @@
 
 **Journal your ride.** Upload a GPX track from any motorcycle GPS or phone app and Memory Lanes turns it into a map replay, a technique debrief, and a journal entry worth keeping.
 
-Live app: `https://19113118198118131.github.io/Memory-Lanes-Ride-Journal-App-/`
+Live app: deployed on Vercel. Replace this line with your production URL (for example `https://memory-lanes-ride-journal-app.vercel.app`).
 
 New here? Click **"Try a sample ride"** on the landing page to explore every feature with a bundled demo GPX before uploading your own.
 
@@ -37,8 +37,8 @@ This is a static app (no build step) backed by Supabase.
 
 1. **Supabase project**: create one, then create a `ride_logs` table (columns used: `id`, `user_id`, `title`, `distance_km`, `duration_min`, `elevation_m`, `ride_date`, `gpx_path`, `moments jsonb`) and a public storage bucket named `gpx-files`. Enable Row Level Security so users can only read/write their own rows and their own storage folder.
 2. **Migrations** (Supabase Dashboard → SQL Editor):
-   - `supabase-share-setup.sql` — enables public share links (adds `is_public`, `share_token`, and a `get_shared_ride(token)` function)
-   - `supabase-skills-setup.sql` — enables skill trends and repeat-corner recognition (adds a `skills jsonb` column)
+   - `supabase-share-setup.sql` - enables public share links (adds `is_public`, `share_token`, and a `get_shared_ride(token)` function)
+   - `supabase-skills-setup.sql` - enables skill trends and repeat-corner recognition (adds a `skills jsonb` column)
 3. **Keys**: put your project URL and anon key in `supabaseClient.js`. The anon key is public by design, but only safe with RLS enabled.
 4. **Deploy**: serve the repository root from any static host. GitHub Pages (main branch, root) is what the live app uses.
 
