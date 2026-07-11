@@ -5,7 +5,7 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=60';
+import { mlIconSVG } from './icons.js?v=61';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
@@ -18,6 +18,10 @@ const waypointCountEl  = document.getElementById('planner-waypoint-count');
 const waypointListEl   = document.getElementById('planner-waypoint-list');
 const undoBtn          = document.getElementById('planner-undo-btn');
 const redoBtn          = document.getElementById('planner-redo-btn');
+const reverseBtn       = document.getElementById('planner-reverse-btn');
+const connectStartBtn  = document.getElementById('planner-connect-start-btn');
+const cropBtn          = document.getElementById('planner-crop-btn');
+const splitBtn         = document.getElementById('planner-split-btn');
 const clearBtn         = document.getElementById('planner-clear-btn');
 const routeTitleInput  = document.getElementById('planner-route-title');
 const saveBtn          = document.getElementById('planner-save-btn');
@@ -71,6 +75,10 @@ let fitOnNextDraw = false;
 let currentDistanceKm = null;
 let currentElevationM = null;
 let savedRoutes = [];
+let cropMode = false;
+let splitMode = false;
+let cropPicks = [];  // up to 2 waypoint indices picked while cropMode is on
+let cropMarkers = [];
 
 // ---------- Init ----------
 (async () => {
@@ -105,7 +113,10 @@ function initMap() {
       { timeout: 4000 }
     );
   }
-  map.on('click', (e) => addWaypoint(e.latlng));
+  map.on('click', (e) => {
+    if (cropMode || splitMode) return; // these tools require clicking the route line itself
+    addWaypoint(e.latlng);
+  });
 }
 
 // ---------- Waypoint mutation ----------
@@ -144,6 +155,9 @@ function pointToSegmentDistance(p, v, w) {
 }
 
 function afterWaypointsChanged(recordHistory = true) {
+  // Any waypoint mutation invalidates an in-progress crop/split pick
+  if (cropMode) setCropMode(false);
+  if (splitMode) setSplitMode(false);
   if (recordHistory) pushHistory();
   rebuildMarkers();
   renderWaypointList();
@@ -162,6 +176,8 @@ function pushHistory() {
 }
 function undo() {
   if (historyIndex <= 0) return;
+  if (cropMode) setCropMode(false);
+  if (splitMode) setSplitMode(false);
   historyIndex--;
   waypoints = historyStack[historyIndex].map(w => ({ ...w }));
   rebuildMarkers();
@@ -173,6 +189,8 @@ function undo() {
 }
 function redo() {
   if (historyIndex >= historyStack.length - 1) return;
+  if (cropMode) setCropMode(false);
+  if (splitMode) setSplitMode(false);
   historyIndex++;
   waypoints = historyStack[historyIndex].map(w => ({ ...w }));
   rebuildMarkers();
@@ -189,6 +207,8 @@ clearBtn.addEventListener('click', () => {
   if (!waypoints.length) return;
   if (!confirm('Clear the current route?')) return;
   waypoints = [];
+  setCropMode(false);
+  setSplitMode(false);
   afterWaypointsChanged();
 });
 
@@ -199,7 +219,121 @@ function updateButtons() {
   const enoughPoints = waypoints.length >= 2;
   saveBtn.disabled = !enoughPoints;
   exportBtn.disabled = !enoughPoints;
+  reverseBtn.disabled = !enoughPoints;
+  connectStartBtn.disabled = !enoughPoints;
+  cropBtn.disabled = !enoughPoints;
+  splitBtn.disabled = !enoughPoints;
 }
+
+// ---------- Reverse / Connect to Start ----------
+reverseBtn.addEventListener('click', () => {
+  if (waypoints.length < 2) return;
+  waypoints = waypoints.slice().reverse();
+  afterWaypointsChanged();
+  showToast('Route direction reversed.', 'add');
+});
+
+connectStartBtn.addEventListener('click', () => {
+  if (waypoints.length < 2) return;
+  const first = waypoints[0], last = waypoints[waypoints.length - 1];
+  if (first.lat === last.lat && first.lng === last.lng) {
+    showToast('Route already returns to the start.', 'info');
+    return;
+  }
+  waypoints = waypoints.concat([{ lat: first.lat, lng: first.lng }]);
+  afterWaypointsChanged();
+  showToast('Return leg added — route now ends where it started.', 'add');
+});
+
+// ---------- Crop: click the route twice to keep only what's between ----------
+function setCropMode(on) {
+  if (on) {
+    if (waypoints.length < 2) return;
+    setSplitMode(false);
+    showToast('Crop: click the route to keep from, then click again to keep until.', 'info');
+  }
+  cropMode = on;
+  clearCropMarkers();
+  cropBtn.classList.toggle('active', on);
+}
+function clearCropMarkers() {
+  cropMarkers.forEach(m => map.removeLayer(m));
+  cropMarkers = [];
+  cropPicks = [];
+}
+function nearestWaypointIndex(latlng) {
+  let bestIdx = 0, bestDist = Infinity;
+  waypoints.forEach((w, i) => {
+    const d = L.latLng(w.lat, w.lng).distanceTo(latlng);
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  });
+  return bestIdx;
+}
+function handleCropClick(latlng) {
+  const idx = nearestWaypointIndex(latlng);
+  cropPicks.push(idx);
+  const marker = L.circleMarker([waypoints[idx].lat, waypoints[idx].lng], {
+    radius: 7, color: '#fff', weight: 2, fillColor: '#ff3333', fillOpacity: 1
+  }).addTo(map);
+  cropMarkers.push(marker);
+  if (cropPicks.length < 2) return;
+
+  let [a, b] = cropPicks;
+  if (a > b) [a, b] = [b, a];
+  if (a === b) {
+    showToast('Pick two different points.', 'info');
+    clearCropMarkers();
+    return;
+  }
+  const kept = waypoints.slice(a, b + 1);
+  if (!confirm(`Keep ${kept.length} of ${waypoints.length} waypoints and discard the rest?`)) {
+    setCropMode(false);
+    return;
+  }
+  waypoints = kept;
+  setCropMode(false);
+  afterWaypointsChanged();
+  showToast('Route cropped.', 'add');
+}
+cropBtn.addEventListener('click', () => setCropMode(!cropMode));
+
+// ---------- Split: click the route once to export it as two GPX files ----------
+function setSplitMode(on) {
+  if (on) {
+    if (waypoints.length < 2) return;
+    setCropMode(false);
+    showToast('Split: click the route where it should split into two files.', 'info');
+  }
+  splitMode = on;
+  splitBtn.classList.toggle('active', on);
+}
+function findNearestRouteCoordIndex(latlng) {
+  let bestIdx = 0, bestDist = Infinity;
+  routeCoords.forEach((c, i) => {
+    const d = L.latLng(c[0], c[1]).distanceTo(latlng);
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  });
+  return bestIdx;
+}
+function handleSplitClick(latlng) {
+  const idx = findNearestRouteCoordIndex(latlng);
+  if (idx < 1 || idx > routeCoords.length - 2) {
+    showToast("Pick a point that isn't the very start or end.", 'info');
+    return;
+  }
+  const partA = routeCoords.slice(0, idx + 1);
+  const partB = routeCoords.slice(idx);
+  const title = routeTitleInput.value.trim() || 'Planned Route';
+  if (!confirm(`Split into two GPX files here? Part 1: ${partA.length} points, Part 2: ${partB.length} points.`)) {
+    setSplitMode(false);
+    return;
+  }
+  downloadGPX(partA, `${title} (Part 1)`);
+  downloadGPX(partB, `${title} (Part 2)`);
+  setSplitMode(false);
+  showToast('Downloaded both parts.', 'add');
+}
+splitBtn.addEventListener('click', () => setSplitMode(!splitMode));
 
 // ---------- Markers ----------
 function rebuildMarkers() {
@@ -328,6 +462,8 @@ function drawRouteLine(coords, fallback, fit) {
   }).addTo(map);
   routeLine.on('click', (e) => {
     L.DomEvent.stopPropagation(e);
+    if (cropMode) { handleCropClick(e.latlng); return; }
+    if (splitMode) { handleSplitClick(e.latlng); return; }
     insertWaypointFromClick(e.latlng);
   });
   if (fit) map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
@@ -539,6 +675,8 @@ function renderSavedRoutes() {
   });
 }
 function loadSavedRouteIntoPlanner(route) {
+  setCropMode(false);
+  setSplitMode(false);
   waypoints = (route.waypoints || []).map(w => ({ lat: w.lat, lng: w.lng }));
   historyStack = [waypoints.map(w => ({ ...w }))];
   historyIndex = 0;

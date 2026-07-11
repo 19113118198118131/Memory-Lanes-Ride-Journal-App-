@@ -3391,6 +3391,12 @@ header:not(.main-header) .dashboard-header {
   gap: 0.6rem;
   flex-wrap: wrap;
 }
+.planner-toolbar-actions button.active {
+  background: var(--color-surface);
+  color: var(--color-success);
+  border: 2px solid var(--color-success);
+  box-shadow: 0 0 8px var(--color-success)55;
+}
 
 #planner-map-section { position: relative; }
 #planner-map {
