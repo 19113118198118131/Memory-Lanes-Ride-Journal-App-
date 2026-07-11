@@ -66,6 +66,19 @@
          LANDING HERO
          ======================== -->
     <section id="landing-hero">
+      <div class="hero-bg" aria-hidden="true">
+        <svg viewBox="0 0 900 420" width="100%" height="100%" preserveAspectRatio="none">
+          <path id="hero-road-a" class="hero-road-draw" fill="none" stroke-width="2.5"
+                d="M-20 360 C 160 300, 200 200, 380 210 S 620 300, 740 220 S 900 120, 960 170"/>
+          <path class="hero-road-b" fill="none" stroke-width="2"
+                d="M-20 400 C 180 340, 260 400, 420 330 S 640 250, 780 300 S 920 260, 980 290"/>
+          <circle class="hero-rider" r="4.5">
+            <animateMotion dur="9s" repeatCount="indefinite">
+              <mpath href="#hero-road-a"/>
+            </animateMotion>
+          </circle>
+        </svg>
+      </div>
       <h2 class="hero-title">Relive every ride.</h2>
       <p class="hero-sub">Upload a GPX track and Memory Lanes turns every ride into cinematic replays, practical rider insights, and memories you'll want to keep.</p>
       <div class="hero-cards">
