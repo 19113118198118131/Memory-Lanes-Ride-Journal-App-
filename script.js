@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=49';
-import { buildRideInsights } from './insights.js?v=49';
-import { mlIconSVG } from './icons.js?v=49';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=50';
+import { buildRideInsights } from './insights.js?v=50';
+import { mlIconSVG } from './icons.js?v=50';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -405,6 +405,7 @@ uploadInput.addEventListener('change', () => {
       map.invalidateSize();
       if (trailPolyline && points.length > 1) {
         map.fitBounds(trailPolyline.getBounds(), { padding: [30,30], animate: true });
+        animateRouteDraw(trailPolyline);
       } else if (points.length === 1) {
         map.setView([points[0].lat, points[0].lng], 13);
       }
@@ -1541,6 +1542,31 @@ function sanitizeString(str) {
   });
 
 
+
+  // The route draws itself onto the map (ml-dash in the design canvas).
+  function animateRouteDraw(polyline) {
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const el = polyline && typeof polyline.getElement === 'function' ? polyline.getElement() : null;
+      if (!el || typeof el.getTotalLength !== 'function') return;
+      const len = el.getTotalLength();
+      if (!len || !isFinite(len)) return;
+      el.style.strokeDasharray = len;
+      el.style.strokeDashoffset = len;
+      el.classList.add('ml-route-draw');
+      setTimeout(() => clearRouteDraw(polyline), 3200);
+    } catch (e) { /* decorative only */ }
+  }
+  function clearRouteDraw(polyline) {
+    try {
+      const el = polyline && typeof polyline.getElement === 'function' ? polyline.getElement() : null;
+      if (!el) return;
+      el.classList.remove('ml-route-draw');
+      el.style.strokeDasharray = '';
+      el.style.strokeDashoffset = '';
+    } catch (e) {}
+  }
+
   // ========== CHARTS, ANALYTICS, PLAYBACK, SPEED BIN ==========
   function setupChart() {
     const ctx = document.getElementById('elevationChart').getContext('2d');
@@ -1932,6 +1958,7 @@ function chartThemeColors() {
   }
 
   window.updatePlayback = idx => {
+    clearRouteDraw(trailPolyline);
     const p = points[idx];
     if (!marker) {
       marker = L.circleMarker([p.lat, p.lng], { radius: 6, color: '#007bff', fillColor: '#007bff', fillOpacity: 0.9 }).addTo(map);
