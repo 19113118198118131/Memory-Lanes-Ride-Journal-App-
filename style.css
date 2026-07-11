@@ -2718,74 +2718,86 @@ html { transition: background-color 0.4s ease; }
 
 
 /* ============================================================
-   POLISH PATCH — calmer surfaces, tighter rhythm, no new HTML
-   Adds on top of existing tokens/rules above. Safe additive
-   overrides only — does not touch ids/classes JS depends on.
+   POLISH PATCH v2 — flatter, calmer surfaces, tighter rhythm.
+   No new HTML; safe additive overrides only. Deliberately more
+   pronounced than v1 so the change reads clearly against the
+   original bubbly/glowy card language.
    ============================================================ */
 
-/* Calmer card shadows & radii across the app */
+/* Flatten the heavy glow shadows down to a quiet, close shadow;
+   unify border radius to a calmer 16px (was 20-26px everywhere) */
 .ride-entry, .chart-block, .card-section, #save-ride-form, #auth-section,
-.journal-moment-card, .debrief-card, .moment-entry {
-  box-shadow: 0 10px 34px 0 rgba(0,0,0,0.22), 0 1.5px 8px rgba(0,123,255,0.06) !important;
-  border-radius: 20px !important;
+.journal-moment-card, .debrief-card, .moment-entry, #ride-controls-toolbar,
+.summary-card, .corner-card, .filters-container {
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.18), 0 8px 20px -8px rgba(0,0,0,0.35) !important;
+  border: 1px solid rgba(148,163,184,0.12) !important;
 }
 
 .ride-entry:hover {
-  box-shadow: 0 14px 40px 0 rgba(0,123,255,0.14) !important;
-  transform: translateY(-2px) !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 10px 24px -8px rgba(0,0,0,0.4) !important;
+  transform: translateY(-1px) !important;
+  border-color: rgba(100,255,218,0.28) !important;
 }
 
-/* Tighter, calmer dashboard header + filters */
-.dashboard-header { gap: 0.9rem !important; }
-.dashboard-header h1 { font-size: 1.9rem !important; letter-spacing: 0.5px !important; }
+/* Dashboard header + filters: tighter, quieter */
+.dashboard-header { gap: 0.75rem !important; padding-bottom: 1rem !important; }
+.dashboard-header h1 { font-size: 1.75rem !important; letter-spacing: 0.3px !important; }
+.button-group { gap: 0.6rem !important; }
 .button-group button {
-  font-size: 0.98rem !important;
-  padding: 0.55rem 1.2rem !important;
-  box-shadow: 0 2px 8px 0 rgba(0,123,255,0.08) !important;
+  font-size: 0.92rem !important;
+  font-weight: 600 !important;
+  padding: 0.5rem 1.1rem !important;
+  box-shadow: none !important;
 }
 
-.filters-container {
-  border-radius: 16px !important;
-  box-shadow: 0 1px 8px rgba(0,123,255,0.07) !important;
-  gap: 0.9rem !important;
-}
+.filters-container { gap: 0.7rem !important; padding: 0.9rem 1.2rem !important; }
 
-/* Ride entry: tighter internal rhythm */
-.ride-entry { padding: 1.1rem 1.3rem !important; }
-.ride-title { font-size: 1.22rem !important; margin-bottom: 0.3rem !important; }
-.ride-details span { font-size: 1.0rem !important; margin-right: 1rem !important; }
+/* Ride entry: tighter internal rhythm, quieter title color */
+.ride-entry { padding: 1rem 1.25rem !important; margin-bottom: 0.9rem !important; }
+.ride-title { font-size: 1.15rem !important; font-weight: 600 !important; margin-bottom: 0.25rem !important; }
+.ride-details span { font-size: 0.94rem !important; margin-right: 0.9rem !important; }
 
-/* Chart blocks: calmer surface, less glow */
+/* Chart blocks: quiet flat surface, no ambient glow, tighter heading */
 .chart-block {
-  background: rgba(255,255,255,0.028) !important;
-  box-shadow: 0 6px 28px 0 rgba(0,0,0,0.16) !important;
+  background: rgba(255,255,255,0.02) !important;
+  padding: 1.4rem 1.6rem !important;
+  margin-bottom: 1.4rem !important;
 }
-.chart-block h3 { font-size: 1.14rem !important; }
-.chart-desc { font-size: 1rem !important; }
+.chart-block h3 { font-size: 1.05rem !important; font-weight: 600 !important; }
+.chart-desc { font-size: 0.94rem !important; }
 
-/* Ride Coach debrief: match the refined score-hero treatment */
+/* Ride Coach debrief: same flat treatment, quieter border glow */
 .debrief-card {
-  border-radius: 20px !important;
+  box-shadow: none !important;
+  padding: 1.3rem 1.5rem !important;
 }
 
-/* Journal moment cards: slightly calmer gradient + tighter padding */
+/* Journal moment cards: quieter gradient, tighter padding */
 .journal-moment-card {
-  padding: 1.15rem 1.5rem !important;
+  background: linear-gradient(92deg, rgba(58,134,255,0.10) 0%, rgba(0,242,254,0.08) 100%) !important;
+  padding: 1rem 1.3rem !important;
+  margin-bottom: 0.9rem !important;
 }
-.journal-moment-head { font-size: 1.1rem !important; }
-.journal-moment-meta { font-size: 0.97rem !important; }
-.journal-moment-note { font-size: 1.02rem !important; }
+.journal-moment-head { font-size: 1.05rem !important; }
+.journal-moment-meta { font-size: 0.92rem !important; }
+.journal-moment-note { font-size: 0.96rem !important; }
 
-/* Road timeline markers: calmer default state */
+/* Road timeline markers: calmer default state, no double ring */
 .road-marker {
-  box-shadow: 0 0 0 3px rgba(0,123,255,0.16), 0 2px 6px rgba(0,0,0,0.12) !important;
+  box-shadow: none !important;
+  border: 1.5px solid rgba(100,255,218,0.35) !important;
+}
+.road-marker.active {
+  box-shadow: 0 0 0 2px rgba(100,255,218,0.3) !important;
 }
 
-/* Buttons: slightly less aggressive hover glow */
+/* Buttons: quieter hover, no big glow bloom */
 button:hover, .btn-muted:hover {
-  box-shadow: 0 0 16px rgba(100,255,218,0.18), 0 0 3px rgba(0,123,255,0.18) !important;
-  transform: translateY(-1.5px) scale(1.02) !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.22) !important;
+  transform: translateY(-1px) !important;
 }
 
-/* Landing hero (index.html), if present — calmer max-width rhythm */
-#leaflet-map { box-shadow: 0 8px 40px 0 rgba(100,255,218,0.08), 0 2px 10px 0 rgba(0,123,255,0.05) !important; }
+/* Landing hero map + cards: flatten to match */
+#leaflet-map { box-shadow: 0 8px 24px -8px rgba(0,0,0,0.4) !important; border-radius: 16px !important; }
+.hero-card { border-radius: 16px !important; box-shadow: 0 1px 2px rgba(0,0,0,0.16), 0 8px 20px -8px rgba(0,0,0,0.3) !important; }
