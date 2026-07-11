@@ -15,7 +15,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Ride Journal Dashboard</title>
-  <link rel="stylesheet" href="style.css?v=54" />
+  <link rel="stylesheet" href="style.css?v=55" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -30,23 +30,21 @@
 
   <!-- ========== HEADER ========= -->
   <header class="main-header vibe-header">
-    <div class="brand-row">
-      <div class="logo-card">
-        <img src="assets/logo/Memory%20Lanes%20Logo.png" alt="Memory Lanes" class="brand-logo" />
-      </div>
-      <div class="brand-titlebox">
+    <a class="brand-row" href="index.html" aria-label="Memory Lanes home">
+      <span class="logo-card">
+        <img src="assets/logo/Memory%20Lanes%20Logo.png" alt="" class="brand-logo" />
+      </span>
+      <span class="brand-titlebox">
         <span class="site-title">Memory Lanes</span>
-        <div class="tagline">journal your ride</div>
-      </div>
-    </div>
+        <span class="tagline">journal your ride</span>
+      </span>
+    </a>
     <nav class="site-nav vibe-nav" aria-label="Main navigation">
-      <span data-nav="index.html" role="link" tabindex="0">Upload</span>
+      <a class="nav-link" href="dashboard.html" data-nav="dashboard.html" aria-current="page">Logs</a>
       <span class="nav-sep">|</span>
-      <span data-nav="dashboard.html" role="link" tabindex="0" aria-current="page">Logs</span>
+      <a class="nav-link" href="journal.html" data-nav="journal.html">Moments</a>
       <span class="nav-sep">|</span>
-      <span data-nav="journal.html" role="link" tabindex="0">Moments</span>
-      <span class="nav-sep">|</span>
-      <span data-nav="stats.html" role="link" tabindex="0">Journeys</span>
+      <a class="nav-link" href="stats.html" data-nav="stats.html">Journeys</a>
     </nav>
   </header>
 
@@ -70,8 +68,8 @@
 
   <!-- ========== JS for dashboard ========= -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script type="module" src="dashboard.js?v=54"></script>
-  <script type="module" src="icons.js?v=54"></script>
-  <script src="theme.js?v=54"></script>
+  <script type="module" src="dashboard.js?v=55"></script>
+  <script type="module" src="icons.js?v=55"></script>
+  <script src="theme.js?v=55"></script>
 </body>
 </html>

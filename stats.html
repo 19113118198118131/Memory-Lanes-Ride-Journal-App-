@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=54" />
+  <link rel="stylesheet" href="style.css?v=55" />
   <style>
     /* Page-scoped styles for the stats view */
     .stats-grid {
@@ -86,23 +86,21 @@
     </button></div>
 
   <header class="main-header vibe-header">
-    <div class="brand-row">
-      <div class="logo-card">
-        <img src="assets/logo/Memory%20Lanes%20Logo.png" alt="Memory Lanes" class="brand-logo" />
-      </div>
-      <div class="brand-titlebox">
+    <a class="brand-row" href="index.html" aria-label="Memory Lanes home">
+      <span class="logo-card">
+        <img src="assets/logo/Memory%20Lanes%20Logo.png" alt="" class="brand-logo" />
+      </span>
+      <span class="brand-titlebox">
         <span class="site-title">Memory Lanes</span>
-        <div class="tagline">journal your ride</div>
-      </div>
-    </div>
+        <span class="tagline">journal your ride</span>
+      </span>
+    </a>
     <nav class="site-nav vibe-nav" aria-label="Main navigation">
-      <span data-nav="index.html" role="link" tabindex="0">Upload</span>
+      <a class="nav-link" href="dashboard.html" data-nav="dashboard.html">Logs</a>
       <span class="nav-sep">|</span>
-      <span data-nav="dashboard.html" role="link" tabindex="0">Logs</span>
+      <a class="nav-link" href="journal.html" data-nav="journal.html">Moments</a>
       <span class="nav-sep">|</span>
-      <span data-nav="journal.html" role="link" tabindex="0">Moments</span>
-      <span class="nav-sep">|</span>
-      <span data-nav="stats.html" role="link" tabindex="0" aria-current="page">Journeys</span>
+      <a class="nav-link" href="stats.html" data-nav="stats.html" aria-current="page">Journeys</a>
     </nav>
   </header>
 
@@ -155,8 +153,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script type="module" src="stats.js?v=54"></script>
-  <script type="module" src="icons.js?v=54"></script>
-  <script src="theme.js?v=54"></script>
+  <script type="module" src="stats.js?v=55"></script>
+  <script type="module" src="icons.js?v=55"></script>
+  <script src="theme.js?v=55"></script>
 </body>
 </html>

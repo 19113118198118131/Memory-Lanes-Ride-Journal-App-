@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=54';
-import { buildRideInsights } from './insights.js?v=54';
-import { mlIconSVG } from './icons.js?v=54';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=55';
+import { buildRideInsights } from './insights.js?v=55';
+import { mlIconSVG } from './icons.js?v=55';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -2586,12 +2586,8 @@ if (params.has('share') && !params.has('ride')) {
     } catch (e) { console.warn('chart theme refresh failed:', e); }
   });
 
-  // === Header nav (Logs | Moments | Journeys) ===
-  document.querySelectorAll('.vibe-nav [data-nav]').forEach(el => {
-    const go = () => { window.location.href = el.dataset.nav; };
-    el.addEventListener('click', go);
-    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
-  });
+  // Header nav is plain <a href> now: it works without JS, supports keyboard,
+  // middle-click and open-in-new-tab. No wiring needed.
 
   // === Collapsible Footer Logic ===
 const toggleBtn = document.getElementById('footer-toggle');
