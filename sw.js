@@ -1,6 +1,6 @@
 // Memory Lanes service worker: app-shell caching (stale-while-revalidate).
 // Bump CACHE on each deploy so clients pick up fresh files.
-const CACHE = 'memory-lanes-v69';
+const CACHE = 'memory-lanes-v70';
 const CORE = [
   './',
   './index.html',
@@ -9,17 +9,17 @@ const CORE = [
   './journal.html',
   './planner.html',
   './ride-live.html',
-  './style.css?v=69',
-  './script.js?v=69',
-  './insights.js?v=69',
-  './icons.js?v=69',
-  './theme.js?v=69',
-  './riderskills.js?v=69',
-  './dashboard.js?v=69',
-  './stats.js?v=69',
-  './journal.js?v=69',
-  './planner.js?v=69',
-  './ride-live.js?v=69',
+  './style.css?v=70',
+  './script.js?v=70',
+  './insights.js?v=70',
+  './icons.js?v=70',
+  './theme.js?v=70',
+  './riderskills.js?v=70',
+  './dashboard.js?v=70',
+  './stats.js?v=70',
+  './journal.js?v=70',
+  './planner.js?v=70',
+  './ride-live.js?v=70',
   './supabaseClient.js',
   './manifest.webmanifest',
   './assets/demo-ride.gpx',

@@ -5,7 +5,7 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=69';
+import { mlIconSVG } from './icons.js?v=70';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
@@ -101,7 +101,11 @@ let onboardingChoices = { start: null, type: null, goal: null };
   }
   authNote.style.display = 'none';
   plannerBody.style.display = '';
-  initMap();
+  // Leaflet sizes itself off its container's dimensions at creation time, and
+  // #planner-map starts out inside the hidden onboarding/workspace toggle —
+  // initializing it here (while still display:none) leaves it permanently
+  // 0x0 and blank. Defer initMap() until the workspace is actually shown
+  // (see finishOnboarding() and loadSavedRouteIntoPlanner()).
   updateButtons();
   updateGoalHint();
   await loadSavedRoutes();
@@ -171,8 +175,9 @@ function finishOnboarding() {
   updateGoalHint();
   onboardingEl.style.display = 'none';
   workspaceEl.style.display = '';
+  initMap(); // first time the workspace (and #planner-map) is actually visible
   handleStartFrom();
-  setTimeout(() => map.invalidateSize(), 50); // map was hidden, Leaflet needs a nudge
+  setTimeout(() => map.invalidateSize(), 50); // container size may still be settling
 }
 
 function handleStartFrom() {
@@ -235,6 +240,7 @@ function updateGoalHint() {
 }
 
 function initMap() {
+  if (map) return; // already initialized (onboarding continue + a loaded route can both trigger this)
   map = L.map('planner-map', { zoomControl: true });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -924,6 +930,7 @@ function renderSavedRoutes() {
 function loadSavedRouteIntoPlanner(route) {
   onboardingEl.style.display = 'none';
   workspaceEl.style.display = '';
+  initMap(); // first time the workspace (and #planner-map) is actually visible
   setCropMode(false);
   setSplitMode(false);
   // A saved route's shape is already final — don't re-apply loop/return closing on top of it.

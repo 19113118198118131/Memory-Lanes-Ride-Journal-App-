@@ -489,8 +489,7 @@ nav { margin-top: 0.22rem; }
   color: var(--color-text-primary);
 }
 
-.vibe-nav span:nth-child(2),
-.vibe-nav span:nth-child(4) {
+.vibe-nav span.nav-sep {
   font-weight: 400;
   color: var(--border-strong);
 }

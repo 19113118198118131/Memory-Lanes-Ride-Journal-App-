@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=69';
-import { buildRideInsights } from './insights.js?v=69';
-import { mlIconSVG } from './icons.js?v=69';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=70';
+import { buildRideInsights } from './insights.js?v=70';
+import { mlIconSVG } from './icons.js?v=70';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
