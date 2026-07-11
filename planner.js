@@ -5,8 +5,8 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=73';
-import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=73';
+import { mlIconSVG } from './icons.js?v=74';
+import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=74';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
@@ -1172,6 +1172,7 @@ function renderSavedRoutes() {
         <button type="button" class="btn-outline planner-load-btn">${mlIconSVG('edit')} Load</button>
         <button type="button" class="btn-outline planner-export-saved-btn">${mlIconSVG('download')} Export GPX</button>
         <button type="button" class="btn-outline planner-share-btn">${mlIconSVG('share')} ${route.is_public ? 'Copy Invite Link' : 'Invite a Rider'}</button>
+        <button type="button" class="btn-outline planner-groupride-btn">${mlIconSVG('flag')} Group Ride</button>
         ${route.is_public ? `<button type="button" class="btn-muted planner-unshare-btn">${mlIconSVG('eyeoff')} Stop Sharing</button>` : ''}
         <button type="button" class="btn-plain-danger planner-delete-btn">${mlIconSVG('trash')} Delete</button>
       </div>
@@ -1182,6 +1183,7 @@ function renderSavedRoutes() {
     item.querySelector('.planner-load-btn').addEventListener('click', () => loadSavedRouteIntoPlanner(route));
     item.querySelector('.planner-export-saved-btn').addEventListener('click', () => downloadGPX(route.route, route.title));
     item.querySelector('.planner-share-btn').addEventListener('click', () => shareRouteInvite(route));
+    item.querySelector('.planner-groupride-btn').addEventListener('click', () => createGroupRide(route));
     const unshareBtn = item.querySelector('.planner-unshare-btn');
     if (unshareBtn) unshareBtn.addEventListener('click', () => unshareRoute(route));
     item.querySelector('.planner-delete-btn').addEventListener('click', () => deleteSavedRoute(route.id));
@@ -1242,6 +1244,26 @@ async function shareRouteInvite(route) {
   }
   const copied = await copyText(routeInviteLink(route.share_token));
   showToast(copied ? 'Invite link copied! Anyone with it can view and save this route.' : 'Invite link ready.', 'add');
+}
+
+// A group ride is a single shared object: everyone who joins via its link
+// rides THIS route and lands on the same live map (unlike invite links,
+// where each saver gets an independent copy).
+async function createGroupRide(route) {
+  const title = window.prompt('Name this group ride:', `${route.title} — Group Ride`);
+  if (title === null) return;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) { showToast('Please log in first.', 'info'); return; }
+  const { data, error } = await supabase
+    .from('group_rides')
+    .insert({ route_id: route.id, owner_id: user.id, title: title.trim() || `${route.title} — Group Ride` })
+    .select('share_token')
+    .single();
+  if (error) { showToast('Could not create the group ride.', 'delete'); return; }
+  const link = `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}group.html?ride=${data.share_token}`;
+  await copyText(link);
+  showToast('Group ride created — link copied! Opening the group page…', 'add');
+  setTimeout(() => { window.location.href = link; }, 900);
 }
 
 async function unshareRoute(route) {

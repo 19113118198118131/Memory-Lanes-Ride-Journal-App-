@@ -7,7 +7,7 @@
 
 // Supabase config
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=73';
+import { mlIconSVG } from './icons.js?v=74';
 
 // DOM references
 const rideList = document.getElementById('ride-list');
@@ -339,6 +339,7 @@ function renderPlannedCard(route) {
       <button type="button" class="btn-outline planned-edit-btn">${mlIconSVG('edit')} Edit</button>
       <button type="button" class="btn-outline planned-export-btn">${mlIconSVG('download')} Export</button>
       <button type="button" class="btn-outline planned-share-btn">${mlIconSVG('share')} ${route.is_public ? 'Copy Invite Link' : 'Invite a Rider'}</button>
+      <button type="button" class="btn-outline planned-groupride-btn">${mlIconSVG('flag')} Group Ride</button>
     </div>
   `;
   item.querySelector('.planned-start-btn').addEventListener('click', (e) => {
@@ -374,6 +375,23 @@ function renderPlannedCard(route) {
       window.prompt('Copy this invite link:', link);
     }
     applyFilters(); // re-render (respecting active filters) so the Shared chip and button label update
+  });
+  item.querySelector('.planned-groupride-btn').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const title = window.prompt('Name this group ride:', `${route.title} — Group Ride`);
+    if (title === null) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { showToast('Please log in first.', 'info'); return; }
+    const { data, error } = await supabase
+      .from('group_rides')
+      .insert({ route_id: route.id, owner_id: user.id, title: title.trim() || `${route.title} — Group Ride` })
+      .select('share_token')
+      .single();
+    if (error) { showToast('Could not create the group ride.', 'delete'); return; }
+    const link = `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}group.html?ride=${data.share_token}`;
+    try { await navigator.clipboard.writeText(link); } catch (_) { window.prompt('Copy this group ride link:', link); }
+    showToast('Group ride created — link copied! Opening the group page…', 'add');
+    setTimeout(() => { window.location.href = link; }, 900);
   });
   item.querySelector('.delete-icon').addEventListener('click', (e) => {
     e.stopPropagation();

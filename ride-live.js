@@ -82,11 +82,15 @@ let momentMarkers = [];  // map pins for liveMoments, kept in the same order
 let pendingMoment = null; // captured point waiting on the title/note form
 let currentUser = null;      // set once at init; needed for live-position upserts
 let lastBroadcastAt = 0;     // throttle: at most one live_positions write per 15s
+let groupRide = null;        // { id, token, title } when riding as part of a group ride
+let groupRiderMarkers = [];  // other group riders shown on the live map
+let groupPollTimer = null;
 
 // ---------- Init ----------
 (async () => {
   const params = new URLSearchParams(window.location.search);
   const routeId = params.get('route');
+  const groupToken = params.get('group');
 
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) {
@@ -96,7 +100,30 @@ let lastBroadcastAt = 0;     // throttle: at most one live_positions write per 1
 
   currentUser = user;
 
-  if (routeId) {
+  if (groupToken) {
+    // Group ride: the token both admits us (membership row) and returns the
+    // route to follow — the route belongs to the host, not to this rider.
+    let gr = null;
+    try {
+      const { data, error } = await supabase.rpc('join_group_ride', { token: groupToken });
+      if (error) throw error;
+      gr = data;
+    } catch (_) {}
+    if (!gr || !Array.isArray(gr.route) || gr.route.length < 2) {
+      loadingEl.textContent = 'Could not join that group ride. It may have ended — ask the host for a fresh link.';
+      return;
+    }
+    groupRide = { id: gr.id, token: groupToken, title: gr.title };
+    plannedRoute = { id: gr.route_id, title: gr.route_title, route: gr.route, is_public: false };
+    plannedRouteSample = sampleArr(gr.route, 150);
+    liveTitleEl.textContent = 'Group Ride';
+    routeTitleEl.textContent = `Riding "${gr.title}" with the group — other riders appear on your map as they broadcast.`;
+    // Joining a group ride is itself the opt-in: mutual visibility is the
+    // point, so the toggle starts ON here (and stays one tap from off).
+    broadcastRow.style.display = '';
+    broadcastToggle.checked = true;
+    startGroupRiderPolling();
+  } else if (routeId) {
     const { data: route, error } = await supabase
       .from('planned_routes')
       .select('id, title, route, is_public')
@@ -127,6 +154,42 @@ let lastBroadcastAt = 0;     // throttle: at most one live_positions write per 1
 
   initMap();
 })();
+
+// ---------- Other group riders on the live map ----------
+async function refreshGroupRiders() {
+  if (!groupRide || !map) return;
+  let riders = [];
+  try {
+    const { data, error } = await supabase.rpc('get_group_live_riders', { token: groupRide.token });
+    if (error) throw error;
+    riders = Array.isArray(data) ? data : []; // server already excludes this rider's own row
+  } catch (_) {
+    return; // transient failure — keep previous markers, retry next tick
+  }
+  groupRiderMarkers.forEach(m => map.removeLayer(m));
+  groupRiderMarkers = riders.map(r => {
+    const marker = L.circleMarker([r.lat, r.lng], {
+      radius: 9, color: '#ffd166', weight: 3, fillColor: '#ffd166', fillOpacity: 0.85
+    }).addTo(map);
+    const speed = r.speed_kmh != null ? ` · ${Math.round(r.speed_kmh)} km/h` : '';
+    marker.bindTooltip(`${r.name}${speed}`, { permanent: true, direction: 'top', offset: [0, -10], className: 'live-rider-label' });
+    return marker;
+  });
+}
+
+function startGroupRiderPolling() {
+  setTimeout(refreshGroupRiders, 2000); // map exists by then (initMap runs right after init)
+  groupPollTimer = setInterval(refreshGroupRiders, 15000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      clearInterval(groupPollTimer);
+      groupPollTimer = null;
+    } else if (groupRide && !groupPollTimer) {
+      refreshGroupRiders();
+      groupPollTimer = setInterval(refreshGroupRiders, 15000);
+    }
+  });
+}
 
 function initMap() {
   map = L.map('live-map', { zoomControl: true });
@@ -425,7 +488,8 @@ function finishRide() {
 
 // ---------- Live broadcast (opt-in; visible only via the route's invite link) ----------
 function maybeBroadcastPosition(pt) {
-  if (!plannedRoute || !plannedRoute.is_public || !currentUser) return;
+  if (!plannedRoute || !currentUser) return;
+  if (!plannedRoute.is_public && !groupRide) return; // no possible viewers otherwise
   if (!broadcastToggle || !broadcastToggle.checked || !recording) return;
   const now = Date.now();
   if (now - lastBroadcastAt < 15000) return; // one write per 15s is plenty for a map marker
@@ -433,6 +497,7 @@ function maybeBroadcastPosition(pt) {
   supabase.from('live_positions').upsert({
     user_id: currentUser.id,
     route_id: plannedRoute.id,
+    group_ride_id: groupRide ? groupRide.id : null,
     lat: pt.lat,
     lng: pt.lng,
     speed_kmh: pt.speedKmh || null,

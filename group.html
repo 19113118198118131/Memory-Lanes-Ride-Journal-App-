@@ -11,8 +11,8 @@
   </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="A motorcycle route shared with you on Memory Lanes — view it, save it to your own library, and ride it." />
-  <title>Shared Route - Memory Lanes</title>
+  <meta name="description" content="A Memory Lanes group ride — see the route, join the group, and watch riders live on the map." />
+  <title>Group Ride - Memory Lanes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
@@ -52,56 +52,57 @@
 
   <header>
     <div class="dashboard-header">
-      <h1 data-head-icon="route">You're Invited to Ride</h1>
+      <h1 data-head-icon="flag">Group Ride</h1>
     </div>
   </header>
 
   <main>
-    <div id="route-loading" class="chart-desc">Loading route…</div>
-    <div id="route-error" class="chart-desc" style="display:none;">
-      This route link isn't available. It may have been unshared or removed — ask the rider who sent it for a fresh link.
+    <div id="group-loading" class="chart-desc">Loading group ride…</div>
+    <div id="group-error" class="chart-desc" style="display:none;">
+      This group ride isn't available. It may have ended or been removed — ask the host for a fresh link.
     </div>
 
-    <div id="route-body" style="display:none;">
-      <h2 id="route-title"></h2>
-      <p class="section-sub" id="route-shared-by" style="display:none;"></p>
-      <p class="section-sub">A rider shared this route with you on Memory Lanes. Save it to your own library to edit it, export it, or ride it with live tracking.</p>
-      <p class="planner-goal-hint planner-goal-hint-ok" id="route-live-banner" style="display:none;"></p>
+    <div id="group-body" style="display:none;">
+      <h2 id="group-title"></h2>
+      <p class="section-sub" id="group-hosted-by" style="display:none;"></p>
+      <p class="section-sub" id="group-route-line"></p>
+      <p class="planner-goal-hint planner-goal-hint-ok" id="group-live-banner" style="display:none;"></p>
 
       <section id="planner-map-section">
-        <div id="route-map"></div>
+        <div id="group-map"></div>
       </section>
 
       <div class="planner-stats">
         <div class="planner-stat">
           <span class="planner-stat-label">Distance</span>
-          <span class="planner-stat-value" id="route-distance">–</span>
+          <span class="planner-stat-value" id="group-distance">–</span>
         </div>
         <div class="planner-stat">
           <span class="planner-stat-label">Elevation Gain</span>
-          <span class="planner-stat-value" id="route-elevation">–</span>
+          <span class="planner-stat-value" id="group-elevation">–</span>
         </div>
         <div class="planner-stat">
-          <span class="planner-stat-label">Waypoints</span>
-          <span class="planner-stat-value" id="route-waypoints">–</span>
+          <span class="planner-stat-label">Riders Joined</span>
+          <span class="planner-stat-value" id="group-members">–</span>
         </div>
       </div>
 
       <div class="planner-toolbar-actions">
-        <button type="button" id="route-save-btn" class="btn-primary">Save to My Routes</button>
-        <button type="button" id="route-export-btn" class="btn-outline">Download GPX</button>
+        <button type="button" id="group-join-btn" class="btn-primary" style="display:none;">Join &amp; Start Riding</button>
+        <button type="button" id="group-copy-btn" class="btn-outline">Copy Group Link</button>
+        <button type="button" id="group-end-btn" class="btn-plain-danger" style="display:none;">End Group Ride</button>
       </div>
-      <p id="route-save-status" class="chart-desc"></p>
-      <p id="route-login-note" class="chart-desc" style="display:none;">
-        You'll need a free Memory Lanes account to save this route.
-        <a href="index.html">Log in or sign up</a>, then open this invite link again.
+      <p id="group-login-note" class="chart-desc" style="display:none;">
+        You'll need a free Memory Lanes account to join and ride.
+        <a href="index.html">Log in or sign up</a>, then open this group link again.
+        You can watch the live map right here without an account.
       </p>
     </div>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="route.js?v=74"></script>
+  <script type="module" src="group.js?v=74"></script>
   <script type="module" src="icons.js?v=74"></script>
   <script src="theme.js?v=74"></script>
 </body>

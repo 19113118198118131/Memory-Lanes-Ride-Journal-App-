@@ -3635,7 +3635,8 @@ header:not(.main-header) .dashboard-header {
 .live-rider-label::before { display: none; }
 
 /* ---------- SHARED ROUTE INVITE PAGE (route.html) ---------- */
-#route-map {
+#route-map,
+#group-map {
   height: 52vh;
   min-height: 340px;
   width: 100%;
@@ -3644,7 +3645,7 @@ header:not(.main-header) .dashboard-header {
   background: #e9ecef;
 }
 @media (max-width: 700px) {
-  #route-map { min-height: 260px; }
+  #route-map, #group-map { min-height: 260px; }
 }
 
 /* ---------- FOLLOW A ROUTE (ride-live.html) ---------- */
