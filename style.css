@@ -2715,3 +2715,77 @@ html { transition: background-color 0.4s ease; }
   color: var(--color-text-muted);
   font-style: italic;
 }
+
+
+/* ============================================================
+   POLISH PATCH — calmer surfaces, tighter rhythm, no new HTML
+   Adds on top of existing tokens/rules above. Safe additive
+   overrides only — does not touch ids/classes JS depends on.
+   ============================================================ */
+
+/* Calmer card shadows & radii across the app */
+.ride-entry, .chart-block, .card-section, #save-ride-form, #auth-section,
+.journal-moment-card, .debrief-card, .moment-entry {
+  box-shadow: 0 10px 34px 0 rgba(0,0,0,0.22), 0 1.5px 8px rgba(0,123,255,0.06) !important;
+  border-radius: 20px !important;
+}
+
+.ride-entry:hover {
+  box-shadow: 0 14px 40px 0 rgba(0,123,255,0.14) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Tighter, calmer dashboard header + filters */
+.dashboard-header { gap: 0.9rem !important; }
+.dashboard-header h1 { font-size: 1.9rem !important; letter-spacing: 0.5px !important; }
+.button-group button {
+  font-size: 0.98rem !important;
+  padding: 0.55rem 1.2rem !important;
+  box-shadow: 0 2px 8px 0 rgba(0,123,255,0.08) !important;
+}
+
+.filters-container {
+  border-radius: 16px !important;
+  box-shadow: 0 1px 8px rgba(0,123,255,0.07) !important;
+  gap: 0.9rem !important;
+}
+
+/* Ride entry: tighter internal rhythm */
+.ride-entry { padding: 1.1rem 1.3rem !important; }
+.ride-title { font-size: 1.22rem !important; margin-bottom: 0.3rem !important; }
+.ride-details span { font-size: 1.0rem !important; margin-right: 1rem !important; }
+
+/* Chart blocks: calmer surface, less glow */
+.chart-block {
+  background: rgba(255,255,255,0.028) !important;
+  box-shadow: 0 6px 28px 0 rgba(0,0,0,0.16) !important;
+}
+.chart-block h3 { font-size: 1.14rem !important; }
+.chart-desc { font-size: 1rem !important; }
+
+/* Ride Coach debrief: match the refined score-hero treatment */
+.debrief-card {
+  border-radius: 20px !important;
+}
+
+/* Journal moment cards: slightly calmer gradient + tighter padding */
+.journal-moment-card {
+  padding: 1.15rem 1.5rem !important;
+}
+.journal-moment-head { font-size: 1.1rem !important; }
+.journal-moment-meta { font-size: 0.97rem !important; }
+.journal-moment-note { font-size: 1.02rem !important; }
+
+/* Road timeline markers: calmer default state */
+.road-marker {
+  box-shadow: 0 0 0 3px rgba(0,123,255,0.16), 0 2px 6px rgba(0,0,0,0.12) !important;
+}
+
+/* Buttons: slightly less aggressive hover glow */
+button:hover, .btn-muted:hover {
+  box-shadow: 0 0 16px rgba(100,255,218,0.18), 0 0 3px rgba(0,123,255,0.18) !important;
+  transform: translateY(-1.5px) scale(1.02) !important;
+}
+
+/* Landing hero (index.html), if present — calmer max-width rhythm */
+#leaflet-map { box-shadow: 0 8px 40px 0 rgba(100,255,218,0.08), 0 2px 10px 0 rgba(0,123,255,0.05) !important; }
