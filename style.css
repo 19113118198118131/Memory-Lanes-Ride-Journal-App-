@@ -1898,9 +1898,10 @@ a {
   font-weight: 500;
   transition: color 0.17s, text-decoration 0.12s;
 }
-a:hover, a:focus-visible {
+a:not(.brand-row):not(.nav-link):hover,
+a:not(.brand-row):not(.nav-link):focus-visible {
   color: var(--color-accent);
-  text-decoration: underline; /* Only underline on hover/focus */
+  text-decoration: underline; /* body links still underline on hover */
   outline: none;
 }
 nav a, .site-nav a, .vibe-nav a {
@@ -1912,7 +1913,6 @@ nav a, .site-nav a, .vibe-nav a {
 nav a:hover, .site-nav a:hover, .vibe-nav a:hover {
   color: var(--color-text-primary);
   text-shadow: 0 0 12px var(--color-accent)22;
-  text-decoration: underline;
 }
 footer a {
   color: var(--color-info);
@@ -1925,16 +1925,19 @@ footer a:hover {
 }
 
 /* General link styling */
-a, a:visited, a:active {
-  color: var(--color-info) !important;
-  text-decoration: none !important;
+a:not(.brand-row):not(.nav-link),
+a:not(.brand-row):not(.nav-link):visited,
+a:not(.brand-row):not(.nav-link):active {
+  color: var(--color-info);
+  text-decoration: none;
   font-weight: 500;
   transition: color 0.18s, text-decoration 0.13s;
 }
 
-a:hover, a:focus-visible {
-  color: var(--color-accent) !important;
-  text-decoration: underline !important;
+a:not(.brand-row):not(.nav-link):hover,
+a:not(.brand-row):not(.nav-link):focus-visible {
+  color: var(--color-accent);
+  text-decoration: underline;
 }
 
 /* Navigation links more bold */
@@ -1947,7 +1950,6 @@ nav a, .site-nav a, .vibe-nav a {
 nav a:hover, .site-nav a:hover, .vibe-nav a:hover {
   color: var(--color-text-primary) !important;
   text-shadow: 0 0 12px var(--color-accent)22;
-  text-decoration: underline !important;
 }
 
 /* Fix nav links: color, underline, and visited state */
@@ -1974,7 +1976,6 @@ header nav a:focus,
 .site-nav a:focus,
 .vibe-nav a:focus {
   color: var(--color-text-primary) !important;
-  text-decoration: underline !important;
   text-shadow: 0 0 12px var(--color-accent)33;
 }
 
@@ -3258,4 +3259,82 @@ header:not(.main-header) .dashboard-header {
 .vibe-nav .nav-link[aria-current="page"] {
   color: var(--color-text-primary);
   cursor: default;
+}
+
+/* ============================================================
+   BRAND SCALE + HOVER AFFORDANCE
+   No underlines. The brand lifts, the nav grows an accent bar.
+   Sizes scale with the viewport so the header holds a wide page.
+   ============================================================ */
+
+/* Brand scales with the page instead of sitting at a fixed small size */
+.main-header { padding: clamp(14px, 1.4vw, 22px) clamp(18px, 2.6vw, 40px); }
+.main-header .logo-card {
+  width: clamp(46px, 3.4vw, 60px);
+  height: clamp(46px, 3.4vw, 60px);
+  border-radius: 12px;
+}
+.main-header .brand-logo {
+  width: clamp(30px, 2.2vw, 40px);
+  height: clamp(30px, 2.2vw, 40px);
+}
+.main-header .site-title {
+  font-size: clamp(20px, 1.55vw, 28px);
+  letter-spacing: 0.5px;
+  line-height: 1.15;
+}
+.main-header .tagline {
+  font-size: clamp(11px, 0.82vw, 14px);
+  opacity: 0.8;
+}
+.main-header .vibe-nav { font-size: clamp(13px, 1vw, 15px); gap: clamp(14px, 1.6vw, 26px); }
+
+/* Brand hover: the tile lifts into a soft accent ring, the wordmark warms.
+   No text-decoration anywhere. */
+.brand-row,
+.brand-row:hover,
+.brand-row:focus-visible { text-decoration: none; }
+.brand-row .logo-card {
+  transition: transform 0.24s cubic-bezier(.2,.7,.3,1), box-shadow 0.24s ease;
+}
+.brand-row:hover .logo-card,
+.brand-row:focus-visible .logo-card {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 3px var(--color-accent-soft), 0 10px 22px -10px rgba(0,0,0,0.55);
+}
+.brand-row .site-title { transition: color 0.2s ease; }
+.brand-row:hover .site-title { color: var(--color-info); }
+.brand-row:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; border-radius: 12px; }
+
+/* Nav hover: a gradient bar draws in from the left. Never a browser underline. */
+.vibe-nav .nav-link { position: relative; text-decoration: none; }
+.vibe-nav .nav-link::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: -3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent-gradient);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.28s cubic-bezier(.2,.7,.3,1);
+}
+.vibe-nav .nav-link:hover::after,
+.vibe-nav .nav-link:focus-visible::after { transform: scaleX(1); }
+.vibe-nav .nav-link[aria-current="page"]::after { transform: scaleX(1); opacity: 0.5; }
+.vibe-nav .nav-link:hover,
+.vibe-nav .nav-link:focus { text-decoration: none; }
+
+/* The icon nudges up with the bar */
+.vibe-nav .nav-link .ml-icon {
+  transition: transform 0.24s cubic-bezier(.2,.7,.3,1);
+}
+.vibe-nav .nav-link:hover .ml-icon { transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-row .logo-card,
+  .vibe-nav .nav-link::after,
+  .vibe-nav .nav-link .ml-icon { transition: none; }
 }
