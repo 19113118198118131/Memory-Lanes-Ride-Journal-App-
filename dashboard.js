@@ -1,10 +1,13 @@
 // ===============================
 // Memory Lanes Ride Journal - dashboard.js
+// Shows two distinct kinds of item: planned routes (not ridden yet) and
+// completed rides (recorded/uploaded), each with their own card layout
+// and a status chip, merged into one chronological journal list.
 // ===============================
 
 // Supabase config
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=64';
+import { mlIconSVG } from './icons.js?v=65';
 
 // DOM references
 const rideList = document.getElementById('ride-list');
@@ -20,8 +23,8 @@ filtersContainer.innerHTML = `
     <select id="sort-select">
       <option value="date_desc">Newest First</option>
       <option value="date_asc">Oldest First</option>
-      <option value="distance_desc">Longest Ride</option>
-      <option value="distance_asc">Shortest Ride</option>
+      <option value="distance_desc">Longest</option>
+      <option value="distance_asc">Shortest</option>
       <option value="elevation_desc">Most Elevation</option>
       <option value="elevation_asc">Least Elevation</option>
     </select>
@@ -32,11 +35,16 @@ filtersContainer.innerHTML = `
     <select id="yearFilter">
       <option value="">All Years</option>
     </select>
+    <select id="typeFilter">
+      <option value="">Planned + Completed</option>
+      <option value="planned">Planned Only</option>
+      <option value="ride">Completed Only</option>
+    </select>
   </div>
 `;
 rideList.parentElement.insertBefore(filtersContainer, rideList);
 
-let allRides = [];
+let allItems = [];
 
 // Escape user-entered text before injecting into innerHTML
 function escapeHtml(str) {
@@ -54,30 +62,45 @@ function escapeHtml(str) {
     return;
   }
 
-  // Fetch all rides for user, including moments
-  const { data: rides, error: fetchError } = await supabase
-    .from('ride_logs')
-    .select('id, title, distance_km, duration_min, elevation_m, created_at, ride_date, gpx_path, moments')
-    .eq('user_id', user.id)
-    .order('ride_date', { ascending: false });
+  const [ridesRes, plannedRes] = await Promise.all([
+    supabase
+      .from('ride_logs')
+      .select('id, title, distance_km, duration_min, elevation_m, ride_date, gpx_path, moments, is_public, skills')
+      .eq('user_id', user.id)
+      .order('ride_date', { ascending: false }),
+    supabase
+      .from('planned_routes')
+      .select('id, title, distance_km, elevation_m, waypoints, route, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+  ]);
 
-  if (fetchError) {
+  if (ridesRes.error) {
     showToast('Failed to load rides.', 'delete');
-    rideList.textContent = 'Unable to load rides. Please try again.';
+  }
+  // planned_routes may not exist yet if that migration hasn't been run — fail soft.
+  const plannedRows = plannedRes.error ? [] : (plannedRes.data || []);
+
+  const rides = (ridesRes.data || []).map(r => ({ ...r, _type: 'ride', _date: r.ride_date }));
+  const planned = plannedRows.map(r => ({ ...r, _type: 'planned', _date: r.created_at }));
+
+  if (ridesRes.error && plannedRes.error) {
+    rideList.textContent = 'Unable to load your journal. Please try again.';
     return;
   }
 
-  allRides = rides || [];
+  allItems = [...rides, ...planned];
 
-  populateMonthFilter(allRides);
-  populateYearFilter(allRides);
-  renderRides(allRides);
+  populateMonthFilter(allItems);
+  populateYearFilter(allItems);
+  renderItems(allItems);
 
   // --- Attach filter and sort events ---
   document.getElementById('searchInput').addEventListener('input', applyFilters);
   document.getElementById('monthFilter').addEventListener('change', applyFilters);
   document.getElementById('yearFilter').addEventListener('change', applyFilters);
   document.getElementById('sort-select').addEventListener('change', applyFilters);
+  document.getElementById('typeFilter').addEventListener('change', applyFilters);
 })();
 
 // ========== Filtering & Sorting ==========
@@ -86,22 +109,23 @@ function applyFilters() {
   const month = document.getElementById('monthFilter').value;
   const year = document.getElementById('yearFilter').value;
   const sort = document.getElementById('sort-select').value;
+  const type = document.getElementById('typeFilter').value;
 
-  let filtered = allRides.filter(ride => {
-    const matchesKeyword = (ride.title || '').toLowerCase().includes(keyword);
-    const rideDate = ride.ride_date ? new Date(ride.ride_date) : null;
-    const matchesMonth = !month || (rideDate && rideDate.getMonth() === Number(month));
-    const matchesYear = !year || (rideDate && rideDate.getFullYear().toString() === year);
-    return matchesKeyword && matchesMonth && matchesYear;
+  let filtered = allItems.filter(item => {
+    const matchesKeyword = (item.title || '').toLowerCase().includes(keyword);
+    const itemDate = item._date ? new Date(item._date) : null;
+    const matchesMonth = !month || (itemDate && itemDate.getMonth() === Number(month));
+    const matchesYear = !year || (itemDate && itemDate.getFullYear().toString() === year);
+    const matchesType = !type || item._type === type;
+    return matchesKeyword && matchesMonth && matchesYear && matchesType;
   });
 
-  // Sort filtered rides according to selected criteria
   switch (sort) {
     case 'date_asc':
-      filtered.sort((a, b) => new Date(a.ride_date) - new Date(b.ride_date));
+      filtered.sort((a, b) => new Date(a._date) - new Date(b._date));
       break;
     case 'date_desc':
-      filtered.sort((a, b) => new Date(b.ride_date) - new Date(a.ride_date));
+      filtered.sort((a, b) => new Date(b._date) - new Date(a._date));
       break;
     case 'distance_asc':
       filtered.sort((a, b) => (a.distance_km || 0) - (b.distance_km || 0));
@@ -117,20 +141,16 @@ function applyFilters() {
       break;
   }
 
-  renderRides(filtered);
+  renderItems(filtered);
 }
 
 // ========== Populate Month & Year Filter Dropdowns ==========
-function populateMonthFilter(rides) {
+function populateMonthFilter(items) {
   const monthFilter = document.getElementById('monthFilter');
-  // Clear any old options except the default
   monthFilter.innerHTML = '<option value="">All Months</option>';
   const monthSet = new Set();
-  rides.forEach(ride => {
-    if (ride.ride_date) {
-      const month = new Date(ride.ride_date).getMonth();
-      monthSet.add(month);
-    }
+  items.forEach(item => {
+    if (item._date) monthSet.add(new Date(item._date).getMonth());
   });
   [...monthSet].sort((a, b) => a - b).forEach(m => {
     const opt = document.createElement('option');
@@ -140,16 +160,12 @@ function populateMonthFilter(rides) {
   });
 }
 
-function populateYearFilter(rides) {
+function populateYearFilter(items) {
   const yearFilter = document.getElementById('yearFilter');
-  // Clear any old options except the default
   yearFilter.innerHTML = '<option value="">All Years</option>';
   const yearSet = new Set();
-  rides.forEach(ride => {
-    if (ride.ride_date) {
-      const year = new Date(ride.ride_date).getFullYear();
-      yearSet.add(year);
-    }
+  items.forEach(item => {
+    if (item._date) yearSet.add(new Date(item._date).getFullYear());
   });
   [...yearSet].sort((a, b) => a - b).forEach(y => {
     const opt = document.createElement('option');
@@ -159,97 +175,170 @@ function populateYearFilter(rides) {
   });
 }
 
-// ========== Ride Deletion ==========
+// ========== Deletion ==========
 async function deleteRide(rideId, gpxPath) {
   const confirmed = window.confirm('Are you sure you want to delete this ride? This cannot be undone.');
   if (!confirmed) return;
 
-  // Delete from the ride_logs table
-  const { error: deleteError } = await supabase
-    .from('ride_logs')
-    .delete()
-    .eq('id', rideId);
-
+  const { error: deleteError } = await supabase.from('ride_logs').delete().eq('id', rideId);
   if (deleteError) {
     showToast(`Failed to delete ride: ${deleteError.message}`, 'delete');
     return;
   }
-
-  // Optional: Delete the GPX file from storage for cleanup
   if (gpxPath) {
-    const { error: storageError } = await supabase
-      .storage
-      .from('gpx-files')
-      .remove([gpxPath]);
-    if (storageError) {
-      // Warn but do not block UI if file deletion fails
-      console.warn(' GPX file deletion failed:', storageError.message);
-    }
+    const { error: storageError } = await supabase.storage.from('gpx-files').remove([gpxPath]);
+    if (storageError) console.warn('GPX file deletion failed:', storageError.message);
   }
-
-  // Update the list after deletion
-  allRides = allRides.filter(r => r.id !== rideId);
-  applyFilters(); // Re-render the filtered list
+  allItems = allItems.filter(item => !(item._type === 'ride' && item.id === rideId));
+  applyFilters();
   showToast('Ride deleted.', 'add');
 }
 
-// ========== Rides Rendering ==========
-function renderRides(rides) {
-  rideList.innerHTML = '';
-  if (!rides.length) {
-    rideList.textContent = 'No rides found.';
+async function deletePlannedRoute(routeId) {
+  const confirmed = window.confirm('Delete this planned route? This cannot be undone.');
+  if (!confirmed) return;
+
+  const { error } = await supabase.from('planned_routes').delete().eq('id', routeId);
+  if (error) {
+    showToast(`Failed to delete route: ${error.message}`, 'delete');
     return;
   }
+  allItems = allItems.filter(item => !(item._type === 'planned' && item.id === routeId));
+  applyFilters();
+  showToast('Planned route deleted.', 'add');
+}
 
-  rides.forEach(ride => {
-    const item = document.createElement('div');
-    item.className = 'ride-entry';
+// ========== GPX export for a planned route (already-snapped coords, no OSRM needed) ==========
+function escapeGpx(str) {
+  return String(str).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+}
+function downloadPlannedRouteGPX(route) {
+  if (!Array.isArray(route.route) || route.route.length < 2) {
+    showToast('This route has no route data to export.', 'delete');
+    return;
+  }
+  const title = route.title || 'Planned Route';
+  const pts = route.route.map(c => `<rtept lat="${c[0]}" lon="${c[1]}"></rtept>`).join('\n        ');
+  const gpxString = `<?xml version="1.0"?>
+<gpx version="1.1" creator="Memory Lanes Ride Journal" xmlns="http://www.topografix.com/GPX/1/1">
+  <rte>
+    <name>${escapeGpx(title)}</name>
+        ${pts}
+  </rte>
+</gpx>`;
+  const blob = new Blob([gpxString], { type: 'application/gpx+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${title.replace(/\s+/g, '_')}.gpx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
-    // Handle ride date
-    const rideDate = ride.ride_date ? new Date(ride.ride_date).toLocaleDateString() : '';
+// ========== Status chip ==========
+function statusChip(item) {
+  if (item._type === 'planned') return '<span class="status-chip status-chip-planned">Planned</span>';
+  if (item.is_public) return '<span class="status-chip status-chip-shared">Shared</span>';
+  return '<span class="status-chip status-chip-completed">Completed</span>';
+}
 
-    // Compose the ride entry HTML (Moments icon only if moments present)
-    item.innerHTML = `
-      <div class="ride-title-row">
-        <div class="ride-title">
-          ${escapeHtml(ride.title)}
-          ${
-            Array.isArray(ride.moments) && ride.moments.length > 0
-              ? `<span class="moments-icon" title="This ride has moments">${mlIconSVG('book')}</span>`
-              : ''
-          }
-        </div>
-        <div class="ride-meta">
-          <span class="ride-date">${rideDate}</span>
-          <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">${mlIconSVG('trash')}</div>
-        </div>
-      </div>
-      <div class="ride-details">
-        <span>${mlIconSVG('pin')} ${ride.distance_km ? ride.distance_km.toFixed(1) : '--'} km</span>
-        <span>⏱ ${ride.duration_min || '--'} min</span>
-        <span>${mlIconSVG('mountain')} ${ride.elevation_m || '--'} m</span>
-      </div>
-    `;
-
-
-    // Navigate to ride detail on click (except delete icon)
-    item.addEventListener('click', (e) => {
-      // Prevent navigation if clicking the delete icon
-      if (e.target.classList.contains('delete-icon')) return;
-      window.location.href = `index.html?ride=${ride.id}`;
-    });
-
-    // Attach delete event
-    const deleteIcon = item.querySelector('.delete-icon');
-    if (deleteIcon) {
-      deleteIcon.addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteRide(ride.id, ride.gpx_path);
-      });
-    }
-
-    rideList.appendChild(item);
+// ========== Rendering ==========
+function renderItems(items) {
+  rideList.innerHTML = '';
+  if (!items.length) {
+    rideList.textContent = 'Nothing here yet. Plan a route or upload a ride to get started.';
+    return;
+  }
+  items.forEach(item => {
+    rideList.appendChild(item._type === 'planned' ? renderPlannedCard(item) : renderRideCard(item));
   });
+}
+
+function renderPlannedCard(route) {
+  const item = document.createElement('div');
+  item.className = 'ride-entry planned-route-card';
+  const created = route._date ? new Date(route._date).toLocaleDateString() : '';
+  item.innerHTML = `
+    <div class="ride-title-row">
+      <div class="ride-title">
+        ${escapeHtml(route.title)}
+        ${statusChip(route)}
+      </div>
+      <div class="ride-meta">
+        <span class="ride-date">${created}</span>
+        <div class="delete-icon" title="Delete this route">${mlIconSVG('trash')}</div>
+      </div>
+    </div>
+    <div class="ride-details">
+      <span>${mlIconSVG('pin')} ${route.distance_km ? route.distance_km.toFixed(1) : '--'} km (est.)</span>
+      <span>${mlIconSVG('mountain')} ${route.elevation_m != null ? Math.round(route.elevation_m) : '--'} m (est.)</span>
+    </div>
+    <div class="planner-route-actions">
+      <button type="button" class="btn-primary planned-start-btn">${mlIconSVG('play')} Start Ride</button>
+      <button type="button" class="btn-outline planned-edit-btn">${mlIconSVG('edit')} Edit</button>
+      <button type="button" class="btn-outline planned-export-btn">${mlIconSVG('download')} Export</button>
+    </div>
+  `;
+  item.querySelector('.planned-start-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.location.href = `ride-live.html?route=${route.id}`;
+  });
+  item.querySelector('.planned-edit-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.location.href = `planner.html?load=${route.id}`;
+  });
+  item.querySelector('.planned-export-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    downloadPlannedRouteGPX(route);
+  });
+  item.querySelector('.delete-icon').addEventListener('click', (e) => {
+    e.stopPropagation();
+    deletePlannedRoute(route.id);
+  });
+  return item;
+}
+
+function renderRideCard(ride) {
+  const item = document.createElement('div');
+  item.className = 'ride-entry';
+  const rideDate = ride._date ? new Date(ride._date).toLocaleDateString() : '';
+  const overall = ride.skills?.scores
+    ? Math.round(Object.values(ride.skills.scores).filter(Number.isFinite).reduce((a, b) => a + b, 0) /
+        Math.max(1, Object.values(ride.skills.scores).filter(Number.isFinite).length))
+    : null;
+
+  item.innerHTML = `
+    <div class="ride-title-row">
+      <div class="ride-title">
+        ${escapeHtml(ride.title)}
+        ${Array.isArray(ride.moments) && ride.moments.length > 0
+          ? `<span class="moments-icon" title="This ride has moments">${mlIconSVG('book')}</span>` : ''}
+        ${statusChip(ride)}
+      </div>
+      <div class="ride-meta">
+        <span class="ride-date">${rideDate}</span>
+        <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">${mlIconSVG('trash')}</div>
+      </div>
+    </div>
+    <div class="ride-details">
+      <span>${mlIconSVG('pin')} ${ride.distance_km ? ride.distance_km.toFixed(1) : '--'} km</span>
+      <span>⏱ ${ride.duration_min || '--'} min</span>
+      <span>${mlIconSVG('mountain')} ${ride.elevation_m || '--'} m</span>
+      ${overall != null ? `<span>${mlIconSVG('gauge')} Coach: ${overall}/100</span>` : ''}
+    </div>
+  `;
+
+  item.addEventListener('click', (e) => {
+    if (e.target.closest('.delete-icon')) return;
+    window.location.href = `index.html?ride=${ride.id}`;
+  });
+  item.querySelector('.delete-icon').addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteRide(ride.id, ride.gpx_path);
+  });
+  return item;
 }
 
 // ========== Logout Button ==========

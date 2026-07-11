@@ -5,7 +5,7 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=64';
+import { mlIconSVG } from './icons.js?v=65';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
@@ -33,6 +33,12 @@ const searchBtn        = document.getElementById('planner-search-btn');
 const searchResultsEl  = document.getElementById('planner-search-results');
 const dashboardBtn     = document.getElementById('planner-dashboard-btn');
 const recordBtn        = document.getElementById('planner-record-btn');
+const onboardingEl        = document.getElementById('planner-onboarding');
+const workspaceEl         = document.getElementById('planner-workspace');
+const onboardingContinueBtn = document.getElementById('planner-onboarding-continue');
+const onboardingSkipBtn     = document.getElementById('planner-onboarding-skip');
+const rideSetupBtn        = document.getElementById('planner-ride-setup-btn');
+const goalHintEl          = document.getElementById('planner-goal-hint');
 
 // ---------- Utilities (small, duplicated per-page like the rest of the app) ----------
 function escapeHtml(str) {
@@ -80,6 +86,10 @@ let cropMode = false;
 let splitMode = false;
 let cropPicks = [];  // up to 2 waypoint indices picked while cropMode is on
 let cropMarkers = [];
+let startFrom = null;        // 'current' | 'search' | 'map' | null (only set via onboarding)
+let routeType = 'one-way';   // 'one-way' | 'return' | 'loop'
+let rideGoal = null;         // 'short' | 'half-day' | 'full-day' | null
+let onboardingChoices = { start: null, type: null, goal: null };
 
 // ---------- Init ----------
 (async () => {
@@ -93,7 +103,17 @@ let cropMarkers = [];
   plannerBody.style.display = '';
   initMap();
   updateButtons();
+  updateGoalHint();
   await loadSavedRoutes();
+
+  const loadId = new URLSearchParams(window.location.search).get('load');
+  const loadRoute = loadId ? savedRoutes.find(r => r.id === loadId) : null;
+  if (loadRoute) {
+    loadSavedRouteIntoPlanner(loadRoute); // reveals the workspace itself
+  } else {
+    onboardingEl.style.display = '';
+    workspaceEl.style.display = 'none';
+  }
 })();
 
 if (dashboardBtn) {
@@ -101,6 +121,117 @@ if (dashboardBtn) {
 }
 if (recordBtn) {
   recordBtn.addEventListener('click', () => { window.location.href = 'ride-live.html'; });
+}
+
+// ---------- Goal-first onboarding ----------
+// The map/waypoint mechanics stay exactly as before; this panel just sets
+// intent up front (where to start, what shape, how long) so a first-time
+// user isn't dropped straight into "click the map and hope."
+document.querySelectorAll('.onboarding-option').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const groupName = btn.closest('.onboarding-group').dataset.group;
+    onboardingChoices[groupName] = btn.dataset.value;
+    refreshOnboardingButtonStates();
+  });
+});
+
+function refreshOnboardingButtonStates() {
+  document.querySelectorAll('.onboarding-group').forEach(group => {
+    const groupName = group.dataset.group;
+    group.querySelectorAll('.onboarding-option').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === onboardingChoices[groupName]);
+    });
+  });
+  onboardingContinueBtn.disabled = !(onboardingChoices.start && onboardingChoices.type && onboardingChoices.goal);
+}
+
+onboardingContinueBtn.addEventListener('click', () => {
+  startFrom = onboardingChoices.start;
+  routeType = onboardingChoices.type;
+  rideGoal = onboardingChoices.goal;
+  finishOnboarding();
+});
+onboardingSkipBtn.addEventListener('click', () => {
+  startFrom = null;
+  routeType = 'one-way';
+  rideGoal = null;
+  finishOnboarding();
+});
+if (rideSetupBtn) {
+  rideSetupBtn.addEventListener('click', () => {
+    onboardingChoices = { start: startFrom, type: routeType, goal: rideGoal };
+    refreshOnboardingButtonStates();
+    workspaceEl.style.display = 'none';
+    onboardingEl.style.display = '';
+  });
+}
+
+function finishOnboarding() {
+  updateButtons();
+  updateGoalHint();
+  onboardingEl.style.display = 'none';
+  workspaceEl.style.display = '';
+  handleStartFrom();
+  setTimeout(() => map.invalidateSize(), 50); // map was hidden, Leaflet needs a nudge
+}
+
+function handleStartFrom() {
+  if (startFrom === 'current') {
+    if (!navigator.geolocation) { showToast('Geolocation is not supported on this device.', 'info'); return; }
+    showToast('Locating you…', 'info');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 14);
+        addWaypoint({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => showToast('Could not get your location. Click the map to start instead.', 'info'),
+      { timeout: 8000 }
+    );
+  } else if (startFrom === 'search') {
+    searchInput.focus();
+  }
+  // 'map' (or skipped): no-op, the existing click-to-add-a-waypoint flow already works
+}
+
+// A "Loop" route auto-closes back to its first point, and a "Return" route
+// auto-mirrors itself back along the same waypoints — the rider picks the
+// shape up front and never needs to know these are separate manual tools.
+function getEffectiveWaypoints() {
+  if (routeType === 'loop' && waypoints.length >= 2) {
+    const first = waypoints[0], last = waypoints[waypoints.length - 1];
+    if (first.lat === last.lat && first.lng === last.lng) return waypoints;
+    return waypoints.concat([{ lat: first.lat, lng: first.lng }]);
+  }
+  if (routeType === 'return' && waypoints.length >= 2) {
+    return waypoints.concat(waypoints.slice(0, -1).reverse());
+  }
+  return waypoints;
+}
+
+const GOAL_RANGES = {
+  'short':    { label: 'Short ride',    min: 0,   max: 50 },
+  'half-day': { label: 'Half day ride', min: 50,  max: 180 },
+  'full-day': { label: 'Full day ride', min: 180, max: Infinity }
+};
+function updateGoalHint() {
+  if (!goalHintEl) return;
+  const g = GOAL_RANGES[rideGoal];
+  if (!g) { goalHintEl.style.display = 'none'; return; }
+  goalHintEl.style.display = '';
+  const rangeText = g.max === Infinity ? `${g.min}+ km` : `${g.min}–${g.max} km`;
+  if (currentDistanceKm == null) {
+    goalHintEl.textContent = `Goal: ${g.label} · aim for ${rangeText}`;
+    goalHintEl.className = 'planner-goal-hint';
+  } else if (currentDistanceKm >= g.min && currentDistanceKm <= g.max) {
+    goalHintEl.textContent = `On track for a ${g.label.toLowerCase()} (${rangeText})`;
+    goalHintEl.className = 'planner-goal-hint planner-goal-hint-ok';
+  } else if (currentDistanceKm < g.min) {
+    goalHintEl.textContent = `Add more stops to reach your ${g.label.toLowerCase()} goal (${rangeText})`;
+    goalHintEl.className = 'planner-goal-hint planner-goal-hint-under';
+  } else {
+    goalHintEl.textContent = `Longer than a typical ${g.label.toLowerCase()} (${rangeText})`;
+    goalHintEl.className = 'planner-goal-hint planner-goal-hint-over';
+  }
 }
 
 function initMap() {
@@ -224,6 +355,9 @@ function updateButtons() {
   saveBtn.disabled = !enoughPoints;
   exportBtn.disabled = !enoughPoints;
   reverseBtn.disabled = !enoughPoints;
+  // A "Loop" route closes itself automatically (see getEffectiveWaypoints),
+  // so the manual button would just be a confusing, redundant no-op.
+  connectStartBtn.style.display = routeType === 'loop' ? 'none' : '';
   connectStartBtn.disabled = !enoughPoints;
   cropBtn.disabled = !enoughPoints;
   splitBtn.disabled = !enoughPoints;
@@ -410,6 +544,7 @@ async function recalcRoute() {
     routeCoords = [];
     setDistanceText(null);
     setElevationText(null);
+    updateGoalHint();
     return;
   }
 
@@ -417,9 +552,10 @@ async function recalcRoute() {
   const signal = recalcAbort.signal;
   setElevationText('loading');
 
+  const effective = getEffectiveWaypoints();
   let coords, distanceKm, fallback = false;
   try {
-    const coordStr = waypoints.map(w => `${w.lng},${w.lat}`).join(';');
+    const coordStr = effective.map(w => `${w.lng},${w.lat}`).join(';');
     const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`;
     const resp = await fetch(url, { signal });
     if (!resp.ok) throw new Error('routing failed');
@@ -430,14 +566,15 @@ async function recalcRoute() {
   } catch (e) {
     if (e.name === 'AbortError') return;
     fallback = true;
-    coords = waypoints.map(w => [w.lat, w.lng]);
-    distanceKm = straightLineDistanceKm(waypoints);
+    coords = effective.map(w => [w.lat, w.lng]);
+    distanceKm = straightLineDistanceKm(effective);
   }
 
   routeCoords = coords;
   drawRouteLine(coords, fallback, fitOnNextDraw);
   fitOnNextDraw = false;
   setDistanceText(distanceKm);
+  updateGoalHint();
 
   try {
     const gain = await estimateElevationGain(coords, signal);
@@ -509,16 +646,40 @@ async function estimateElevationGain(coords, signal) {
   return Math.round(gain);
 }
 
-// ---------- Search (Photon/Komoot geocoding, pans the map only) ----------
+// ---------- Search (Photon/Komoot geocoding) ----------
 // Nominatim's public instance blocks/rate-limits direct browser (client-side)
 // geocoding under its usage policy, which is why this used to silently fail.
 // Photon is built for exactly this use case: same OSM data, CORS-friendly, no key.
+//
+// Picking a result doesn't just move the map: it drops a pin and offers an
+// action menu (set as start / add as stop / set as destination / just look),
+// since "the map moved" is ambiguous about whether the place joined the route.
+const NZ_BIAS = { lat: -41.5, lon: 173.0 }; // soft ranking bias, doesn't exclude other results
+const RECENT_SEARCHES_KEY = 'ml-recent-searches';
+const MAX_RECENT_SEARCHES = 5;
+let searchResultMarker = null;
+
+function getRecentSearches() {
+  try { return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY)) || []; } catch (_) { return []; }
+}
+function saveRecentSearch(q) {
+  if (!q) return;
+  let recents = getRecentSearches().filter(r => r.toLowerCase() !== q.toLowerCase());
+  recents.unshift(q);
+  try { localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recents.slice(0, MAX_RECENT_SEARCHES))); } catch (_) {}
+}
+
+function clearSearchResultMarker() {
+  if (searchResultMarker) { map.removeLayer(searchResultMarker); searchResultMarker = null; }
+}
+
 async function doSearch() {
   const q = searchInput.value.trim();
   if (!q) return;
+  saveRecentSearch(q);
   searchResultsEl.innerHTML = '<div class="planner-search-result-note">Searching…</div>';
   try {
-    const url = `https://photon.komoot.io/api/?limit=5&q=${encodeURIComponent(q)}`;
+    const url = `https://photon.komoot.io/api/?limit=6&lat=${NZ_BIAS.lat}&lon=${NZ_BIAS.lon}&q=${encodeURIComponent(q)}`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('search failed');
     const data = await resp.json();
@@ -527,9 +688,14 @@ async function doSearch() {
     searchResultsEl.innerHTML = '<div class="planner-search-result-note">Search failed. Try again.</div>';
   }
 }
+
 function placeLabel(props) {
-  return [props.name, props.city || props.district, props.state, props.country].filter(Boolean).join(', ');
+  const suburb = props.district || props.suburb || props.neighbourhood;
+  const city = props.city || props.town || props.village;
+  const parts = [props.name, suburb, city, props.country].filter((v, i, arr) => v && arr.indexOf(v) === i);
+  return parts.join(', ');
 }
+
 function renderSearchResults(features) {
   if (!features.length) {
     searchResultsEl.innerHTML = '<div class="planner-search-result-note">No results.</div>';
@@ -541,20 +707,97 @@ function renderSearchResults(features) {
     const item = document.createElement('div');
     item.className = 'planner-search-result';
     item.textContent = placeLabel(f.properties) || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-    item.addEventListener('click', () => {
-      map.setView([lat, lon], 13);
-      searchResultsEl.innerHTML = '';
-      searchInput.value = '';
-    });
+    item.addEventListener('click', () => selectSearchResult(lat, lon, item.textContent));
     searchResultsEl.appendChild(item);
   });
 }
+
+// Shown when the search box is focused empty: quick access to current
+// location and past searches, so search isn't a blank box every time.
+function showSearchShortcuts() {
+  searchResultsEl.innerHTML = '';
+  const useLoc = document.createElement('div');
+  useLoc.className = 'planner-search-result';
+  useLoc.innerHTML = `${mlIconSVG('pin')} Use current location`;
+  useLoc.addEventListener('click', useCurrentLocationAsResult);
+  searchResultsEl.appendChild(useLoc);
+
+  const recents = getRecentSearches();
+  if (recents.length) {
+    const label = document.createElement('div');
+    label.className = 'planner-search-result-note';
+    label.textContent = 'Recent searches';
+    searchResultsEl.appendChild(label);
+    recents.forEach(q => {
+      const item = document.createElement('div');
+      item.className = 'planner-search-result';
+      item.textContent = q;
+      item.addEventListener('click', () => { searchInput.value = q; doSearch(); });
+      searchResultsEl.appendChild(item);
+    });
+  }
+}
+
+function useCurrentLocationAsResult() {
+  if (!navigator.geolocation) { showToast('Geolocation is not supported on this device.', 'info'); return; }
+  searchResultsEl.innerHTML = '<div class="planner-search-result-note">Locating…</div>';
+  navigator.geolocation.getCurrentPosition(
+    pos => selectSearchResult(pos.coords.latitude, pos.coords.longitude, 'Current location'),
+    () => { searchResultsEl.innerHTML = '<div class="planner-search-result-note">Could not get your location.</div>'; },
+    { timeout: 8000 }
+  );
+}
+
+// A result was picked: preview it with a pin, then ask what it should become.
+function selectSearchResult(lat, lon, label) {
+  map.setView([lat, lon], 14);
+  clearSearchResultMarker();
+  searchResultMarker = L.marker([lat, lon], {
+    icon: L.divIcon({ className: 'search-result-pin', html: mlIconSVG('pin'), iconSize: [26, 26], iconAnchor: [13, 26] })
+  }).addTo(map);
+
+  searchResultsEl.innerHTML = `
+    <div class="planner-search-result-note">${escapeHtml(label)}</div>
+    <div class="planner-search-action" data-action="start">Set as start</div>
+    <div class="planner-search-action" data-action="stop">Add as stop</div>
+    <div class="planner-search-action" data-action="destination">Set as destination</div>
+    <div class="planner-search-action" data-action="view">Just view on map</div>
+  `;
+  searchResultsEl.querySelectorAll('.planner-search-action').forEach(el => {
+    el.addEventListener('click', () => {
+      applySearchAction(el.dataset.action, lat, lon);
+      searchResultsEl.innerHTML = '';
+      searchInput.value = '';
+      if (el.dataset.action !== 'view') clearSearchResultMarker();
+    });
+  });
+}
+
+function applySearchAction(action, lat, lng) {
+  if (action === 'view') return;
+  if (action === 'start') {
+    if (waypoints.length) { waypoints[0] = { lat, lng }; afterWaypointsChanged(); }
+    else addWaypoint({ lat, lng });
+  } else if (action === 'destination') {
+    if (waypoints.length) { waypoints[waypoints.length - 1] = { lat, lng }; afterWaypointsChanged(); }
+    else addWaypoint({ lat, lng });
+  } else if (action === 'stop') {
+    addWaypoint({ lat, lng });
+  }
+}
+
 searchBtn.addEventListener('click', doSearch);
 searchInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
 });
+searchInput.addEventListener('focus', () => {
+  if (!searchInput.value.trim()) showSearchShortcuts();
+});
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.planner-search')) searchResultsEl.innerHTML = '';
+  if (!e.target.closest('.planner-search')) {
+    searchResultsEl.innerHTML = '';
+    clearSearchResultMarker();
+  }
 });
 
 // ---------- GPX export ----------
@@ -679,8 +922,12 @@ function renderSavedRoutes() {
   });
 }
 function loadSavedRouteIntoPlanner(route) {
+  onboardingEl.style.display = 'none';
+  workspaceEl.style.display = '';
   setCropMode(false);
   setSplitMode(false);
+  // A saved route's shape is already final — don't re-apply loop/return closing on top of it.
+  routeType = 'one-way';
   waypoints = (route.waypoints || []).map(w => ({ lat: w.lat, lng: w.lng }));
   historyStack = [waypoints.map(w => ({ ...w }))];
   historyIndex = 0;
@@ -691,7 +938,9 @@ function loadSavedRouteIntoPlanner(route) {
   mapHint.style.display = waypoints.length ? 'none' : '';
   waypointCountEl.textContent = String(waypoints.length);
   updateButtons();
+  updateGoalHint();
   scheduleRecalc(0);
+  setTimeout(() => map.invalidateSize(), 50);
   window.scrollTo({ top: mapSection.offsetTop - 90, behavior: 'smooth' });
 }
 async function deleteSavedRoute(id) {

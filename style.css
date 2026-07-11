@@ -3387,6 +3387,21 @@ header:not(.main-header) .dashboard-header {
 .planner-search-result:last-child { border-bottom: none; }
 .planner-search-result { cursor: pointer; }
 .planner-search-result:hover { background: var(--color-surface-raised); color: var(--color-text-primary); }
+.planner-search-result .ml-icon { margin-right: 0.4em; color: var(--color-accent); }
+
+.planner-search-action {
+  padding: 0.65rem 0.9rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-card);
+}
+.planner-search-action:last-child { border-bottom: none; }
+.planner-search-action:hover { background: var(--color-surface-raised); color: var(--color-text-primary); }
+
+.search-result-pin { color: #ff3b81; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
+.search-result-pin .ml-icon { width: 26px; height: 26px; }
 
 .planner-toolbar-actions {
   display: flex;
@@ -3548,4 +3563,119 @@ header:not(.main-header) .dashboard-header {
 
 @media (max-width: 700px) {
   #live-map { min-height: 260px; }
+}
+
+/* ---------- GOAL-FIRST ONBOARDING (planner.html) ---------- */
+.planner-onboarding {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-panel);
+  padding: 1.6rem 1.8rem;
+  margin-bottom: 1.5rem;
+  max-width: 640px;
+}
+.planner-onboarding h2 {
+  margin-top: 0;
+  margin-bottom: 1.3rem;
+}
+.onboarding-group { margin-bottom: 1.4rem; }
+.onboarding-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-bottom: 0.55rem;
+}
+.onboarding-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.onboarding-option {
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-card);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: none;
+}
+.onboarding-option:hover {
+  border-color: var(--border-strong);
+  color: var(--color-text-primary);
+  box-shadow: none;
+  transform: none;
+}
+.onboarding-option.active {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.onboarding-option .ml-icon { margin-right: 0.35em; }
+.onboarding-actions {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+.planner-inline-link {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  color: var(--color-accent);
+  font-weight: 600;
+  font-size: inherit;
+  text-decoration: underline;
+}
+.planner-inline-link:hover { color: var(--color-accent-hover); box-shadow: none; transform: none; }
+
+.planner-goal-hint {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: -0.6rem 0 1rem;
+}
+.planner-goal-hint-ok    { color: var(--color-success); }
+.planner-goal-hint-under { color: var(--color-warning); }
+.planner-goal-hint-over  { color: var(--color-warning); }
+
+/* ---------- STATUS CHIPS & PLANNED-ROUTE CARDS (dashboard.html) ---------- */
+.status-chip {
+  display: inline-block;
+  margin-left: 0.6rem;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  border: 1px solid transparent;
+}
+.status-chip-planned {
+  color: var(--color-warning);
+  background: rgba(255, 209, 102, 0.14);
+  border-color: rgba(255, 209, 102, 0.35);
+}
+.status-chip-completed {
+  color: var(--color-success);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-border);
+}
+.status-chip-shared {
+  color: var(--color-info);
+  background: rgba(0, 198, 255, 0.14);
+  border-color: rgba(0, 198, 255, 0.35);
+}
+
+/* A planned route is something you intend to ride, not something you rode:
+   a dashed, amber-tinted left edge keeps that distinction visible at a glance. */
+.planned-route-card {
+  border-left: 4px solid var(--color-warning);
+  border-style: dashed solid solid solid;
+  background: linear-gradient(90deg, rgba(255, 209, 102, 0.05), transparent 40%), var(--card-bg);
 }

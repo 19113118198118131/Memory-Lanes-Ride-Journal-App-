@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=64" />
+  <link rel="stylesheet" href="style.css?v=65" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -61,61 +61,106 @@
   </header>
 
   <main>
-    <p class="section-sub">Click the map to drop waypoints — the route snaps to real roads automatically. Drag a pin to move it, click the route line to insert a stop, Reverse or Connect to Start to reshape the loop, Crop or Split to trim it down, then save your route or export it as a GPX file.</p>
-
     <div id="planner-auth-note" style="display:none;">
       <p class="chart-desc">Log in to plan and save routes. <a href="index.html">Go to login</a></p>
     </div>
 
     <div id="planner-body" style="display:none;">
-      <div class="planner-toolbar">
-        <div class="planner-search">
-          <input type="text" id="planner-search-input" placeholder="Search for a place…" autocomplete="off" />
-          <button id="planner-search-btn" class="btn-outline">Search</button>
-          <div id="planner-search-results" class="planner-search-results"></div>
+
+      <!-- ========================
+           GOAL-FIRST ONBOARDING
+           ======================== -->
+      <div id="planner-onboarding" class="planner-onboarding" style="display:none;">
+        <h2>Let's plan your ride</h2>
+        <div class="onboarding-group" data-group="start">
+          <span class="onboarding-label">Start from</span>
+          <div class="onboarding-options">
+            <button type="button" class="onboarding-option" data-value="current" data-icon="pin">Current Location</button>
+            <button type="button" class="onboarding-option" data-value="search" data-icon="search">Search Place</button>
+            <button type="button" class="onboarding-option" data-value="map" data-icon="map">Choose on Map</button>
+          </div>
         </div>
-        <div class="planner-toolbar-actions">
-          <button id="planner-undo-btn" class="btn-muted" disabled>Undo</button>
-          <button id="planner-redo-btn" class="btn-muted" disabled>Redo</button>
-          <button id="planner-reverse-btn" class="btn-muted" disabled>Reverse</button>
-          <button id="planner-connect-start-btn" class="btn-muted" disabled>Connect to Start</button>
-          <button id="planner-crop-btn" class="btn-muted" disabled>Crop</button>
-          <button id="planner-split-btn" class="btn-muted" disabled>Split</button>
-          <button id="planner-clear-btn" class="btn-plain-danger" disabled>Clear</button>
+        <div class="onboarding-group" data-group="type">
+          <span class="onboarding-label">Route type</span>
+          <div class="onboarding-options">
+            <button type="button" class="onboarding-option" data-value="one-way" data-icon="arrowright">One Way</button>
+            <button type="button" class="onboarding-option" data-value="return" data-icon="reverse">Return</button>
+            <button type="button" class="onboarding-option" data-value="loop" data-icon="route">Loop</button>
+          </div>
+        </div>
+        <div class="onboarding-group" data-group="goal">
+          <span class="onboarding-label">Ride goal</span>
+          <div class="onboarding-options">
+            <button type="button" class="onboarding-option" data-value="short">Short (under 1 hr)</button>
+            <button type="button" class="onboarding-option" data-value="half-day">Half Day</button>
+            <button type="button" class="onboarding-option" data-value="full-day">Full Day</button>
+          </div>
+        </div>
+        <div class="onboarding-actions">
+          <button id="planner-onboarding-continue" class="btn-primary" disabled>Start Planning</button>
+          <button id="planner-onboarding-skip" class="btn-plain-danger">Skip, I'll do it myself</button>
         </div>
       </div>
 
-      <section id="planner-map-section">
-        <div id="planner-map"></div>
-        <div id="planner-map-hint" class="planner-map-hint">Click anywhere on the map to start your route</div>
-      </section>
+      <!-- ========================
+           WORKSPACE (revealed after onboarding)
+           ======================== -->
+      <div id="planner-workspace" style="display:none;">
+        <p class="section-sub">
+          <button type="button" id="planner-ride-setup-btn" class="planner-inline-link">Change ride setup</button> ·
+          Click the map to drop waypoints — the route snaps to real roads automatically. Drag a pin to move it, click the route line to insert a stop, Crop or Split to trim it down, then save your route or export it as a GPX file.
+        </p>
 
-      <div class="planner-stats">
-        <div class="planner-stat">
-          <span class="planner-stat-label">Distance</span>
-          <span class="planner-stat-value" id="planner-distance">–</span>
+        <div class="planner-toolbar">
+          <div class="planner-search">
+            <input type="text" id="planner-search-input" placeholder="Search for a place…" autocomplete="off" />
+            <button id="planner-search-btn" class="btn-outline">Search</button>
+            <div id="planner-search-results" class="planner-search-results"></div>
+          </div>
+          <div class="planner-toolbar-actions">
+            <button id="planner-undo-btn" class="btn-muted" disabled>Undo</button>
+            <button id="planner-redo-btn" class="btn-muted" disabled>Redo</button>
+            <button id="planner-reverse-btn" class="btn-muted" disabled>Reverse</button>
+            <button id="planner-connect-start-btn" class="btn-muted" disabled>Connect to Start</button>
+            <button id="planner-crop-btn" class="btn-muted" disabled>Crop</button>
+            <button id="planner-split-btn" class="btn-muted" disabled>Split</button>
+            <button id="planner-clear-btn" class="btn-plain-danger" disabled>Clear</button>
+          </div>
         </div>
-        <div class="planner-stat">
-          <span class="planner-stat-label">Elevation Gain</span>
-          <span class="planner-stat-value" id="planner-elevation">–</span>
-        </div>
-        <div class="planner-stat">
-          <span class="planner-stat-label">Waypoints</span>
-          <span class="planner-stat-value" id="planner-waypoint-count">0</span>
-        </div>
-      </div>
 
-      <div id="planner-waypoint-list" class="waypoint-list"></div>
+        <section id="planner-map-section">
+          <div id="planner-map"></div>
+          <div id="planner-map-hint" class="planner-map-hint">Click anywhere on the map to start your route</div>
+        </section>
 
-      <div id="planner-save-form">
-        <h3>Save this Route</h3>
-        <div class="ride-form">
-          <label for="planner-route-title">Route Title:</label>
-          <input type="text" id="planner-route-title" placeholder="Enter a name for this route" />
-          <button id="planner-save-btn" class="btn-primary" disabled>Save Route</button>
-          <button id="planner-export-btn" class="btn-outline" disabled>Export GPX</button>
+        <div class="planner-stats">
+          <div class="planner-stat">
+            <span class="planner-stat-label">Distance</span>
+            <span class="planner-stat-value" id="planner-distance">–</span>
+          </div>
+          <div class="planner-stat">
+            <span class="planner-stat-label">Elevation Gain</span>
+            <span class="planner-stat-value" id="planner-elevation">–</span>
+          </div>
+          <div class="planner-stat">
+            <span class="planner-stat-label">Waypoints</span>
+            <span class="planner-stat-value" id="planner-waypoint-count">0</span>
+          </div>
         </div>
-        <p id="planner-save-status"></p>
+        <p id="planner-goal-hint" class="planner-goal-hint" style="display:none;"></p>
+
+        <div id="planner-waypoint-list" class="waypoint-list"></div>
+
+        <div id="planner-save-form">
+          <h3>Save this Route</h3>
+          <div class="ride-form">
+            <label for="planner-route-title">Route Title:</label>
+            <input type="text" id="planner-route-title" placeholder="Enter a name for this route" />
+            <button id="planner-save-btn" class="btn-primary" disabled>Save Route</button>
+            <button id="planner-export-btn" class="btn-outline" disabled>Export GPX</button>
+          </div>
+          <p id="planner-save-status"></p>
+        </div>
       </div>
 
       <section id="planner-saved-routes">
@@ -129,8 +174,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="planner.js?v=64"></script>
-  <script type="module" src="icons.js?v=64"></script>
-  <script src="theme.js?v=64"></script>
+  <script type="module" src="planner.js?v=65"></script>
+  <script type="module" src="icons.js?v=65"></script>
+  <script src="theme.js?v=65"></script>
 </body>
 </html>
