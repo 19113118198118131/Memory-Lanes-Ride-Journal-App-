@@ -27,6 +27,11 @@ New here? Click **"Try a sample ride"** on the landing page to explore every fea
 - Public read-only share links per ride (token-based, revocable)
 - One-click export of all your data (rides.json plus every GPX) as a zip
 
+**Route Planner**
+- Plan a route from scratch on the map: click to drop waypoints, the route snaps to real roads automatically (OSRM), drag pins to adjust, click the line to insert a stop
+- Live distance and elevation-gain preview, undo/redo, place search
+- Save planned routes to your account, or export any of them as a GPX file for your GPS/phone
+
 **App**
 - Installable PWA with offline app-shell caching
 - Experimental route editor (drag, bulk add/delete points, multi-segment GPX export)
@@ -39,6 +44,7 @@ This is a static app (no build step) backed by Supabase.
 2. **Migrations** (Supabase Dashboard → SQL Editor):
    - `supabase-share-setup.sql` - enables public share links (adds `is_public`, `share_token`, and a `get_shared_ride(token)` function)
    - `supabase-skills-setup.sql` - enables skill trends and repeat-corner recognition (adds a `skills jsonb` column)
+   - `supabase-routeplanner-setup.sql` - enables the Route Planner (creates a `planned_routes` table, owner-only RLS)
 3. **Keys**: put your project URL and anon key in `supabaseClient.js`. The anon key is public by design, but only safe with RLS enabled.
 4. **Deploy**: serve the repository root from any static host. GitHub Pages (main branch, root) is what the live app uses.
 

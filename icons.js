@@ -59,6 +59,10 @@ const ICON_BY_ID = {
   // edit-mode toolbar
   'edit-gpx-btn': 'edit', 'save-edited-gpx-btn': 'save', 'undo-edit-btn': 'undo',
   'redo-edit-btn': 'redo', 'bulk-add-btn': 'plus', 'bulk-delete-btn': 'trash', 'exit-edit-btn': 'x',
+  // planner.html
+  'planner-dashboard-btn': 'route', 'planner-undo-btn': 'undo', 'planner-redo-btn': 'redo',
+  'planner-clear-btn': 'trash', 'planner-search-btn': 'search', 'planner-save-btn': 'save',
+  'planner-export-btn': 'download',
 };
 
 // Replace a leading emoji in an element's text with an inline icon, keep the label.
@@ -90,7 +94,7 @@ function applyIcons() {
   });
 
   // Header nav: Logs | Moments | Journeys -> icon + text
-  const navMap = { 'dashboard.html': 'route', 'journal.html': 'pin', 'stats.html': 'trending' };
+  const navMap = { 'dashboard.html': 'route', 'journal.html': 'pin', 'stats.html': 'trending', 'planner.html': 'flag' };
   document.querySelectorAll('.vibe-nav [data-nav]').forEach(el => {
     const icon = navMap[el.dataset.nav];
     if (icon && !el.querySelector('svg')) {

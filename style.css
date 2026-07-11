@@ -3341,3 +3341,187 @@ header:not(.main-header) .dashboard-header {
   .vibe-nav .nav-link::after,
   .vibe-nav .nav-link .ml-icon { transition: none; }
 }
+
+/* ---------- ROUTE PLANNER (planner.html) ---------- */
+.planner-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+.planner-search {
+  position: relative;
+  display: flex;
+  gap: 0.6rem;
+  flex: 1 1 320px;
+  max-width: 480px;
+}
+.planner-search input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+.planner-search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-chip);
+  box-shadow: var(--shadow);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.planner-search-result,
+.planner-search-result-note {
+  padding: 0.6rem 0.9rem;
+  font-size: 0.92rem;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--border-card);
+}
+.planner-search-result:last-child { border-bottom: none; }
+.planner-search-result { cursor: pointer; }
+.planner-search-result:hover { background: var(--color-surface-raised); color: var(--color-text-primary); }
+
+.planner-toolbar-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+#planner-map-section { position: relative; }
+#planner-map {
+  height: 52vh;
+  min-height: 340px;
+  width: 100%;
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  background: #e9ecef;
+  cursor: crosshair;
+}
+.planner-map-hint {
+  position: absolute;
+  top: 1rem; left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--radius-pill);
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 10;
+}
+.planner-popup { text-align: center; }
+.planner-popup .planner-popup-remove {
+  display: block;
+  margin: 0.4rem auto 0;
+  padding: 0.3rem 0.8rem;
+  color: var(--color-danger);
+  background: transparent;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-chip);
+  font-size: 0.85rem;
+}
+
+.planner-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1.2rem 0;
+}
+.planner-stat {
+  flex: 1 1 140px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+}
+.planner-stat-label {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 5px;
+}
+.planner-stat-value {
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.waypoint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.waypoint-item {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.6rem 1rem;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-chip);
+}
+.waypoint-label {
+  font-weight: 700;
+  color: var(--color-accent);
+  min-width: 64px;
+}
+.waypoint-coords {
+  flex: 1;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.waypoint-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.waypoint-actions button {
+  padding: 0.3rem 0.55rem;
+  background: transparent;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-chip);
+  color: var(--color-text-secondary);
+  box-shadow: none;
+}
+.waypoint-actions button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--color-text-primary);
+  box-shadow: none;
+  transform: none;
+}
+.waypoint-actions button:disabled { opacity: 0.35; cursor: not-allowed; }
+.waypoint-remove { color: var(--color-danger); }
+
+.planner-route-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+}
+
+.planner-attribution {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  margin: 1rem 0 2rem;
+}
+
+@media (max-width: 700px) {
+  #planner-map { min-height: 260px; }
+  .planner-toolbar { flex-direction: column; align-items: stretch; }
+  .planner-search { max-width: none; }
+}
