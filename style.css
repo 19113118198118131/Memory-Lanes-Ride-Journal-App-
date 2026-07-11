@@ -52,6 +52,8 @@
   --rust-600:  #c2410c; /* refined destructive (AA: 4.68:1) */
   --cyan-ink: #0a6b75;  /* legacy alias -> teal-deep */
 
+  --radius-card: 16px;
+
   color-scheme: dark;
 }
 
@@ -89,6 +91,13 @@
 
   --shadow:        0 10px 40px 0 rgba(0,0,0,0.30), 0 2px 10px rgba(0,123,255,0.10);
   --shadow-light:  0 2px 16px 0 rgba(100,255,218,0.09);
+
+  /* Flat surface system: quiet, close shadows instead of ambient glow */
+  --border-card:       rgba(148,163,184,0.12);
+  --shadow-card:       0 1px 2px rgba(0,0,0,0.18), 0 8px 20px -8px rgba(0,0,0,0.35);
+  --shadow-card-hover: 0 2px 4px rgba(0,0,0,0.20), 0 10px 24px -8px rgba(0,0,0,0.40);
+  --shadow-btn-hover:  0 2px 10px rgba(0,0,0,0.22);
+  --surface-chart:     rgba(255,255,255,0.02);
 }
 
 /* ============================================================
@@ -126,6 +135,13 @@
   /* Soft layered shadows, not glow */
   --shadow:        0 18px 50px rgba(15,23,42,0.08), 0 2px 8px rgba(15,23,42,0.05);
   --shadow-light:  0 8px 30px rgba(15,23,42,0.06);
+
+  /* Same flat system, tuned for paper: slate shadows, not black */
+  --border-card:       rgba(15,23,42,0.10);
+  --shadow-card:       0 1px 2px rgba(15,23,42,0.05), 0 8px 20px -8px rgba(15,23,42,0.14);
+  --shadow-card-hover: 0 2px 4px rgba(15,23,42,0.07), 0 10px 24px -8px rgba(15,23,42,0.18);
+  --shadow-btn-hover:  0 2px 10px rgba(15,23,42,0.10);
+  --surface-chart:     var(--paper-0);
 }
 
 /* Respect OS preference when the user hasn't explicitly chosen.
@@ -155,6 +171,11 @@
     --color-shadow: rgba(15,23,42,0.10);
     --shadow: 0 18px 50px rgba(15,23,42,0.08), 0 2px 8px rgba(15,23,42,0.05);
     --shadow-light: 0 8px 30px rgba(15,23,42,0.06);
+    --border-card: rgba(15,23,42,0.10);
+    --shadow-card: 0 1px 2px rgba(15,23,42,0.05), 0 8px 20px -8px rgba(15,23,42,0.14);
+    --shadow-card-hover: 0 2px 4px rgba(15,23,42,0.07), 0 10px 24px -8px rgba(15,23,42,0.18);
+    --shadow-btn-hover: 0 2px 10px rgba(15,23,42,0.10);
+    --surface-chart: var(--paper-0);
   }
 }
 
@@ -2577,22 +2598,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 }
 [data-theme="light"] body > *:not(.theme-toggle-corner) { position: relative; z-index: 1; }
 
-/* 2. Frosted-paper cards - translucent white, fine border, soft depth */
-[data-theme="light"] .card-section,
-[data-theme="light"] .ride-entry,
-[data-theme="light"] .chart-block,
-[data-theme="light"] #ride-controls-toolbar,
-[data-theme="light"] .summary-card,
-[data-theme="light"] #save-ride-form,
-[data-theme="light"] #auth-section,
-[data-theme="light"] .filters-container,
-[data-theme="light"] #timeline {
-  background: rgba(255,255,255,0.80);
-  border: 1px solid rgba(15,23,42,0.08);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(16px) saturate(1.1);
-  -webkit-backdrop-filter: blur(16px) saturate(1.1);
-}
+/* 2. Card surfaces are handled by the unified surface system below. */
 
 /* 3. Header shell as warm frosted glass, not dark navy */
 [data-theme="light"] .main-header,
@@ -2642,11 +2648,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
   color: var(--teal-deep);
 }
 [data-theme="light"] .nav-sep { color: rgba(15,23,42,0.25); }
-[data-theme="light"] button:hover,
-[data-theme="light"] .btn-muted:hover {
-  box-shadow: 0 14px 34px rgba(15,23,42,0.12);
-  transform: translateY(-2px);
-}
+
 [data-theme="light"] .speed-bin-btn.active { animation: none; }
 
 /* 6. Paper-lift motion - cards rise with a soft shadow, no glow */
@@ -2656,13 +2658,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 [data-theme="light"] .corner-card {
   transition: transform 0.22s cubic-bezier(.2,.7,.3,1), box-shadow 0.22s ease, border-color 0.2s ease;
 }
-[data-theme="light"] .ride-entry:hover,
-[data-theme="light"] .summary-card:hover,
-[data-theme="light"] .corner-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 24px 60px rgba(15,23,42,0.12);
-  border-color: rgba(8,127,140,0.22);
-}
+
 
 /* 7. Primary/accent buttons: solid deep teal, white text (AA 6.2:1) */
 [data-theme="light"] .btn-primary,
@@ -2716,88 +2712,95 @@ html { transition: background-color 0.4s ease; }
   font-style: italic;
 }
 
-
 /* ============================================================
-   POLISH PATCH v2 — flatter, calmer surfaces, tighter rhythm.
-   No new HTML; safe additive overrides only. Deliberately more
-   pronounced than v1 so the change reads clearly against the
-   original bubbly/glowy card language.
+   UNIFIED SURFACE SYSTEM
+   Flatter, calmer surfaces and a tighter rhythm, shared by both
+   themes. Every value is a token, so light and dark differ in
+   mood only, not in design language. No !important: these rules
+   sit last and are the single source of truth for card surfaces.
    ============================================================ */
 
-/* Flatten the heavy glow shadows down to a quiet, close shadow;
-   unify border radius to a calmer 16px (was 20-26px everywhere) */
-.ride-entry, .chart-block, .card-section, #save-ride-form, #auth-section,
-.journal-moment-card, .debrief-card, .moment-entry, #ride-controls-toolbar,
-.summary-card, .corner-card, .filters-container {
-  border-radius: 16px !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.18), 0 8px 20px -8px rgba(0,0,0,0.35) !important;
-  border: 1px solid rgba(148,163,184,0.12) !important;
+/* One radius, one quiet shadow, one hairline border for every card */
+.ride-entry,
+.chart-block,
+.card-section,
+#save-ride-form,
+#auth-section,
+.journal-moment-card,
+.debrief-card,
+.moment-entry,
+#ride-controls-toolbar,
+.summary-card,
+.corner-card,
+.filters-container,
+#timeline {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-card);
 }
 
-.ride-entry:hover {
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 10px 24px -8px rgba(0,0,0,0.4) !important;
-  transform: translateY(-1px) !important;
-  border-color: rgba(100,255,218,0.28) !important;
-}
-
-/* Dashboard header + filters: tighter, quieter */
-.dashboard-header { gap: 0.75rem !important; padding-bottom: 1rem !important; }
-.dashboard-header h1 { font-size: 1.75rem !important; letter-spacing: 0.3px !important; }
-.button-group { gap: 0.6rem !important; }
+/* Dashboard header and filters: tighter, quieter */
+.dashboard-header { gap: 0.75rem; padding-bottom: 1rem; }
+.dashboard-header h1 { font-size: 1.75rem; letter-spacing: 0.3px; }
+.button-group { gap: 0.6rem; }
 .button-group button {
-  font-size: 0.92rem !important;
-  font-weight: 600 !important;
-  padding: 0.5rem 1.1rem !important;
-  box-shadow: none !important;
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 0.5rem 1.1rem;
+  box-shadow: none;
+}
+.filters-container { gap: 0.7rem; padding: 0.9rem 1.2rem; }
+
+/* Ride entries: tighter internal rhythm */
+.ride-entry { padding: 1rem 1.25rem; margin-bottom: 0.9rem; }
+.ride-title { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.25rem; }
+.ride-details span { font-size: 0.94rem; margin-right: 0.9rem; }
+.ride-entry:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-accent-border);
+  transform: translateY(-1px);
 }
 
-.filters-container { gap: 0.7rem !important; padding: 0.9rem 1.2rem !important; }
-
-/* Ride entry: tighter internal rhythm, quieter title color */
-.ride-entry { padding: 1rem 1.25rem !important; margin-bottom: 0.9rem !important; }
-.ride-title { font-size: 1.15rem !important; font-weight: 600 !important; margin-bottom: 0.25rem !important; }
-.ride-details span { font-size: 0.94rem !important; margin-right: 0.9rem !important; }
-
-/* Chart blocks: quiet flat surface, no ambient glow, tighter heading */
+/* Chart blocks: quiet flat surface, no ambient glow */
 .chart-block {
-  background: rgba(255,255,255,0.02) !important;
-  padding: 1.4rem 1.6rem !important;
-  margin-bottom: 1.4rem !important;
+  background: var(--surface-chart);
+  padding: 1.4rem 1.6rem;
+  margin-bottom: 1.4rem;
 }
-.chart-block h3 { font-size: 1.05rem !important; font-weight: 600 !important; }
-.chart-desc { font-size: 0.94rem !important; }
+.chart-block h3 { font-size: 1.05rem; font-weight: 600; }
+.chart-desc { font-size: 0.94rem; }
 
-/* Ride Coach debrief: same flat treatment, quieter border glow */
-.debrief-card {
-  box-shadow: none !important;
-  padding: 1.3rem 1.5rem !important;
-}
+/* Ride Coach debrief: flat, no shadow of its own */
+.debrief-card { box-shadow: none; padding: 1.3rem 1.5rem; }
 
-/* Journal moment cards: quieter gradient, tighter padding */
+/* Journal moment cards: quiet accent wash that works on navy and on paper */
 .journal-moment-card {
-  background: linear-gradient(92deg, rgba(58,134,255,0.10) 0%, rgba(0,242,254,0.08) 100%) !important;
-  padding: 1rem 1.3rem !important;
-  margin-bottom: 0.9rem !important;
+  background: linear-gradient(92deg, var(--color-accent-soft) 0%, var(--color-surface) 100%);
+  padding: 1rem 1.3rem;
+  margin-bottom: 0.9rem;
 }
-.journal-moment-head { font-size: 1.05rem !important; }
-.journal-moment-meta { font-size: 0.92rem !important; }
-.journal-moment-note { font-size: 0.96rem !important; }
+.journal-moment-head { font-size: 1.05rem; }
+.journal-moment-meta { font-size: 0.92rem; }
+.journal-moment-note { font-size: 0.96rem; }
 
-/* Road timeline markers: calmer default state, no double ring */
-.road-marker {
-  box-shadow: none !important;
-  border: 1.5px solid rgba(100,255,218,0.35) !important;
-}
-.road-marker.active {
-  box-shadow: 0 0 0 2px rgba(100,255,218,0.3) !important;
-}
+/* Road timeline markers: calmer default, no double ring */
+.road-marker { box-shadow: none; border: 1.5px solid var(--color-accent-border); }
+.road-marker.active { box-shadow: 0 0 0 2px var(--color-accent-border); }
 
-/* Buttons: quieter hover, no big glow bloom */
-button:hover, .btn-muted:hover {
-  box-shadow: 0 2px 10px rgba(0,0,0,0.22) !important;
-  transform: translateY(-1px) !important;
+/* Buttons: quiet hover, no glow bloom */
+button:hover,
+.btn-muted:hover {
+  box-shadow: var(--shadow-btn-hover);
+  transform: translateY(-1px);
 }
 
-/* Landing hero map + cards: flatten to match */
-#leaflet-map { box-shadow: 0 8px 24px -8px rgba(0,0,0,0.4) !important; border-radius: 16px !important; }
-.hero-card { border-radius: 16px !important; box-shadow: 0 1px 2px rgba(0,0,0,0.16), 0 8px 20px -8px rgba(0,0,0,0.3) !important; }
+/* Map and hero cards flattened to match */
+#leaflet-map {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.hero-card {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-card);
+}
