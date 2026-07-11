@@ -1,6 +1,6 @@
 // Memory Lanes service worker: app-shell caching (stale-while-revalidate).
 // Bump CACHE on each deploy so clients pick up fresh files.
-const CACHE = 'memory-lanes-v50';
+const CACHE = 'memory-lanes-v51';
 const CORE = [
   './',
   './index.html',
