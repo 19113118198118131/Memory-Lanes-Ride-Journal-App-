@@ -61,6 +61,7 @@ const ICON_BY_ID = {
   'edit-gpx-btn': 'edit', 'save-edited-gpx-btn': 'save', 'undo-edit-btn': 'undo',
   'redo-edit-btn': 'redo', 'bulk-add-btn': 'plus', 'bulk-delete-btn': 'trash', 'exit-edit-btn': 'x',
   'reverse-edit-btn': 'reverse', 'connect-start-edit-btn': 'flag', 'simplify-edit-btn': 'sparkle',
+  'crop-edit-btn': 'ruler', 'split-edit-btn': 'route',
   // planner.html
   'planner-dashboard-btn': 'route', 'planner-undo-btn': 'undo', 'planner-redo-btn': 'redo',
   'planner-clear-btn': 'trash', 'planner-search-btn': 'search', 'planner-save-btn': 'save',

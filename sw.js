@@ -17,6 +17,7 @@ const CORE = [
   './riderskills.js?v=60',
   './dashboard.js?v=60',
   './stats.js?v=60',
+  './journal.js?v=60',
   './planner.js?v=60',
   './ride-live.js?v=60',
   './supabaseClient.js',
