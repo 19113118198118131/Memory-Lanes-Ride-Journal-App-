@@ -1,4 +1,4 @@
-import { mlIconSVG } from './icons.js?v=50';
+import { mlIconSVG } from './icons.js?v=53';
 // =====================================================
 // Memory Lanes - riderskills.js
 // GPS-based rider skill analysis: cornering, braking,
@@ -574,7 +574,7 @@ export function buildSkillsHTML(analysis, prevScores) {
 
   const top = [...analysis.corners].sort((x, y) => y.maxLatG - x.maxLatG).slice(0, 10);
   if (top.length) {
-    parts.push(`<h4 class="corners-heading">Top corners <span class="corners-heading-sub">by lateral load. Tap Jump to relive one.</span></h4>`);
+    parts.push(`<h4 class="corners-heading">Top corners <span class="corners-heading-sub">by lateral load. Tap Replay to relive one.</span></h4>`);
     parts.push('<div class="corners-grid">');
     parts.push(top.map((c, i) => `
       <div class="corner-card${i >= 3 ? ' corner-hidden' : ''}">

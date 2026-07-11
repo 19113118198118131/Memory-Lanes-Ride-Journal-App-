@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=51" />
+  <link rel="stylesheet" href="style.css?v=53" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -228,10 +228,14 @@
 
       <!-- Timeline/Playback -->
       <section id="timeline">
-        <input type="range" id="replay-slider" min="0" max="0" value="0" step="1" disabled />
-        <button id="play-replay" disabled>▶️ Play</button>
-        <label for="playback-speed">Speed:</label>
-        <select id="playback-speed" disabled>
+        <button id="play-replay" class="play-btn" data-state="play" aria-label="Play" disabled>
+          <svg class="pb-icon pb-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          <svg class="pb-icon pb-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+          <svg class="pb-icon pb-replay" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+        </button>
+        <input type="range" id="replay-slider" class="pb-range" min="0" max="0" value="0" step="1" disabled />
+        <label for="playback-speed" class="pb-speed-label">Speed</label>
+        <select id="playback-speed" class="pb-speed" disabled>
           <option value="8">8×</option>
           <option value="4">4×</option>
           <option value="2">2×</option>
@@ -261,6 +265,8 @@
          ======================== -->
     <section id="analytics-container" style="display:none;">
       <h2>Ride Analytics</h2>
+      <p class="section-sub">Four views of the ride, plus your Ride Coach debrief. Scores reward technique,
+      never speed: use them for reflection, and always ride within your limits and the law.</p>
       <div class="chart-block">
         <h3>Elevation &amp; Speed Profile</h3>
         <p class="chart-insight" id="insight-elevation"></p>
@@ -322,7 +328,7 @@
         </details>
       </div>
       <div class="chart-block">
-        <h3>Grip Usage (g-g diagram)</h3>
+        <h3>Grip Usage <span class="h3-sub">g-g diagram</span></h3>
         <p class="chart-insight" id="insight-grip"></p>
         <p class="chart-desc">
           Every dot is a moment of the ride: cornering force left/right, braking and drive up/down.<br>
@@ -375,9 +381,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=51"></script>
-  <script type="module" src="icons.js?v=51"></script>
-  <script src="theme.js?v=51"></script>
+  <script type="module" src="script.js?v=53"></script>
+  <script type="module" src="icons.js?v=53"></script>
+  <script src="theme.js?v=53"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 
 

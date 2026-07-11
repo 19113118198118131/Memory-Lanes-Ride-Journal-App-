@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=50';
-import { buildRideInsights } from './insights.js?v=50';
-import { mlIconSVG } from './icons.js?v=50';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=53';
+import { buildRideInsights } from './insights.js?v=53';
+import { mlIconSVG } from './icons.js?v=53';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -268,6 +268,20 @@ async function saveMomentsToDB() {
   const FRAME_DELAY_MS    = 50;
   const slider            = document.getElementById('replay-slider');
   const playBtn           = document.getElementById('play-replay');
+  // Playback button shows an icon, not a text label. States: play | pause | replay.
+  function setPlayState(state) {
+    if (!playBtn) return;
+    playBtn.dataset.state = state;
+    playBtn.setAttribute('aria-label',
+      state === 'pause' ? 'Pause' : state === 'replay' ? 'Replay' : 'Play');
+  }
+  // Keeps the scrubber's gradient fill in step with its value.
+  function setScrubberFill(el) {
+    if (!el) return;
+    const max = Number(el.max) || 0;
+    const pct = max > 0 ? (Number(el.value) / max) * 100 : 0;
+    el.style.setProperty('--pct', pct + '%');
+  }
   const summaryBtn        = document.getElementById('download-summary');
   const videoBtn          = document.getElementById('export-video');
   const speedSel          = document.getElementById('playback-speed');
@@ -415,7 +429,8 @@ uploadInput.addEventListener('change', () => {
     renderSpeedFilter();
     [slider, playBtn, summaryBtn, videoBtn, speedSel].forEach(el => el.disabled = false);
     slider.min = 0; slider.max = points.length - 1; slider.value = 0;
-    playBtn.textContent = '▶️ Play';
+    setScrubberFill(slider);
+    setPlayState('play');
 
 
 
@@ -1636,7 +1651,7 @@ function sanitizeString(str) {
           if (window.playInterval) {
             clearInterval(window.playInterval);
             window.playInterval = null;
-            playBtn.textContent = '▶️ Play';
+            setPlayState('play');
           }
           const elements = this.getElementsAtEventForMode(evt,'nearest',{ intersect:false },true);
           if (!elements.length) return;
@@ -1670,7 +1685,7 @@ function sanitizeString(str) {
           }
         },
         plugins: {
-          legend: { display: true },
+          legend: { display: true, labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 18, boxHeight: 2, font: { size: 11 }, color: _tc.tick, padding: 14 } },
           tooltip: {
             callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.y.toFixed(1)}` }
           }
@@ -1763,7 +1778,7 @@ function chartThemeColors() {
           y: { min: 0, title: { display: true, text: 'Apex speed (km/h)', color: _tc.title }, grid: { color: _tc.grid2 }, ticks: { color: _tc.tick } }
         },
         plugins: {
-          legend: { display: true, labels: { filter: item => item.text !== 'Corners' } },
+          legend: { display: true, labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 18, boxHeight: 2, font: { size: 11 }, color: _tc.tick, padding: 14, filter: item => item.text !== 'Corners' } },
           tooltip: {
             callbacks: {
               label: ctx2 => ctx2.dataset.label === 'Corners'
@@ -1828,7 +1843,7 @@ function chartThemeColors() {
           y: { title: { display: true, text: 'Acceleration (m/s²)', color: _tc.title }, grid: { color: _tc.grid2 }, ticks: { color: _tc.tick } }
         },
         plugins: {
-          legend: { display: true, labels: { filter: item => item.text !== 'Point in Ride' } },
+          legend: { display: true, labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 18, boxHeight: 2, font: { size: 11 }, color: _tc.tick, padding: 14, filter: item => item.text !== 'Point in Ride' } },
           tooltip: { callbacks: { label: c2 => `${c2.raw.y.toFixed(2)} m/s²` } }
         }
       },
@@ -1895,7 +1910,7 @@ function chartThemeColors() {
           y: { min: -lim, max: lim, title: { display: true, text: 'Longitudinal g (brake ‹ › drive)', color: _tc.title }, grid: { color: _tc.grid2 }, ticks: { color: _tc.tick } }
         },
         plugins: {
-          legend: { display: true, labels: { filter: item => item.text !== 'Samples' } },
+          legend: { display: true, labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 18, boxHeight: 2, font: { size: 11 }, color: _tc.tick, padding: 14, filter: item => item.text !== 'Samples' } },
           tooltip: {
             enabled: true,
             callbacks: {
@@ -1950,7 +1965,7 @@ function chartThemeColors() {
     if (window.playInterval) {
       clearInterval(window.playInterval);
       window.playInterval = null;
-      playBtn.textContent = '▶️ Play';
+      setPlayState('play');
     }
     document.getElementById('replay-slider').value = idx;
     window.fracIndex = idx;
@@ -1980,6 +1995,7 @@ function chartThemeColors() {
     }
 
     slider.value = idx;
+    setScrubberFill(slider);
     document.getElementById('telemetry-elevation').textContent = `${p.ele.toFixed(0)} m`;
     document.getElementById('telemetry-distance').textContent = `${distKm} km`;
     document.getElementById('telemetry-speed').textContent = `${speedData[idx].toFixed(1)} km/h`;
@@ -1996,7 +2012,7 @@ function chartThemeColors() {
     if (window.playInterval) {
       clearInterval(window.playInterval);
       window.playInterval = null;
-      playBtn.textContent = '▶️ Play';
+      setPlayState('play');
       return;
     }
     window.fracIndex = Number(slider.value);
@@ -2005,7 +2021,7 @@ function chartThemeColors() {
       window.fracIndex = 0;
       updatePlayback(0);
     }
-    playBtn.textContent = '⏸ Pause';
+    setPlayState('pause');
     const mult = parseFloat(speedSel.value) || 1;
     window.playInterval = setInterval(() => {
       window.fracIndex += mult;
@@ -2013,7 +2029,7 @@ function chartThemeColors() {
       if (idx >= points.length) {
         clearInterval(window.playInterval);
         window.playInterval = null;
-        playBtn.textContent = 'Replay';
+        setPlayState('replay');
         return;
       }
       updatePlayback(idx);
@@ -2021,10 +2037,11 @@ function chartThemeColors() {
   });
 
   slider.addEventListener('input', () => {
+    setScrubberFill(slider);
     if (window.playInterval) {
       clearInterval(window.playInterval);
       window.playInterval = null;
-      playBtn.textContent = '▶️ Play';
+      setPlayState('play');
     }
     updatePlayback(Number(slider.value));
   });
