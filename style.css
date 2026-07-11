@@ -3643,6 +3643,19 @@ header:not(.main-header) .dashboard-header {
 .planner-goal-hint-under { color: var(--color-warning); }
 .planner-goal-hint-over  { color: var(--color-warning); }
 
+/* ---------- HEADER LOGIN / ACCOUNT CONTROLS (index.html) ---------- */
+.header-auth,
+.header-account-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.header-auth .btn-outline,
+.header-auth .btn-plain-danger {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
 /* ---------- STATUS CHIPS & PLANNED-ROUTE CARDS (dashboard.html) ---------- */
 .status-chip {
   display: inline-block;

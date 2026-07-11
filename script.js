@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=65';
-import { buildRideInsights } from './insights.js?v=65';
-import { mlIconSVG } from './icons.js?v=65';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=66';
+import { buildRideInsights } from './insights.js?v=66';
+import { mlIconSVG } from './icons.js?v=66';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -29,6 +29,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const uploadSection     = document.getElementById('upload-section');
   const saveForm          = document.getElementById('save-ride-form');
   const authSection       = document.getElementById('auth-section');
+  const headerAuthControls    = document.getElementById('header-auth-controls');
+  const headerLoginBtn        = document.getElementById('header-login-btn');
+  const headerAccountControls = document.getElementById('header-account-controls');
+  const headerLogoutBtn       = document.getElementById('header-logout-btn');
+  const headerMyRidesBtn      = document.getElementById('header-my-rides-btn');
   const mainRideUI        = document.getElementById('main-ride-ui');
   const analyticsSection  = document.getElementById('analytics-container');
   const showAnalyticsBtn  = document.getElementById('show-analytics-btn');
@@ -2422,6 +2427,41 @@ saveBtn.addEventListener('click', async () => {
 
 // ========== INIT ==========
 resetUIToInitial();
+
+// ========== HEADER LOGIN / ACCOUNT CONTROLS ==========
+// The landing page previously had no visible way to log in unless you first
+// triggered an upload/save flow — confusing for a returning visitor. This
+// gives every visitor on index.html a persistent, obvious entry point.
+(async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  headerAuthControls.style.display = '';
+  headerLoginBtn.style.display = user ? 'none' : '';
+  headerAccountControls.style.display = user ? '' : 'none';
+})();
+
+headerLoginBtn.addEventListener('click', () => {
+  authSection.style.display = 'block';
+  fadeInElement(authSection);
+  authSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const emailInput = document.getElementById('auth-email');
+  if (emailInput) emailInput.focus();
+});
+
+headerLogoutBtn.addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  window.location.reload();
+});
+
+headerMyRidesBtn.addEventListener('click', () => {
+  window.location.href = 'dashboard.html';
+});
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  const loggedIn = !!session?.user;
+  headerLoginBtn.style.display = loggedIn ? 'none' : '';
+  headerAccountControls.style.display = loggedIn ? '' : 'none';
+  if (loggedIn) authSection.style.display = 'none';
+});
 
 
 // ========== SKILLS STORAGE & REPEAT-CORNER RECOGNITION ==========

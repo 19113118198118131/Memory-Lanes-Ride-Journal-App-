@@ -53,6 +53,7 @@ const ICON_BY_ID = {
   'upload-btn': 'upload', 'try-demo-btn': 'play', 'download-summary': 'download',
   'export-video': 'film', 'open-journal': 'notebook', 'share-ride-btn': 'share',
   'unshare-ride-btn': 'eyeoff', 'upload-another': 'upload', 'add-moment-btn': 'plus',
+  'header-my-rides-btn': 'route',
   // dashboard.html
   'home-btn': 'plus', 'stats-btn': 'stats', 'export-data-btn': 'download', 'journal-btn': 'book',
   'record-ride-btn': 'play',
