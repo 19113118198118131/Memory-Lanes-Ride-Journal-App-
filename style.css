@@ -3367,7 +3367,9 @@ header:not(.main-header) .dashboard-header {
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 20;
+  /* Leaflet's own panes/controls run z-index up into the 600-1000 range,
+     so this has to clear all of that to sit above the map. */
+  z-index: 5000;
   background: var(--surface-panel);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-chip);
