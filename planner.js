@@ -5,7 +5,8 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=70';
+import { mlIconSVG } from './icons.js?v=71';
+import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=71';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
@@ -39,6 +40,24 @@ const onboardingContinueBtn = document.getElementById('planner-onboarding-contin
 const onboardingSkipBtn     = document.getElementById('planner-onboarding-skip');
 const rideSetupBtn        = document.getElementById('planner-ride-setup-btn');
 const goalHintEl          = document.getElementById('planner-goal-hint');
+const customMinutesInput  = document.getElementById('onboarding-custom-minutes');
+const avoidMotorwayCb     = document.getElementById('onboarding-avoid-motorway');
+const avoidUnsealedCb     = document.getElementById('onboarding-avoid-unsealed');
+const avoidTollCb         = document.getElementById('onboarding-avoid-toll');
+const candidatesEl        = document.getElementById('planner-candidates');
+const candidatesBackBtn   = document.getElementById('planner-candidates-back-btn');
+const candidatesLoadingEl = document.getElementById('planner-candidates-loading');
+const candidatesBodyEl    = document.getElementById('planner-candidates-body');
+const candidatesTabsEl    = document.getElementById('planner-candidates-tabs');
+const candidateDistanceEl = document.getElementById('candidate-distance');
+const candidateTimeEl     = document.getElementById('candidate-time');
+const candidateElevationEl = document.getElementById('candidate-elevation');
+const candidateWhyListEl  = document.getElementById('candidate-why-list');
+const candidateCautionListEl = document.getElementById('candidate-caution-list');
+const candidateShorterBtn = document.getElementById('candidate-shorter-btn');
+const candidateLongerBtn  = document.getElementById('candidate-longer-btn');
+const candidateRegenerateBtn = document.getElementById('candidate-regenerate-btn');
+const candidateUseBtn     = document.getElementById('candidate-use-btn');
 
 // ---------- Utilities (small, duplicated per-page like the rest of the app) ----------
 function escapeHtml(str) {
@@ -88,8 +107,17 @@ let cropPicks = [];  // up to 2 waypoint indices picked while cropMode is on
 let cropMarkers = [];
 let startFrom = null;        // 'current' | 'search' | 'map' | null (only set via onboarding)
 let routeType = 'one-way';   // 'one-way' | 'return' | 'loop'
-let rideGoal = null;         // 'short' | 'half-day' | 'full-day' | null
-let onboardingChoices = { start: null, type: null, goal: null };
+let targetMinutes = null;    // minutes available for the ride, from a preset or custom input
+let ridingMood = null;       // 'flowing' | 'twisty' | 'scenic' | 'relaxed' | null
+let avoidPrefs = { motorway: true, unsealed: true, toll: false };
+let onboardingChoices = { start: null, type: null, time: null, mood: null };
+let candidates = [];         // generated loop route candidates (see planner-engine.js)
+let selectedCandidateIndex = -1;
+let candidatesMap = null;    // separate small Leaflet map used only for the candidate picker
+let candidateLines = [];
+let candidateAbort = null;
+let candidateOrigin = null;              // {lat, lng} the current candidate set was generated around
+let pendingCandidateOriginResolver = null; // set while waiting for a map click / search pick to supply the origin
 
 // ---------- Init ----------
 (async () => {
@@ -135,9 +163,17 @@ document.querySelectorAll('.onboarding-option').forEach(btn => {
   btn.addEventListener('click', () => {
     const groupName = btn.closest('.onboarding-group').dataset.group;
     onboardingChoices[groupName] = btn.dataset.value;
+    if (groupName === 'time') customMinutesInput.value = '';
     refreshOnboardingButtonStates();
   });
 });
+if (customMinutesInput) {
+  customMinutesInput.addEventListener('input', () => {
+    const val = parseInt(customMinutesInput.value, 10);
+    onboardingChoices.time = val > 0 ? String(val) : null;
+    refreshOnboardingButtonStates();
+  });
+}
 
 function refreshOnboardingButtonStates() {
   document.querySelectorAll('.onboarding-group').forEach(group => {
@@ -146,34 +182,66 @@ function refreshOnboardingButtonStates() {
       b.classList.toggle('active', b.dataset.value === onboardingChoices[groupName]);
     });
   });
-  onboardingContinueBtn.disabled = !(onboardingChoices.start && onboardingChoices.type && onboardingChoices.goal);
+  onboardingContinueBtn.disabled = !(onboardingChoices.start && onboardingChoices.type && onboardingChoices.time && onboardingChoices.mood);
+}
+
+function readAvoidPrefs() {
+  return {
+    motorway: !!(avoidMotorwayCb && avoidMotorwayCb.checked),
+    unsealed: !!(avoidUnsealedCb && avoidUnsealedCb.checked),
+    toll: !!(avoidTollCb && avoidTollCb.checked)
+  };
 }
 
 onboardingContinueBtn.addEventListener('click', () => {
   startFrom = onboardingChoices.start;
   routeType = onboardingChoices.type;
-  rideGoal = onboardingChoices.goal;
+  targetMinutes = parseInt(onboardingChoices.time, 10);
+  ridingMood = onboardingChoices.mood;
+  avoidPrefs = readAvoidPrefs();
   finishOnboarding();
 });
 onboardingSkipBtn.addEventListener('click', () => {
   startFrom = null;
   routeType = 'one-way';
-  rideGoal = null;
+  targetMinutes = null;
+  ridingMood = null;
   finishOnboarding();
 });
 if (rideSetupBtn) {
   rideSetupBtn.addEventListener('click', () => {
-    onboardingChoices = { start: startFrom, type: routeType, goal: rideGoal };
+    onboardingChoices = { start: startFrom, type: routeType, time: targetMinutes ? String(targetMinutes) : null, mood: ridingMood };
     refreshOnboardingButtonStates();
+    hideCandidatesPanel();
     workspaceEl.style.display = 'none';
+    onboardingEl.style.display = '';
+  });
+}
+if (candidatesBackBtn) {
+  candidatesBackBtn.addEventListener('click', () => {
+    onboardingChoices = { start: startFrom, type: routeType, time: targetMinutes ? String(targetMinutes) : null, mood: ridingMood };
+    refreshOnboardingButtonStates();
+    hideCandidatesPanel();
     onboardingEl.style.display = '';
   });
 }
 
 function finishOnboarding() {
+  onboardingEl.style.display = 'none';
+  // A loop with a time + mood goal gets real candidate generation (several
+  // distinct route options to choose from). Everything else keeps the
+  // original manual "click the map to build a route" flow, since candidate
+  // generation needs a defined start-and-return point to search around.
+  if (routeType === 'loop' && targetMinutes && ridingMood) {
+    beginCandidateGeneration();
+  } else {
+    finishOnboardingManual();
+  }
+}
+
+function finishOnboardingManual() {
   updateButtons();
   updateGoalHint();
-  onboardingEl.style.display = 'none';
   workspaceEl.style.display = '';
   initMap(); // first time the workspace (and #planner-map) is actually visible
   handleStartFrom();
@@ -198,6 +266,177 @@ function handleStartFrom() {
   // 'map' (or skipped): no-op, the existing click-to-add-a-waypoint flow already works
 }
 
+// ---------- Loop candidate generation (MVP2) ----------
+function hideCandidatesPanel() {
+  candidatesEl.style.display = 'none';
+  candidatesLoadingEl.style.display = 'none';
+  candidatesBodyEl.style.display = 'none';
+  if (candidateAbort) { candidateAbort.abort(); candidateAbort = null; }
+  if (candidatesMap) { candidatesMap.remove(); candidatesMap = null; }
+  candidateLines = [];
+  candidates = [];
+  selectedCandidateIndex = -1;
+}
+
+// Figures out {lat, lng} to search around, based on the onboarding "Start
+// from" choice, then kicks off runCandidateGeneration(origin) once it has one.
+function beginCandidateGeneration() {
+  candidatesEl.style.display = '';
+  candidatesLoadingEl.style.display = '';
+  candidatesBodyEl.style.display = 'none';
+
+  if (startFrom === 'current') {
+    if (!navigator.geolocation) {
+      showToast('Geolocation is not supported on this device.', 'info');
+      hideCandidatesPanel();
+      onboardingEl.style.display = '';
+      return;
+    }
+    candidatesLoadingEl.textContent = 'Locating you…';
+    navigator.geolocation.getCurrentPosition(
+      pos => runCandidateGeneration({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {
+        showToast('Could not get your location.', 'info');
+        hideCandidatesPanel();
+        onboardingEl.style.display = '';
+      },
+      { timeout: 8000 }
+    );
+  } else if (startFrom === 'search') {
+    // Reuse the existing workspace map + search box to pick a start point,
+    // then resume generation from there instead of adding it as a waypoint.
+    candidatesEl.style.display = 'none';
+    workspaceEl.style.display = '';
+    initMap();
+    setTimeout(() => map.invalidateSize(), 50);
+    showToast('Search for your start point.', 'info');
+    searchInput.focus();
+    pendingCandidateOriginResolver = runCandidateGeneration;
+  } else {
+    // 'map' (or skipped straight to loop with no explicit choice): let them click the map.
+    candidatesEl.style.display = 'none';
+    workspaceEl.style.display = '';
+    initMap();
+    setTimeout(() => map.invalidateSize(), 50);
+    mapHint.textContent = "Click the map to set your ride's start point.";
+    mapHint.style.display = '';
+    pendingCandidateOriginResolver = runCandidateGeneration;
+  }
+}
+
+async function runCandidateGeneration(origin) {
+  candidateOrigin = origin;
+  candidatesEl.style.display = '';
+  workspaceEl.style.display = 'none';
+  candidatesLoadingEl.style.display = '';
+  candidatesLoadingEl.textContent = 'Building a few route options…';
+  candidatesBodyEl.style.display = 'none';
+  if (candidateAbort) candidateAbort.abort();
+  candidateAbort = new AbortController();
+
+  try {
+    candidates = await generateLoopCandidates(origin, { targetMinutes, mood: ridingMood, avoidMotorway: avoidPrefs.motorway }, candidateAbort.signal);
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    candidates = [];
+  }
+
+  if (!candidates.length) {
+    candidatesLoadingEl.textContent = "Couldn't find route options out here — try a different start point or a shorter time.";
+    return;
+  }
+  candidatesLoadingEl.style.display = 'none';
+  candidatesBodyEl.style.display = '';
+  initCandidatesMap();
+  renderCandidateTabs();
+  showCandidate(0);
+}
+
+function initCandidatesMap() {
+  if (candidatesMap) { candidatesMap.remove(); candidatesMap = null; }
+  candidatesMap = L.map('planner-candidates-map', { zoomControl: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(candidatesMap);
+  candidateLines = candidates.map(c =>
+    L.polyline(c.coords, { color: '#64ffda', weight: 4, opacity: 0.35 }).addTo(candidatesMap)
+      .on('click', () => showCandidate(candidates.indexOf(c)))
+  );
+  const bounds = L.latLngBounds(candidates.flatMap(c => c.coords));
+  candidatesMap.fitBounds(bounds, { padding: [30, 30] });
+}
+
+function renderCandidateTabs() {
+  candidatesTabsEl.innerHTML = candidates.map((c, i) =>
+    `<button type="button" class="planner-candidate-tab" data-index="${i}">${escapeHtml(String.fromCharCode(65 + i))} · ${escapeHtml(c.tag)}</button>`
+  ).join('');
+  candidatesTabsEl.querySelectorAll('.planner-candidate-tab').forEach(btn => {
+    btn.addEventListener('click', () => showCandidate(parseInt(btn.dataset.index, 10)));
+  });
+}
+
+function showCandidate(index) {
+  selectedCandidateIndex = index;
+  const c = candidates[index];
+  candidatesTabsEl.querySelectorAll('.planner-candidate-tab').forEach((btn, i) => {
+    btn.classList.toggle('active', i === index);
+  });
+  candidateLines.forEach((line, i) => {
+    line.setStyle(i === index
+      ? { color: '#64ffda', weight: 6, opacity: 0.95 }
+      : { color: '#64ffda', weight: 4, opacity: 0.3 });
+    if (i === index) line.bringToFront();
+  });
+  candidatesMap.fitBounds(candidateLines[index].getBounds(), { padding: [30, 30] });
+
+  candidateDistanceEl.textContent = `${c.distanceKm.toFixed(1)} km`;
+  candidateTimeEl.textContent = formatMinutes(c.estimatedMinutes);
+  candidateElevationEl.textContent = c.elevationGainM != null ? `+${c.elevationGainM} m` : '–';
+  candidateWhyListEl.innerHTML = buildWhyBullets(c, ridingMood).map(b => `<li>${escapeHtml(b)}</li>`).join('');
+  candidateCautionListEl.innerHTML = buildCautions(c, targetMinutes).map(b => `<li>${escapeHtml(b)}</li>`).join('');
+}
+
+async function regenerateCandidates(minutesOverride) {
+  if (minutesOverride) targetMinutes = minutesOverride;
+  if (!candidateOrigin) return;
+  candidatesBodyEl.style.display = 'none';
+  candidatesLoadingEl.style.display = '';
+  candidatesLoadingEl.textContent = 'Building a few route options…';
+  if (candidatesMap) { candidatesMap.remove(); candidatesMap = null; }
+  await runCandidateGeneration(candidateOrigin);
+}
+
+if (candidateShorterBtn) candidateShorterBtn.addEventListener('click', () => regenerateCandidates(Math.max(20, Math.round(targetMinutes * 0.8))));
+if (candidateLongerBtn) candidateLongerBtn.addEventListener('click', () => regenerateCandidates(Math.round(targetMinutes * 1.25)));
+if (candidateRegenerateBtn) candidateRegenerateBtn.addEventListener('click', () => regenerateCandidates());
+
+if (candidateUseBtn) candidateUseBtn.addEventListener('click', () => {
+  const c = candidates[selectedCandidateIndex];
+  if (!c) return;
+  hideCandidatesPanel();
+  workspaceEl.style.display = '';
+  initMap();
+  // c.waypoints is [origin, ...anchors, origin] (closed for routing purposes).
+  // routeType is already 'loop', which auto-closes the route via
+  // getEffectiveWaypoints() — so drop the trailing duplicate here, the same
+  // way a manually-built loop never has the closing point as a real,
+  // draggable waypoint.
+  waypoints = c.waypoints.slice(0, -1).map(w => ({ lat: w.lat, lng: w.lng }));
+  historyStack = [waypoints.map(w => ({ ...w }))];
+  historyIndex = 0;
+  fitOnNextDraw = true;
+  routeTitleInput.value = `${MOOD_LABELS[ridingMood] || ''} ${c.label}`.trim();
+  rebuildMarkers();
+  renderWaypointList();
+  mapHint.style.display = 'none';
+  waypointCountEl.textContent = String(waypoints.length);
+  updateButtons();
+  updateGoalHint();
+  scheduleRecalc(0);
+  setTimeout(() => map.invalidateSize(), 50);
+});
+
 // A "Loop" route auto-closes back to its first point, and a "Return" route
 // auto-mirrors itself back along the same waypoints — the rider picks the
 // shape up front and never needs to know these are separate manual tools.
@@ -213,29 +452,27 @@ function getEffectiveWaypoints() {
   return waypoints;
 }
 
-const GOAL_RANGES = {
-  'short':    { label: 'Short ride',    min: 0,   max: 50 },
-  'half-day': { label: 'Half day ride', min: 50,  max: 180 },
-  'full-day': { label: 'Full day ride', min: 180, max: Infinity }
-};
 function updateGoalHint() {
   if (!goalHintEl) return;
-  const g = GOAL_RANGES[rideGoal];
-  if (!g) { goalHintEl.style.display = 'none'; return; }
+  if (!targetMinutes || !ridingMood) { goalHintEl.style.display = 'none'; return; }
   goalHintEl.style.display = '';
-  const rangeText = g.max === Infinity ? `${g.min}+ km` : `${g.min}–${g.max} km`;
+  const targetKm = targetDistanceKm(targetMinutes, ridingMood);
+  const targetLabel = `~${Math.round(targetKm)} km (${formatMinutes(targetMinutes)} at a ${(MOOD_LABELS[ridingMood] || ridingMood).toLowerCase()} pace)`;
   if (currentDistanceKm == null) {
-    goalHintEl.textContent = `Goal: ${g.label} · aim for ${rangeText}`;
+    goalHintEl.textContent = `Aiming for ${targetLabel}`;
     goalHintEl.className = 'planner-goal-hint';
-  } else if (currentDistanceKm >= g.min && currentDistanceKm <= g.max) {
-    goalHintEl.textContent = `On track for a ${g.label.toLowerCase()} (${rangeText})`;
-    goalHintEl.className = 'planner-goal-hint planner-goal-hint-ok';
-  } else if (currentDistanceKm < g.min) {
-    goalHintEl.textContent = `Add more stops to reach your ${g.label.toLowerCase()} goal (${rangeText})`;
-    goalHintEl.className = 'planner-goal-hint planner-goal-hint-under';
   } else {
-    goalHintEl.textContent = `Longer than a typical ${g.label.toLowerCase()} (${rangeText})`;
-    goalHintEl.className = 'planner-goal-hint planner-goal-hint-over';
+    const pctOff = Math.abs(currentDistanceKm - targetKm) / targetKm;
+    if (pctOff <= 0.15) {
+      goalHintEl.textContent = `On track for your goal (${targetLabel}) — currently ${currentDistanceKm.toFixed(1)} km`;
+      goalHintEl.className = 'planner-goal-hint planner-goal-hint-ok';
+    } else if (currentDistanceKm < targetKm) {
+      goalHintEl.textContent = `Add more stops to reach ${targetLabel} — currently ${currentDistanceKm.toFixed(1)} km`;
+      goalHintEl.className = 'planner-goal-hint planner-goal-hint-under';
+    } else {
+      goalHintEl.textContent = `Longer than your goal of ${targetLabel} — currently ${currentDistanceKm.toFixed(1)} km`;
+      goalHintEl.className = 'planner-goal-hint planner-goal-hint-over';
+    }
   }
 }
 
@@ -255,6 +492,14 @@ function initMap() {
     );
   }
   map.on('click', (e) => {
+    if (pendingCandidateOriginResolver) {
+      const resolve = pendingCandidateOriginResolver;
+      pendingCandidateOriginResolver = null;
+      mapHint.textContent = 'Click anywhere on the map to start your route';
+      mapHint.style.display = waypoints.length ? 'none' : '';
+      resolve({ lat: e.latlng.lat, lng: e.latlng.lng });
+      return;
+    }
     if (cropMode || splitMode) return; // these tools require clicking the route line itself
     addWaypoint(e.latlng);
   });
@@ -756,6 +1001,14 @@ function useCurrentLocationAsResult() {
 
 // A result was picked: preview it with a pin, then ask what it should become.
 function selectSearchResult(lat, lon, label) {
+  if (pendingCandidateOriginResolver) {
+    const resolve = pendingCandidateOriginResolver;
+    pendingCandidateOriginResolver = null;
+    searchResultsEl.innerHTML = '';
+    searchInput.value = '';
+    resolve({ lat, lng: lon });
+    return;
+  }
   map.setView([lat, lon], 14);
   clearSearchResultMarker();
   searchResultMarker = L.marker([lat, lon], {

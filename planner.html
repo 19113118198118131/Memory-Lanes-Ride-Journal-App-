@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=70" />
+  <link rel="stylesheet" href="style.css?v=71" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -81,24 +81,91 @@
           </div>
         </div>
         <div class="onboarding-group" data-group="type">
-          <span class="onboarding-label">Route type</span>
+          <span class="onboarding-label">Route shape</span>
           <div class="onboarding-options">
             <button type="button" class="onboarding-option" data-value="one-way" data-icon="arrowright">One Way</button>
-            <button type="button" class="onboarding-option" data-value="return" data-icon="reverse">Return</button>
+            <button type="button" class="onboarding-option" data-value="return" data-icon="reverse">Out and back</button>
             <button type="button" class="onboarding-option" data-value="loop" data-icon="route">Loop</button>
           </div>
         </div>
-        <div class="onboarding-group" data-group="goal">
-          <span class="onboarding-label">Ride goal</span>
+        <div class="onboarding-group" data-group="time">
+          <span class="onboarding-label">How much time do you have?</span>
           <div class="onboarding-options">
-            <button type="button" class="onboarding-option" data-value="short">Short (under 1 hr)</button>
-            <button type="button" class="onboarding-option" data-value="half-day">Half Day</button>
-            <button type="button" class="onboarding-option" data-value="full-day">Full Day</button>
+            <button type="button" class="onboarding-option" data-value="45">45 min</button>
+            <button type="button" class="onboarding-option" data-value="90">1.5 hr</button>
+            <button type="button" class="onboarding-option" data-value="180">3 hr</button>
+            <button type="button" class="onboarding-option" data-value="300">Half day</button>
+            <button type="button" class="onboarding-option" data-value="600">Full day</button>
+          </div>
+          <div class="onboarding-custom-time">
+            <label for="onboarding-custom-minutes">Custom (minutes)</label>
+            <input type="number" id="onboarding-custom-minutes" min="15" max="900" step="15" placeholder="e.g. 120" />
           </div>
         </div>
+        <div class="onboarding-group" data-group="mood">
+          <span class="onboarding-label">What sort of ride?</span>
+          <div class="onboarding-options">
+            <button type="button" class="onboarding-option" data-value="flowing">Flowing</button>
+            <button type="button" class="onboarding-option" data-value="twisty">Twisty</button>
+            <button type="button" class="onboarding-option" data-value="scenic">Scenic</button>
+            <button type="button" class="onboarding-option" data-value="relaxed">Relaxed</button>
+          </div>
+        </div>
+        <div class="onboarding-group" data-group="avoid-display">
+          <span class="onboarding-label">Prefer to avoid</span>
+          <div class="onboarding-checks">
+            <label><input type="checkbox" id="onboarding-avoid-motorway" checked /> Motorways</label>
+            <label><input type="checkbox" id="onboarding-avoid-unsealed" checked /> Unsealed roads</label>
+            <label><input type="checkbox" id="onboarding-avoid-toll" /> Toll roads</label>
+          </div>
+          <p class="onboarding-hint-note">These bias route scoring toward roads that avoid them where the network allows it - they aren't a hard guarantee.</p>
+        </div>
         <div class="onboarding-actions">
-          <button id="planner-onboarding-continue" class="btn-primary" disabled>Start Planning</button>
+          <button id="planner-onboarding-continue" class="btn-primary" disabled>Find Routes</button>
           <button id="planner-onboarding-skip" class="btn-plain-danger">Skip, I'll do it myself</button>
+        </div>
+      </div>
+
+      <!-- ========================
+           CANDIDATE ROUTES (loop shape only - shown after "Find Routes")
+           ======================== -->
+      <div id="planner-candidates" style="display:none;">
+        <p class="section-sub">
+          <button type="button" id="planner-candidates-back-btn" class="planner-inline-link">Change ride setup</button> ·
+          A few different loop shapes built from your start point, time and riding mood. Pick one to fine-tune it.
+        </p>
+        <div id="planner-candidates-loading" class="chart-desc">Finding routes…</div>
+        <div id="planner-candidates-body" style="display:none;">
+          <div id="planner-candidates-tabs" class="planner-candidates-tabs"></div>
+          <div id="planner-candidates-map"></div>
+          <div class="planner-stats">
+            <div class="planner-stat">
+              <span class="planner-stat-label">Distance</span>
+              <span class="planner-stat-value" id="candidate-distance">–</span>
+            </div>
+            <div class="planner-stat">
+              <span class="planner-stat-label">Est. ride time</span>
+              <span class="planner-stat-value" id="candidate-time">–</span>
+            </div>
+            <div class="planner-stat">
+              <span class="planner-stat-label">Elevation</span>
+              <span class="planner-stat-value" id="candidate-elevation">–</span>
+            </div>
+          </div>
+          <div class="planner-candidate-why">
+            <h4>Why this route</h4>
+            <ul id="candidate-why-list"></ul>
+          </div>
+          <div class="planner-candidate-cautions">
+            <h4>Things to know</h4>
+            <ul id="candidate-caution-list"></ul>
+          </div>
+          <div class="planner-toolbar-actions">
+            <button type="button" id="candidate-shorter-btn" class="btn-outline">Shorter</button>
+            <button type="button" id="candidate-longer-btn" class="btn-outline">Longer</button>
+            <button type="button" id="candidate-regenerate-btn" class="btn-outline">Regenerate</button>
+            <button type="button" id="candidate-use-btn" class="btn-primary">Use this route</button>
+          </div>
         </div>
       </div>
 
@@ -174,8 +241,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="planner.js?v=70"></script>
-  <script type="module" src="icons.js?v=70"></script>
-  <script src="theme.js?v=70"></script>
+  <script type="module" src="planner.js?v=71"></script>
+  <script type="module" src="icons.js?v=71"></script>
+  <script src="theme.js?v=71"></script>
 </body>
 </html>

@@ -3581,6 +3581,7 @@ header:not(.main-header) .dashboard-header {
 
 @media (max-width: 700px) {
   #planner-map { min-height: 260px; }
+  #planner-candidates-map { height: 260px; }
   .planner-toolbar { flex-direction: column; align-items: stretch; }
   /* .planner-search's flex-basis of 320px means WIDTH in the desktop row
      layout, but once .planner-toolbar switches to flex-direction:column
@@ -3682,6 +3683,97 @@ header:not(.main-header) .dashboard-header {
 .planner-goal-hint-ok    { color: var(--color-success); }
 .planner-goal-hint-under { color: var(--color-warning); }
 .planner-goal-hint-over  { color: var(--color-warning); }
+
+.onboarding-custom-time {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+.onboarding-custom-time input {
+  width: 100px;
+}
+.onboarding-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.onboarding-checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.92rem;
+  color: var(--color-text-secondary);
+}
+.onboarding-hint-note {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: 0.5rem 0 0;
+}
+
+/* ---------- LOOP CANDIDATE PICKER (planner.html, MVP2) ---------- */
+#planner-candidates-map {
+  height: 340px;
+  width: 100%;
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  background: #e9ecef;
+  margin-bottom: 1rem;
+}
+.planner-candidates-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+.planner-candidate-tab {
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-card);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 0.92rem;
+  box-shadow: none;
+}
+.planner-candidate-tab:hover {
+  border-color: var(--border-strong);
+  color: var(--color-text-primary);
+  box-shadow: none;
+  transform: none;
+}
+.planner-candidate-tab.active {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.planner-candidate-why,
+.planner-candidate-cautions {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+.planner-candidate-why h4,
+.planner-candidate-cautions h4 {
+  margin: 0 0 0.5rem;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.planner-candidate-why ul,
+.planner-candidate-cautions ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.planner-candidate-cautions ul { color: var(--color-warning); }
 
 /* ---------- HEADER LOGIN / ACCOUNT CONTROLS (index.html) ---------- */
 .header-auth,
