@@ -369,32 +369,40 @@ async function estimateElevationGain(coords, signal) {
   return Math.round(gain);
 }
 
-// ---------- Search (Nominatim geocoding, pans the map only) ----------
+// ---------- Search (Photon/Komoot geocoding, pans the map only) ----------
+// Nominatim's public instance blocks/rate-limits direct browser (client-side)
+// geocoding under its usage policy, which is why this used to silently fail.
+// Photon is built for exactly this use case: same OSM data, CORS-friendly, no key.
 async function doSearch() {
   const q = searchInput.value.trim();
   if (!q) return;
   searchResultsEl.innerHTML = '<div class="planner-search-result-note">Searching…</div>';
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`;
+    const url = `https://photon.komoot.io/api/?limit=5&q=${encodeURIComponent(q)}`;
     const resp = await fetch(url);
+    if (!resp.ok) throw new Error('search failed');
     const data = await resp.json();
-    renderSearchResults(data);
+    renderSearchResults(data.features || []);
   } catch (e) {
     searchResultsEl.innerHTML = '<div class="planner-search-result-note">Search failed. Try again.</div>';
   }
 }
-function renderSearchResults(results) {
-  if (!results || !results.length) {
+function placeLabel(props) {
+  return [props.name, props.city || props.district, props.state, props.country].filter(Boolean).join(', ');
+}
+function renderSearchResults(features) {
+  if (!features.length) {
     searchResultsEl.innerHTML = '<div class="planner-search-result-note">No results.</div>';
     return;
   }
   searchResultsEl.innerHTML = '';
-  results.forEach(r => {
+  features.forEach(f => {
+    const [lon, lat] = f.geometry.coordinates;
     const item = document.createElement('div');
     item.className = 'planner-search-result';
-    item.textContent = r.display_name;
+    item.textContent = placeLabel(f.properties) || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
     item.addEventListener('click', () => {
-      map.setView([parseFloat(r.lat), parseFloat(r.lon)], 13);
+      map.setView([lat, lon], 13);
       searchResultsEl.innerHTML = '';
       searchInput.value = '';
     });
