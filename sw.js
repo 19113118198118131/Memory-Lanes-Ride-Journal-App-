@@ -1,20 +1,20 @@
 // Memory Lanes service worker: app-shell caching (stale-while-revalidate).
 // Bump CACHE on each deploy so clients pick up fresh files.
-const CACHE = 'memory-lanes-v46';
+const CACHE = 'memory-lanes-v48';
 const CORE = [
   './',
   './index.html',
   './dashboard.html',
   './stats.html',
   './journal.html',
-  './style.css?v=46',
-  './script.js?v=46',
-  './insights.js?v=46',
-  './icons.js?v=46',
-  './theme.js?v=46',
-  './riderskills.js?v=46',
-  './dashboard.js?v=46',
-  './stats.js?v=46',
+  './style.css?v=48',
+  './script.js?v=48',
+  './insights.js?v=48',
+  './icons.js?v=48',
+  './theme.js?v=48',
+  './riderskills.js?v=48',
+  './dashboard.js?v=48',
+  './stats.js?v=48',
   './supabaseClient.js',
   './manifest.webmanifest',
   './assets/demo-ride.gpx',
@@ -43,6 +43,28 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // CDN/API traffic goes straight to network
+
+  // HTML pages: NETWORK FIRST. The pages reference versioned assets (style.css?v=N),
+  // so a stale page would keep asking for the old asset URLs and a deploy would never
+  // appear. Always try the network for documents, and fall back to cache only offline.
+  const isDoc = req.mode === 'navigate' ||
+                (req.headers.get('accept') || '').includes('text/html');
+  if (isDoc) {
+    event.respondWith(
+      fetch(req)
+        .then(res => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then(c => c.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req).then(c => c || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Versioned assets: cache first, refresh in the background.
   event.respondWith(
     caches.match(req).then(cached => {
       const fresh = fetch(req).then(res => {

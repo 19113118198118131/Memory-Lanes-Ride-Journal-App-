@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=46';
-import { buildRideInsights } from './insights.js?v=46';
-import { mlIconSVG } from './icons.js?v=46';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=48';
+import { buildRideInsights } from './insights.js?v=48';
+import { mlIconSVG } from './icons.js?v=48';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -384,7 +384,7 @@ uploadInput.addEventListener('change', () => {
     // Update summary UI
     const totalMs = points.at(-1).time - points[0].time;
     const totMin  = Math.floor(totalMs / 60000);
-    distanceEl.textContent = `${(cumulativeDistance.at(-1) / 1000).toFixed(2)} km`;
+    distanceEl.innerHTML = `${(cumulativeDistance.at(-1) / 1000).toFixed(2)} <span class="unit">km</span>`;
     durationEl.textContent = `${Math.floor(totMin / 60)}h ${totMin % 60}m`;
     const rideSec = points.reduce((sum, _, i) =>
       i > 0 && !breakPoints.includes(i)
@@ -392,8 +392,8 @@ uploadInput.addEventListener('change', () => {
         : sum, 0);
     const rideMin = Math.floor(rideSec / 60);
     rideTimeEl.textContent   = `${Math.floor(rideMin / 60)}h ${rideMin % 60}m`;
-    elevationEl.textContent  = `${points.reduce((sum, p, i) =>
-      i>0 && p.ele>points[i-1].ele ? sum + (p.ele - points[i-1].ele) : sum, 0).toFixed(0)} m`;
+    elevationEl.innerHTML  = `${points.reduce((sum, p, i) =>
+      i>0 && p.ele>points[i-1].ele ? sum + (p.ele - points[i-1].ele) : sum, 0).toFixed(0)} <span class="unit">m</span>`;
 
     // Draw route
     if (trailPolyline) map.removeLayer(trailPolyline);

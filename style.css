@@ -52,7 +52,10 @@
   --rust-600:  #c2410c; /* refined destructive (AA: 4.68:1) */
   --cyan-ink: #0a6b75;  /* legacy alias -> teal-deep */
 
-  --radius-card: 16px;
+  --radius-panel: 18px;   /* chart blocks, debrief */
+  --radius-card:  15px;   /* summary, corner, ride cards */
+  --radius-chip:  8px;    /* small chips, selects */
+  --radius-pill:  999px;  /* pill buttons, filters */
 
   color-scheme: dark;
 }
@@ -92,12 +95,17 @@
   --shadow:        0 10px 40px 0 rgba(0,0,0,0.30), 0 2px 10px rgba(0,123,255,0.10);
   --shadow-light:  0 2px 16px 0 rgba(100,255,218,0.09);
 
-  /* Flat surface system: quiet, close shadows instead of ambient glow */
-  --border-card:       rgba(148,163,184,0.12);
-  --shadow-card:       0 1px 2px rgba(0,0,0,0.18), 0 8px 20px -8px rgba(0,0,0,0.35);
-  --shadow-card-hover: 0 2px 4px rgba(0,0,0,0.20), 0 10px 24px -8px rgba(0,0,0,0.40);
-  --shadow-btn-hover:  0 2px 10px rgba(0,0,0,0.22);
-  --surface-chart:     rgba(255,255,255,0.02);
+  /* Surface language from the final design: cards sit close to the page
+     colour and are defined by their border, not by a heavy fill or glow. */
+  --surface-panel:     #0e1a2b;   /* chart blocks, cards */
+  --surface-chip:      #16233e;   /* chips, selects, secondary pills */
+  --border-card:       #1c2c45;   /* the line that defines a card */
+  --border-strong:     #26406a;   /* interactive edges: chips, selects */
+  --accent-gradient:   linear-gradient(90deg, #64ffda, #00c6ff);
+  --shadow-card:       none;
+  --shadow-card-hover: 0 8px 24px -10px rgba(0,0,0,0.55);
+  --shadow-btn-hover:  0 6px 18px -8px rgba(0,0,0,0.5);
+  --surface-chart:     #0e1a2b;
 }
 
 /* ============================================================
@@ -136,11 +144,15 @@
   --shadow:        0 18px 50px rgba(15,23,42,0.08), 0 2px 8px rgba(15,23,42,0.05);
   --shadow-light:  0 8px 30px rgba(15,23,42,0.06);
 
-  /* Same flat system, tuned for paper: slate shadows, not black */
-  --border-card:       rgba(15,23,42,0.10);
-  --shadow-card:       0 1px 2px rgba(15,23,42,0.05), 0 8px 20px -8px rgba(15,23,42,0.14);
-  --shadow-card-hover: 0 2px 4px rgba(15,23,42,0.07), 0 10px 24px -8px rgba(15,23,42,0.18);
-  --shadow-btn-hover:  0 2px 10px rgba(15,23,42,0.10);
+  /* Same surface language, paper mood: cards defined by a hairline, not a fill */
+  --surface-panel:     var(--paper-0);
+  --surface-chip:      var(--paper-100);
+  --border-card:       rgba(15,23,42,0.12);
+  --border-strong:     rgba(15,23,42,0.22);
+  --accent-gradient:   linear-gradient(90deg, #0a6b75, #2563eb);
+  --shadow-card:       none;
+  --shadow-card-hover: 0 8px 24px -10px rgba(15,23,42,0.16);
+  --shadow-btn-hover:  0 6px 18px -8px rgba(15,23,42,0.14);
   --surface-chart:     var(--paper-0);
 }
 
@@ -171,10 +183,14 @@
     --color-shadow: rgba(15,23,42,0.10);
     --shadow: 0 18px 50px rgba(15,23,42,0.08), 0 2px 8px rgba(15,23,42,0.05);
     --shadow-light: 0 8px 30px rgba(15,23,42,0.06);
-    --border-card: rgba(15,23,42,0.10);
-    --shadow-card: 0 1px 2px rgba(15,23,42,0.05), 0 8px 20px -8px rgba(15,23,42,0.14);
-    --shadow-card-hover: 0 2px 4px rgba(15,23,42,0.07), 0 10px 24px -8px rgba(15,23,42,0.18);
-    --shadow-btn-hover: 0 2px 10px rgba(15,23,42,0.10);
+    --surface-panel: var(--paper-0);
+    --surface-chip: var(--paper-100);
+    --border-card: rgba(15,23,42,0.12);
+    --border-strong: rgba(15,23,42,0.22);
+    --accent-gradient: linear-gradient(90deg, #0a6b75, #2563eb);
+    --shadow-card: none;
+    --shadow-card-hover: 0 8px 24px -10px rgba(15,23,42,0.16);
+    --shadow-btn-hover: 0 6px 18px -8px rgba(15,23,42,0.14);
     --surface-chart: var(--paper-0);
   }
 }
@@ -741,24 +757,21 @@ footer a:hover {
 
 /* ---------- BUTTONS (APPLE STYLE) ---------- */
 button, .btn-muted, .download-buttons button, .ride-form button, .auth-form button {
+  font-family: inherit;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 20px;
   border: none;
-  border-radius: 999px;
-  font-size: 1.1rem;
-  font-weight: 650;
-  padding: 0.66rem 1.75rem;
-  background: var(--accent);
-  color: var(--main-bg);
-  box-shadow: 0 2px 12px 0 rgba(0,123,255,0.08), 0 0.5px 4px rgba(100,255,218,0.09);
-  outline: none;
+  background: var(--surface-chip);
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: var(--fade-trans);
 }
 
 button:hover, .btn-muted:hover, .download-buttons button:hover, .ride-form button:hover, .auth-form button:hover {
-  background: var(--accent-light);
-  color: var(--main-bg);
-  transform: translateY(-1.5px) scale(1.03);
-  box-shadow: 0 0 24px 0 var(--accent-fade);
+  box-shadow: var(--shadow-btn-hover);
+  transform: translateY(-1px);
 }
 
 button:active, .btn-muted:active, .download-buttons button:active {
@@ -861,22 +874,20 @@ button:active, .btn-muted:active, .download-buttons button:active {
 
 /* ---------- SPEED BIN BUTTONS ---------- */
 #speed-bins .speed-bin-btn {
-  margin: 0 7px 5px 0;
-  padding: 8px 20px;
-  border: 2px solid #FF6384;
-  border-radius: 999px;
-  background: var(--color-chart-grid);
-  color: #FF6384;
-  font-weight: 500;
-  font-size: 1.1rem;
-  cursor: pointer;
-  transition: border-color 0.28s, color 0.28s, background 0.16s, box-shadow 0.18s;
+  background: var(--surface-chip);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 6px 14px;
 }
 #speed-bins .speed-bin-btn.active {
-  border-color: #8338EC;
-  color: var(--color-text-primary);
-  background: #8338ec;
-  box-shadow: 0 0 14px #8338ec33;
+  background: var(--accent-gradient);
+  color: var(--color-bg);
+  border-color: transparent;
+  box-shadow: none;
+  animation: none;
 }
 .speed-bin-btn.active {
   animation: subtle-pulse 2.7s ease-in-out infinite;
@@ -1591,11 +1602,10 @@ button:hover,
   justify-content: center;
 }
 .road-marker.active {
-  background: linear-gradient(92deg, var(--color-accent) 0%, var(--color-info) 100%);
+  background: var(--accent-gradient);
   color: var(--color-bg);
-  box-shadow: 0 0 0 7px var(--color-accent)33, 0 2px 18px var(--color-info)29;
-  border: 2px solid var(--color-info);
-  font-size: 1.22rem;
+  border-color: transparent;
+  box-shadow: none;
 }
 .road-marker:hover {
   background: var(--color-chart-grid)f;
@@ -2411,47 +2421,44 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
   width: 100%;
 }
 #summary-section .summary-card {
-  min-height: 82px;
-  padding: 1rem 1.2rem;
-  border-radius: 18px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-accent-border);
-  box-shadow: var(--shadow-light);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   box-sizing: border-box;
-  transition: border-color 0.2s ease, transform 0.15s ease;
 }
 #summary-section .summary-card:hover {
-  border-color: var(--color-accent);
+  border-color: var(--color-accent-border);
+  box-shadow: var(--shadow-card-hover);
   transform: translateY(-1px);
 }
 #summary-section .summary-label {
-  display: block;
-  margin-bottom: 0.45rem;
-  color: var(--color-info);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  line-height: 1.15;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 5px;
 }
 #summary-section .summary-value {
-  color: var(--color-text-primary);
   font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
-  font-size: 1.35rem;
-  font-weight: 800;
+  font-size: 26px;
+  font-weight: 700;
   line-height: 1.1;
+  color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
 }
 /* Weather reads as a sentence, not a stat */
 #summary-section .summary-card-wide .summary-value {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  font-size: 1.02rem;
-  font-weight: 700;
-  line-height: 1.35;
-  font-variant-numeric: normal;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
 }
 
 /* Replay controls share the same dashboard band */
@@ -2493,10 +2500,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 [data-theme="light"] .summary-card,
 [data-theme="light"] .hero-card,
 [data-theme="light"] .corner-card,
-[data-theme="light"] .debrief-card {
-  background: var(--color-surface);
-  border-color: var(--color-border);
-}
+
 [data-theme="light"] .skill-meter-track,
 [data-theme="light"] .comp-bar { background: var(--color-surface-sunken); }
 
@@ -2542,16 +2546,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
   background: linear-gradient(125deg, rgba(10,132,255,0.06) 0%, rgba(12,122,102,0.05) 70%);
   border-color: var(--color-accent-border);
 }
-[data-theme="light"] .corner-card {
-  background: linear-gradient(120deg, rgba(10,132,255,0.05) 0%, rgba(12,122,102,0.04) 100%);
-  border-color: var(--color-border-strong);
-}
-[data-theme="light"] .chart-block,
-[data-theme="light"] .card-section,
-[data-theme="light"] .hero-card {
-  background: var(--color-surface);
-  border-color: var(--color-border);
-}
+
 [data-theme="light"] .braking-strip { background: var(--color-accent-soft); border-color: var(--color-accent-border); }
 [data-theme="light"] .skill-meter-track,
 [data-theme="light"] .comp-bar { background: var(--color-surface-sunken); }
@@ -2565,12 +2560,6 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 [data-theme="light"] .rider-ring-score { text-shadow: none; }
 
 /* Buttons: muted buttons are white-on-dark by default; in light mode invert cleanly */
-[data-theme="light"] .btn-muted {
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border-strong);
-}
-[data-theme="light"] .btn-muted:hover { background: var(--color-surface-sunken); }
 
 /* Speed-highlight pills & misc borders that were pure-white glows */
 [data-theme="light"] .chart-help p { background: var(--color-surface-sunken); }
@@ -2659,16 +2648,7 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
   transition: transform 0.22s cubic-bezier(.2,.7,.3,1), box-shadow 0.22s ease, border-color 0.2s ease;
 }
 
-
 /* 7. Primary/accent buttons: solid deep teal, white text (AA 6.2:1) */
-[data-theme="light"] .btn-primary,
-[data-theme="light"] #upload-btn,
-[data-theme="light"] label.btn-primary {
-  background: var(--teal-ui);
-  color: #fff;
-  box-shadow: 0 8px 22px rgba(8,127,140,0.22);
-}
-[data-theme="light"] .btn-primary:hover { background: var(--teal-deep); }
 
 /* 8. Inputs as clean paper fields */
 [data-theme="light"] input,
@@ -2713,94 +2693,173 @@ html { transition: background-color 0.4s ease; }
 }
 
 /* ============================================================
-   UNIFIED SURFACE SYSTEM
-   Flatter, calmer surfaces and a tighter rhythm, shared by both
-   themes. Every value is a token, so light and dark differ in
-   mood only, not in design language. No !important: these rules
-   sit last and are the single source of truth for card surfaces.
+   FINAL DESIGN SYSTEM  (ported from the approved design canvas)
+   Cards sit close to the page colour and are defined by their
+   border rather than a heavy fill or glow. Every value is a
+   token, so the light theme follows the same language.
    ============================================================ */
 
-/* One radius, one quiet shadow, one hairline border for every card */
-.ride-entry,
+/* --- Panels: chart blocks and the debrief --- */
 .chart-block,
-.card-section,
-#save-ride-form,
-#auth-section,
-.journal-moment-card,
-.debrief-card,
-.moment-entry,
-#ride-controls-toolbar,
+.card-section {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
+  padding: 24px 26px;
+  margin-bottom: 16px;
+}
+.chart-block h3,
+.card-section h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--color-text-primary);
+}
+.chart-desc {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+
+/* --- Cards: summary, corner, ride entries, moments --- */
 .summary-card,
 .corner-card,
+.ride-entry,
+.journal-moment-card,
+.moment-entry,
+#save-ride-form,
+#auth-section,
+#ride-controls-toolbar,
 .filters-container,
 #timeline {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  border: 1px solid var(--border-card);
 }
+.summary-card { padding: 16px 18px; }
+.corner-card,
+.ride-entry { padding: 16px; }
+.journal-moment-card { padding: 16px 18px; margin-bottom: 12px; }
+.filters-container { padding: 14px 18px; gap: 10px; }
+#timeline { padding: 14px 18px; }
 
-/* Dashboard header and filters: tighter, quieter */
-.dashboard-header { gap: 0.75rem; padding-bottom: 1rem; }
-.dashboard-header h1 { font-size: 1.75rem; letter-spacing: 0.3px; }
-.button-group { gap: 0.6rem; }
-.button-group button {
-  font-size: 0.92rem;
-  font-weight: 600;
-  padding: 0.5rem 1.1rem;
-  box-shadow: none;
-}
-.filters-container { gap: 0.7rem; padding: 0.9rem 1.2rem; }
-
-/* Ride entries: tighter internal rhythm */
-.ride-entry { padding: 1rem 1.25rem; margin-bottom: 0.9rem; }
-.ride-title { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.25rem; }
-.ride-details span { font-size: 0.94rem; margin-right: 0.9rem; }
-.ride-entry:hover {
+/* Hover: a quiet lift, no glow bloom */
+.ride-entry:hover,
+.summary-card:hover,
+.corner-card:hover,
+.journal-moment-card:hover {
+  border-color: var(--border-strong);
   box-shadow: var(--shadow-card-hover);
-  border-color: var(--color-accent-border);
   transform: translateY(-1px);
 }
 
-/* Chart blocks: quiet flat surface, no ambient glow */
-.chart-block {
-  background: var(--surface-chart);
-  padding: 1.4rem 1.6rem;
-  margin-bottom: 1.4rem;
+/* --- Stat labels and numerals --- */
+.summary-label {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 5px;
 }
-.chart-block h3 { font-size: 1.05rem; font-weight: 600; }
-.chart-desc { font-size: 0.94rem; }
-
-/* Ride Coach debrief: flat, no shadow of its own */
-.debrief-card { box-shadow: none; padding: 1.3rem 1.5rem; }
-
-/* Journal moment cards: quiet accent wash that works on navy and on paper */
-.journal-moment-card {
-  background: linear-gradient(92deg, var(--color-accent-soft) 0%, var(--color-surface) 100%);
-  padding: 1rem 1.3rem;
-  margin-bottom: 0.9rem;
+.summary-value {
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
 }
-.journal-moment-head { font-size: 1.05rem; }
-.journal-moment-meta { font-size: 0.92rem; }
-.journal-moment-note { font-size: 0.96rem; }
+.summary-value .unit,
+.summary-card-wide .summary-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
 
-/* Road timeline markers: calmer default, no double ring */
-.road-marker { box-shadow: none; border: 1.5px solid var(--color-accent-border); }
-.road-marker.active { box-shadow: 0 0 0 2px var(--color-accent-border); }
+/* --- Chips: small, bordered, quiet --- */
+.chip,
+.speed-bin-btn,
+select,
+.journal-filter {
+  background: var(--surface-chip);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-chip);
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 6px 12px;
+}
 
-/* Buttons: quiet hover, no glow bloom */
+/* --- Pill buttons --- */
+button,
+.btn-muted,
+.btn-primary,
+label.btn-primary {
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 20px;
+  border: none;
+}
+.btn-muted {
+  background: var(--surface-chip);
+  color: var(--color-text-secondary);
+}
+.btn-primary,
+label.btn-primary,
+.speed-bin-btn.active,
+button.active {
+  background: var(--accent-gradient);
+  color: var(--color-bg);
+  box-shadow: none;
+}
 button:hover,
-.btn-muted:hover {
+.btn-muted:hover,
+.btn-primary:hover {
   box-shadow: var(--shadow-btn-hover);
   transform: translateY(-1px);
 }
 
-/* Map and hero cards flattened to match */
+/* --- Ride Coach debrief: the one place a soft wash is kept --- */
+.debrief-card {
+  border-radius: var(--radius-panel);
+  padding: 24px;
+  background: linear-gradient(125deg, var(--color-accent-soft), transparent 70%);
+  border: 1px solid var(--color-accent-border);
+  box-shadow: none;
+}
+
+/* --- Map and hero --- */
 #leaflet-map {
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--border-card);
   box-shadow: var(--shadow-card);
 }
 .hero-card {
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  background: var(--surface-panel);
   border: 1px solid var(--border-card);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
+}
+
+/* --- Road timeline markers --- */
+.road-marker {
+  box-shadow: none;
+  border: 1.5px solid var(--border-strong);
+}
+.road-marker.active {
+  background: var(--accent-gradient);
+  color: var(--color-bg);
+  box-shadow: none;
+}
+
+/* Caption under the speed highlight chips (from the final design) */
+.speed-filter-note {
+  width: 100%;
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
 }
