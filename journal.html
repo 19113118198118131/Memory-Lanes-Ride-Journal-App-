@@ -15,7 +15,7 @@
   <meta charset="UTF-8" />
   <title>Rider's Journal | Memory Lanes</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="stylesheet" href="style.css?v=53" />
+  <link rel="stylesheet" href="style.css?v=54" />
 
   <!-- StPageFlip Flipbook Library (MIT License) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/dist/css/page-flip.min.css"/>
@@ -42,11 +42,13 @@
       </div>
     </div>
     <nav class="site-nav vibe-nav" aria-label="Main navigation">
-      <a href="dashboard.html">Dashboard</a>
+      <span data-nav="index.html" role="link" tabindex="0">Upload</span>
       <span class="nav-sep">|</span>
-      <a href="index.html">Upload Ride</a>
+      <span data-nav="dashboard.html" role="link" tabindex="0">Logs</span>
       <span class="nav-sep">|</span>
-      <span aria-current="page">Rider's Journal</span>
+      <span data-nav="journal.html" role="link" tabindex="0" aria-current="page">Moments</span>
+      <span class="nav-sep">|</span>
+      <span data-nav="stats.html" role="link" tabindex="0">Journeys</span>
     </nav>
   </header>
   <main>
@@ -81,9 +83,9 @@
   <!-- Always load the flipbook script first -->
   <script src="https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/dist/js/page-flip.browser.min.js"></script>
   <!-- Then load your app's main code as a module -->
-  <script type="module" src="journal.js?v=53"></script>
-  <script type="module" src="icons.js?v=53"></script>
-  <script src="theme.js?v=53"></script>
+  <script type="module" src="journal.js?v=54"></script>
+  <script type="module" src="icons.js?v=54"></script>
+  <script src="theme.js?v=54"></script>
 </body>
 </html>
 

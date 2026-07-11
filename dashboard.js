@@ -4,7 +4,7 @@
 
 // Supabase config
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=53';
+import { mlIconSVG } from './icons.js?v=54';
 
 // DOM references
 const rideList = document.getElementById('ride-list');
@@ -215,13 +215,7 @@ function renderRides(rides) {
           ${escapeHtml(ride.title)}
           ${
             Array.isArray(ride.moments) && ride.moments.length > 0
-              ? `<span class="moments-icon" title="This ride has moments!" style="margin-left:8px;font-size:1.2em;vertical-align:middle;">
-                  <svg width="1.2em" height="1.2em" viewBox="0 0 24 24" fill="none" stroke="#8338ec" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="5" width="7" height="14" rx="2" fill="#fff" stroke="#8338ec"/>
-                    <rect x="14" y="5" width="7" height="14" rx="2" fill="#fff" stroke="#8338ec"/>
-                    <line x1="10" y1="8" x2="10" y2="16" stroke="#8338ec"/>
-                  </svg>
-                </span>`
+              ? `<span class="moments-icon" title="This ride has moments">${mlIconSVG('book')}</span>`
               : ''
           }
         </div>

@@ -15,7 +15,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Ride Journal Dashboard</title>
-  <link rel="stylesheet" href="style.css?v=53" />
+  <link rel="stylesheet" href="style.css?v=54" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -29,6 +29,27 @@
     </button></div>
 
   <!-- ========== HEADER ========= -->
+  <header class="main-header vibe-header">
+    <div class="brand-row">
+      <div class="logo-card">
+        <img src="assets/logo/Memory%20Lanes%20Logo.png" alt="Memory Lanes" class="brand-logo" />
+      </div>
+      <div class="brand-titlebox">
+        <span class="site-title">Memory Lanes</span>
+        <div class="tagline">journal your ride</div>
+      </div>
+    </div>
+    <nav class="site-nav vibe-nav" aria-label="Main navigation">
+      <span data-nav="index.html" role="link" tabindex="0">Upload</span>
+      <span class="nav-sep">|</span>
+      <span data-nav="dashboard.html" role="link" tabindex="0" aria-current="page">Logs</span>
+      <span class="nav-sep">|</span>
+      <span data-nav="journal.html" role="link" tabindex="0">Moments</span>
+      <span class="nav-sep">|</span>
+      <span data-nav="stats.html" role="link" tabindex="0">Journeys</span>
+    </nav>
+  </header>
+
   <header>
     <div class="dashboard-header">
       <h1>My Ride Journal</h1>
@@ -49,8 +70,8 @@
 
   <!-- ========== JS for dashboard ========= -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script type="module" src="dashboard.js?v=53"></script>
-  <script type="module" src="icons.js?v=53"></script>
-  <script src="theme.js?v=53"></script>
+  <script type="module" src="dashboard.js?v=54"></script>
+  <script type="module" src="icons.js?v=54"></script>
+  <script src="theme.js?v=54"></script>
 </body>
 </html>
