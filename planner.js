@@ -5,8 +5,8 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=71';
-import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=71';
+import { mlIconSVG } from './icons.js?v=72';
+import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=72';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
@@ -1133,7 +1133,7 @@ async function loadSavedRoutes() {
   if (!user) return;
   const { data, error } = await supabase
     .from('planned_routes')
-    .select('id, title, distance_km, elevation_m, waypoints, route, created_at')
+    .select('id, title, distance_km, elevation_m, waypoints, route, created_at, is_public, share_token')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
   if (error) {
@@ -1155,7 +1155,10 @@ function renderSavedRoutes() {
     const created = route.created_at ? new Date(route.created_at).toLocaleDateString() : '';
     item.innerHTML = `
       <div class="ride-title-row">
-        <div class="ride-title">${escapeHtml(route.title)}</div>
+        <div class="ride-title">
+          ${escapeHtml(route.title)}
+          ${route.is_public ? '<span class="status-chip status-chip-shared">Shared</span>' : ''}
+        </div>
         <div class="ride-meta">
           <span class="ride-date">${created}</span>
         </div>
@@ -1168,6 +1171,8 @@ function renderSavedRoutes() {
         <button type="button" class="btn-primary planner-start-btn">${mlIconSVG('play')} Start Ride</button>
         <button type="button" class="btn-outline planner-load-btn">${mlIconSVG('edit')} Load</button>
         <button type="button" class="btn-outline planner-export-saved-btn">${mlIconSVG('download')} Export GPX</button>
+        <button type="button" class="btn-outline planner-share-btn">${mlIconSVG('share')} ${route.is_public ? 'Copy Invite Link' : 'Invite a Rider'}</button>
+        ${route.is_public ? `<button type="button" class="btn-muted planner-unshare-btn">${mlIconSVG('eyeoff')} Stop Sharing</button>` : ''}
         <button type="button" class="btn-plain-danger planner-delete-btn">${mlIconSVG('trash')} Delete</button>
       </div>
     `;
@@ -1176,6 +1181,9 @@ function renderSavedRoutes() {
     });
     item.querySelector('.planner-load-btn').addEventListener('click', () => loadSavedRouteIntoPlanner(route));
     item.querySelector('.planner-export-saved-btn').addEventListener('click', () => downloadGPX(route.route, route.title));
+    item.querySelector('.planner-share-btn').addEventListener('click', () => shareRouteInvite(route));
+    const unshareBtn = item.querySelector('.planner-unshare-btn');
+    if (unshareBtn) unshareBtn.addEventListener('click', () => unshareRoute(route));
     item.querySelector('.planner-delete-btn').addEventListener('click', () => deleteSavedRoute(route.id));
     routesListEl.appendChild(item);
   });
@@ -1203,6 +1211,50 @@ function loadSavedRouteIntoPlanner(route) {
   setTimeout(() => map.invalidateSize(), 50);
   window.scrollTo({ top: mapSection.offsetTop - 90, behavior: 'smooth' });
 }
+// ---------- Invite a rider (share a planned route by secret link) ----------
+function routeInviteLink(token) {
+  // Strip the current page's filename so the link works no matter where the app is hosted.
+  return `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}route.html?share=${token}`;
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (_) {
+    window.prompt('Copy this invite link:', text);
+    return false;
+  }
+}
+
+async function shareRouteInvite(route) {
+  if (!route.is_public) {
+    const { data, error } = await supabase
+      .from('planned_routes')
+      .update({ is_public: true })
+      .eq('id', route.id)
+      .select('is_public, share_token')
+      .single();
+    if (error) { showToast('Could not enable sharing.', 'delete'); return; }
+    route.is_public = data.is_public;
+    route.share_token = data.share_token;
+    renderSavedRoutes(); // pick up the Shared chip + Stop Sharing button
+  }
+  const copied = await copyText(routeInviteLink(route.share_token));
+  showToast(copied ? 'Invite link copied! Anyone with it can view and save this route.' : 'Invite link ready.', 'add');
+}
+
+async function unshareRoute(route) {
+  const { error } = await supabase
+    .from('planned_routes')
+    .update({ is_public: false })
+    .eq('id', route.id);
+  if (error) { showToast('Could not stop sharing.', 'delete'); return; }
+  route.is_public = false;
+  renderSavedRoutes();
+  showToast('Sharing stopped. The old invite link no longer works.', 'add');
+}
+
 async function deleteSavedRoute(id) {
   if (!confirm('Delete this planned route? This cannot be undone.')) return;
   const { error } = await supabase.from('planned_routes').delete().eq('id', id);

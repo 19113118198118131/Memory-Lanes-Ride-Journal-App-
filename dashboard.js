@@ -7,7 +7,7 @@
 
 // Supabase config
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=71';
+import { mlIconSVG } from './icons.js?v=72';
 
 // DOM references
 const rideList = document.getElementById('ride-list');
@@ -70,7 +70,7 @@ function escapeHtml(str) {
       .order('ride_date', { ascending: false }),
     supabase
       .from('planned_routes')
-      .select('id, title, distance_km, elevation_m, waypoints, route, created_at')
+      .select('id, title, distance_km, elevation_m, waypoints, route, created_at, is_public, share_token')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
   ]);
@@ -239,7 +239,11 @@ function downloadPlannedRouteGPX(route) {
 
 // ========== Status chip ==========
 function statusChip(item) {
-  if (item._type === 'planned') return '<span class="status-chip status-chip-planned">Planned</span>';
+  if (item._type === 'planned') {
+    return item.is_public
+      ? '<span class="status-chip status-chip-planned">Planned</span> <span class="status-chip status-chip-shared">Shared</span>'
+      : '<span class="status-chip status-chip-planned">Planned</span>';
+  }
   if (item.is_public) return '<span class="status-chip status-chip-shared">Shared</span>';
   return '<span class="status-chip status-chip-completed">Completed</span>';
 }
@@ -279,6 +283,7 @@ function renderPlannedCard(route) {
       <button type="button" class="btn-primary planned-start-btn">${mlIconSVG('play')} Start Ride</button>
       <button type="button" class="btn-outline planned-edit-btn">${mlIconSVG('edit')} Edit</button>
       <button type="button" class="btn-outline planned-export-btn">${mlIconSVG('download')} Export</button>
+      <button type="button" class="btn-outline planned-share-btn">${mlIconSVG('share')} ${route.is_public ? 'Copy Invite Link' : 'Invite a Rider'}</button>
     </div>
   `;
   item.querySelector('.planned-start-btn').addEventListener('click', (e) => {
@@ -292,6 +297,28 @@ function renderPlannedCard(route) {
   item.querySelector('.planned-export-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     downloadPlannedRouteGPX(route);
+  });
+  item.querySelector('.planned-share-btn').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!route.is_public) {
+      const { data, error } = await supabase
+        .from('planned_routes')
+        .update({ is_public: true })
+        .eq('id', route.id)
+        .select('is_public, share_token')
+        .single();
+      if (error) { showToast('Could not enable sharing.', 'delete'); return; }
+      route.is_public = data.is_public;
+      route.share_token = data.share_token;
+    }
+    const link = `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}route.html?share=${route.share_token}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast('Invite link copied! Anyone with it can view and save this route.', 'add');
+    } catch (_) {
+      window.prompt('Copy this invite link:', link);
+    }
+    applyFilters(); // re-render (respecting active filters) so the Shared chip and button label update
   });
   item.querySelector('.delete-icon').addEventListener('click', (e) => {
     e.stopPropagation();
