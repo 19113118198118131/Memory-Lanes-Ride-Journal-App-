@@ -250,12 +250,11 @@ header {
   flex-direction: column;
   align-items: center;
   background: var(--color-surface-raised);
-  padding: 1.5rem 0 1.1rem 0;
+  padding: 2rem 0 1.3rem 0;
   text-align: center;
   margin-bottom: 1.2rem;
-  border-radius: 0 0 16px 16px;
-  box-shadow: none;
-  border-bottom: 1px solid var(--border-card);
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: var(--shadow);
   transition: var(--fade-trans);
   opacity: 0;
   animation: fadeIn 0.7s cubic-bezier(.3,.7,.4,1) 0.08s forwards;
@@ -433,11 +432,10 @@ nav { margin-top: 0.22rem; }
 
 .main-header {
   background: var(--color-surface-raised);
-  border-radius: 0 0 16px 16px;
-  box-shadow: none;
-  border-bottom: 1px solid var(--border-card);
-  padding: 1.6rem 0 1.1rem 0;
-  margin-bottom: 1.6rem;
+  border-radius: 0 0 32px 32px;
+  box-shadow: 0 5px 32px 0 var(--color-accent)15, 0 2px 10px var(--color-info)14;
+  padding: 2.2rem 0 1.2rem 0;
+  margin-bottom: 2rem;
   text-align: center;
   position: relative;
 }
@@ -505,12 +503,11 @@ nav { margin-top: 0.22rem; }
 }
 
 .card-section {
-  background: var(--surface-panel);
-  border: 1px solid var(--border-card);
-  padding: 1.4rem 1.8rem;
-  border-radius: 16px;
-  margin-bottom: 1.4rem;
-  box-shadow: none;
+  background: var(--card-bg);
+  padding: 1.33rem 2.3rem;
+  border-radius: 22px;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow);
 }
 
 /* ---------- MAIN CONTENT AREA ---------- */
@@ -569,10 +566,9 @@ input[type="file"].no-filename:hover::before {
   min-height: 320px;
   width: 100%;
   max-width: 1200px;
-  border-radius: 16px;
+  border-radius: 28px;
   margin: 0 auto;
-  box-shadow: none;
-  border: 1px solid var(--border-card);
+  box-shadow: 0 10px 50px 0 rgba(100,255,218,0.10), 0 2px 14px 0 rgba(0,123,255,0.06);
   background: #e9ecef;
   transition: var(--fade-trans);
   opacity: 0;
@@ -658,29 +654,27 @@ footer a:hover {
 }
 
 .chart-block {
-  margin-bottom: 1.6rem;
+  margin-bottom: 2.7rem;
   width: 100%;
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
-  border-radius: 16px;
-  box-shadow: none;
-  border: 1px solid var(--border-card);
-  background: var(--surface-panel);
-  padding: 1.4rem 1.6rem;
+  border-radius: 28px;
+  box-shadow: 0 7px 38px 0 rgba(0,0,0,0.13), 0 2px 12px 0 rgba(100,255,218,0.06);
+  background: rgba(255,255,255,0.035);
+  padding: 1.2rem 1.1rem 1.5rem 1.1rem;
   transition: var(--fade-trans);
   opacity: 0;
   animation: fadeIn 0.7s cubic-bezier(.3,.7,.4,1) 0.24s forwards;
 }
 .chart-block h3 {
   margin-bottom: 0.33rem;
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: 0.2px;
+  font-size: 1.18rem;
+  letter-spacing: 0.38px;
 }
 .chart-desc {
   margin: 0 0 0.58rem;
-  font-size: 0.94rem;
+  font-size: 1.04rem;
   color: var(--color-text-secondary);
 }
 
@@ -766,9 +760,9 @@ button, .btn-muted, .download-buttons button, .ride-form button, .auth-form butt
   font-family: inherit;
   border-radius: var(--radius-pill);
   font-size: 13px;
-  font-weight: 600;
-  padding: 8px 18px;
-  border: 1px solid var(--border-card);
+  font-weight: 700;
+  padding: 9px 20px;
+  border: none;
   background: var(--surface-chip);
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -776,8 +770,7 @@ button, .btn-muted, .download-buttons button, .ride-form button, .auth-form butt
 }
 
 button:hover, .btn-muted:hover, .download-buttons button:hover, .ride-form button:hover, .auth-form button:hover {
-  box-shadow: none;
-  border-color: var(--border-strong);
+  box-shadow: var(--shadow-btn-hover);
   transform: translateY(-1px);
 }
 
@@ -837,12 +830,11 @@ button:active, .btn-muted:active, .download-buttons button:active {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  background: var(--surface-panel);
-  border: 1px solid var(--border-card);
-  padding: 1.1rem 1.4rem;
-  border-radius: 16px;
-  box-shadow: none;
-  margin-bottom: 1.5rem;
+  background: var(--card-bg);
+  padding: 1.2rem 1.5rem;
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
   gap: 1.2rem;
 }
 
@@ -959,36 +951,29 @@ button:active, .btn-muted:active, .download-buttons button:active {
   padding-bottom: 0.55rem;
 }
 .dashboard-header h1 {
-  font-size: 1.75rem;
+  font-size: 2.1rem;
   margin: 0.5rem 0;
   color: var(--color-text-primary);
-  font-weight: 700;
 }
 .button-group {
   display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
+  gap: 1.3rem;
 }
 .button-group button {
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  color: var(--color-text-secondary);
-  padding: 0.5rem 1.1rem;
-  font-weight: 600;
+  background: var(--accent);
+  color: var(--main-bg);
+  padding: 0.61rem 1.33rem;
+  font-weight: 700;
+  border: none;
   border-radius: 999px;
   cursor: pointer;
-  font-size: 0.92rem;
+  font-size: 1.1rem;
   transition: var(--fade-trans);
-  box-shadow: none;
-}
-.button-group button:first-child {
-  background: var(--accent-light);
-  color: var(--color-text-on-accent);
-  border-color: transparent;
+  box-shadow: 0 3px 12px 0 rgba(0,123,255,0.10);
 }
 .button-group button:hover {
-  border-color: var(--color-accent);
-  color: var(--color-text-primary);
+  background: var(--accent-light);
+  color: var(--main-bg);
 }
 
 .filters-container {
@@ -996,13 +981,12 @@ button:active, .btn-muted:active, .download-buttons button:active {
   justify-content: flex-start;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.9rem;
-  padding: 0.9rem 1.2rem;
-  background: var(--surface-panel);
-  border: 1px solid var(--border-card);
-  border-radius: 14px;
-  margin-bottom: 1.5rem;
-  box-shadow: none;
+  gap: 1.1rem;
+  padding: 0.8rem 1.3rem;
+  background: var(--color-surface-sunken);
+  border-radius: 13px;
+  margin-bottom: 1.7rem;
+  box-shadow: 0 1px 10px rgba(0,123,255,0.09);
   position: sticky; top: 1rem; z-index: 10;
   opacity: 0; transform: translateY(-10px);
   animation: fadeInSlide 0.38s ease-out forwards;
@@ -1031,31 +1015,30 @@ button:active, .btn-muted:active, .download-buttons button:active {
 
 /* ---------- RIDE ENTRY (DASHBOARD) ---------- */
 .ride-entry {
-  background: var(--surface-panel);
-  border: 1px solid var(--border-card);
-  padding: 1rem 1.25rem;
-  margin-bottom: 0.9rem;
-  border-radius: 16px;
-  transition: border-color 0.15s, transform 0.13s;
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  padding: 1.25rem 1.3rem;
+  margin-bottom: 1.4rem;
+  border-radius: 26px;
+  transition: box-shadow 0.19s, background 0.15s, transform 0.13s;
   position: relative;
-  box-shadow: none;
+  box-shadow: 0 5px 28px 0 rgba(0,0,0,0.12), 0 1.5px 6px rgba(0,123,255,0.08);
 }
 .ride-entry:hover {
-  background: var(--surface-panel);
-  border-color: var(--color-accent-border);
-  box-shadow: none;
-  transform: translateY(-1px);
+  background: var(--color-surface-raised);
+  box-shadow: 0 9px 38px 0 rgba(0,123,255,0.18);
+  transform: translateY(-2px) scale(1.01);
 }
 .ride-title {
-  font-size: 1.15rem;
-  font-weight: 600;
+  font-size: 1.32rem;
+  font-weight: 700;
   color: var(--accent-light);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.36rem;
 }
 .ride-details span {
-  margin-right: 0.9rem;
+  margin-right: 1.18rem;
   color: var(--color-text-secondary);
-  font-size: 0.94rem;
+  font-size: 1.09rem;
 }
 
 .delete-icon {
@@ -1108,12 +1091,11 @@ input:focus, select:focus {
   min-width: 200px;
 }
 #save-ride-form, #auth-section {
-  background: var(--surface-panel);
-  border: 1px solid var(--border-card);
-  padding: 1.4rem 1.8rem;
-  border-radius: 16px;
-  margin-bottom: 1.4rem;
-  box-shadow: none;
+  background: var(--card-bg);
+  padding: 1.33rem 2.3rem;
+  border-radius: 22px;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow);
 }
 #save-ride-form { margin-top: 1.55rem; }
 
@@ -1348,29 +1330,31 @@ input:focus, select:focus {
   100% { opacity: 1; transform: translateY(0); box-shadow: 0 0 18px rgba(100,255,218,0.15); }
 }
 
-/* Quiet hover (no glow bloom) */
+/* Subtle glow on buttons (micro-interaction) */
 button:hover,
 .btn-muted:hover {
-  box-shadow: none;
-  transform: translateY(-1px);
-  transition: all 0.2s ease;
+  box-shadow: 0 0 22px rgba(100,255,218,0.25), 0 0 4px rgba(0,123,255,0.25);
+  transform: translateY(-2px) scale(1.035);
+  transition: all 0.25s ease;
 }
 
 .moment-entry {
-  background: linear-gradient(92deg, rgba(58,134,255,0.10) 0%, rgba(0,242,254,0.08) 100%);
-  border-radius: 16px;
-  box-shadow: none;
-  padding: 1rem 1.3rem;
-  margin-bottom: 0.9rem;
+  background: linear-gradient(90deg, rgba(58,134,255,0.18) 0%, rgba(0,242,254,0.16) 100%);
+  /* Slightly more transparency and less saturation */
+  border-radius: 24px;
+  box-shadow: 0 6px 30px rgba(58,134,255,0.07), 0 2px 8px rgba(0,0,0,0.07);
+  padding: 1.1rem 1.5rem;
+  margin-bottom: 2rem;
   color: var(--color-text-primary);
   border: none;
-  transition: transform 0.15s;
+  transition: box-shadow 0.2s, transform 0.2s;
+  backdrop-filter: blur(1px);
 }
 
 .moment-entry:focus-within, .moment-entry:hover {
-  box-shadow: none;
-  transform: translateY(-1px);
-  background: linear-gradient(92deg, rgba(58,134,255,0.14) 0%, rgba(0,242,254,0.11) 100%);
+  box-shadow: 0 10px 36px rgba(58,134,255,0.11), 0 2px 8px rgba(0,0,0,0.14);
+  transform: translateY(-2px) scale(1.01);
+  background: linear-gradient(90deg, rgba(58,134,255,0.24) 0%, rgba(0,242,254,0.19) 100%);
 }
 
 .moment-entry::before {
@@ -1499,14 +1483,14 @@ button:hover,
 }
 
 .journal-moment-card {
-  background: linear-gradient(92deg, rgba(58,134,255,0.10) 0%, rgba(0,242,254,0.08) 100%);
-  border-radius: 16px;
-  box-shadow: none;
-  padding: 1rem 1.3rem;
+  background: linear-gradient(92deg, rgba(58,134,255,0.16) 0%, rgba(0,242,254,0.13) 100%);
+  border-radius: 22px;
+  box-shadow: 0 7px 32px rgba(58,134,255,0.11), 0 2px 8px rgba(0,0,0,0.10);
+  padding: 1.3rem 1.8rem 1.05rem 1.8rem;
   color: var(--color-text-primary);
   border: none;
   position: relative;
-  transition: transform 0.15s, background 0.15s;
+  transition: box-shadow 0.18s, transform 0.18s, background 0.19s;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -1515,23 +1499,23 @@ button:hover,
 
 .journal-moment-card:hover,
 .journal-moment-card:focus-within {
-  box-shadow: none;
-  transform: translateY(-1px);
-  background: linear-gradient(92deg, rgba(58,134,255,0.14) 0%, rgba(0,242,254,0.11) 100%);
+  box-shadow: 0 12px 38px rgba(58,134,255,0.13), 0 2px 14px rgba(0,0,0,0.13);
+  transform: translateY(-2px) scale(1.012);
+  background: linear-gradient(94deg, rgba(58,134,255,0.23) 0%, rgba(0,242,254,0.17) 100%);
 }
 
 .journal-moment-head {
   display: flex;
   align-items: center;
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: 1.18rem;
+  font-weight: 700;
   letter-spacing: 0.01em;
   margin-bottom: 0.2em;
   gap: 1em;
 }
 
 .journal-moment-meta {
-  font-size: 0.92rem;
+  font-size: 1.02rem;
   color: #a8e3ff;
   font-weight: 500;
   margin-bottom: 0.11em;
@@ -1553,7 +1537,7 @@ button:hover,
 .journal-moment-note {
   margin-top: 0.23em;
   color: #ecf7fc;
-  font-size: 0.96rem;
+  font-size: 1.08rem;
   font-style: italic;
   min-height: 1.3em;
   white-space: pre-line;
@@ -1599,18 +1583,18 @@ button:hover,
 .road-marker {
   position: relative;
   z-index: 2;
-  border: 1.5px solid var(--border-strong);
+  border: none;
   background: var(--color-bg);
   color: var(--color-accent);
   border-radius: 50%;
-  box-shadow: none;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
-  font-size: 1rem;
-  font-weight: 600;
-  transition: border-color 0.15s, background 0.17s, color 0.15s;
+  box-shadow: 0 0 0 4px var(--color-info)22, 0 2px 8px var(--color-chart-grid)8;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1.13rem;
+  font-weight: 700;
+  transition: box-shadow 0.15s, background 0.17s, color 0.15s;
   margin-right: 0.16em;
   cursor: pointer;
   display: flex;
@@ -1626,8 +1610,7 @@ button:hover,
 .road-marker:hover {
   background: var(--color-chart-grid)f;
   color: var(--color-text-primary);
-  box-shadow: none;
-  border-color: var(--color-accent);
+  box-shadow: 0 0 0 7px var(--color-info)44;
 }
 
 @media (max-width: 700px) {
@@ -1669,18 +1652,18 @@ button:hover,
 .road-marker {
   position: relative;
   z-index: 2;
-  border: 1.5px solid var(--border-strong);
+  border: none;
   background: var(--color-bg);
   color: var(--color-accent);
   border-radius: 50%;
-  box-shadow: none;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
-  font-size: 1rem;
-  font-weight: 600;
-  transition: border-color 0.15s, background 0.17s, color 0.15s, transform 0.14s;
+  box-shadow: 0 0 0 4px var(--color-info)22, 0 2px 8px var(--color-chart-grid)8;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1.13rem;
+  font-weight: 700;
+  transition: box-shadow 0.15s, background 0.17s, color 0.15s, transform 0.14s;
   margin-right: 0.16em;
   cursor: pointer;
   display: flex;
@@ -1690,21 +1673,21 @@ button:hover,
 .road-marker.active {
   background: linear-gradient(92deg, var(--color-accent) 0%, var(--color-info) 100%);
   color: var(--color-bg);
-  box-shadow: none;
-  border: 2px solid transparent;
-  font-size: 1.05rem;
+  box-shadow: 0 0 0 7px var(--color-accent)33, 0 2px 18px var(--color-info)29;
+  border: 2px solid var(--color-info);
+  font-size: 1.22rem;
+  animation: popIn 0.33s cubic-bezier(.29,1.3,.5,1.05);
 }
 @keyframes popIn {
-  from { transform: scale(0.9); }
+  from { transform: scale(0.82); }
   to   { transform: scale(1); }
 }
 .road-marker:focus, .road-marker:hover {
   outline: none;
   background: var(--color-chart-grid)f;
   color: var(--color-text-primary);
-  box-shadow: none;
-  border-color: var(--color-accent);
-  transform: none;
+  box-shadow: 0 0 0 8px var(--color-info)44, 0 2px 18px var(--color-accent)30;
+  transform: scale(1.05);
 }
 
 /* --- Month Filter Upgrade --- */
@@ -1769,7 +1752,13 @@ button:hover,
   transform: scale(1.04);
 }
 
-/* --- Moment Card Upgrades (superseded by flat treatment above) --- */
+/* --- Moment Card Upgrades --- */
+.journal-moment-card {
+  background: linear-gradient(92deg, rgba(58,134,255,0.16) 0%, rgba(0,242,254,0.13) 100%);
+  border-radius: 22px;
+  box-shadow: 0 7px 32px rgba(58,134,255,0.11), 0 2px 8px rgba(0,0,0,0.10);
+  padding: 1.3rem 1.8rem;
+}
 
    #flipbook-container {
   display: flex;
