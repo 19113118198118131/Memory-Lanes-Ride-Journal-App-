@@ -29,8 +29,9 @@ New here? Click **"Try a sample ride"** on the landing page to explore every fea
 
 **Route Planner**
 - Plan a route from scratch on the map: click to drop waypoints, the route snaps to real roads automatically (OSRM), drag pins to adjust, click the line to insert a stop
-- Live distance and elevation-gain preview, undo/redo, place search
+- Live distance and elevation-gain preview, undo/redo, place search (Photon)
 - Save planned routes to your account, or export any of them as a GPX file for your GPS/phone
+- **Start Ride**: follow a saved route live on the map (GPS position vs. the plan, on/off-route distance), record the actual track, and save it as a normal ride log linked back to the plan — the saved ride then overlays the planned line against your actual line with a rough "route match" score
 
 **App**
 - Installable PWA with offline app-shell caching
@@ -45,6 +46,7 @@ This is a static app (no build step) backed by Supabase.
    - `supabase-share-setup.sql` - enables public share links (adds `is_public`, `share_token`, and a `get_shared_ride(token)` function)
    - `supabase-skills-setup.sql` - enables skill trends and repeat-corner recognition (adds a `skills jsonb` column)
    - `supabase-routeplanner-setup.sql` - enables the Route Planner (creates a `planned_routes` table, owner-only RLS)
+   - `supabase-liveride-setup.sql` - enables Start Ride (adds `ride_logs.planned_route_id`, linking a recorded ride back to the plan it followed)
 3. **Keys**: put your project URL and anon key in `supabaseClient.js`. The anon key is public by design, but only safe with RLS enabled.
 4. **Deploy**: serve the repository root from any static host. GitHub Pages (main branch, root) is what the live app uses.
 
@@ -57,6 +59,8 @@ This is a static app (no build step) backed by Supabase.
 | `dashboard.html/js` | Ride list, filters, delete, data export |
 | `stats.html/js` | Lifetime totals, monthly chart, personal bests, skill trends, all-routes map, backfill |
 | `journal.html/js` | Rider's Journal (moments flipbook/gallery) |
+| `planner.html/js` | Route Planner: click-to-plan routes snapped to roads, save/export GPX |
+| `ride-live.html/js` | Start Ride: live GPS follow of a planned route, records and saves the actual ride |
 | `supabaseClient.js` | Supabase client singleton |
 | `sw.js`, `manifest.webmanifest` | PWA |
 

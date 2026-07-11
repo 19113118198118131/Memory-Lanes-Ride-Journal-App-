@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=58';
-import { buildRideInsights } from './insights.js?v=58';
-import { mlIconSVG } from './icons.js?v=58';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=59';
+import { buildRideInsights } from './insights.js?v=59';
+import { mlIconSVG } from './icons.js?v=59';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -2449,6 +2449,60 @@ function renderSharedMoments(moments) {
   });
 }
 
+// ========== PLANNED VS ACTUAL (rides recorded via the Route Planner's "Start Ride") ==========
+function sampleArr(arr, maxPoints) {
+  if (arr.length <= maxPoints) return arr;
+  const step = (arr.length - 1) / (maxPoints - 1);
+  const out = [];
+  for (let i = 0; i < maxPoints; i++) out.push(arr[Math.round(i * step)]);
+  return out;
+}
+
+async function renderPlannedRouteComparison(ride) {
+  if (!ride.planned_route_id) return;
+  try {
+    const { data: planned, error } = await supabase
+      .from('planned_routes')
+      .select('route')
+      .eq('id', ride.planned_route_id)
+      .single();
+    if (error || !planned || !Array.isArray(planned.route) || planned.route.length < 2) return;
+
+    const plannedLine = L.polyline(planned.route, {
+      color: '#ffd166', weight: 4, opacity: 0.75, dashArray: '10,8'
+    }).addTo(map);
+    plannedLine.bringToBack();
+
+    // Rough "route match": % of the actual ride's points that fall within
+    // ON_ROUTE_M of some point on the planned line. Not a precise projection,
+    // just a reflection prompt like the rest of Ride Coach's scoring.
+    const ON_ROUTE_M = 60;
+    const plannedSample = sampleArr(planned.route, 150);
+    const actualSample = sampleArr(points, 200);
+    let onRoute = 0;
+    actualSample.forEach(p => {
+      let minD = Infinity;
+      for (const [plat, plng] of plannedSample) {
+        const d = havMeters(p.lat, p.lng, plat, plng);
+        if (d < minD) minD = d;
+        if (minD < ON_ROUTE_M) break;
+      }
+      if (minD < ON_ROUTE_M) onRoute++;
+    });
+    const matchPct = actualSample.length ? Math.round((onRoute / actualSample.length) * 100) : null;
+
+    const grid = document.querySelector('#summary-section .summary-grid');
+    if (grid && matchPct != null) {
+      const card = document.createElement('div');
+      card.className = 'summary-card';
+      card.innerHTML = `<div class="summary-label">Route Match</div><div class="summary-value num">${matchPct}%</div>`;
+      grid.appendChild(card);
+    }
+  } catch (e) {
+    console.warn('Planned route comparison skipped:', e);
+  }
+}
+
 // ========== LOAD RIDE FROM DASHBOARD ==========
 
 const params = new URLSearchParams(window.location.search);
@@ -2500,6 +2554,7 @@ if (params.has('ride')) {
       const resp = await fetch(urlData.publicUrl);
       const gpxText = await resp.text();
       await parseAndRenderGPX(gpxText);
+      await renderPlannedRouteComparison(ride);
 
       // Moments
       rideMoments = Array.isArray(ride.moments) ? ride.moments : [];

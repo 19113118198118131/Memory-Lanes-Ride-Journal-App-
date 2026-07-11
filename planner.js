@@ -5,7 +5,7 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=58';
+import { mlIconSVG } from './icons.js?v=59';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
@@ -523,11 +523,15 @@ function renderSavedRoutes() {
         <span>${mlIconSVG('mountain')} ${route.elevation_m != null ? route.elevation_m : '--'} m</span>
       </div>
       <div class="planner-route-actions">
+        <button type="button" class="btn-primary planner-start-btn">${mlIconSVG('play')} Start Ride</button>
         <button type="button" class="btn-outline planner-load-btn">${mlIconSVG('edit')} Load</button>
         <button type="button" class="btn-outline planner-export-saved-btn">${mlIconSVG('download')} Export GPX</button>
         <button type="button" class="btn-plain-danger planner-delete-btn">${mlIconSVG('trash')} Delete</button>
       </div>
     `;
+    item.querySelector('.planner-start-btn').addEventListener('click', () => {
+      window.location.href = `ride-live.html?route=${route.id}`;
+    });
     item.querySelector('.planner-load-btn').addEventListener('click', () => loadSavedRouteIntoPlanner(route));
     item.querySelector('.planner-export-saved-btn').addEventListener('click', () => downloadGPX(route.route, route.title));
     item.querySelector('.planner-delete-btn').addEventListener('click', () => deleteSavedRoute(route.id));

@@ -11,8 +11,8 @@
   </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="Plan a motorcycle route on the map, snapped to real roads, then save it or export it as a GPX file for your ride." />
-  <title>Plan a Route - Memory Lanes</title>
+  <meta name="description" content="Follow a planned route live on the map, record your actual ride, and save it to your journal." />
+  <title>Follow Route - Memory Lanes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
@@ -46,85 +46,71 @@
       <span class="nav-sep">|</span>
       <a class="nav-link" href="stats.html" data-nav="stats.html">Journeys</a>
       <span class="nav-sep">|</span>
-      <a class="nav-link" href="planner.html" data-nav="planner.html" aria-current="page">Plan</a>
+      <a class="nav-link" href="planner.html" data-nav="planner.html">Plan</a>
     </nav>
   </header>
 
   <header>
     <div class="dashboard-header">
-      <h1 data-head-icon="route">Plan a Route</h1>
+      <h1 data-head-icon="flag">Follow Route</h1>
       <div class="button-group">
-        <button id="planner-dashboard-btn" class="btn-outline">My Rides</button>
+        <button id="live-cancel-btn" class="btn-plain-danger">Cancel</button>
       </div>
     </div>
   </header>
 
   <main>
-    <p class="section-sub">Click the map to drop waypoints — the route snaps to real roads automatically. Drag a pin to move it, click the route line to insert a stop, then save your route or export it as a GPX file.</p>
+    <div id="live-loading" class="chart-desc">Loading route…</div>
 
-    <div id="planner-auth-note" style="display:none;">
-      <p class="chart-desc">Log in to plan and save routes. <a href="index.html">Go to login</a></p>
-    </div>
-
-    <div id="planner-body" style="display:none;">
-      <div class="planner-toolbar">
-        <div class="planner-search">
-          <input type="text" id="planner-search-input" placeholder="Search for a place…" autocomplete="off" />
-          <button id="planner-search-btn" class="btn-outline">Search</button>
-          <div id="planner-search-results" class="planner-search-results"></div>
-        </div>
-        <div class="planner-toolbar-actions">
-          <button id="planner-undo-btn" class="btn-muted" disabled>Undo</button>
-          <button id="planner-redo-btn" class="btn-muted" disabled>Redo</button>
-          <button id="planner-clear-btn" class="btn-plain-danger" disabled>Clear</button>
-        </div>
-      </div>
+    <div id="live-body" style="display:none;">
+      <p class="section-sub" id="live-route-title"></p>
+      <p class="chart-desc">Keep this tab open and your screen on while recording — GPS tracking pauses if the browser goes to sleep. When you're done, Finish Ride to save your actual track alongside the plan.</p>
 
       <section id="planner-map-section">
-        <div id="planner-map"></div>
-        <div id="planner-map-hint" class="planner-map-hint">Click anywhere on the map to start your route</div>
+        <div id="live-map"></div>
+        <div id="live-status-banner" class="planner-map-hint">Tap Start Ride when you're ready to go</div>
       </section>
 
       <div class="planner-stats">
         <div class="planner-stat">
           <span class="planner-stat-label">Distance</span>
-          <span class="planner-stat-value" id="planner-distance">–</span>
+          <span class="planner-stat-value" id="live-distance">0.0 km</span>
         </div>
         <div class="planner-stat">
-          <span class="planner-stat-label">Elevation Gain</span>
-          <span class="planner-stat-value" id="planner-elevation">–</span>
+          <span class="planner-stat-label">Elapsed</span>
+          <span class="planner-stat-value" id="live-elapsed">0h 0m</span>
         </div>
         <div class="planner-stat">
-          <span class="planner-stat-label">Waypoints</span>
-          <span class="planner-stat-value" id="planner-waypoint-count">0</span>
+          <span class="planner-stat-label">Speed</span>
+          <span class="planner-stat-value" id="live-speed">–</span>
+        </div>
+        <div class="planner-stat">
+          <span class="planner-stat-label">On Route</span>
+          <span class="planner-stat-value" id="live-route-status">–</span>
         </div>
       </div>
 
-      <div id="planner-waypoint-list" class="waypoint-list"></div>
+      <div class="planner-toolbar-actions" style="margin-bottom:1.5rem;">
+        <button id="live-start-btn" class="btn-primary">Start Ride</button>
+        <button id="live-finish-btn" class="btn-primary" style="display:none;">Finish Ride</button>
+        <button id="live-recenter-btn" class="btn-outline" style="display:none;">Recenter</button>
+      </div>
 
-      <div id="planner-save-form">
-        <h3>Save this Route</h3>
+      <div id="live-save-form" style="display:none;">
+        <h3>Save this Ride</h3>
         <div class="ride-form">
-          <label for="planner-route-title">Route Title:</label>
-          <input type="text" id="planner-route-title" placeholder="Enter a name for this route" />
-          <button id="planner-save-btn" class="btn-primary" disabled>Save Route</button>
-          <button id="planner-export-btn" class="btn-outline" disabled>Export GPX</button>
+          <label for="live-ride-title">Ride Title:</label>
+          <input type="text" id="live-ride-title" placeholder="Enter a title for this ride" />
+          <button id="live-save-btn" class="btn-primary">Save Ride</button>
         </div>
-        <p id="planner-save-status"></p>
+        <p id="live-save-status"></p>
       </div>
-
-      <section id="planner-saved-routes">
-        <h2>Your Planned Routes</h2>
-        <div id="planner-routes-list">Loading…</div>
-      </section>
-
-      <p class="planner-attribution">Routing by OSRM &middot; Search by Photon (Komoot) &middot; Map data &copy; OpenStreetMap contributors &middot; Elevation by Open-Meteo</p>
     </div>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="planner.js?v=59"></script>
+  <script type="module" src="ride-live.js?v=59"></script>
   <script type="module" src="icons.js?v=59"></script>
   <script src="theme.js?v=59"></script>
 </body>
