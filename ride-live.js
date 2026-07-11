@@ -63,6 +63,7 @@ let followMode = true;
 let recording = false; // true from Start until Finish (stays true while paused)
 let watching = false;  // true only while the GPS watch is actively running
 let wakeLock = null;
+let hasCenteredOnFix = false; // so the very first GPS fix zooms in, not just pans
 
 // ---------- Init ----------
 (async () => {
@@ -156,13 +157,13 @@ function startRide() {
   startTime = new Date();
   recording = true;
   followMode = true;
+  hasCenteredOnFix = false;
   beginWatch();
 
   startBtn.style.display = 'none';
   pauseBtn.style.display = '';
   pauseBtn.textContent = 'Pause';
   finishBtn.style.display = '';
-  statusBanner.textContent = 'Recording your ride…';
 }
 
 function togglePause() {
@@ -173,11 +174,24 @@ function togglePause() {
   } else {
     beginWatch();
     pauseBtn.textContent = 'Pause';
-    statusBanner.textContent = 'Recording your ride…';
   }
 }
 
+// Set once per beginWatch() call, so the "still waiting" check only fires
+// if THIS watch session hasn't produced a fix yet (not stale from before a pause).
+let pointsAtWatchStart = 0;
+let firstFixTimer = null;
+
 function beginWatch() {
+  pointsAtWatchStart = recordedPoints.length;
+  statusBanner.textContent = 'Waiting for a GPS signal…';
+  clearTimeout(firstFixTimer);
+  firstFixTimer = setTimeout(() => {
+    if (watching && recordedPoints.length === pointsAtWatchStart) {
+      statusBanner.textContent = "Still no GPS fix. Check this site has location permission (and location services are turned on) — this feature needs a real GPS signal, so it works best on a phone, not a desktop browser.";
+    }
+  }, 8000);
+
   watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
     enableHighAccuracy: true, maximumAge: 2000, timeout: 15000
   });
@@ -186,6 +200,7 @@ function beginWatch() {
 }
 
 function endWatch() {
+  clearTimeout(firstFixTimer);
   if (watchId != null) navigator.geolocation.clearWatch(watchId);
   watchId = null;
   watching = false;
@@ -193,6 +208,11 @@ function endWatch() {
 }
 
 function onPosition(pos) {
+  if (recordedPoints.length === pointsAtWatchStart) {
+    clearTimeout(firstFixTimer);
+    statusBanner.textContent = 'Recording your ride…';
+  }
+
   const { latitude, longitude, altitude, speed } = pos.coords;
   const pt = { lat: latitude, lng: longitude, ele: altitude || 0, time: new Date(pos.timestamp) };
 
@@ -214,13 +234,36 @@ function onPosition(pos) {
   } else {
     recordedLine.addLatLng([pt.lat, pt.lng]);
   }
-  if (followMode) map.panTo([pt.lat, pt.lng]);
+  if (followMode) {
+    if (!hasCenteredOnFix) {
+      // First fix of the ride: zoom in to street level, not just pan at
+      // whatever zoom the map happened to be at (which can still be the
+      // world view if the initial low-accuracy centering attempt missed).
+      map.setView([pt.lat, pt.lng], 16);
+      hasCenteredOnFix = true;
+    } else {
+      map.panTo([pt.lat, pt.lng]);
+    }
+  }
 
   updateTelemetry(pt, speed);
 }
 
 function onPositionError(err) {
-  statusBanner.textContent = `Location error: ${err.message}. Check location permissions and try again.`;
+  clearTimeout(firstFixTimer);
+  switch (err.code) {
+    case err.PERMISSION_DENIED:
+      statusBanner.textContent = "Location permission was denied. Allow location access for this site in your browser's settings, then reload and try again.";
+      break;
+    case err.POSITION_UNAVAILABLE:
+      statusBanner.textContent = "Your device can't determine its location right now. Check that location services are turned on.";
+      break;
+    case err.TIMEOUT:
+      statusBanner.textContent = 'Still waiting for a GPS fix — this can take longer with a weak signal or indoors.';
+      break;
+    default:
+      statusBanner.textContent = `Location error: ${err.message}. Check location permissions and try again.`;
+  }
 }
 
 function updateTelemetry(pt, speedMs) {
