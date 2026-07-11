@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=66';
-import { buildRideInsights } from './insights.js?v=66';
-import { mlIconSVG } from './icons.js?v=66';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=67';
+import { buildRideInsights } from './insights.js?v=67';
+import { mlIconSVG } from './icons.js?v=67';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -2432,11 +2432,17 @@ resetUIToInitial();
 // The landing page previously had no visible way to log in unless you first
 // triggered an upload/save flow — confusing for a returning visitor. This
 // gives every visitor on index.html a persistent, obvious entry point.
+// Show the logged-out state immediately rather than waiting on the network:
+// a slow connection or failed session check should never hide the button.
+headerAuthControls.style.display = '';
 (async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  headerAuthControls.style.display = '';
-  headerLoginBtn.style.display = user ? 'none' : '';
-  headerAccountControls.style.display = user ? '' : 'none';
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    headerLoginBtn.style.display = user ? 'none' : '';
+    headerAccountControls.style.display = user ? '' : 'none';
+  } catch (e) {
+    console.warn('Could not check login state:', e);
+  }
 })();
 
 headerLoginBtn.addEventListener('click', () => {

@@ -453,6 +453,7 @@ nav { margin-top: 0.22rem; }
   color: var(--color-accent);
   letter-spacing: 0.5px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 1.2rem;
   opacity: 0.85;
@@ -467,6 +468,8 @@ nav { margin-top: 0.22rem; }
   letter-spacing: 0.4px;
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
   gap: 0.8rem;
   opacity: 0.9;
 }
@@ -491,6 +494,7 @@ nav { margin-top: 0.22rem; }
 #ride-card-nav {
   display: none;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
   margin-top: 1.6rem;
   padding-left: 1.5rem; /* aligns with card content */
@@ -734,6 +738,7 @@ footer a:hover {
 /* Chart toggle controls */
 #chart-toggle {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 1.12rem;
   margin-bottom: 1rem;
@@ -838,6 +843,7 @@ button:active, .btn-muted:active, .download-buttons button:active {
 
 .upload-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.8rem;
 }
@@ -896,6 +902,13 @@ button:active, .btn-muted:active, .download-buttons button:active {
 }
 
 /* ---------- EDIT CONTROLS, HINTS ---------- */
+/* The container's display:none/flex toggle is inline (JS-controlled), but
+   wrap needs to live here — 12 buttons in one unbroken row overflow any
+   phone/tablet width otherwise, squeezing each button's text into a
+   multi-line stack instead of just flowing onto a new row. */
+#edit-controls {
+  flex-wrap: wrap;
+}
 #edit-experimental-banner {
   display: none;
   background: #b48d07;
@@ -1057,21 +1070,32 @@ button:active, .btn-muted:active, .download-buttons button:active {
   color: var(--accent-light);
   margin-bottom: 0.36rem;
 }
+.ride-details {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 0.3rem;
+}
 .ride-details span {
   margin-right: 1.18rem;
   color: var(--color-text-secondary);
   font-size: 1.09rem;
+  white-space: nowrap;
 }
 
 .delete-icon {
-  position: absolute;
-  right: 19px; bottom: 15px;
+  /* Lives inline in .ride-meta (next to the date), not pinned to a fixed
+     corner — absolute positioning here used to overlap card content
+     whenever a card grew taller (wrapped title/details, action buttons). */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
   cursor: pointer;
-  font-size: 1.29rem;
+  font-size: 1.1rem;
   color: var(--color-danger);
   background: var(--color-text-primary)2;
   border-radius: 50%;
-  padding: 8px 12px;
+  padding: 7px 10px;
   transition: box-shadow 0.19s, color 0.16s, background 0.15s, transform 0.13s;
   box-shadow: 0 3px 14px 0 rgba(255,107,107,0.12);
 }
@@ -1751,6 +1775,7 @@ button:hover,
 /* --- Toggle Buttons Polished --- */
 #journal-toggle-view {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.7rem;
   margin-bottom: 1.4rem;
 }
@@ -3489,6 +3514,7 @@ header:not(.main-header) .dashboard-header {
 }
 .waypoint-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.9rem;
   padding: 0.6rem 1rem;
@@ -3546,7 +3572,11 @@ header:not(.main-header) .dashboard-header {
 @media (max-width: 700px) {
   #planner-map { min-height: 260px; }
   .planner-toolbar { flex-direction: column; align-items: stretch; }
-  .planner-search { max-width: none; }
+  /* .planner-search's flex-basis of 320px means WIDTH in the desktop row
+     layout, but once .planner-toolbar switches to flex-direction:column
+     above, that same basis applies to the (now vertical) main axis —
+     turning into a 320px-tall search box. Reset it explicitly. */
+  .planner-search { max-width: none; flex-basis: auto; }
 }
 
 /* ---------- FOLLOW A ROUTE (ride-live.html) ---------- */
