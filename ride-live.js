@@ -3,11 +3,15 @@
 // Record a ride live: GPS track, distance/speed/elapsed telemetry,
 // pause/resume, then save it as a ride log. With a ?route= param, it
 // also follows a planned route (position vs. the plan). Without one,
-// it's a plain "start riding now" recorder — plan later, or not at all.
+// it's a plain "start riding now" recorder - plan later, or not at all.
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js';
+// NOTE: this import URL must match the icons.js?v=N script tag in
+// ride-live.html exactly. A bare './icons.js' is a DIFFERENT module URL to
+// './icons.js?v=N', so the browser loads icons.js twice and applyIcons()
+// runs twice, duplicating every button icon on this page.
+import { mlIconSVG } from './icons.js?v=75';
 
 const ON_ROUTE_M = 60; // metres: within this of the planned line counts as "on route"
 
@@ -102,7 +106,7 @@ let groupPollTimer = null;
 
   if (groupToken) {
     // Group ride: the token both admits us (membership row) and returns the
-    // route to follow — the route belongs to the host, not to this rider.
+    // route to follow - the route belongs to the host, not to this rider.
     let gr = null;
     try {
       const { data, error } = await supabase.rpc('join_group_ride', { token: groupToken });
@@ -110,14 +114,14 @@ let groupPollTimer = null;
       gr = data;
     } catch (_) {}
     if (!gr || !Array.isArray(gr.route) || gr.route.length < 2) {
-      loadingEl.textContent = 'Could not join that group ride. It may have ended — ask the host for a fresh link.';
+      loadingEl.textContent = 'Could not join that group ride. It may have ended. Ask the host for a fresh link.';
       return;
     }
     groupRide = { id: gr.id, token: groupToken, title: gr.title };
     plannedRoute = { id: gr.route_id, title: gr.route_title, route: gr.route, is_public: false };
     plannedRouteSample = sampleArr(gr.route, 150);
     liveTitleEl.textContent = 'Group Ride';
-    routeTitleEl.textContent = `Riding "${gr.title}" with the group — other riders appear on your map as they broadcast.`;
+    routeTitleEl.textContent = `Riding "${gr.title}" with the group. Other riders appear on your map as they broadcast.`;
     // Joining a group ride is itself the opt-in: mutual visibility is the
     // point, so the toggle starts ON here (and stays one tap from off).
     broadcastRow.style.display = '';
@@ -140,12 +144,12 @@ let groupPollTimer = null;
     plannedRouteSample = sampleArr(route.route, 150);
     liveTitleEl.textContent = 'Follow Route';
     routeTitleEl.textContent = `Following: ${route.title}`;
-    // Live broadcast only makes sense on a shared route — visibility is
+    // Live broadcast only makes sense on a shared route - visibility is
     // gated on the invite token, so an unshared route has no possible viewers.
     if (route.is_public) broadcastRow.style.display = '';
   } else {
     liveTitleEl.textContent = 'Record a Ride';
-    routeTitleEl.textContent = "Recording a free ride — no plan needed. You can edit or crop the track afterwards from Logs.";
+    routeTitleEl.textContent = "Recording a free ride, no plan needed. You can edit or crop the track afterwards from Logs.";
     onRouteCard.style.display = 'none';
   }
 
@@ -164,7 +168,7 @@ async function refreshGroupRiders() {
     if (error) throw error;
     riders = Array.isArray(data) ? data : []; // server already excludes this rider's own row
   } catch (_) {
-    return; // transient failure — keep previous markers, retry next tick
+    return; // transient failure - keep previous markers, retry next tick
   }
   groupRiderMarkers.forEach(m => map.removeLayer(m));
   groupRiderMarkers = riders.map(r => {
@@ -237,7 +241,7 @@ cancelBtn.addEventListener('click', () => {
 // ---------- Moments: journal entries added mid-ride ----------
 momentBtn.addEventListener('click', () => {
   if (!recordedPoints.length) {
-    alert("Still waiting for a GPS fix — try again once your position is being tracked.");
+    alert("Still waiting for a GPS fix. Try again once your position is being tracked.");
     return;
   }
   const pt = recordedPoints[recordedPoints.length - 1];
@@ -358,7 +362,7 @@ function beginWatch() {
   clearTimeout(firstFixTimer);
   firstFixTimer = setTimeout(() => {
     if (watching && recordedPoints.length === pointsAtWatchStart) {
-      statusBanner.textContent = "Still no GPS fix. Check this site has location permission (and location services are turned on) — this feature needs a real GPS signal, so it works best on a phone, not a desktop browser.";
+      statusBanner.textContent = "Still no GPS fix. Check this site has location permission (and location services are turned on). This feature needs a real GPS signal, so it works best on a phone, not a desktop browser.";
     }
   }, 8000);
 
@@ -432,7 +436,7 @@ function onPositionError(err) {
       statusBanner.textContent = "Your device can't determine its location right now. Check that location services are turned on.";
       break;
     case err.TIMEOUT:
-      statusBanner.textContent = 'Still waiting for a GPS fix — this can take longer with a weak signal or indoors.';
+      statusBanner.textContent = 'Still waiting for a GPS fix. This can take longer with a weak signal or indoors.';
       break;
     default:
       statusBanner.textContent = `Location error: ${err.message}. Check location permissions and try again.`;
@@ -482,8 +486,8 @@ function finishRide() {
   statusBanner.textContent = 'Ride recorded. Save it below to keep it.';
   saveForm.style.display = '';
   rideTitleInput.value = plannedRoute
-    ? `${plannedRoute.title} — ${new Date().toLocaleDateString()}`
-    : `Ride — ${new Date().toLocaleDateString()}`;
+    ? `${plannedRoute.title} - ${new Date().toLocaleDateString()}`
+    : `Ride - ${new Date().toLocaleDateString()}`;
 }
 
 // ---------- Live broadcast (opt-in; visible only via the route's invite link) ----------

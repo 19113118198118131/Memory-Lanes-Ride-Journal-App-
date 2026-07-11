@@ -11,13 +11,13 @@
   </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="A Memory Lanes group ride — see the route, join the group, and watch riders live on the map." />
+  <meta name="description" content="A Memory Lanes group ride: see the route, join the group, and watch riders live on the map." />
   <title>Group Ride - Memory Lanes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=74" />
+  <link rel="stylesheet" href="style.css?v=75" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -59,14 +59,43 @@
   <main>
     <div id="group-loading" class="chart-desc">Loading group ride…</div>
     <div id="group-error" class="chart-desc" style="display:none;">
-      This group ride isn't available. It may have ended or been removed — ask the host for a fresh link.
+      This group ride isn't available. It may have ended or been removed. Ask the host for a fresh link.
     </div>
 
     <div id="group-body" style="display:none;">
       <h2 id="group-title"></h2>
       <p class="section-sub" id="group-hosted-by" style="display:none;"></p>
       <p class="section-sub" id="group-route-line"></p>
+      <p class="section-sub" id="group-meet-line" style="display:none;"></p>
       <p class="planner-goal-hint planner-goal-hint-ok" id="group-live-banner" style="display:none;"></p>
+
+      <div id="group-meet-editor" class="profile-card" style="display:none;">
+        <h3 style="margin-top:0;">Meeting details</h3>
+        <div class="profile-fields">
+          <label>Meeting time
+            <input type="datetime-local" id="group-meet-time-input" />
+          </label>
+          <label>Meeting point
+            <input type="text" id="group-meet-point-input" maxlength="120" placeholder="e.g. BP Bombay, northbound side" />
+          </label>
+        </div>
+        <div class="planner-toolbar-actions">
+          <button type="button" id="group-meet-save-btn" class="btn-primary">Save Meeting Details</button>
+        </div>
+        <p id="group-meet-status" class="chart-desc"></p>
+      </div>
+
+      <div id="group-rsvp-row" class="planner-toolbar-actions" style="display:none;">
+        <span class="section-sub" style="margin:0;">Are you riding?</span>
+        <button type="button" class="btn-outline group-rsvp-btn" data-rsvp="going">I'm in</button>
+        <button type="button" class="btn-outline group-rsvp-btn" data-rsvp="maybe">Maybe</button>
+        <button type="button" class="btn-outline group-rsvp-btn" data-rsvp="no">Can't make it</button>
+      </div>
+
+      <div id="group-attendees" class="profile-card" style="display:none;">
+        <h3 style="margin-top:0;">Who's coming</h3>
+        <div id="group-attendee-list"></div>
+      </div>
 
       <section id="planner-map-section">
         <div id="group-map"></div>
@@ -102,8 +131,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="group.js?v=74"></script>
-  <script type="module" src="icons.js?v=74"></script>
-  <script src="theme.js?v=74"></script>
+  <script type="module" src="group.js?v=75"></script>
+  <script type="module" src="icons.js?v=75"></script>
+  <script src="theme.js?v=75"></script>
 </body>
 </html>

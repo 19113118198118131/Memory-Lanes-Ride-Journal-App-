@@ -15,7 +15,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Ride Journal Dashboard</title>
-  <link rel="stylesheet" href="style.css?v=74" />
+  <link rel="stylesheet" href="style.css?v=75" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -89,14 +89,20 @@
       </div>
     </section>
 
+    <!-- Group rides you host or joined: lose the link, recover it here -->
+    <section id="group-rides-section" class="profile-card" style="display:none;">
+      <h2>Your Group Rides</h2>
+      <div id="group-rides-list"></div>
+    </section>
+
     <h2>Your Rides &amp; Planned Routes</h2>
     <div id="ride-list">Loading…</div>
   </main>
 
   <!-- ========== JS for dashboard ========= -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script type="module" src="dashboard.js?v=74"></script>
-  <script type="module" src="icons.js?v=74"></script>
-  <script src="theme.js?v=74"></script>
+  <script type="module" src="dashboard.js?v=75"></script>
+  <script type="module" src="icons.js?v=75"></script>
+  <script src="theme.js?v=75"></script>
 </body>
 </html>

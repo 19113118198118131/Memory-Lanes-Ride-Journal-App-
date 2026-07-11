@@ -7,7 +7,7 @@
 
 // Supabase config
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=74';
+import { mlIconSVG } from './icons.js?v=75';
 
 // DOM references
 const rideList = document.getElementById('ride-list');
@@ -78,7 +78,7 @@ function escapeHtml(str) {
   if (ridesRes.error) {
     showToast('Failed to load rides.', 'delete');
   }
-  // planned_routes may not exist yet if that migration hasn't been run — fail soft.
+  // planned_routes may not exist yet if that migration hasn't been run - fail soft.
   const plannedRows = plannedRes.error ? [] : (plannedRes.data || []);
 
   const rides = (ridesRes.data || []).map(r => ({ ...r, _type: 'ride', _date: r.ride_date }));
@@ -92,6 +92,7 @@ function escapeHtml(str) {
   allItems = [...rides, ...planned];
 
   initProfileEditor(user);
+  loadMyGroupRides();
 
   populateMonthFilter(allItems);
   populateYearFilter(allItems);
@@ -120,11 +121,11 @@ async function initProfileEditor(user) {
     if (name) {
       summaryEl.textContent = `Sharing routes as "${name}"${region ? ` · ${region}` : ''}.`;
     } else {
-      summaryEl.textContent = 'No display name set — your shared routes show no name. Add one so invites can say who they\'re from.';
+      summaryEl.textContent = 'No display name set. Your shared routes show no name. Add one so invites can say who they\'re from.';
     }
   }
 
-  // profiles may not exist if the migration hasn't run — fail soft like planned_routes does.
+  // profiles may not exist if the migration hasn't run - fail soft like planned_routes does.
   let profile = null;
   try {
     const { data } = await supabase.from('profiles').select('display_name, region').eq('user_id', user.id).maybeSingle();
@@ -155,6 +156,51 @@ async function initProfileEditor(user) {
     }
     statusEl.textContent = 'Profile saved.';
     renderSummary(display_name, region);
+  });
+}
+
+// ========== My Group Rides (hosted or joined; the link lives here now) ==========
+async function loadMyGroupRides() {
+  const section = document.getElementById('group-rides-section');
+  const list = document.getElementById('group-rides-list');
+  if (!section || !list) return;
+  let rides = [];
+  try {
+    const { data, error } = await supabase.rpc('get_my_group_rides');
+    if (error) throw error;
+    rides = Array.isArray(data) ? data : [];
+  } catch (_) {
+    return; // function may not exist yet if the migration hasn't run
+  }
+  if (!rides.length) return; // no group rides, keep the section hidden
+  section.style.display = '';
+  list.innerHTML = '';
+  rides.forEach(gr => {
+    const lobbyLink = `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}group.html?ride=${gr.share_token}`;
+    const meetBits = [];
+    if (gr.meet_time) {
+      const t = new Date(gr.meet_time);
+      meetBits.push(`${t.toLocaleDateString()} ${t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
+    }
+    if (gr.meet_point) meetBits.push(gr.meet_point);
+    const item = document.createElement('div');
+    item.className = 'group-ride-row';
+    item.innerHTML = `
+      <div class="group-ride-info">
+        <span class="group-ride-title">
+          ${escapeHtml(gr.title)}
+          <span class="status-chip ${gr.is_owner ? 'status-chip-planned' : 'status-chip-completed'}">${gr.is_owner ? 'Host' : 'Rider'}</span>
+        </span>
+        <span class="group-ride-meta">
+          ${escapeHtml(gr.route_title)} · ${gr.member_count} rider${gr.member_count === 1 ? '' : 's'}${meetBits.length ? ' · ' + escapeHtml(meetBits.join(', ')) : ''}
+        </span>
+      </div>
+      <button type="button" class="btn-outline group-ride-open-btn">${mlIconSVG('flag')} Open</button>
+    `;
+    item.querySelector('.group-ride-open-btn').addEventListener('click', () => {
+      window.location.href = lobbyLink;
+    });
+    list.appendChild(item);
   });
 }
 
@@ -378,19 +424,19 @@ function renderPlannedCard(route) {
   });
   item.querySelector('.planned-groupride-btn').addEventListener('click', async (e) => {
     e.stopPropagation();
-    const title = window.prompt('Name this group ride:', `${route.title} — Group Ride`);
+    const title = window.prompt('Name this group ride:', `${route.title} Group Ride`);
     if (title === null) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { showToast('Please log in first.', 'info'); return; }
     const { data, error } = await supabase
       .from('group_rides')
-      .insert({ route_id: route.id, owner_id: user.id, title: title.trim() || `${route.title} — Group Ride` })
+      .insert({ route_id: route.id, owner_id: user.id, title: title.trim() || `${route.title} Group Ride` })
       .select('share_token')
       .single();
     if (error) { showToast('Could not create the group ride.', 'delete'); return; }
     const link = `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}group.html?ride=${data.share_token}`;
     try { await navigator.clipboard.writeText(link); } catch (_) { window.prompt('Copy this group ride link:', link); }
-    showToast('Group ride created — link copied! Opening the group page…', 'add');
+    showToast('Group ride created and link copied! Opening the group page…', 'add');
     setTimeout(() => { window.location.href = link; }, 900);
   });
   item.querySelector('.delete-icon').addEventListener('click', (e) => {

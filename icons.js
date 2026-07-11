@@ -86,6 +86,10 @@ const ICON_BY_ID = {
 
 // Replace a leading emoji in an element's text with an inline icon, keep the label.
 function iconizeLabel(el, iconName) {
+  // Idempotent: if this element already carries an inline icon, do nothing.
+  // Guards against applyIcons() running twice (e.g. icons.js loaded under
+  // two different module URLs, one with ?v= and one without).
+  if (el.querySelector('svg.ml-icon')) return;
   // Remove any leading emoji + following space from the first text node
   for (const node of el.childNodes) {
     if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {

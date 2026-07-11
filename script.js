@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=74';
-import { buildRideInsights } from './insights.js?v=74';
-import { mlIconSVG } from './icons.js?v=74';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=75';
+import { buildRideInsights } from './insights.js?v=75';
+import { mlIconSVG } from './icons.js?v=75';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -782,7 +782,7 @@ connectStartBtn.onclick = function() {
   editHistory.push(newLatLngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
   redoHistory = [];
   saveEditBtn.disabled = false;
-  showToast('Return leg added — route now ends where it started.', 'add');
+  showToast('Return leg added. The route now ends where it started.', 'add');
 };
 
 // --- SIMPLIFY (reduce excess GPS points, keep the shape) ---
@@ -798,7 +798,7 @@ simplifyEditBtn.onclick = function() {
   const simplified = L.LineUtil.simplify(projected, 3);
   const newLatLngs = simplified.map(p => map.unproject(p, REF_ZOOM));
   if (newLatLngs.length >= latlngs.length) {
-    showToast('Route is already simplified — no points removed.', 'info');
+    showToast('Route is already simplified. No points were removed.', 'info');
     return;
   }
   const pctCut = Math.round((1 - newLatLngs.length / latlngs.length) * 100);
@@ -2430,7 +2430,7 @@ resetUIToInitial();
 
 // ========== HEADER LOGIN / ACCOUNT CONTROLS ==========
 // The landing page previously had no visible way to log in unless you first
-// triggered an upload/save flow — confusing for a returning visitor. This
+// triggered an upload/save flow - confusing for a returning visitor. This
 // gives every visitor on index.html a persistent, obvious entry point.
 // Show the logged-out state immediately rather than waiting on the network:
 // a slow connection or failed session check should never hide the button.

@@ -2,7 +2,7 @@
 // Memory Lanes Ride Journal - group.js
 // Group ride lobby + live spectator map. Anyone with the secret group link
 // can watch; joining and riding needs an account. All riders who joined via
-// this link broadcast onto this one shared map (that's the point — unlike
+// this link broadcast onto this one shared map (that's the point - unlike
 // route-copy sharing, there's a single shared ride object).
 // ===============================
 
@@ -22,6 +22,15 @@ const joinBtn     = document.getElementById('group-join-btn');
 const copyBtn     = document.getElementById('group-copy-btn');
 const endBtn      = document.getElementById('group-end-btn');
 const loginNoteEl = document.getElementById('group-login-note');
+const meetLineEl  = document.getElementById('group-meet-line');
+const meetEditorEl = document.getElementById('group-meet-editor');
+const meetTimeInput = document.getElementById('group-meet-time-input');
+const meetPointInput = document.getElementById('group-meet-point-input');
+const meetSaveBtn = document.getElementById('group-meet-save-btn');
+const meetStatusEl = document.getElementById('group-meet-status');
+const rsvpRowEl   = document.getElementById('group-rsvp-row');
+const attendeesEl = document.getElementById('group-attendees');
+const attendeeListEl = document.getElementById('group-attendee-list');
 
 const LIVE_POLL_MS = 15000;
 
@@ -35,6 +44,48 @@ function showError() {
   loadingEl.style.display = 'none';
   bodyEl.style.display = 'none';
   errorEl.style.display = '';
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+}
+
+const RSVP_LABELS = { going: 'Riding', maybe: 'Maybe', no: 'Not this time' };
+
+function renderMeetLine() {
+  const parts = [];
+  if (groupRide.meet_time) {
+    const t = new Date(groupRide.meet_time);
+    parts.push(`Meets ${t.toLocaleDateString()} at ${t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
+  }
+  if (groupRide.meet_point) parts.push(groupRide.meet_time ? `from ${groupRide.meet_point}` : `Meeting point: ${groupRide.meet_point}`);
+  if (parts.length) {
+    meetLineEl.textContent = parts.join(' ');
+    meetLineEl.style.display = '';
+  } else {
+    meetLineEl.style.display = 'none';
+  }
+}
+
+function renderAttendees() {
+  const members = Array.isArray(groupRide.members) ? groupRide.members : [];
+  if (!members.length) { attendeesEl.style.display = 'none'; return; }
+  attendeesEl.style.display = '';
+  attendeeListEl.innerHTML = members.map(m => `
+    <div class="group-attendee">
+      <span class="group-attendee-name">${escapeHtml(m.name)}${m.is_you ? ' (you)' : ''}</span>
+      <span class="status-chip ${m.rsvp === 'going' ? 'status-chip-completed' : m.rsvp === 'maybe' ? 'status-chip-planned' : 'status-chip-shared'}">${RSVP_LABELS[m.rsvp] || m.rsvp}</span>
+    </div>
+  `).join('');
+  membersEl.textContent = String(members.filter(m => m.rsvp !== 'no').length);
+}
+
+function renderRsvpButtons() {
+  rsvpRowEl.querySelectorAll('.group-rsvp-btn').forEach(btn => {
+    btn.classList.toggle('active-rsvp', btn.dataset.rsvp === groupRide.your_rsvp);
+  });
 }
 
 (async () => {
@@ -74,17 +125,68 @@ function showError() {
   const line = L.polyline(gr.route, { color: '#64ffda', weight: 5, opacity: 0.9 }).addTo(groupMap);
   groupMap.fitBounds(line.getBounds(), { padding: [40, 40] });
 
+  renderMeetLine();
+  renderAttendees();
+
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
     joinBtn.style.display = '';
     joinBtn.textContent = gr.is_member ? 'Start Riding' : 'Join & Start Riding';
-    if (gr.is_owner) endBtn.style.display = '';
+    rsvpRowEl.style.display = '';
+    renderRsvpButtons();
+    if (gr.is_owner) {
+      endBtn.style.display = '';
+      meetEditorEl.style.display = '';
+      if (gr.meet_time) {
+        // datetime-local wants local time without the timezone suffix
+        const t = new Date(gr.meet_time);
+        const pad = n => String(n).padStart(2, '0');
+        meetTimeInput.value = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:${pad(t.getMinutes())}`;
+      }
+      meetPointInput.value = gr.meet_point || '';
+    }
   } else {
     loginNoteEl.style.display = '';
   }
 
   startLivePolling();
 })();
+
+meetSaveBtn.addEventListener('click', async () => {
+  meetSaveBtn.disabled = true;
+  meetStatusEl.textContent = 'Saving...';
+  const meet_time = meetTimeInput.value ? new Date(meetTimeInput.value).toISOString() : null;
+  const meet_point = meetPointInput.value.trim() || null;
+  const { error } = await supabase
+    .from('group_rides')
+    .update({ meet_time, meet_point })
+    .eq('id', groupRide.id);
+  meetSaveBtn.disabled = false;
+  if (error) {
+    meetStatusEl.textContent = 'Could not save: ' + error.message;
+    return;
+  }
+  meetStatusEl.textContent = 'Meeting details saved.';
+  groupRide.meet_time = meet_time;
+  groupRide.meet_point = meet_point;
+  renderMeetLine();
+});
+
+rsvpRowEl.querySelectorAll('.group-rsvp-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const answer = btn.dataset.rsvp;
+    const { data, error } = await supabase.rpc('rsvp_group_ride', { token: groupToken, answer });
+    if (error || !data) {
+      alert('Could not save your answer. Are you logged in?');
+      return;
+    }
+    groupRide = data;
+    renderMeetLine();
+    renderAttendees();
+    renderRsvpButtons();
+    joinBtn.textContent = 'Start Riding'; // rsvp created the membership if it didn't exist
+  });
+});
 
 joinBtn.addEventListener('click', () => {
   // The ride tracker auto-joins via join_group_ride, so members and
@@ -122,7 +224,7 @@ async function refreshLiveRiders() {
     if (error) throw error;
     riders = Array.isArray(data) ? data : [];
   } catch (_) {
-    return; // transient failure — keep previous markers, retry next tick
+    return; // transient failure - keep previous markers, retry next tick
   }
 
   riderMarkers.forEach(m => groupMap.removeLayer(m));

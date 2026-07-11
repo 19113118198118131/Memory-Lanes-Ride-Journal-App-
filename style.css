@@ -3621,6 +3621,50 @@ header:not(.main-header) .dashboard-header {
   flex: 1 1 220px;
 }
 
+/* ---------- GROUP RIDE: attendees, RSVP, dashboard list ---------- */
+.group-attendee {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border-card);
+}
+.group-attendee:last-child { border-bottom: none; }
+.group-attendee-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.group-rsvp-btn.active-rsvp {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.group-ride-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--border-card);
+}
+.group-ride-row:last-child { border-bottom: none; }
+.group-ride-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.group-ride-title {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.group-ride-meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
 /* ---------- LIVE RIDER MARKERS (route.html) ---------- */
 .live-rider-label {
   background: rgba(0, 0, 0, 0.72);

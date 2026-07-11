@@ -1,7 +1,7 @@
 // ===============================
 // Memory Lanes Ride Journal - route.js
 // Shared-route invite page: anyone with the secret link can view a planned
-// route (via the get_shared_route SECURITY DEFINER function — no login
+// route (via the get_shared_route SECURITY DEFINER function - no login
 // needed), and a logged-in rider can save a copy into their own library.
 // The owner stays anonymous: user_id never leaves the database.
 // ===============================
@@ -99,7 +99,7 @@ async function refreshLiveRiders() {
     if (error) throw error;
     riders = Array.isArray(data) ? data : [];
   } catch (_) {
-    return; // transient network issue — keep the previous markers, try again next tick
+    return; // transient network issue - keep the previous markers, try again next tick
   }
 
   liveRiderMarkers.forEach(m => routeMap.removeLayer(m));

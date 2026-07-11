@@ -5,8 +5,8 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=74';
-import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=74';
+import { mlIconSVG } from './icons.js?v=75';
+import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=75';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
@@ -130,7 +130,7 @@ let pendingCandidateOriginResolver = null; // set while waiting for a map click 
   authNote.style.display = 'none';
   plannerBody.style.display = '';
   // Leaflet sizes itself off its container's dimensions at creation time, and
-  // #planner-map starts out inside the hidden onboarding/workspace toggle —
+  // #planner-map starts out inside the hidden onboarding/workspace toggle -
   // initializing it here (while still display:none) leaves it permanently
   // 0x0 and blank. Defer initMap() until the workspace is actually shown
   // (see finishOnboarding() and loadSavedRouteIntoPlanner()).
@@ -342,7 +342,7 @@ async function runCandidateGeneration(origin) {
   }
 
   if (!candidates.length) {
-    candidatesLoadingEl.textContent = "Couldn't find route options out here — try a different start point or a shorter time.";
+    candidatesLoadingEl.textContent = "Couldn't find route options out here. Try a different start point or a shorter time.";
     return;
   }
   candidatesLoadingEl.style.display = 'none';
@@ -419,7 +419,7 @@ if (candidateUseBtn) candidateUseBtn.addEventListener('click', () => {
   initMap();
   // c.waypoints is [origin, ...anchors, origin] (closed for routing purposes).
   // routeType is already 'loop', which auto-closes the route via
-  // getEffectiveWaypoints() — so drop the trailing duplicate here, the same
+  // getEffectiveWaypoints() - so drop the trailing duplicate here, the same
   // way a manually-built loop never has the closing point as a real,
   // draggable waypoint.
   waypoints = c.waypoints.slice(0, -1).map(w => ({ lat: w.lat, lng: w.lng }));
@@ -438,7 +438,7 @@ if (candidateUseBtn) candidateUseBtn.addEventListener('click', () => {
 });
 
 // A "Loop" route auto-closes back to its first point, and a "Return" route
-// auto-mirrors itself back along the same waypoints — the rider picks the
+// auto-mirrors itself back along the same waypoints - the rider picks the
 // shape up front and never needs to know these are separate manual tools.
 function getEffectiveWaypoints() {
   if (routeType === 'loop' && waypoints.length >= 2) {
@@ -464,13 +464,13 @@ function updateGoalHint() {
   } else {
     const pctOff = Math.abs(currentDistanceKm - targetKm) / targetKm;
     if (pctOff <= 0.15) {
-      goalHintEl.textContent = `On track for your goal (${targetLabel}) — currently ${currentDistanceKm.toFixed(1)} km`;
+      goalHintEl.textContent = `On track for your goal (${targetLabel}) · currently ${currentDistanceKm.toFixed(1)} km`;
       goalHintEl.className = 'planner-goal-hint planner-goal-hint-ok';
     } else if (currentDistanceKm < targetKm) {
-      goalHintEl.textContent = `Add more stops to reach ${targetLabel} — currently ${currentDistanceKm.toFixed(1)} km`;
+      goalHintEl.textContent = `Add more stops to reach ${targetLabel} · currently ${currentDistanceKm.toFixed(1)} km`;
       goalHintEl.className = 'planner-goal-hint planner-goal-hint-under';
     } else {
-      goalHintEl.textContent = `Longer than your goal of ${targetLabel} — currently ${currentDistanceKm.toFixed(1)} km`;
+      goalHintEl.textContent = `Longer than your goal of ${targetLabel} · currently ${currentDistanceKm.toFixed(1)} km`;
       goalHintEl.className = 'planner-goal-hint planner-goal-hint-over';
     }
   }
@@ -631,7 +631,7 @@ connectStartBtn.addEventListener('click', () => {
   }
   waypoints = waypoints.concat([{ lat: first.lat, lng: first.lng }]);
   afterWaypointsChanged();
-  showToast('Return leg added — route now ends where it started.', 'add');
+  showToast('Return leg added. The route now ends where it started.', 'add');
 });
 
 // ---------- Crop: click the route twice to keep only what's between ----------
@@ -1196,7 +1196,7 @@ function loadSavedRouteIntoPlanner(route) {
   initMap(); // first time the workspace (and #planner-map) is actually visible
   setCropMode(false);
   setSplitMode(false);
-  // A saved route's shape is already final — don't re-apply loop/return closing on top of it.
+  // A saved route's shape is already final - don't re-apply loop/return closing on top of it.
   routeType = 'one-way';
   waypoints = (route.waypoints || []).map(w => ({ lat: w.lat, lng: w.lng }));
   historyStack = [waypoints.map(w => ({ ...w }))];
@@ -1250,19 +1250,19 @@ async function shareRouteInvite(route) {
 // rides THIS route and lands on the same live map (unlike invite links,
 // where each saver gets an independent copy).
 async function createGroupRide(route) {
-  const title = window.prompt('Name this group ride:', `${route.title} — Group Ride`);
+  const title = window.prompt('Name this group ride:', `${route.title} Group Ride`);
   if (title === null) return;
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) { showToast('Please log in first.', 'info'); return; }
   const { data, error } = await supabase
     .from('group_rides')
-    .insert({ route_id: route.id, owner_id: user.id, title: title.trim() || `${route.title} — Group Ride` })
+    .insert({ route_id: route.id, owner_id: user.id, title: title.trim() || `${route.title} Group Ride` })
     .select('share_token')
     .single();
   if (error) { showToast('Could not create the group ride.', 'delete'); return; }
   const link = `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}group.html?ride=${data.share_token}`;
   await copyText(link);
-  showToast('Group ride created — link copied! Opening the group page…', 'add');
+  showToast('Group ride created and link copied! Opening the group page…', 'add');
   setTimeout(() => { window.location.href = link; }, 900);
 }
 
