@@ -15,7 +15,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Ride Journal Dashboard</title>
-  <link rel="stylesheet" href="style.css?v=72" />
+  <link rel="stylesheet" href="style.css?v=73" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -65,14 +65,38 @@
 
   <!-- ========== MAIN RIDE LIST ========= -->
   <main>
+    <!-- Rider profile: the name shown on shared-route invite pages -->
+    <section id="profile-section" class="profile-card">
+      <div class="profile-head">
+        <h2>Rider Profile</h2>
+        <button type="button" id="profile-toggle-btn" class="btn-outline">Edit</button>
+      </div>
+      <p id="profile-summary" class="section-sub">Loading profile…</p>
+      <div id="profile-form" style="display:none;">
+        <p class="section-sub">Shown when you share a route: "Shared by <em>your name</em>". Leave blank to stay anonymous on invites.</p>
+        <div class="profile-fields">
+          <label>Display name
+            <input type="text" id="profile-name-input" maxlength="40" placeholder="e.g. Samar" />
+          </label>
+          <label>Region
+            <input type="text" id="profile-region-input" maxlength="60" placeholder="e.g. Auckland, NZ" />
+          </label>
+        </div>
+        <div class="planner-toolbar-actions">
+          <button type="button" id="profile-save-btn" class="btn-primary">Save Profile</button>
+        </div>
+        <p id="profile-status" class="chart-desc"></p>
+      </div>
+    </section>
+
     <h2>Your Rides &amp; Planned Routes</h2>
     <div id="ride-list">Loading…</div>
   </main>
 
   <!-- ========== JS for dashboard ========= -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script type="module" src="dashboard.js?v=72"></script>
-  <script type="module" src="icons.js?v=72"></script>
-  <script src="theme.js?v=72"></script>
+  <script type="module" src="dashboard.js?v=73"></script>
+  <script type="module" src="icons.js?v=73"></script>
+  <script src="theme.js?v=73"></script>
 </body>
 </html>

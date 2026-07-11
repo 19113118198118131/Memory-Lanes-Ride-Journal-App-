@@ -74,6 +74,10 @@ const ICON_BY_ID = {
   'live-moment-btn': 'pin', 'live-moment-save-btn': 'save', 'live-moment-cancel-btn': 'x',
   // route.html (shared route invite page)
   'route-save-btn': 'save', 'route-export-btn': 'download',
+  // dashboard.html rider profile
+  // (profile-toggle-btn deliberately has no icon: its label flips between
+  // Edit/Close via textContent, which would wipe an inline icon SVG)
+  'profile-save-btn': 'save',
 };
 
 // Replace a leading emoji in an element's text with an inline icon, keep the label.

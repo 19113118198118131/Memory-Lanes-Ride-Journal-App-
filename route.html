@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=72" />
+  <link rel="stylesheet" href="style.css?v=73" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -64,7 +64,9 @@
 
     <div id="route-body" style="display:none;">
       <h2 id="route-title"></h2>
+      <p class="section-sub" id="route-shared-by" style="display:none;"></p>
       <p class="section-sub">A rider shared this route with you on Memory Lanes. Save it to your own library to edit it, export it, or ride it with live tracking.</p>
+      <p class="planner-goal-hint planner-goal-hint-ok" id="route-live-banner" style="display:none;"></p>
 
       <section id="planner-map-section">
         <div id="route-map"></div>
@@ -99,8 +101,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="route.js?v=72"></script>
-  <script type="module" src="icons.js?v=72"></script>
-  <script src="theme.js?v=72"></script>
+  <script type="module" src="route.js?v=73"></script>
+  <script type="module" src="icons.js?v=73"></script>
+  <script src="theme.js?v=73"></script>
 </body>
 </html>

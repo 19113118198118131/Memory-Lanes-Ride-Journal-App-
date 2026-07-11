@@ -3590,6 +3590,50 @@ header:not(.main-header) .dashboard-header {
   .planner-search { max-width: none; flex-basis: auto; }
 }
 
+/* ---------- RIDER PROFILE CARD (dashboard.html) ---------- */
+.profile-card {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-panel);
+  padding: 1.1rem 1.4rem;
+  margin-bottom: 1.6rem;
+}
+.profile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.profile-head h2 { margin: 0; }
+.profile-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+.profile-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  flex: 1 1 220px;
+}
+
+/* ---------- LIVE RIDER MARKERS (route.html) ---------- */
+.live-rider-label {
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid #ffd166;
+  border-radius: var(--radius-pill);
+  color: #ffd166;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 2px 9px;
+  box-shadow: none;
+}
+.live-rider-label::before { display: none; }
+
 /* ---------- SHARED ROUTE INVITE PAGE (route.html) ---------- */
 #route-map {
   height: 52vh;

@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=72" />
+  <link rel="stylesheet" href="style.css?v=73" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -90,6 +90,14 @@
         </div>
       </div>
 
+      <div id="live-broadcast-row" class="onboarding-checks" style="display:none; margin-bottom:1rem;">
+        <label>
+          <input type="checkbox" id="live-broadcast-toggle" />
+          Broadcast my live position to riders holding this route's invite link
+        </label>
+        <p class="onboarding-hint-note" style="flex-basis:100%;">Off by default. Only people with the secret invite link can see you, your name comes from your Rider Profile, and your position disappears within minutes of finishing.</p>
+      </div>
+
       <div class="planner-toolbar-actions" style="margin-bottom:1.5rem;">
         <button id="live-start-btn" class="btn-primary">Start Ride</button>
         <button id="live-pause-btn" class="btn-outline" style="display:none;">Pause</button>
@@ -125,8 +133,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="ride-live.js?v=72"></script>
-  <script type="module" src="icons.js?v=72"></script>
-  <script src="theme.js?v=72"></script>
+  <script type="module" src="ride-live.js?v=73"></script>
+  <script type="module" src="icons.js?v=73"></script>
+  <script src="theme.js?v=73"></script>
 </body>
 </html>

@@ -31,6 +31,8 @@ const saveForm        = document.getElementById('live-save-form');
 const rideTitleInput  = document.getElementById('live-ride-title');
 const saveBtn         = document.getElementById('live-save-btn');
 const saveStatusEl    = document.getElementById('live-save-status');
+const broadcastRow     = document.getElementById('live-broadcast-row');
+const broadcastToggle  = document.getElementById('live-broadcast-toggle');
 const momentBtn        = document.getElementById('live-moment-btn');
 const momentForm        = document.getElementById('live-moment-form');
 const momentTitleInput  = document.getElementById('live-moment-title');
@@ -78,6 +80,8 @@ let hasCenteredOnFix = false; // so the very first GPS fix zooms in, not just pa
 let liveMoments = [];    // journal entries added mid-ride, saved with the ride on Finish
 let momentMarkers = [];  // map pins for liveMoments, kept in the same order
 let pendingMoment = null; // captured point waiting on the title/note form
+let currentUser = null;      // set once at init; needed for live-position upserts
+let lastBroadcastAt = 0;     // throttle: at most one live_positions write per 15s
 
 // ---------- Init ----------
 (async () => {
@@ -90,10 +94,12 @@ let pendingMoment = null; // captured point waiting on the title/note form
     return;
   }
 
+  currentUser = user;
+
   if (routeId) {
     const { data: route, error } = await supabase
       .from('planned_routes')
-      .select('id, title, route')
+      .select('id, title, route, is_public')
       .eq('id', routeId)
       .eq('user_id', user.id)
       .single();
@@ -107,6 +113,9 @@ let pendingMoment = null; // captured point waiting on the title/note form
     plannedRouteSample = sampleArr(route.route, 150);
     liveTitleEl.textContent = 'Follow Route';
     routeTitleEl.textContent = `Following: ${route.title}`;
+    // Live broadcast only makes sense on a shared route — visibility is
+    // gated on the invite token, so an unshared route has no possible viewers.
+    if (route.is_public) broadcastRow.style.display = '';
   } else {
     liveTitleEl.textContent = 'Record a Ride';
     routeTitleEl.textContent = "Recording a free ride — no plan needed. You can edit or crop the track afterwards from Logs.";
@@ -158,6 +167,7 @@ cancelBtn.addEventListener('click', () => {
   if (recording && !confirm('Stop tracking and leave without saving?')) return;
   endWatch();
   recording = false;
+  stopBroadcasting();
   window.location.href = plannedRoute ? 'planner.html' : 'dashboard.html';
 });
 
@@ -332,6 +342,8 @@ function onPosition(pos) {
   } else {
     recordedLine.addLatLng([pt.lat, pt.lng]);
   }
+  maybeBroadcastPosition(pt);
+
   if (followMode) {
     if (!hasCenteredOnFix) {
       // First fix of the ride: zoom in to street level, not just pan at
@@ -388,6 +400,7 @@ function updateTelemetry(pt, speedMs) {
 function finishRide() {
   endWatch();
   recording = false;
+  stopBroadcasting();
   if (recordedPoints.length < 2) {
     statusBanner.textContent = 'Not enough GPS points were recorded to save this ride.';
     startBtn.style.display = '';
@@ -408,6 +421,40 @@ function finishRide() {
   rideTitleInput.value = plannedRoute
     ? `${plannedRoute.title} — ${new Date().toLocaleDateString()}`
     : `Ride — ${new Date().toLocaleDateString()}`;
+}
+
+// ---------- Live broadcast (opt-in; visible only via the route's invite link) ----------
+function maybeBroadcastPosition(pt) {
+  if (!plannedRoute || !plannedRoute.is_public || !currentUser) return;
+  if (!broadcastToggle || !broadcastToggle.checked || !recording) return;
+  const now = Date.now();
+  if (now - lastBroadcastAt < 15000) return; // one write per 15s is plenty for a map marker
+  lastBroadcastAt = now;
+  supabase.from('live_positions').upsert({
+    user_id: currentUser.id,
+    route_id: plannedRoute.id,
+    lat: pt.lat,
+    lng: pt.lng,
+    speed_kmh: pt.speedKmh || null,
+    updated_at: new Date().toISOString()
+  }).then(({ error }) => {
+    if (error) console.warn('Live position update failed:', error.message);
+  });
+}
+
+// Best-effort removal; even if it never runs (crash, dead battery), viewers
+// stop seeing the rider anyway once the 5-minute freshness window lapses.
+function stopBroadcasting() {
+  lastBroadcastAt = 0;
+  if (!currentUser) return;
+  supabase.from('live_positions').delete().eq('user_id', currentUser.id).then(() => {});
+}
+
+if (broadcastToggle) {
+  broadcastToggle.addEventListener('change', () => {
+    if (!broadcastToggle.checked) stopBroadcasting();
+    else lastBroadcastAt = 0; // broadcast on the very next GPS fix
+  });
 }
 
 // ---------- Wake lock (best-effort, keeps the screen on while recording) ----------

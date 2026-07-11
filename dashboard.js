@@ -7,7 +7,7 @@
 
 // Supabase config
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=72';
+import { mlIconSVG } from './icons.js?v=73';
 
 // DOM references
 const rideList = document.getElementById('ride-list');
@@ -91,6 +91,8 @@ function escapeHtml(str) {
 
   allItems = [...rides, ...planned];
 
+  initProfileEditor(user);
+
   populateMonthFilter(allItems);
   populateYearFilter(allItems);
   renderItems(allItems);
@@ -102,6 +104,59 @@ function escapeHtml(str) {
   document.getElementById('sort-select').addEventListener('change', applyFilters);
   document.getElementById('typeFilter').addEventListener('change', applyFilters);
 })();
+
+// ========== Rider profile (name shown on shared-route invites) ==========
+async function initProfileEditor(user) {
+  const summaryEl = document.getElementById('profile-summary');
+  const formEl = document.getElementById('profile-form');
+  const toggleBtn = document.getElementById('profile-toggle-btn');
+  const nameInput = document.getElementById('profile-name-input');
+  const regionInput = document.getElementById('profile-region-input');
+  const saveBtn = document.getElementById('profile-save-btn');
+  const statusEl = document.getElementById('profile-status');
+  if (!summaryEl || !formEl) return;
+
+  function renderSummary(name, region) {
+    if (name) {
+      summaryEl.textContent = `Sharing routes as "${name}"${region ? ` · ${region}` : ''}.`;
+    } else {
+      summaryEl.textContent = 'No display name set — your shared routes show no name. Add one so invites can say who they\'re from.';
+    }
+  }
+
+  // profiles may not exist if the migration hasn't run — fail soft like planned_routes does.
+  let profile = null;
+  try {
+    const { data } = await supabase.from('profiles').select('display_name, region').eq('user_id', user.id).maybeSingle();
+    profile = data;
+  } catch (_) {}
+  nameInput.value = profile?.display_name || '';
+  regionInput.value = profile?.region || '';
+  renderSummary(nameInput.value.trim(), regionInput.value.trim());
+
+  toggleBtn.addEventListener('click', () => {
+    const open = formEl.style.display !== 'none';
+    formEl.style.display = open ? 'none' : '';
+    toggleBtn.textContent = open ? 'Edit' : 'Close';
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    const display_name = nameInput.value.trim();
+    const region = regionInput.value.trim();
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ user_id: user.id, display_name, region, updated_at: new Date().toISOString() });
+    saveBtn.disabled = false;
+    if (error) {
+      statusEl.textContent = 'Could not save profile: ' + error.message;
+      return;
+    }
+    statusEl.textContent = 'Profile saved.';
+    renderSummary(display_name, region);
+  });
+}
 
 // ========== Filtering & Sorting ==========
 function applyFilters() {
