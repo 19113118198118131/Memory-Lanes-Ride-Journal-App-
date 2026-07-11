@@ -3206,8 +3206,11 @@ header:not(.main-header) {
   background: transparent;
   box-shadow: none;
   border-radius: 0;
+  /* The brand bar above already carries the only rule we want. A second line
+     here just boxed the title in for no reason. */
+  border-bottom: none;
   padding: 22px 28px 0;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.4rem;
   align-items: stretch;
 }
 header:not(.main-header) .dashboard-header {
