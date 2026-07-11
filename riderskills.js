@@ -1,4 +1,4 @@
-import { mlIconSVG } from './icons.js?v=48';
+import { mlIconSVG } from './icons.js?v=49';
 // =====================================================
 // Memory Lanes - riderskills.js
 // GPS-based rider skill analysis: cornering, braking,
