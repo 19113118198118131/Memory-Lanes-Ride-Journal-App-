@@ -2542,8 +2542,11 @@ h1.has-icon .ml-icon, h2.has-icon .ml-icon { width: 0.9em; height: 0.9em; opacit
 }
 @media (max-width: 600px) {
   #summary-section .summary-grid { grid-template-columns: 1fr; }
-  #timeline { flex-direction: column; align-items: stretch; }
-  #timeline input[type="range"], #timeline button, #timeline select { width: 100%; }
+  /* Sizing for the playback bar itself (circular play button, scrubber,
+     speed chip) is handled by the dedicated #timeline rules further down —
+     this block used to also force "#timeline button { width: 100% }",
+     which (by ID specificity) stretched the circular .play-btn into a
+     full-width pill on phones regardless of source order. */
 }
 
 /* ---------- LIGHT-MODE READABILITY FIXES ----------

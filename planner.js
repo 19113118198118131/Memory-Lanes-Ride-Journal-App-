@@ -5,7 +5,7 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=68';
+import { mlIconSVG } from './icons.js?v=69';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
