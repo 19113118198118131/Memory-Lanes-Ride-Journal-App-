@@ -389,6 +389,10 @@ nav { margin-top: 0.22rem; }
   .tagline { font-size: 0.92rem; }
   .logo-card { width: 56px; height: 56px; }
   .brand-logo { width: 39px; height: 39px; }
+  /* When nav links wrap to a new line, an orphaned "|" separator can be left
+     stranded at the end of the previous line. The flex gap already spaces
+     the links, so the separators are unnecessary at this width. */
+  .nav-sep { display: none; }
 }
 
 .brand-logo:hover {
@@ -1241,6 +1245,7 @@ input:focus, select:focus {
   text-align: center;
   z-index: 1000;
   transition: max-height 0.3s ease;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 #footer-toggle {
@@ -2389,7 +2394,10 @@ button,
 
 #main-ride-ui #moments-section {
   max-width: 1200px;
-  margin: 1.25rem auto 2.2rem auto;
+  /* Extra bottom margin keeps this clear of the fixed collapsible-footer bar,
+     which otherwise sits over this heading since it's often the last visible
+     content on the ride page. */
+  margin: 1.25rem auto 5rem auto;
   padding: 1.25rem 1.25rem 1.35rem;
   background: rgba(255,255,255,0.035);
   border: 1px solid rgba(100,255,218,0.12);

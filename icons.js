@@ -71,6 +71,7 @@ const ICON_BY_ID = {
   'planner-crop-btn': 'ruler', 'planner-split-btn': 'route',
   // ride-live.html
   'live-cancel-btn': 'x', 'live-start-btn': 'play', 'live-finish-btn': 'flag', 'live-save-btn': 'save',
+  'live-moment-btn': 'pin', 'live-moment-save-btn': 'save', 'live-moment-cancel-btn': 'x',
 };
 
 // Replace a leading emoji in an element's text with an inline icon, keep the label.

@@ -7,6 +7,7 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
+import { mlIconSVG } from './icons.js';
 
 const ON_ROUTE_M = 60; // metres: within this of the planned line counts as "on route"
 
@@ -30,10 +31,20 @@ const saveForm        = document.getElementById('live-save-form');
 const rideTitleInput  = document.getElementById('live-ride-title');
 const saveBtn         = document.getElementById('live-save-btn');
 const saveStatusEl    = document.getElementById('live-save-status');
+const momentBtn        = document.getElementById('live-moment-btn');
+const momentForm        = document.getElementById('live-moment-form');
+const momentTitleInput  = document.getElementById('live-moment-title');
+const momentNoteInput   = document.getElementById('live-moment-note');
+const momentSaveBtn     = document.getElementById('live-moment-save-btn');
+const momentCancelBtn   = document.getElementById('live-moment-cancel-btn');
+const momentsListEl     = document.getElementById('live-moments-list');
 
 // ---------- Utilities ----------
 function escapeGpx(str) {
   return String(str).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+}
+function escapeHtml(str) {
+  return String(str || '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 }
 function haversineMeters(lat1, lng1, lat2, lng2) {
   const R = 6371000, toR = Math.PI / 180;
@@ -64,6 +75,9 @@ let recording = false; // true from Start until Finish (stays true while paused)
 let watching = false;  // true only while the GPS watch is actively running
 let wakeLock = null;
 let hasCenteredOnFix = false; // so the very first GPS fix zooms in, not just pans
+let liveMoments = [];    // journal entries added mid-ride, saved with the ride on Finish
+let momentMarkers = [];  // map pins for liveMoments, kept in the same order
+let pendingMoment = null; // captured point waiting on the title/note form
 
 // ---------- Init ----------
 (async () => {
@@ -147,6 +161,78 @@ cancelBtn.addEventListener('click', () => {
   window.location.href = plannedRoute ? 'planner.html' : 'dashboard.html';
 });
 
+// ---------- Moments: journal entries added mid-ride ----------
+momentBtn.addEventListener('click', () => {
+  if (!recordedPoints.length) {
+    alert("Still waiting for a GPS fix — try again once your position is being tracked.");
+    return;
+  }
+  const pt = recordedPoints[recordedPoints.length - 1];
+  pendingMoment = {
+    idx: recordedPoints.length - 1,
+    lat: pt.lat,
+    lng: pt.lng,
+    speed: pt.speedKmh || 0,
+    elevation: pt.ele || 0,
+    title: '',
+    note: ''
+  };
+  momentTitleInput.value = '';
+  momentNoteInput.value = '';
+  momentForm.style.display = '';
+  momentTitleInput.focus();
+});
+
+momentSaveBtn.addEventListener('click', () => {
+  if (!pendingMoment) return;
+  pendingMoment.title = momentTitleInput.value.trim();
+  pendingMoment.note = momentNoteInput.value.trim();
+  liveMoments.push(pendingMoment);
+  addMomentMarker(pendingMoment);
+  renderLiveMoments();
+  pendingMoment = null;
+  momentForm.style.display = 'none';
+});
+
+momentCancelBtn.addEventListener('click', () => {
+  pendingMoment = null;
+  momentForm.style.display = 'none';
+});
+
+function addMomentMarker(m) {
+  const marker = L.marker([m.lat, m.lng], {
+    icon: L.divIcon({
+      className: 'moment-pin',
+      html: `<span style="color:#8338ec;">${mlIconSVG('pin')}</span>`
+    })
+  }).addTo(map);
+  momentMarkers.push(marker);
+}
+
+function renderLiveMoments() {
+  if (!liveMoments.length) { momentsListEl.innerHTML = ''; return; }
+  momentsListEl.innerHTML = liveMoments.map((m, i) => `
+    <div class="moment-entry">
+      <div style="display:flex; gap:1rem; align-items:center;">
+        <span class="moment-pin-icon">${mlIconSVG('pin')}</span>
+        <span>
+          <strong>${m.title ? escapeHtml(m.title) : 'Moment ' + (i + 1)}</strong><br>
+          ${m.note ? escapeHtml(m.note) : '<em>No note yet</em>'}
+        </span>
+        <button class="btn-muted delete-live-moment-btn" data-idx="${i}" style="margin-left:auto;color:#ff6b6b;">${mlIconSVG('trash')}</button>
+      </div>
+    </div>
+  `).join('');
+  momentsListEl.querySelectorAll('.delete-live-moment-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = +btn.dataset.idx;
+      if (momentMarkers[idx]) { map.removeLayer(momentMarkers[idx]); momentMarkers.splice(idx, 1); }
+      liveMoments.splice(idx, 1);
+      renderLiveMoments();
+    });
+  });
+}
+
 function startRide() {
   if (!navigator.geolocation) {
     alert('Geolocation is not supported on this device or browser.');
@@ -158,12 +244,23 @@ function startRide() {
   recording = true;
   followMode = true;
   hasCenteredOnFix = false;
+  clearLiveMoments();
   beginWatch();
 
   startBtn.style.display = 'none';
   pauseBtn.style.display = '';
   pauseBtn.textContent = 'Pause';
+  momentBtn.style.display = '';
   finishBtn.style.display = '';
+}
+
+function clearLiveMoments() {
+  momentMarkers.forEach(m => map.removeLayer(m));
+  momentMarkers = [];
+  liveMoments = [];
+  pendingMoment = null;
+  momentForm.style.display = 'none';
+  renderLiveMoments();
 }
 
 function togglePause() {
@@ -214,7 +311,8 @@ function onPosition(pos) {
   }
 
   const { latitude, longitude, altitude, speed } = pos.coords;
-  const pt = { lat: latitude, lng: longitude, ele: altitude || 0, time: new Date(pos.timestamp) };
+  const speedKmh = speed != null && Number.isFinite(speed) ? speed * 3.6 : 0;
+  const pt = { lat: latitude, lng: longitude, ele: altitude || 0, time: new Date(pos.timestamp), speedKmh };
 
   if (recordedPoints.length) {
     const prev = recordedPoints[recordedPoints.length - 1];
@@ -294,10 +392,15 @@ function finishRide() {
     statusBanner.textContent = 'Not enough GPS points were recorded to save this ride.';
     startBtn.style.display = '';
     pauseBtn.style.display = 'none';
+    momentBtn.style.display = 'none';
     finishBtn.style.display = 'none';
+    clearLiveMoments();
     return;
   }
   pauseBtn.style.display = 'none';
+  momentBtn.style.display = 'none';
+  momentForm.style.display = 'none';
+  pendingMoment = null;
   finishBtn.style.display = 'none';
   recenterBtn.style.display = 'none';
   statusBanner.textContent = 'Ride recorded. Save it below to keep it.';
@@ -372,7 +475,8 @@ saveBtn.addEventListener('click', async () => {
         elevation_m: elevationM,
         ride_date: recordedPoints[0].time.toISOString(),
         gpx_path: uploadData.path,
-        planned_route_id: plannedRoute ? plannedRoute.id : null
+        planned_route_id: plannedRoute ? plannedRoute.id : null,
+        moments: liveMoments
       })
       .select('id')
       .single();
