@@ -4,7 +4,7 @@
 
 // Supabase config
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=61';
+import { mlIconSVG } from './icons.js?v=62';
 
 // DOM references
 const rideList = document.getElementById('ride-list');
@@ -264,6 +264,14 @@ if (logoutBtn) {
 if (newRideBtn) {
   newRideBtn.addEventListener('click', () => {
     window.location.href = 'index.html?home=1';
+  });
+}
+
+// ========== Record a Ride Button ==========
+const recordRideBtn = document.getElementById('record-ride-btn');
+if (recordRideBtn) {
+  recordRideBtn.addEventListener('click', () => {
+    window.location.href = 'ride-live.html';
   });
 }
 

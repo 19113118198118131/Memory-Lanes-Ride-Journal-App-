@@ -5,7 +5,7 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=61';
+import { mlIconSVG } from './icons.js?v=62';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
@@ -32,6 +32,7 @@ const searchInput      = document.getElementById('planner-search-input');
 const searchBtn        = document.getElementById('planner-search-btn');
 const searchResultsEl  = document.getElementById('planner-search-results');
 const dashboardBtn     = document.getElementById('planner-dashboard-btn');
+const recordBtn        = document.getElementById('planner-record-btn');
 
 // ---------- Utilities (small, duplicated per-page like the rest of the app) ----------
 function escapeHtml(str) {
@@ -97,6 +98,9 @@ let cropMarkers = [];
 
 if (dashboardBtn) {
   dashboardBtn.addEventListener('click', () => { window.location.href = 'dashboard.html'; });
+}
+if (recordBtn) {
+  recordBtn.addEventListener('click', () => { window.location.href = 'ride-live.html'; });
 }
 
 function initMap() {

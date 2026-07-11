@@ -1,7 +1,9 @@
 // ===============================
 // Memory Lanes Ride Journal - ride-live.js
-// Follow a planned route live: GPS position vs. the plan, record the
-// actual track, then save it as a ride log linked back to the plan.
+// Record a ride live: GPS track, distance/speed/elapsed telemetry,
+// pause/resume, then save it as a ride log. With a ?route= param, it
+// also follows a planned route (position vs. the plan). Without one,
+// it's a plain "start riding now" recorder — plan later, or not at all.
 // ===============================
 
 import supabase from './supabaseClient.js';
@@ -11,13 +13,16 @@ const ON_ROUTE_M = 60; // metres: within this of the planned line counts as "on 
 // ---------- DOM references ----------
 const loadingEl       = document.getElementById('live-loading');
 const bodyEl          = document.getElementById('live-body');
+const liveTitleEl     = document.getElementById('live-title');
 const routeTitleEl    = document.getElementById('live-route-title');
 const statusBanner    = document.getElementById('live-status-banner');
 const distanceEl      = document.getElementById('live-distance');
 const elapsedEl       = document.getElementById('live-elapsed');
 const speedEl         = document.getElementById('live-speed');
+const onRouteCard     = document.getElementById('live-onroute-card');
 const routeStatusEl   = document.getElementById('live-route-status');
 const startBtn        = document.getElementById('live-start-btn');
+const pauseBtn        = document.getElementById('live-pause-btn');
 const finishBtn       = document.getElementById('live-finish-btn');
 const recenterBtn     = document.getElementById('live-recenter-btn');
 const cancelBtn       = document.getElementById('live-cancel-btn');
@@ -46,7 +51,7 @@ function sampleArr(arr, maxPoints) {
 
 // ---------- State ----------
 let map = null;
-let plannedRoute = null;
+let plannedRoute = null;       // null when recording a free (unplanned) ride
 let plannedRouteSample = [];
 let liveMarker = null;
 let recordedLine = null;
@@ -55,39 +60,43 @@ let totalDistanceM = 0;
 let startTime = null;
 let watchId = null;
 let followMode = true;
-let recording = false;
+let recording = false; // true from Start until Finish (stays true while paused)
+let watching = false;  // true only while the GPS watch is actively running
 let wakeLock = null;
 
 // ---------- Init ----------
 (async () => {
   const params = new URLSearchParams(window.location.search);
   const routeId = params.get('route');
-  if (!routeId) {
-    loadingEl.textContent = 'No route specified. Go back and choose a saved route to follow.';
-    return;
-  }
 
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) {
-    loadingEl.textContent = 'Please log in to follow a route.';
+    loadingEl.textContent = 'Please log in to record a ride.';
     return;
   }
 
-  const { data: route, error } = await supabase
-    .from('planned_routes')
-    .select('id, title, route')
-    .eq('id', routeId)
-    .eq('user_id', user.id)
-    .single();
+  if (routeId) {
+    const { data: route, error } = await supabase
+      .from('planned_routes')
+      .select('id, title, route')
+      .eq('id', routeId)
+      .eq('user_id', user.id)
+      .single();
 
-  if (error || !route || !Array.isArray(route.route) || route.route.length < 2) {
-    loadingEl.textContent = 'Could not load that route. Go back and try again.';
-    return;
+    if (error || !route || !Array.isArray(route.route) || route.route.length < 2) {
+      loadingEl.textContent = 'Could not load that route. Go back and try again.';
+      return;
+    }
+
+    plannedRoute = route;
+    plannedRouteSample = sampleArr(route.route, 150);
+    liveTitleEl.textContent = 'Follow Route';
+    routeTitleEl.textContent = `Following: ${route.title}`;
+  } else {
+    liveTitleEl.textContent = 'Record a Ride';
+    routeTitleEl.textContent = "Recording a free ride — no plan needed. You can edit or crop the track afterwards from Logs.";
+    onRouteCard.style.display = 'none';
   }
-
-  plannedRoute = route;
-  plannedRouteSample = sampleArr(route.route, 150);
-  routeTitleEl.textContent = `Following: ${route.title}`;
 
   loadingEl.style.display = 'none';
   bodyEl.style.display = '';
@@ -102,16 +111,28 @@ function initMap() {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  const plannedLine = L.polyline(plannedRoute.route, {
-    color: '#ffd166', weight: 5, opacity: 0.85, dashArray: '10,8'
-  }).addTo(map);
-  map.fitBounds(plannedLine.getBounds(), { padding: [40, 40] });
+  if (plannedRoute) {
+    const plannedLine = L.polyline(plannedRoute.route, {
+      color: '#ffd166', weight: 5, opacity: 0.85, dashArray: '10,8'
+    }).addTo(map);
+    map.fitBounds(plannedLine.getBounds(), { padding: [40, 40] });
+  } else {
+    map.setView([20, 0], 2);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => map.setView([pos.coords.latitude, pos.coords.longitude], 13),
+        () => {},
+        { timeout: 4000 }
+      );
+    }
+  }
 
   map.on('dragstart', () => { followMode = false; recenterBtn.style.display = recording ? '' : 'none'; });
 }
 
 // ---------- Recording ----------
 startBtn.addEventListener('click', startRide);
+pauseBtn.addEventListener('click', togglePause);
 finishBtn.addEventListener('click', finishRide);
 recenterBtn.addEventListener('click', () => {
   followMode = true;
@@ -120,8 +141,9 @@ recenterBtn.addEventListener('click', () => {
 });
 cancelBtn.addEventListener('click', () => {
   if (recording && !confirm('Stop tracking and leave without saving?')) return;
-  stopWatch();
-  window.location.href = 'planner.html';
+  endWatch();
+  recording = false;
+  window.location.href = plannedRoute ? 'planner.html' : 'dashboard.html';
 });
 
 function startRide() {
@@ -134,15 +156,40 @@ function startRide() {
   startTime = new Date();
   recording = true;
   followMode = true;
+  beginWatch();
 
+  startBtn.style.display = 'none';
+  pauseBtn.style.display = '';
+  pauseBtn.textContent = 'Pause';
+  finishBtn.style.display = '';
+  statusBanner.textContent = 'Recording your ride…';
+}
+
+function togglePause() {
+  if (watching) {
+    endWatch();
+    pauseBtn.textContent = 'Resume';
+    statusBanner.textContent = 'Paused. Distance and time stop counting until you resume.';
+  } else {
+    beginWatch();
+    pauseBtn.textContent = 'Pause';
+    statusBanner.textContent = 'Recording your ride…';
+  }
+}
+
+function beginWatch() {
   watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
     enableHighAccuracy: true, maximumAge: 2000, timeout: 15000
   });
+  watching = true;
   requestWakeLock();
+}
 
-  startBtn.style.display = 'none';
-  finishBtn.style.display = '';
-  statusBanner.textContent = 'Recording your ride…';
+function endWatch() {
+  if (watchId != null) navigator.geolocation.clearWatch(watchId);
+  watchId = null;
+  watching = false;
+  releaseWakeLock();
 }
 
 function onPosition(pos) {
@@ -185,6 +232,7 @@ function updateTelemetry(pt, speedMs) {
   const kmh = speedMs != null && Number.isFinite(speedMs) ? speedMs * 3.6 : null;
   speedEl.textContent = kmh != null ? `${kmh.toFixed(0)} km/h` : '–';
 
+  if (!plannedRoute) return;
   let minD = Infinity;
   for (const [plat, plng] of plannedRouteSample) {
     const d = haversineMeters(pt.lat, pt.lng, plat, plng);
@@ -196,26 +244,24 @@ function updateTelemetry(pt, speedMs) {
   routeStatusEl.classList.toggle('off-route', !onRoute);
 }
 
-function stopWatch() {
-  if (watchId != null) navigator.geolocation.clearWatch(watchId);
-  watchId = null;
-  recording = false;
-  releaseWakeLock();
-}
-
 function finishRide() {
-  stopWatch();
+  endWatch();
+  recording = false;
   if (recordedPoints.length < 2) {
     statusBanner.textContent = 'Not enough GPS points were recorded to save this ride.';
     startBtn.style.display = '';
+    pauseBtn.style.display = 'none';
     finishBtn.style.display = 'none';
     return;
   }
+  pauseBtn.style.display = 'none';
   finishBtn.style.display = 'none';
   recenterBtn.style.display = 'none';
   statusBanner.textContent = 'Ride recorded. Save it below to keep it.';
   saveForm.style.display = '';
-  rideTitleInput.value = `${plannedRoute.title} — ${new Date().toLocaleDateString()}`;
+  rideTitleInput.value = plannedRoute
+    ? `${plannedRoute.title} — ${new Date().toLocaleDateString()}`
+    : `Ride — ${new Date().toLocaleDateString()}`;
 }
 
 // ---------- Wake lock (best-effort, keeps the screen on while recording) ----------
@@ -228,7 +274,7 @@ function releaseWakeLock() {
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && recording) requestWakeLock();
+  if (document.visibilityState === 'visible' && watching) requestWakeLock();
 });
 
 // ---------- Save recorded ride ----------
@@ -283,7 +329,7 @@ saveBtn.addEventListener('click', async () => {
         elevation_m: elevationM,
         ride_date: recordedPoints[0].time.toISOString(),
         gpx_path: uploadData.path,
-        planned_route_id: plannedRoute.id
+        planned_route_id: plannedRoute ? plannedRoute.id : null
       })
       .select('id')
       .single();

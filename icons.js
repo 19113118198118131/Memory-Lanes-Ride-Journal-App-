@@ -55,6 +55,7 @@ const ICON_BY_ID = {
   'unshare-ride-btn': 'eyeoff', 'upload-another': 'upload', 'add-moment-btn': 'plus',
   // dashboard.html
   'home-btn': 'plus', 'stats-btn': 'stats', 'export-data-btn': 'download', 'journal-btn': 'book',
+  'record-ride-btn': 'play',
   // stats.html
   'back-dashboard-btn': 'route', 'new-ride-btn': 'plus',
   // edit-mode toolbar
@@ -63,7 +64,7 @@ const ICON_BY_ID = {
   'reverse-edit-btn': 'reverse', 'connect-start-edit-btn': 'flag', 'simplify-edit-btn': 'sparkle',
   'crop-edit-btn': 'ruler', 'split-edit-btn': 'route',
   // planner.html
-  'planner-dashboard-btn': 'route', 'planner-undo-btn': 'undo', 'planner-redo-btn': 'redo',
+  'planner-dashboard-btn': 'route', 'planner-record-btn': 'play', 'planner-undo-btn': 'undo', 'planner-redo-btn': 'redo',
   'planner-clear-btn': 'trash', 'planner-search-btn': 'search', 'planner-save-btn': 'save',
   'planner-export-btn': 'download', 'planner-reverse-btn': 'reverse', 'planner-connect-start-btn': 'flag',
   'planner-crop-btn': 'ruler', 'planner-split-btn': 'route',
