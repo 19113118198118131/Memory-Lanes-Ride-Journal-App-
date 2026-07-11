@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=59';
-import { buildRideInsights } from './insights.js?v=59';
-import { mlIconSVG } from './icons.js?v=59';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=60';
+import { buildRideInsights } from './insights.js?v=60';
+import { mlIconSVG } from './icons.js?v=60';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -43,6 +43,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const redoEditBtn       = document.getElementById('redo-edit-btn');
   const bulkAddBtn        = document.getElementById('bulk-add-btn');
   const bulkDeleteBtn     = document.getElementById('bulk-delete-btn');
+  const reverseEditBtn    = document.getElementById('reverse-edit-btn');
+  const connectStartBtn   = document.getElementById('connect-start-edit-btn');
+  const simplifyEditBtn   = document.getElementById('simplify-edit-btn');
+  const cropEditBtn       = document.getElementById('crop-edit-btn');
+  const splitEditBtn      = document.getElementById('split-edit-btn');
   const exitEditBtn       = document.getElementById('exit-edit-btn');
   const editHelp          = document.getElementById('edit-help');
   const editModeHint      = document.getElementById('edit-mode-hint');
@@ -511,6 +516,10 @@ let originalPoints = [];
 let ghostAddLine = null;
 let highlightedDeleteMarkers = [];
 let lastBrushMove = 0;
+let cropMode = false;
+let splitMode = false;
+let cropPoints = []; // up to 2 vertex indices picked while cropMode is on
+let cropMarkers = [];
 
 // --- Utility: Visual feedback cleanup ---
 function clearGhostsAndHighlights() {
@@ -519,9 +528,22 @@ function clearGhostsAndHighlights() {
   highlightedDeleteMarkers.forEach(m => map.removeLayer(m));
   highlightedDeleteMarkers = [];
 }
+function clearCropMarkers() {
+  cropMarkers.forEach(m => map.removeLayer(m));
+  cropMarkers = [];
+  cropPoints = [];
+}
 
 // --- Toggle Bulk Mode ---
 function setBulkMode(mode) {
+  if (mode) {
+    // Bulk tools are mutually exclusive with crop/split
+    cropMode = false;
+    splitMode = false;
+    clearCropMarkers();
+    cropEditBtn.classList.remove('active');
+    splitEditBtn.classList.remove('active');
+  }
   bulkMode = mode;
   bulkAddBtn.classList.toggle('active', mode === 'add');
   bulkDeleteBtn.classList.toggle('active', mode === 'delete');
@@ -545,6 +567,100 @@ function setBulkMode(mode) {
   clearGhostsAndHighlights();
 }
 
+// --- Toggle Crop Mode: click two points on the line to keep only what's between them ---
+function setCropMode(on) {
+  if (on) { setBulkMode(null); setSplitMode(false); }
+  cropMode = on;
+  clearCropMarkers();
+  cropEditBtn.classList.toggle('active', on);
+  if (editablePolyline && editablePolyline.editor) {
+    if (on) editablePolyline.editor.disable();
+    else if (!bulkMode && !splitMode) editablePolyline.editor.enable();
+  }
+  editModeHint.innerHTML = on ? 'Crop: click the point to keep from, then the point to keep until.' : '';
+}
+
+// --- Toggle Split Mode: click one point on the line to export it as two GPX files ---
+function setSplitMode(on) {
+  if (on) { setBulkMode(null); setCropMode(false); }
+  splitMode = on;
+  splitEditBtn.classList.toggle('active', on);
+  if (editablePolyline && editablePolyline.editor) {
+    if (on) editablePolyline.editor.disable();
+    else if (!bulkMode && !cropMode) editablePolyline.editor.enable();
+  }
+  editModeHint.innerHTML = on ? 'Split: click the point where the route should split into two files.' : '';
+}
+
+// --- Line click: routes to crop/split handling when one of those tools is active ---
+function onEditableLineClick(e) {
+  if (!cropMode && !splitMode) return;
+  L.DomEvent.stop(e);
+  const latlngs = editablePolyline.getLatLngs();
+  const clickPt = map.latLngToLayerPoint(e.latlng);
+  let bestIdx = 0, bestDist = Infinity;
+  latlngs.forEach((ll, i) => {
+    const d = clickPt.distanceTo(map.latLngToLayerPoint(ll));
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  });
+  if (cropMode) handleCropClick(bestIdx);
+  else if (splitMode) handleSplitClick(bestIdx);
+}
+
+function handleCropClick(idx) {
+  const latlngs = editablePolyline.getLatLngs();
+  cropPoints.push(idx);
+  const marker = L.circleMarker(latlngs[idx], {
+    radius: 7, color: '#fff', weight: 2, fillColor: '#ff3333', fillOpacity: 1
+  }).addTo(map);
+  cropMarkers.push(marker);
+
+  if (cropPoints.length < 2) {
+    editModeHint.innerHTML = 'Crop: now click the point to keep until.';
+    return;
+  }
+
+  let [a, b] = cropPoints;
+  if (a > b) [a, b] = [b, a];
+  if (a === b) {
+    showToast('Pick two different points.', 'info');
+    clearCropMarkers();
+    editModeHint.innerHTML = 'Crop: click the point to keep from, then the point to keep until.';
+    return;
+  }
+  const kept = latlngs.slice(a, b + 1);
+  if (!confirm(`Keep ${kept.length} of ${latlngs.length} points and discard the rest?`)) {
+    setCropMode(false);
+    return;
+  }
+  editablePolyline.setLatLngs(kept);
+  editHistory.push(kept.map(ll => ({ lat: ll.lat, lng: ll.lng })));
+  redoHistory = [];
+  saveEditBtn.disabled = kept.length < 2;
+  showToast(`Cropped to ${kept.length} points.`, 'add');
+  setCropMode(false);
+}
+
+function handleSplitClick(idx) {
+  const latlngs = editablePolyline.getLatLngs();
+  if (idx < 1 || idx > latlngs.length - 2) {
+    showToast("Pick a point that isn't the very start or end.", 'info');
+    return;
+  }
+  const partA = latlngs.slice(0, idx + 1).map(ll => ({ lat: ll.lat, lng: ll.lng }));
+  const partB = latlngs.slice(idx).map(ll => ({ lat: ll.lat, lng: ll.lng }));
+  if (!confirm(`Split into two files here? Part 1: ${partA.length} points, Part 2: ${partB.length} points.`)) {
+    setSplitMode(false);
+    return;
+  }
+  const baseTitle = (rideTitleDisplay.textContent || 'Route')
+    .replace(/^Viewing:\s*/, '').replace(/[“”"]/g, '').trim() || 'Route';
+  downloadGPXFile([partA], `${baseTitle} (Part 1)`);
+  downloadGPXFile([partB], `${baseTitle} (Part 2)`);
+  showToast('Downloaded both parts.', 'add');
+  setSplitMode(false);
+}
+
 // --- ENTER EDIT MODE ---
 editBtn.onclick = function() {
   if (isEditing) return;
@@ -565,11 +681,18 @@ editBtn.onclick = function() {
   redoEditBtn.style.display = '';
   bulkAddBtn.style.display = '';
   bulkDeleteBtn.style.display = '';
+  reverseEditBtn.style.display = '';
+  connectStartBtn.style.display = '';
+  simplifyEditBtn.style.display = '';
+  cropEditBtn.style.display = '';
+  splitEditBtn.style.display = '';
   exitEditBtn.style.display = '';
   editHelp.style.display = '';
   redoHistory = [];
   bulkAddBtn.classList.remove('active');
   bulkDeleteBtn.classList.remove('active');
+  cropMode = false;
+  splitMode = false;
   setBulkMode(null);
 
   // Create editable polyline
@@ -585,6 +708,7 @@ editBtn.onclick = function() {
       saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
     }
   });
+  editablePolyline.on('click', onEditableLineClick);
   if (trailPolyline) map.removeLayer(trailPolyline);
   map.fitBounds(editablePolyline.getBounds(), { padding: [30,30], animate: true });
   saveEditBtn.disabled = editablePolyline.getLatLngs().length < 2;
@@ -618,23 +742,68 @@ exitEditBtn.onclick = function() {
   if (trailPolyline) map.removeLayer(trailPolyline);
   trailPolyline = L.polyline(originalPoints.map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
   isEditing = false;
-  setBulkMode(null);
-  editExperimentalBanner.style.display = 'none';
-  bulkAddBtn.style.display = 'none';
-  bulkDeleteBtn.style.display = 'none';
-  exitEditBtn.style.display = 'none';
-  saveEditBtn.style.display = 'none';
-  undoEditBtn.style.display = 'none';
-  redoEditBtn.style.display = 'none';
-  editBtn.style.display = '';
-  editHelp.style.display = 'none';
-  clearGhostsAndHighlights();
-  editModeHint.innerHTML = '';
+  resetEditModeUI();
 };
 
 // --- BULK TOOL BUTTONS ---
 bulkAddBtn.onclick = () => setBulkMode(bulkMode === 'add' ? null : 'add');
 bulkDeleteBtn.onclick = () => setBulkMode(bulkMode === 'delete' ? null : 'delete');
+cropEditBtn.onclick = () => setCropMode(!cropMode);
+splitEditBtn.onclick = () => setSplitMode(!splitMode);
+
+// --- REVERSE ROUTE ---
+reverseEditBtn.onclick = function() {
+  if (!editablePolyline || bulkMode || cropMode || splitMode) return;
+  const latlngs = editablePolyline.getLatLngs().slice().reverse();
+  editablePolyline.setLatLngs(latlngs);
+  editHistory.push(latlngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
+  redoHistory = [];
+  saveEditBtn.disabled = latlngs.length < 2;
+  showToast('Route direction reversed.', 'add');
+};
+
+// --- CONNECT BACK TO START ---
+connectStartBtn.onclick = function() {
+  if (!editablePolyline || bulkMode || cropMode || splitMode) return;
+  const latlngs = editablePolyline.getLatLngs();
+  if (latlngs.length < 2) return;
+  const first = latlngs[0], last = latlngs[latlngs.length - 1];
+  if (first.equals(last)) {
+    showToast('Route already returns to the start.', 'info');
+    return;
+  }
+  const newLatLngs = latlngs.concat([L.latLng(first.lat, first.lng)]);
+  editablePolyline.setLatLngs(newLatLngs);
+  editHistory.push(newLatLngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
+  redoHistory = [];
+  saveEditBtn.disabled = false;
+  showToast('Return leg added — route now ends where it started.', 'add');
+};
+
+// --- SIMPLIFY (reduce excess GPS points, keep the shape) ---
+simplifyEditBtn.onclick = function() {
+  if (!editablePolyline || bulkMode || cropMode || splitMode) return;
+  const latlngs = editablePolyline.getLatLngs();
+  if (latlngs.length < 3) {
+    showToast('Not enough points to simplify.', 'info');
+    return;
+  }
+  const REF_ZOOM = 15; // fixed zoom so tolerance is consistent regardless of current view
+  const projected = latlngs.map(ll => map.project(ll, REF_ZOOM));
+  const simplified = L.LineUtil.simplify(projected, 3);
+  const newLatLngs = simplified.map(p => map.unproject(p, REF_ZOOM));
+  if (newLatLngs.length >= latlngs.length) {
+    showToast('Route is already simplified — no points removed.', 'info');
+    return;
+  }
+  const pctCut = Math.round((1 - newLatLngs.length / latlngs.length) * 100);
+  if (!confirm(`Reduce from ${latlngs.length} to ${newLatLngs.length} points (about ${pctCut}% fewer)? You can undo this.`)) return;
+  editablePolyline.setLatLngs(newLatLngs);
+  editHistory.push(newLatLngs.map(ll => ({ lat: ll.lat, lng: ll.lng })));
+  redoHistory = [];
+  saveEditBtn.disabled = newLatLngs.length < 2;
+  showToast(`Simplified to ${newLatLngs.length} points.`, 'add');
+};
 
 // --- BULK INTERACTIONS (Optimized) ---
 map.on('mousedown touchstart', function(e) {
@@ -866,21 +1035,30 @@ saveEditBtn.onclick = function() {
   if (!title) return;
 
   // Export *all* segments in GPX (each as <trkseg>)
-  const gpxString = generateMinimalGPX(segments, title);
-  const blob = new Blob([gpxString], { type: "application/gpx+xml" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `${title.replace(/\s+/g, "_")}.gpx`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadGPXFile(segments, title);
 
   // Remove edit mode UI, reset
   editablePolyline.remove();
   editablePolyline = null;
   isEditing = false;
+  resetEditModeUI();
+  // Optionally: render the new route as main polyline
+  if (trailPolyline) map.removeLayer(trailPolyline);
+  trailPolyline = L.polyline(segments[0].map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
+};
+
+// --- Hide/reset all Edit Route toolbar UI (shared by Exit Edit and Save as New Route) ---
+function resetEditModeUI() {
   setBulkMode(null);
+  setCropMode(false);
+  setSplitMode(false);
   bulkAddBtn.style.display = 'none';
   bulkDeleteBtn.style.display = 'none';
+  reverseEditBtn.style.display = 'none';
+  connectStartBtn.style.display = 'none';
+  simplifyEditBtn.style.display = 'none';
+  cropEditBtn.style.display = 'none';
+  splitEditBtn.style.display = 'none';
   exitEditBtn.style.display = 'none';
   saveEditBtn.style.display = 'none';
   undoEditBtn.style.display = 'none';
@@ -888,10 +1066,20 @@ saveEditBtn.onclick = function() {
   editBtn.style.display = '';
   editHelp.style.display = 'none';
   clearGhostsAndHighlights();
-  // Optionally: render the new route as main polyline
-  if (trailPolyline) map.removeLayer(trailPolyline);
-  trailPolyline = L.polyline(segments[0].map(p => [p.lat, p.lng]), { color: '#007bff', weight: 3, opacity: 0.7 }).addTo(map);
-};
+  clearCropMarkers();
+  editModeHint.innerHTML = '';
+}
+
+// --- Download one or more segments as a single GPX file ---
+function downloadGPXFile(segments, title) {
+  const gpxString = generateMinimalGPX(segments, title);
+  const blob = new Blob([gpxString], { type: "application/gpx+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${title.replace(/\s+/g, "_")}.gpx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 // --- GPX GENERATION SUPPORTING MULTI-SEGMENT ---
 function generateMinimalGPX(segments, name = "Edited Route") {

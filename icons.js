@@ -37,7 +37,8 @@ const ML_ICONS = {
   gauge:       '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
   brake:       '<circle cx="12" cy="12" r="9"/><path d="M12 7v5"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/>',
   lightbulb:   '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>',
-  arrowright:  '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>'
+  arrowright:  '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+  reverse:     '<line x1="21" y1="8" x2="3" y2="8"/><polyline points="7 4 3 8 7 12"/><line x1="3" y1="16" x2="21" y2="16"/><polyline points="17 12 21 16 17 20"/>'
 };
 
 function mlIconSVG(name, extraClass = '') {
@@ -59,6 +60,7 @@ const ICON_BY_ID = {
   // edit-mode toolbar
   'edit-gpx-btn': 'edit', 'save-edited-gpx-btn': 'save', 'undo-edit-btn': 'undo',
   'redo-edit-btn': 'redo', 'bulk-add-btn': 'plus', 'bulk-delete-btn': 'trash', 'exit-edit-btn': 'x',
+  'reverse-edit-btn': 'reverse', 'connect-start-edit-btn': 'flag', 'simplify-edit-btn': 'sparkle',
   // planner.html
   'planner-dashboard-btn': 'route', 'planner-undo-btn': 'undo', 'planner-redo-btn': 'redo',
   'planner-clear-btn': 'trash', 'planner-search-btn': 'search', 'planner-save-btn': 'save',
