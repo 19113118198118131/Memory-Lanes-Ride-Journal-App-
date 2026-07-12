@@ -73,7 +73,7 @@ const ICON_BY_ID = {
   'live-cancel-btn': 'x', 'live-start-btn': 'play', 'live-finish-btn': 'flag', 'live-save-btn': 'save',
   'live-moment-btn': 'pin', 'live-moment-save-btn': 'save', 'live-moment-cancel-btn': 'x',
   // route.html (shared route invite page)
-  'route-save-btn': 'save', 'route-export-btn': 'download',
+  'route-save-btn': 'save', 'route-export-btn': 'download', 'route-decline-btn': 'x',
   // group.html (group ride lobby)
   // (group-copy-btn deliberately has no icon: its label flips to "Link
   // Copied!" via textContent, which would wipe an inline icon SVG)

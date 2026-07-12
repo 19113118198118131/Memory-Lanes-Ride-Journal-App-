@@ -147,6 +147,11 @@ function renderRsvpButtons() {
     }
   } else {
     loginNoteEl.style.display = '';
+    // Remember this invite so logging in on the main page brings the rider
+    // straight back to this lobby instead of stranding them on the landing page.
+    try {
+      localStorage.setItem('ml-pending-invite', JSON.stringify({ url: `group.html?ride=${groupToken}`, ts: Date.now() }));
+    } catch (_) {}
   }
 
   startLivePolling();

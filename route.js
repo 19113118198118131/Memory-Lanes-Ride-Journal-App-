@@ -16,6 +16,7 @@ const distanceEl  = document.getElementById('route-distance');
 const elevationEl = document.getElementById('route-elevation');
 const waypointsEl = document.getElementById('route-waypoints');
 const saveBtn     = document.getElementById('route-save-btn');
+const declineBtn  = document.getElementById('route-decline-btn');
 const exportBtn   = document.getElementById('route-export-btn');
 const saveStatusEl = document.getElementById('route-save-status');
 const loginNoteEl  = document.getElementById('route-login-note');
@@ -82,6 +83,11 @@ function showError() {
   if (!user) {
     saveBtn.disabled = true;
     loginNoteEl.style.display = '';
+    // Remember this invite so logging in on the main page brings the rider
+    // straight back here instead of stranding them on the landing page.
+    try {
+      localStorage.setItem('ml-pending-invite', JSON.stringify({ url: `route.html?share=${token}`, ts: Date.now() }));
+    } catch (_) {}
   }
 })();
 
@@ -161,17 +167,24 @@ saveBtn.addEventListener('click', async () => {
       .select('id')
       .single();
     if (error) throw error;
-    saveStatusEl.textContent = 'Saved to your routes!';
+    try { localStorage.removeItem('ml-pending-invite'); } catch (_) {}
+    saveStatusEl.textContent = 'Accepted! This route is now in your planned routes. Opening your journal...';
     saveStatusEl.style.color = 'var(--color-success)';
-    saveBtn.textContent = 'Saved';
-    // Straight into their own editable copy.
-    window.location.href = `planner.html?load=${data.id}`;
+    saveBtn.textContent = 'Accepted';
+    // Land on the journal so the new Planned card is immediately visible.
+    setTimeout(() => { window.location.href = 'dashboard.html'; }, 900);
   } catch (e) {
     saveStatusEl.textContent = 'Could not save: ' + (e.message || e);
     saveStatusEl.style.color = 'var(--color-danger)';
     saveBtn.disabled = false;
     saveBtn.textContent = original;
   }
+});
+
+declineBtn.addEventListener('click', async () => {
+  try { localStorage.removeItem('ml-pending-invite'); } catch (_) {}
+  const { data: { user } } = await supabase.auth.getUser();
+  window.location.href = user ? 'dashboard.html' : 'index.html';
 });
 
 exportBtn.addEventListener('click', () => {

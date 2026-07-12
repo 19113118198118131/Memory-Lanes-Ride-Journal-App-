@@ -3,9 +3,9 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=75';
-import { buildRideInsights } from './insights.js?v=75';
-import { mlIconSVG } from './icons.js?v=75';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=76';
+import { buildRideInsights } from './insights.js?v=76';
+import { mlIconSVG } from './icons.js?v=76';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -2462,11 +2462,38 @@ headerMyRidesBtn.addEventListener('click', () => {
   window.location.href = 'dashboard.html';
 });
 
+// If the user arrived here from a shared-route or group-ride invite that
+// required logging in first, send them straight back to it once they're in.
+// The invite pages (route.js / group.js) stash their own URL here; without
+// this, logging in dumped invited riders on the landing page and the invite
+// link was lost.
+const PENDING_INVITE_KEY = 'ml-pending-invite';
+function consumePendingInvite() {
+  let raw = null;
+  try { raw = localStorage.getItem(PENDING_INVITE_KEY); } catch (_) {}
+  if (!raw) return false;
+  try { localStorage.removeItem(PENDING_INVITE_KEY); } catch (_) {}
+  try {
+    const { url, ts } = JSON.parse(raw);
+    // Only honor recent invites, and only our own invite pages (relative
+    // URLs, so this can never redirect off-site).
+    if (!url || !ts || Date.now() - ts > 60 * 60 * 1000) return false;
+    if (!/^(route\.html\?share=|group\.html\?ride=)[A-Za-z0-9-]+$/.test(url)) return false;
+    window.location.href = url;
+    return true;
+  } catch (_) { return false; }
+}
+
 supabase.auth.onAuthStateChange((_event, session) => {
   const loggedIn = !!session?.user;
   headerLoginBtn.style.display = loggedIn ? 'none' : '';
   headerAccountControls.style.display = loggedIn ? '' : 'none';
-  if (loggedIn) authSection.style.display = 'none';
+  if (loggedIn) {
+    authSection.style.display = 'none';
+    // Covers both logging in right now and arriving already-authenticated
+    // (e.g. back from an email confirmation link).
+    consumePendingInvite();
+  }
 });
 
 
