@@ -5,9 +5,9 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=81';
-import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=81';
-import { buildRecommender } from './ai/recommender.js?v=81';
+import { mlIconSVG } from './icons.js?v=82';
+import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=82';
+import { buildRecommender } from './ai/recommender.js?v=82';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');

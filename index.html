@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=81" />
+  <link rel="stylesheet" href="style.css?v=82" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -104,10 +104,16 @@
           <div class="hero-card-title">Journal &amp; Share</div>
           <div class="hero-card-text">Pin moments to the map, build a rider's journal, export ride cards and replay videos, share read-only links.</div>
         </div>
+        <div class="hero-card">
+          <div class="hero-card-icon" data-icon="route"></div>
+          <div class="hero-card-title">Plan a Ride</div>
+          <div class="hero-card-text">Set a goal and a starting point, and get road-snapped route candidates matched to what you're after.</div>
+        </div>
       </div>
       <div class="hero-actions">
         <label for="gpx-upload" class="btn-primary" title="Upload a .gpx file">Upload your ride</label>
         <button id="try-demo-btn" class="btn-muted">Try a sample ride</button>
+        <a href="planner.html" class="btn-muted">Plan a route</a>
       </div>
       <p class="hero-note">The sample is a synthetic 11 km loop, so you can explore every feature before uploading your own GPX.</p>
     </section>
@@ -424,9 +430,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=81"></script>
-  <script type="module" src="icons.js?v=81"></script>
-  <script src="theme.js?v=81"></script>
+  <script type="module" src="script.js?v=82"></script>
+  <script type="module" src="icons.js?v=82"></script>
+  <script src="theme.js?v=82"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 
 

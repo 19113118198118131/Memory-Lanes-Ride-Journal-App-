@@ -395,10 +395,9 @@ nav { margin-top: 0.22rem; }
   .nav-sep { display: none; }
 }
 
-.brand-logo:hover {
-  transform: scale(1.06) rotate(-3deg);
-  box-shadow: 0 0 32px var(--color-accent)55, 0 0.5px 12px var(--color-info)33;
-}
+/* Hover motion lives on .brand-row .logo-card (a calmer lift + soft ring);
+   .brand-logo itself no longer animates on hover to avoid two competing
+   motions firing on the same interaction. */
 
 .bmc-button {
   background: var(--accent);
@@ -844,6 +843,14 @@ button:active, .btn-muted:active, .download-buttons button:active {
   gap: 1.2rem;
 }
 
+/* Before a ride is loaded, its only child (#post-upload-actions) is
+   display:none, which left an empty rounded panel floating on the
+   landing page. Collapse the whole toolbar in that state. */
+#ride-controls-toolbar:has(#post-upload-actions[style*="display: none"]) {
+  display: none;
+  margin-bottom: 0;
+}
+
 .upload-controls {
   display: flex;
   flex-wrap: wrap;
@@ -888,6 +895,9 @@ button:active, .btn-muted:active, .download-buttons button:active {
   font-size: 12.5px;
   font-weight: 700;
   padding: 6px 14px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 #speed-bins .speed-bin-btn.active {
   background: var(--accent-gradient);
@@ -984,6 +994,14 @@ button:active, .btn-muted:active, .download-buttons button:active {
 /* Secondary/utility action: one quiet outline button among peers in a row.
    Only the row's single primary action should use .btn-primary instead. */
 .btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 9px 20px;
+  cursor: pointer;
+  text-decoration: none;
   background: transparent;
   color: var(--color-text-muted);
   border: 1px solid var(--border-card);
@@ -1421,7 +1439,7 @@ button:hover,
 
 .moment-title-input,
 .moment-note-input {
-  background: rgba(18,28,50,0.97);
+  background: var(--surface-chip);
   border: 1.5px solid var(--color-border-strong);
   border-radius: 13px;
   color: var(--color-text-primary);
@@ -1434,23 +1452,24 @@ button:hover,
 }
 .moment-title-input:focus,
 .moment-note-input:focus {
-  border-color: #00f2fe;
-  background: rgba(58,134,255,0.13);
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
 }
 
 .jump-moment-btn, .delete-moment-btn {
   border-radius: 100px;
   font-weight: 600;
-  background: var(--color-text-primary);
+  background: var(--surface-chip);
   color: var(--color-info);
-  border: none;
+  border: 1px solid var(--border-card);
   padding: 0.38em 1.5em;
-  box-shadow: 0 1.5px 10px var(--color-info)10;
-  transition: box-shadow 0.14s, background 0.14s, color 0.12s;
+  box-shadow: none;
+  transition: box-shadow 0.14s, background 0.14s, color 0.12s, border-color 0.14s;
 }
 .jump-moment-btn:hover {
-  background: #e0f2ff;
-  box-shadow: 0 0 0 3px var(--color-accent)44;
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-border);
+  box-shadow: none;
 }
 .delete-moment-btn {
   color: var(--color-danger);
@@ -1566,7 +1585,7 @@ button:hover,
 
 .journal-moment-meta {
   font-size: 1.02rem;
-  color: #a8e3ff;
+  color: var(--color-text-secondary);
   font-weight: 500;
   margin-bottom: 0.11em;
   display: flex;
@@ -1586,7 +1605,7 @@ button:hover,
 
 .journal-moment-note {
   margin-top: 0.23em;
-  color: #ecf7fc;
+  color: var(--color-text-primary);
   font-size: 1.08rem;
   font-style: italic;
   min-height: 1.3em;
@@ -1927,8 +1946,8 @@ a {
   font-weight: 500;
   transition: color 0.17s, text-decoration 0.12s;
 }
-a:not(.brand-row):not(.nav-link):hover,
-a:not(.brand-row):not(.nav-link):focus-visible {
+a:not(.brand-row):not(.nav-link):not(.btn-primary):not(.btn-outline):not(.btn-muted):not(.btn-plain-danger):hover,
+a:not(.brand-row):not(.nav-link):not(.btn-primary):not(.btn-outline):not(.btn-muted):not(.btn-plain-danger):focus-visible {
   color: var(--color-accent);
   text-decoration: underline; /* body links still underline on hover */
   outline: none;
@@ -1953,18 +1972,19 @@ footer a:hover {
   text-decoration: underline;
 }
 
-/* General link styling */
-a:not(.brand-row):not(.nav-link),
-a:not(.brand-row):not(.nav-link):visited,
-a:not(.brand-row):not(.nav-link):active {
+/* General link styling (excludes anchors styled as pill buttons, which
+   keep their .btn-* colors/border/background instead of link styling) */
+a:not(.brand-row):not(.nav-link):not(.btn-primary):not(.btn-outline):not(.btn-muted):not(.btn-plain-danger),
+a:not(.brand-row):not(.nav-link):not(.btn-primary):not(.btn-outline):not(.btn-muted):not(.btn-plain-danger):visited,
+a:not(.brand-row):not(.nav-link):not(.btn-primary):not(.btn-outline):not(.btn-muted):not(.btn-plain-danger):active {
   color: var(--color-info);
   text-decoration: none;
   font-weight: 500;
   transition: color 0.18s, text-decoration 0.13s;
 }
 
-a:not(.brand-row):not(.nav-link):hover,
-a:not(.brand-row):not(.nav-link):focus-visible {
+a:not(.brand-row):not(.nav-link):not(.btn-primary):not(.btn-outline):not(.btn-muted):not(.btn-plain-danger):hover,
+a:not(.brand-row):not(.nav-link):not(.btn-primary):not(.btn-outline):not(.btn-muted):not(.btn-plain-danger):focus-visible {
   color: var(--color-accent);
   text-decoration: underline;
 }
@@ -2123,11 +2143,11 @@ header nav a:focus,
   margin-left: auto;
 }
 .corner-jump:hover {
-  background: rgba(100,255,218,0.10);
+  background: var(--color-accent-soft);
   color: var(--color-accent);
-  border-color: rgba(100,255,218,0.6);
+  border-color: var(--color-accent);
   transform: none;
-  box-shadow: 0 0 14px rgba(100,255,218,0.18);
+  box-shadow: none;
 }
 
 .corner-speeds { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
@@ -2204,10 +2224,10 @@ header nav a:focus,
   box-shadow: none;
 }
 .show-all-corners:hover {
-  background: rgba(100,255,218,0.10);
+  background: var(--color-accent-soft);
   color: var(--color-accent);
   transform: none;
-  box-shadow: 0 0 16px rgba(100,255,218,0.18);
+  box-shadow: none;
 }
 @media (max-width: 640px) {
   .debrief-card { padding: 1.1rem 1.2rem; }
@@ -2267,11 +2287,12 @@ header nav a:focus,
   text-align: left;
   transition: border-color 0.2s, transform 0.15s;
 }
-.hero-card:hover { border-color: rgba(100,255,218,0.4); transform: translateY(-2px); }
+.hero-card:hover { border-color: var(--color-accent-border); transform: translateY(-2px); }
 .hero-card-icon { font-size: 1.9rem; margin-bottom: 0.5rem; }
 .hero-card-title { color: var(--color-accent); font-weight: 700; font-size: 1.08rem; margin-bottom: 0.35rem; }
 .hero-card-text { color: var(--color-text-secondary); font-size: 0.96rem; line-height: 1.45; }
-.hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; align-items: center; }
+.hero-actions .btn-outline { border-radius: var(--radius-pill); }
 .hero-note { color: var(--color-text-muted); font-size: 0.9rem; margin-top: 0.9rem; }
 
 /* ---------- CHART EXPLAINERS ---------- */
@@ -3370,6 +3391,32 @@ header:not(.main-header) .dashboard-header {
 }
 .vibe-nav .nav-link:hover .ml-icon { transform: translateY(-1px); }
 
+/* Reduced motion: entrance fades, hover lifts, fireworks and flipbook
+   animations all respected. Each element gets its settled end-state
+   (opacity:1, transform:none) rather than being hidden mid-animation. */
+@media (prefers-reduced-motion: reduce) {
+  #ride-controls-toolbar,
+  .filters-container,
+  .status-fade {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .moment-entry:focus-within, .moment-entry:hover,
+  .journal-moment-card:hover, .journal-moment-card:focus-within {
+    transform: none;
+  }
+  .firework, .fireworks-badge {
+    animation: none;
+    display: none;
+  }
+  .flipbook-card {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .brand-row .logo-card,
   .vibe-nav .nav-link::after,
@@ -3651,6 +3698,9 @@ header:not(.main-header) .dashboard-header {
   font-weight: 600;
   font-size: 0.92rem;
   box-shadow: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 .feedback-chip:hover {
@@ -3885,6 +3935,9 @@ header:not(.main-header) .dashboard-header {
   font-weight: 600;
   font-size: 0.95rem;
   box-shadow: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 .onboarding-option:hover {
   border-color: var(--border-strong);
@@ -3979,6 +4032,9 @@ header:not(.main-header) .dashboard-header {
   font-weight: 600;
   font-size: 0.92rem;
   box-shadow: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 .planner-candidate-tab:hover {
   border-color: var(--border-strong);
@@ -4109,8 +4165,8 @@ header:not(.main-header) .dashboard-header {
 }
 .status-chip-shared {
   color: var(--color-info);
-  background: rgba(0, 198, 255, 0.14);
-  border-color: rgba(0, 198, 255, 0.35);
+  background: color-mix(in srgb, var(--color-info) 14%, transparent);
+  border-color: color-mix(in srgb, var(--color-info) 35%, transparent);
 }
 
 /* A planned route is something you intend to ride, not something you rode:
