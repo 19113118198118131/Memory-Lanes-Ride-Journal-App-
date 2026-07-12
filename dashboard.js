@@ -7,7 +7,7 @@
 
 // Supabase config
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=79';
+import { mlIconSVG } from './icons.js?v=80';
 
 // DOM references
 const rideList = document.getElementById('ride-list');

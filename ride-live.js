@@ -11,7 +11,18 @@ import supabase from './supabaseClient.js';
 // ride-live.html exactly. A bare './icons.js' is a DIFFERENT module URL to
 // './icons.js?v=N', so the browser loads icons.js twice and applyIcons()
 // runs twice, duplicating every button icon on this page.
-import { mlIconSVG } from './icons.js?v=79';
+import { mlIconSVG } from './icons.js?v=80';
+
+// Native iOS recorder bridge (Capacitor). Loaded LAZILY: the bridge pulls in
+// @capacitor/core from a CDN, so importing it statically would make every web
+// page load depend on that CDN (and a failed resolve would break the whole
+// module). We only import it when actually running inside the iOS app, where
+// recording routes through CoreLocation and keeps tracking with the screen off.
+let nativeBridge = null;
+async function loadNativeBridge() {
+  if (!nativeBridge) nativeBridge = await import('./iosRideRecorder.js?v=80');
+  return nativeBridge;
+}
 
 const ON_ROUTE_M = 60; // metres: within this of the planned line counts as "on route"
 
@@ -86,6 +97,12 @@ let momentMarkers = [];  // map pins for liveMoments, kept in the same order
 let pendingMoment = null; // captured point waiting on the title/note form
 let currentUser = null;      // set once at init; needed for live-position upserts
 let lastBroadcastAt = 0;     // throttle: at most one live_positions write per 15s
+// True only inside the iOS app. Detected WITHOUT importing the bridge, so the
+// web never touches the Capacitor CDN dependency.
+const nativeMode = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+let nativeSyncTimer = null;   // drains the native buffer while foreground
+let nativeErrorListener = null;
+let nativeProcessed = 0;      // how many native buffer points are already merged this segment
 let groupRide = null;        // { id, token, title } when riding as part of a group ride
 let groupRiderMarkers = [];  // other group riders shown on the live map
 let groupPollTimer = null;
@@ -353,7 +370,7 @@ function renderLiveMoments() {
 }
 
 function startRide() {
-  if (!navigator.geolocation) {
+  if (!nativeMode && !navigator.geolocation) {
     alert('Geolocation is not supported on this device or browser.');
     return;
   }
@@ -364,6 +381,7 @@ function startRide() {
   followMode = true;
   hasCenteredOnFix = false;
   clearLiveMoments();
+  if (nativeMode) loadNativeBridge().then(b => b.clearNativeRideTrack()).catch(() => {}); // drop stale buffer from a prior ride
   beginWatch();
 
   startBtn.style.display = 'none';
@@ -382,8 +400,9 @@ function clearLiveMoments() {
   renderLiveMoments();
 }
 
-function togglePause() {
+async function togglePause() {
   if (watching) {
+    if (nativeMode) await drainNative(); // capture points up to the pause before stopping
     endWatch();
     pauseBtn.textContent = 'Resume';
     statusBanner.textContent = 'Paused. Distance and time stop counting until you resume.';
@@ -404,9 +423,13 @@ function beginWatch() {
   clearTimeout(firstFixTimer);
   firstFixTimer = setTimeout(() => {
     if (watching && recordedPoints.length === pointsAtWatchStart) {
-      statusBanner.textContent = "Still no GPS fix. Check this site has location permission (and location services are turned on). This feature needs a real GPS signal, so it works best on a phone, not a desktop browser.";
+      statusBanner.textContent = nativeMode
+        ? "Still no GPS fix. Open Settings and allow Location 'Always' for Memory Lanes so it can keep tracking with the screen off."
+        : "Still no GPS fix. Check this site has location permission (and location services are turned on). This feature needs a real GPS signal, so it works best on a phone, not a desktop browser.";
     }
   }, 8000);
+
+  if (nativeMode) { beginNativeWatch(); return; }
 
   watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
     enableHighAccuracy: true, maximumAge: 2000, timeout: 15000
@@ -417,10 +440,70 @@ function beginWatch() {
 
 function endWatch() {
   clearTimeout(firstFixTimer);
+  if (nativeMode) { endNativeWatch(); return; }
   if (watchId != null) navigator.geolocation.clearWatch(watchId);
   watchId = null;
   watching = false;
   releaseWakeLock();
+}
+
+// ---------- Native (iOS) position source ----------
+// CoreLocation records continuously, buffering points even while the app is
+// backgrounded and JS is suspended. We drain that authoritative buffer on a
+// timer (foreground) and on resume/finish, replaying each new point through
+// the same onPosition() pipeline the web path uses.
+async function beginNativeWatch() {
+  nativeProcessed = 0; // native start() wipes its buffer, so this segment starts fresh
+  watching = true;
+  try {
+    const b = await loadNativeBridge();
+    await b.requestRideRecorderPermission();
+    await b.startNativeRideRecording();
+    if (!nativeErrorListener) {
+      nativeErrorListener = await b.onNativeRideError(err => {
+        if (err && err.message) statusBanner.textContent = `Location error: ${err.message}`;
+      });
+    }
+  } catch (e) {
+    watching = false;
+    clearTimeout(firstFixTimer);
+    statusBanner.textContent = "Couldn't start GPS. Allow Location 'Always' for Memory Lanes in Settings, then try again.";
+    // Roll the controls back to the pre-start state so the rider can retry.
+    startBtn.style.display = '';
+    pauseBtn.style.display = 'none';
+    momentBtn.style.display = 'none';
+    finishBtn.style.display = 'none';
+    recording = false;
+    return;
+  }
+  clearInterval(nativeSyncTimer);
+  nativeSyncTimer = setInterval(drainNative, 2000);
+  drainNative();
+}
+
+function endNativeWatch() {
+  watching = false;
+  clearInterval(nativeSyncTimer);
+  nativeSyncTimer = null;
+  if (nativeBridge) nativeBridge.stopNativeRideRecording().catch(() => {});
+}
+
+async function drainNative() {
+  let pts;
+  try {
+    const b = await loadNativeBridge();
+    const track = await b.getNativeRideTrack();
+    pts = Array.isArray(track && track.points) ? track.points : [];
+  } catch (_) { return; }
+  for (let i = nativeProcessed; i < pts.length; i++) {
+    const np = pts[i];
+    if (!Number.isFinite(np.lat) || !Number.isFinite(np.lng)) continue;
+    onPosition({
+      coords: { latitude: np.lat, longitude: np.lng, altitude: np.altitude, speed: np.speed },
+      timestamp: np.timestamp ? Date.parse(np.timestamp) : Date.now()
+    });
+  }
+  nativeProcessed = pts.length;
 }
 
 function onPosition(pos) {
@@ -506,7 +589,10 @@ function updateTelemetry(pt, speedMs) {
   routeStatusEl.classList.toggle('off-route', !onRoute);
 }
 
-function finishRide() {
+async function finishRide() {
+  // Pull in any points buffered while backgrounded before we stop and judge
+  // whether there's enough to save.
+  if (nativeMode && watching) await drainNative();
   endWatch();
   recording = false;
   stopBroadcasting();
@@ -578,7 +664,11 @@ function releaseWakeLock() {
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && watching) requestWakeLock();
+  if (document.visibilityState !== 'visible' || !watching) return;
+  requestWakeLock();
+  // Coming back to the foreground: pull in everything CoreLocation buffered
+  // while JS was suspended, so the on-screen track catches up instantly.
+  if (nativeMode) drainNative();
 });
 
 // ---------- Save recorded ride ----------

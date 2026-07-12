@@ -92,6 +92,25 @@ async function stopRecordingAndBuildGPX(title) {
 }
 ```
 
+## Integration status
+
+`ride-live.js` is now wired to this plugin. It detects the native app with
+`window.Capacitor?.isNativePlatform()` and, when true, records through the
+CoreLocation plugin instead of the browser's `navigator.geolocation`
+(lazy-importing `iosRideRecorder.js` only on native, so the web build never
+touches the Capacitor CDN dependency). Because JavaScript is suspended while
+the app is backgrounded, the live tracker does not rely on the per-point
+event stream for data: it drains the plugin's authoritative buffer via
+`getTrack()` on a 2-second timer, on every foreground resume, and once more on
+Finish, replaying each new point through the same pipeline the web path uses.
+Pause/Resume and "Add Moment" all work unchanged, and the saved GPX is built
+from the merged track exactly as before.
+
 ## Next implementation step
 
-The current Swift scaffold stores the active ride in memory. Before TestFlight, persist points to disk during recording so a crash, battery kill, or OS termination does not lose the ride. A simple next step is to append JSON lines to a file in the app documents directory and rebuild GPX from that file on stop/recovery.
+The current Swift scaffold stores the active ride in memory. Before TestFlight,
+persist points to disk during recording so a crash, battery kill, or OS
+termination does not lose the ride. A simple next step is to append JSON lines
+to a file in the app documents directory and rebuild GPX from that file on
+stop/recovery. (The JS side already tolerates this: it re-reads the whole track
+via `getTrack()`, so on-disk recovery would flow through without JS changes.)
