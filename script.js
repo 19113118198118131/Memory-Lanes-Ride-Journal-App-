@@ -3,12 +3,12 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=80';
-import { buildRideInsights } from './insights.js?v=80';
-import { mlIconSVG } from './icons.js?v=80';
-import { extractRideFeatures } from './ai/feature-extractor.js?v=80';
-import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=80';
-import { initRideFeedback } from './ai/ride-feedback.js?v=80';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=81';
+import { buildRideInsights } from './insights.js?v=81';
+import { mlIconSVG } from './icons.js?v=81';
+import { extractRideFeatures } from './ai/feature-extractor.js?v=81';
+import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=81';
+import { initRideFeedback } from './ai/ride-feedback.js?v=81';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -32,6 +32,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const uploadSection     = document.getElementById('upload-section');
   const saveForm          = document.getElementById('save-ride-form');
   const authSection       = document.getElementById('auth-section');
+  // True only when the login prompt was opened DURING a save (an uploaded ride
+  // is waiting to be logged). Logging in from the header has no ride pending,
+  // so the "Log this Ride" form must not appear then.
+  let pendingSaveAfterLogin = false;
   const headerAuthControls    = document.getElementById('header-auth-controls');
   const headerLoginBtn        = document.getElementById('header-login-btn');
   const headerAccountControls = document.getElementById('header-account-controls');
@@ -213,6 +217,9 @@ async function saveMomentsToDB() {
     exportVideo.style.display          = 'inline-block';
     if (rideActions) rideActions.style.display = 'none';
     authSection.style.display          = isLoggedIn ? 'none' : 'block';
+    // A ride is loaded and unsaved here; if we're prompting for login it's so
+    // the rider can save it, so reveal the save form once they're in.
+    pendingSaveAfterLogin = !isLoggedIn;
     setTimeout(() => map.invalidateSize(), 200);
     editControls.style.display         = 'flex';
   }
@@ -2281,10 +2288,12 @@ document.getElementById('login-btn').addEventListener('click', async () => {
   statusEl.style.borderRadius = '5px';
   statusEl.style.marginTop = '1rem';
 
-  // Hide login and show save form
+  // Hide login. Only reveal the save form if a ride was actually waiting to be
+  // saved (i.e. login was part of the save flow, not a header sign-in).
   setTimeout(() => {
     authSection.style.display = 'none';
-    saveForm.style.display = 'block';
+    if (pendingSaveAfterLogin) saveForm.style.display = 'block';
+    pendingSaveAfterLogin = false;
   }, 50);
 
   // Optional: flash visual feedback (login success only)
@@ -2318,6 +2327,7 @@ saveBtn.addEventListener('click', async () => {
   const user = sessionResult.data?.session?.user;
   if (!user) {
     // Show login section and only show "You must be logged in" if triggered by this error
+    pendingSaveAfterLogin = true; // there IS a ride waiting to be saved
     authSection.style.display = 'block';
     fadeInElement(authSection);
     saveForm.style.display = 'none';
@@ -2468,6 +2478,7 @@ headerAuthControls.style.display = '';
 })();
 
 headerLoginBtn.addEventListener('click', () => {
+  pendingSaveAfterLogin = false; // header login: no ride pending, don't reveal the save form
   authSection.style.display = 'block';
   fadeInElement(authSection);
   authSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
