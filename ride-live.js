@@ -11,7 +11,7 @@ import supabase from './supabaseClient.js';
 // ride-live.html exactly. A bare './icons.js' is a DIFFERENT module URL to
 // './icons.js?v=N', so the browser loads icons.js twice and applyIcons()
 // runs twice, duplicating every button icon on this page.
-import { mlIconSVG } from './icons.js?v=76';
+import { mlIconSVG } from './icons.js?v=77';
 
 const ON_ROUTE_M = 60; // metres: within this of the planned line counts as "on route"
 
@@ -126,6 +126,8 @@ let groupPollTimer = null;
     // point, so the toggle starts ON here (and stays one tap from off).
     broadcastRow.style.display = '';
     broadcastToggle.checked = true;
+    const groupPanel = document.getElementById('live-group-panel');
+    if (groupPanel) groupPanel.style.display = '';
     startGroupRiderPolling();
   } else if (routeId) {
     const { data: route, error } = await supabase
@@ -159,7 +161,46 @@ let groupPollTimer = null;
   initMap();
 })();
 
-// ---------- Other group riders on the live map ----------
+// ---------- Other group riders: markers on the map + the Riding With You panel ----------
+function freshnessLabel(updatedAt) {
+  const ageS = Math.max(0, (Date.now() - new Date(updatedAt).getTime()) / 1000);
+  if (ageS < 45) return 'just now';
+  if (ageS < 90) return '1 min ago';
+  return `${Math.round(ageS / 60)} min ago`;
+}
+
+function renderGroupPanel(riders) {
+  const panel = document.getElementById('live-group-list');
+  if (!panel) return;
+  if (!riders.length) {
+    panel.innerHTML = '<p class="chart-desc" style="margin:0;">No one else is broadcasting yet. Riders appear here the moment they start.</p>';
+    return;
+  }
+  const myPos = recordedPoints.length ? recordedPoints[recordedPoints.length - 1] : null;
+  panel.innerHTML = riders.map((r, i) => {
+    const speed = r.speed_kmh != null ? `${Math.round(r.speed_kmh)} km/h` : 'stopped';
+    const away = myPos ? `${(haversineMeters(myPos.lat, myPos.lng, r.lat, r.lng) / 1000).toFixed(1)} km away · ` : '';
+    return `
+      <button type="button" class="live-group-rider" data-index="${i}">
+        <span class="live-group-rider-dot"></span>
+        <span class="live-group-rider-name">${escapeHtml(r.name)}</span>
+        <span class="live-group-rider-meta">${away}${speed} · ${freshnessLabel(r.updated_at)}</span>
+        <span class="live-group-rider-find">Find</span>
+      </button>`;
+  }).join('');
+  panel.querySelectorAll('.live-group-rider').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = riders[parseInt(btn.dataset.index, 10)];
+      if (!r || !map) return;
+      // Looking at a mate means leaving follow-me; the existing Recenter
+      // button is the way back, same as after a manual map drag.
+      followMode = false;
+      if (recording) recenterBtn.style.display = '';
+      map.setView([r.lat, r.lng], Math.max(map.getZoom(), 14));
+    });
+  });
+}
+
 async function refreshGroupRiders() {
   if (!groupRide || !map) return;
   let riders = [];
@@ -179,6 +220,7 @@ async function refreshGroupRiders() {
     marker.bindTooltip(`${r.name}${speed}`, { permanent: true, direction: 'top', offset: [0, -10], className: 'live-rider-label' });
     return marker;
   });
+  renderGroupPanel(riders);
 }
 
 function startGroupRiderPolling() {

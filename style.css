@@ -3622,6 +3622,28 @@ header:not(.main-header) .dashboard-header {
 }
 
 /* ---------- GROUP RIDE: attendees, RSVP, dashboard list ---------- */
+/* RSVP row: same panel treatment as the Meeting Details and Who's coming
+   cards, so it doesn't float bare against the map. */
+#group-rsvp-row {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 0.95rem 1.4rem;
+  margin-bottom: 1.6rem;
+  align-items: center;
+  gap: 0.7rem;
+}
+.group-rsvp-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-right: 0.5rem;
+}
+/* Breathing room between the lobby cards and the map below them */
+#group-body #planner-map-section { margin-top: 0.4rem; }
+
 .group-attendee {
   display: flex;
   align-items: center;
@@ -3663,6 +3685,73 @@ header:not(.main-header) .dashboard-header {
 .group-ride-meta {
   font-size: 0.85rem;
   color: var(--color-text-muted);
+}
+
+/* ---------- LIVE RIDE: broadcast toggle + Riding With You panel ---------- */
+/* The broadcast opt-in gets the same panel treatment as the lobby cards
+   instead of floating as bare text between the stats and the buttons. */
+#live-broadcast-row {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 0.95rem 1.4rem;
+  margin-bottom: 1.2rem;
+}
+#live-broadcast-row label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+#live-broadcast-row .onboarding-hint-note { margin-top: 0.55rem; }
+
+#live-group-panel { margin-bottom: 1.2rem; }
+.live-group-list {
+  display: flex;
+  flex-direction: column;
+}
+.live-group-rider {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.2rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-card);
+  border-radius: 0;
+  box-shadow: none;
+  cursor: pointer;
+}
+.live-group-rider:last-child { border-bottom: none; }
+.live-group-rider:hover {
+  background: var(--color-accent-soft);
+  box-shadow: none;
+  transform: none;
+}
+.live-group-rider-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffd166;
+  box-shadow: 0 0 8px #ffd16688;
+  flex: 0 0 auto;
+}
+.live-group-rider-name {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.live-group-rider-meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+.live-group-rider-find {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-accent);
 }
 
 /* ---------- LIVE RIDER MARKERS (route.html) ---------- */

@@ -220,9 +220,29 @@ endBtn.addEventListener('click', async () => {
   window.location.href = 'dashboard.html';
 });
 
-// ---------- Live riders ----------
+// ---------- Live refresh (rider markers + RSVPs) ----------
+// The host sees answers arrive as they happen: each tick also re-reads the
+// group ride so the Who's coming list and rider count stay current without
+// a manual refresh. Display-only fields are updated; the host's meeting
+// editor inputs are left alone so typing is never clobbered.
+async function refreshAttendees() {
+  try {
+    const { data, error } = await supabase.rpc('get_group_ride', { token: groupToken });
+    if (error || !data) return;
+    groupRide.members = data.members;
+    groupRide.member_count = data.member_count;
+    groupRide.meet_time = data.meet_time;
+    groupRide.meet_point = data.meet_point;
+    groupRide.your_rsvp = data.your_rsvp;
+    renderMeetLine();
+    renderAttendees();
+    renderRsvpButtons();
+  } catch (_) { /* transient failure - retry next tick */ }
+}
+
 async function refreshLiveRiders() {
   if (!groupToken || !groupMap) return;
+  refreshAttendees();
   let riders = [];
   try {
     const { data, error } = await supabase.rpc('get_group_live_riders', { token: groupToken });
