@@ -3,12 +3,12 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=78';
-import { buildRideInsights } from './insights.js?v=78';
-import { mlIconSVG } from './icons.js?v=78';
-import { extractRideFeatures } from './ai/feature-extractor.js?v=78';
-import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=78';
-import { initRideFeedback } from './ai/ride-feedback.js?v=78';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=79';
+import { buildRideInsights } from './insights.js?v=79';
+import { mlIconSVG } from './icons.js?v=79';
+import { extractRideFeatures } from './ai/feature-extractor.js?v=79';
+import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=79';
+import { initRideFeedback } from './ai/ride-feedback.js?v=79';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -314,12 +314,10 @@ async function saveMomentsToDB() {
 uploadInput.addEventListener('change', () => {
   const file = uploadInput.files[0];
   if (file) {
-    fileStatus.textContent = 'File ready';
-    fileStatus.classList.add('ready');
+    if (fileStatus) { fileStatus.textContent = 'File ready'; fileStatus.classList.add('ready'); }
     postUploadActions.style.display = 'flex';
   } else {
-    fileStatus.textContent = 'No file selected';
-    fileStatus.classList.remove('ready');
+    if (fileStatus) { fileStatus.textContent = 'No file selected'; fileStatus.classList.remove('ready'); }
     postUploadActions.style.display = 'none';
     document.getElementById('gpx-upload').value = '';
   }
@@ -1135,6 +1133,10 @@ function sanitizeString(str) {
     document.getElementById('ride-controls').style.display = 'none';
     resetUIToInitial();
     history.replaceState({}, document.title, window.location.pathname);
+    // One tap re-opens the file picker instead of bouncing to the hero and
+    // making the rider hunt for an upload button. Cancelling just lands them
+    // on the landing view, which resetUIToInitial() already restored.
+    uploadInput.click();
   });
 
   showAnalyticsBtn.addEventListener('click', showAnalyticsSection);
@@ -3090,30 +3092,31 @@ if (addMomentBtn) addMomentBtn.addEventListener('click', () => {
     if (this.history.length > this.maxTrail) this.history.shift();
   };
   Particle.prototype.draw = function(ctx) {
-    // Draw trailing tail
-    for (let j=1; j<this.history.length; j++) {
-      ctx.save();
-      ctx.globalAlpha = (this.alpha * j / this.history.length) * 0.34;
-      ctx.beginPath();
-      ctx.moveTo(this.history[j-1].x, this.history[j-1].y);
-      ctx.lineTo(this.history[j].x, this.history[j].y);
+    // Trail as ONE stroked path (not a save/restore per segment). The bright
+    // bloom comes from the additive 'lighter' compositing set in animate(),
+    // NOT from ctx.shadowBlur - shadowBlur forces a per-draw Gaussian pass and
+    // was the whole reason this animation janked. Overlapping additive strokes
+    // give the same premium glow for a fraction of the cost.
+    if (this.history.length > 1) {
+      ctx.globalAlpha = this.alpha * 0.5;
       ctx.strokeStyle = this.color;
-      ctx.lineWidth = Math.max(1, this.size * 0.6 * j / this.history.length);
-      ctx.shadowColor = this.color;
-      ctx.shadowBlur = 10;
+      ctx.lineWidth = Math.max(1, this.size * 0.6);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(this.history[0].x, this.history[0].y);
+      for (let j = 1; j < this.history.length; j++) ctx.lineTo(this.history[j].x, this.history[j].y);
       ctx.stroke();
-      ctx.restore();
     }
-    // Draw main dot
-    ctx.save();
+    // Main dot: a small solid core plus one soft additive halo ring.
     ctx.globalAlpha = this.alpha;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, 2*Math.PI);
     ctx.fillStyle = this.color;
-    ctx.shadowColor = this.color;
-    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
     ctx.fill();
-    ctx.restore();
+    ctx.globalAlpha = this.alpha * 0.28;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size * 2.4, 0, 2 * Math.PI);
+    ctx.fill();
   };
 
   // --- Firework (single burst) ---
@@ -3188,15 +3191,17 @@ if (addMomentBtn) addMomentBtn.addEventListener('click', () => {
   };
   Firework.prototype.draw = function(ctx) {
     if (this.state === "launch") {
-      ctx.save();
-      ctx.globalAlpha = 0.52 + 0.09 * Math.random();
+      // Rising ember: solid core + additive halo (glow via compositing, no shadowBlur).
+      ctx.globalAlpha = 0.55 + 0.09 * Math.random();
+      ctx.fillStyle = "#fff";
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.size * 1.7, 0, 2 * Math.PI);
-      ctx.fillStyle = "#fff";
-      ctx.shadowColor = this.color;
-      ctx.shadowBlur = 13;
       ctx.fill();
-      ctx.restore();
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size * 3.4, 0, 2 * Math.PI);
+      ctx.fill();
     } else {
       this.particles.forEach(p => p.draw(ctx));
     }
@@ -3231,10 +3236,15 @@ if (addMomentBtn) addMomentBtn.addEventListener('click', () => {
     // Animation frame handler
     function animate(ts) {
       if (!start) start = ts;
+      // Clear in normal mode, then draw everything additively for glow.
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = 'lighter';
 
       fireworks.forEach(fw => fw.update());
       fireworks.forEach(fw => fw.draw(ctx));
+      ctx.globalAlpha = 1; // reset so the fade-out opacity transition isn't skewed
       for (let i=fireworks.length-1; i>=0; i--) {
         if (fireworks[i].state === "burst" && fireworks[i].particles.length === 0)
           fireworks.splice(i, 1);

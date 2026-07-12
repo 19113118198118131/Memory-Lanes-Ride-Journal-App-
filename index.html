@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=78" />
+  <link rel="stylesheet" href="style.css?v=79" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -106,7 +106,7 @@
         </div>
       </div>
       <div class="hero-actions">
-        <label for="gpx-upload" class="btn-primary">Upload your ride</label>
+        <label for="gpx-upload" class="btn-primary" title="Upload a .gpx file">Upload your ride</label>
         <button id="try-demo-btn" class="btn-muted">Try a sample ride</button>
       </div>
       <p class="hero-note">The sample is a synthetic 11 km loop, so you can explore every feature before uploading your own GPX.</p>
@@ -116,19 +116,17 @@
          GPX UPLOAD
          ======================== -->
     <section id="upload-section">
+      <!-- The hidden picker is shared by the hero "Upload your ride" label and
+           the "Upload New Ride" action below, so there's a single upload path. -->
+      <input type="file" id="gpx-upload" accept=".gpx" style="display: none;" />
       <div id="ride-controls-toolbar">
-        <div class="upload-controls">
-          <label for="gpx-upload" class="btn-primary" id="upload-btn" aria-label="Upload GPX">Upload .gpx</label>
-          <input type="file" id="gpx-upload" accept=".gpx" style="display: none;" />
-          <span id="file-upload-status" class="file-upload-status">No file selected</span>
-        </div>
         <div id="post-upload-actions" class="action-buttons" style="display: none;">
           <button id="download-summary" class="btn-outline">Download Summary</button>
           <button id="export-video" class="btn-outline">Export Video</button>
           <button id="open-journal" class="btn-outline">Ride Journal</button>
           <button id="share-ride-btn" class="btn-primary" style="display:none;">Share Ride</button>
           <button id="unshare-ride-btn" class="btn-muted danger-action" style="display:none;">Stop Sharing</button>
-          <button id="upload-another" class="btn-plain-danger">Upload New Ride</button>
+          <button id="upload-another" class="btn-outline">Upload New Ride</button>
         </div>
       </div>
     </section>
@@ -426,9 +424,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=78"></script>
-  <script type="module" src="icons.js?v=78"></script>
-  <script src="theme.js?v=78"></script>
+  <script type="module" src="script.js?v=79"></script>
+  <script type="module" src="icons.js?v=79"></script>
+  <script src="theme.js?v=79"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 
 

@@ -2347,16 +2347,15 @@ header nav a:focus,
   flex-wrap: wrap;
   gap: 0.65rem;
   align-items: center;
-  justify-content: flex-end;
+  /* Sole occupant of the toolbar now (the old "Upload .gpx" picker + status
+     row was removed as redundant), so it fills the width and reads as a clean
+     left-aligned action bar. */
+  width: 100%;
+  justify-content: flex-start;
 }
 
 #post-upload-actions[style*="display: none"] {
   display: none !important;
-}
-
-.upload-controls[style*="display: none"] + #post-upload-actions {
-  width: 100%;
-  justify-content: center;
 }
 
 button,
