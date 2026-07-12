@@ -24,7 +24,7 @@ iOS does not allow arbitrary always-running background JavaScript. Capacitor Bac
 
 Use Background Runner for small jobs such as queue cleanup, sync, reminders, or checking for unsent ride summaries.
 
-For true ride recording while the screen is locked, build a native CoreLocation path that uses the iOS Location updates background mode and "Always" location permission. That can live beside this scaffold as a small Capacitor plugin or Swift bridge.
+For true ride recording while the screen is locked, use the native CoreLocation bridge scaffold in `docs/ios-native-ride-recorder.md`. It records from native Swift instead of relying on background JavaScript.
 
 ## Xcode setup for Background Runner
 
@@ -70,12 +70,9 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
 - `scripts/prepare-capacitor-web.mjs`: copies static runtime assets into `www/`
 - `runners/background.js`: starter background task handler
 - `.gitignore`: ignores generated local/native build outputs
+- `native/ios/MemoryLanesRideRecorderPlugin.swift`: native location recorder bridge scaffold
+- `iosRideRecorder.js`: web wrapper for the native recorder
 
 ## Next native step
 
-The next meaningful iOS feature is a dedicated "record ride in background" bridge:
-
-1. Request `Always` location permission only when the user taps Start Ride.
-2. Start a native CoreLocation session with background updates enabled.
-3. Buffer points locally while offline or backgrounded.
-4. Hand the completed GPX back to the existing save flow.
+After the recorder bridge is added to Xcode, persist points to disk during recording so a crash, battery kill, or OS termination cannot lose a ride. A simple first version can append JSON lines to a file and rebuild GPX from that file on stop or recovery.
