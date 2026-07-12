@@ -11,7 +11,7 @@ import supabase from './supabaseClient.js';
 // ride-live.html exactly. A bare './icons.js' is a DIFFERENT module URL to
 // './icons.js?v=N', so the browser loads icons.js twice and applyIcons()
 // runs twice, duplicating every button icon on this page.
-import { mlIconSVG } from './icons.js?v=77';
+import { mlIconSVG } from './icons.js?v=78';
 
 const ON_ROUTE_M = 60; // metres: within this of the planned line counts as "on route"
 

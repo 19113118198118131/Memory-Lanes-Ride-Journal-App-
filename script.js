@@ -3,9 +3,12 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=77';
-import { buildRideInsights } from './insights.js?v=77';
-import { mlIconSVG } from './icons.js?v=77';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=78';
+import { buildRideInsights } from './insights.js?v=78';
+import { mlIconSVG } from './icons.js?v=78';
+import { extractRideFeatures } from './ai/feature-extractor.js?v=78';
+import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=78';
+import { initRideFeedback } from './ai/ride-feedback.js?v=78';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -488,6 +491,18 @@ uploadInput.addEventListener('change', () => {
           lastSkillsSummary = summarizeForStorage(analysis);
           storeSkillsForCurrentRide(lastSkillsSummary);
           enhanceRepeatCorners(analysis);
+          // Build the AI feature record from the full (untruncated) analysis
+          // while we still have it, so the recommender has clean numbers.
+          try {
+            lastAiFeatures = extractRideFeatures(analysis, {
+              distanceKm: parseFloat(distanceEl.textContent),
+              durationMin: parseFloat(rideTimeEl.textContent.split('h')[0]) * 60 +
+                           (parseFloat(rideTimeEl.textContent.split('h')[1]) || 0),
+              elevationGainM: parseFloat(elevationEl.textContent),
+              points: skillPts
+            });
+            storeAiFeaturesForCurrentRide(lastAiFeatures);
+          } catch (e) { console.warn('AI feature extraction skipped:', e); }
         }
       }, 0);
     } catch (skillErr) {
@@ -2364,13 +2379,16 @@ saveBtn.addEventListener('click', async () => {
     ride_date,
     gpx_path:    uploadData.path
   };
+  const richPayload = { ...basePayload };
+  if (lastSkillsSummary) richPayload.skills = lastSkillsSummary;
+  if (lastAiFeatures) { richPayload.ai_features = lastAiFeatures; richPayload.ai_version = String(FEATURE_SCHEMA_VERSION); }
   let { data: insertData, error: insertErr } = await supabase
     .from('ride_logs')
-    .insert(lastSkillsSummary ? { ...basePayload, skills: lastSkillsSummary } : basePayload)
+    .insert(richPayload)
     .select('*')
     .single();
-  if (insertErr && lastSkillsSummary && /skills/i.test(insertErr.message || '')) {
-    // skills column not migrated yet: save the ride anyway, without skills
+  if (insertErr && /skills|ai_features|ai_version/i.test(insertErr.message || '')) {
+    // one or more optional columns not migrated yet: save the core ride anyway
     ({ data: insertData, error: insertErr } = await supabase
       .from('ride_logs')
       .insert(basePayload)
@@ -2419,8 +2437,10 @@ saveBtn.addEventListener('click', async () => {
     if (typeof refreshShareButtons === 'function') {
       refreshShareButtons(insertData);
     }
+    // Feedback card on the freshly saved ride (no answers yet).
+    initRideFeedback(insertData.id, insertData.feedback);
   }
-  
+
 });
 
 
@@ -2499,6 +2519,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
 
 // ========== SKILLS STORAGE & REPEAT-CORNER RECOGNITION ==========
 let lastSkillsSummary = null;
+let lastAiFeatures = null;
 
 async function storeSkillsForCurrentRide(summary) {
   if (!summary) return;
@@ -2513,6 +2534,23 @@ async function storeSkillsForCurrentRide(summary) {
     .eq('id', rideId)
     .eq('user_id', user.id);
   if (error) console.warn('Skill storage skipped (run supabase-skills-setup.sql to enable trends):', error.message);
+}
+
+// Backfill the AI feature record onto a saved ride (also runs when an older
+// ride without features is re-opened, so the recommender's dataset grows as
+// the rider browses their journal). Fails soft if the columns aren't migrated.
+async function storeAiFeaturesForCurrentRide(features) {
+  if (!features) return;
+  const rideId = new URLSearchParams(window.location.search).get('ride');
+  if (!rideId) return; // fresh uploads attach features at save time
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { error } = await supabase
+    .from('ride_logs')
+    .update({ ai_features: features, ai_version: String(FEATURE_SCHEMA_VERSION) })
+    .eq('id', rideId)
+    .eq('user_id', user.id);
+  if (error) console.warn('AI feature storage skipped (run supabase-ai-phase0-setup.sql):', error.message);
 }
 
 // Average scores across the rider's recent scored rides (for trend-aware coaching)
@@ -2833,6 +2871,8 @@ if (params.has('ride')) {
       if (viewer && ride.user_id === viewer.id) {
         currentRideRow = ride;
         refreshShareButtons(ride);
+        // Post-ride feedback (owner only) - teaches the route recommender.
+        initRideFeedback(ride.id, ride.feedback);
       }
     } catch (err) {
       // This only triggers on actual exceptions

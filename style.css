@@ -3621,6 +3621,58 @@ header:not(.main-header) .dashboard-header {
   flex: 1 1 220px;
 }
 
+/* ---------- RIDE FEEDBACK CARD (index.html, AI Phase 0) ---------- */
+.feedback-card {
+  max-width: 1200px;
+  margin: 1.25rem auto 2rem auto;
+  padding: 1.4rem 1.5rem 1.5rem;
+  background: var(--surface-panel);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 24px;
+  box-shadow: 0 7px 38px rgba(0,0,0,0.13);
+}
+.feedback-card h2 { margin: 0 0 0.3rem; }
+.feedback-group { margin-top: 1.15rem; }
+.feedback-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-bottom: 0.55rem;
+}
+.feedback-options { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.feedback-chip {
+  padding: 0.5rem 1.05rem;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-card);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 0.92rem;
+  box-shadow: none;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.feedback-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--color-text-primary);
+  box-shadow: none;
+  transform: none;
+}
+.feedback-chip.active {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.feedback-chip-num { min-width: 2.6rem; text-align: center; }
+/* Positive reasons glow accent when picked, negatives read as a muted caution */
+.feedback-chip-neg.active {
+  background: rgba(255,209,102,0.14);
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
 /* ---------- GROUP RIDE: attendees, RSVP, dashboard list ---------- */
 /* RSVP row: same panel treatment as the Meeting Details and Who's coming
    cards, so it doesn't float bare against the map. */
@@ -3965,6 +4017,60 @@ header:not(.main-header) .dashboard-header {
   line-height: 1.6;
 }
 .planner-candidate-cautions ul { color: var(--color-warning); }
+
+/* Personal match panel (AI recommender): leads the candidate detail with a
+   big preference score, quietly accented until it's a strong match. */
+.planner-candidate-match {
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-card);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+.planner-candidate-match.planner-match-strong {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent) inset;
+}
+.planner-match-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.planner-match-pct {
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--color-accent);
+  line-height: 1;
+}
+.planner-match-label {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+.planner-candidate-match ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.planner-tab-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
 
 /* ---------- HEADER LOGIN / ACCOUNT CONTROLS (index.html) ---------- */
 .header-auth,

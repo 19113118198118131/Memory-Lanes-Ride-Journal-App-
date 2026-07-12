@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=77" />
+  <link rel="stylesheet" href="style.css?v=78" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -261,6 +261,34 @@
         </select>
       </section>
 
+      <!-- ========== RIDE FEEDBACK (Phase 0: teaches the recommender your taste) ========== -->
+      <section id="ride-feedback-section" class="feedback-card" style="display:none;">
+        <h2>How did this ride feel?</h2>
+        <p class="section-sub">A few taps teaches Memory Lanes the rides you enjoy, so it can rank new routes for you. Private to you.</p>
+
+        <div class="feedback-group">
+          <span class="feedback-label">The vibe</span>
+          <div class="feedback-options" id="feedback-mood"></div>
+        </div>
+
+        <div class="feedback-group">
+          <span class="feedback-label">How much did you enjoy it?</span>
+          <div class="feedback-options" id="feedback-enjoyment"></div>
+        </div>
+
+        <div class="feedback-group">
+          <span class="feedback-label">Ride it again?</span>
+          <div class="feedback-options" id="feedback-repeat"></div>
+        </div>
+
+        <div class="feedback-group">
+          <span class="feedback-label">Anything stand out? (optional)</span>
+          <div class="feedback-options" id="feedback-reasons"></div>
+        </div>
+
+        <p id="feedback-status" class="chart-desc"></p>
+      </section>
+
       <!-- ========== MOMENTS & MEMORIES SECTION ========== -->
       <section id="moments-section" style="display:none; margin-bottom: 2rem;">
         <h2>Moments & Memories</h2>
@@ -398,9 +426,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=77"></script>
-  <script type="module" src="icons.js?v=77"></script>
-  <script src="theme.js?v=77"></script>
+  <script type="module" src="script.js?v=78"></script>
+  <script type="module" src="icons.js?v=78"></script>
+  <script src="theme.js?v=78"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 
 

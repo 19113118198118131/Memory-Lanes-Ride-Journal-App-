@@ -5,8 +5,9 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=77';
-import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=77';
+import { mlIconSVG } from './icons.js?v=78';
+import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=78';
+import { buildRecommender } from './ai/recommender.js?v=78';
 
 // ---------- DOM references ----------
 const authNote         = document.getElementById('planner-auth-note');
@@ -54,6 +55,10 @@ const candidateTimeEl     = document.getElementById('candidate-time');
 const candidateElevationEl = document.getElementById('candidate-elevation');
 const candidateWhyListEl  = document.getElementById('candidate-why-list');
 const candidateCautionListEl = document.getElementById('candidate-caution-list');
+const candidateMatchEl    = document.getElementById('candidate-match');
+const candidateMatchPctEl = document.getElementById('candidate-match-pct');
+const candidateMatchLabelEl = document.getElementById('candidate-match-label');
+const candidateMatchWhyEl = document.getElementById('candidate-match-why');
 const candidateShorterBtn = document.getElementById('candidate-shorter-btn');
 const candidateLongerBtn  = document.getElementById('candidate-longer-btn');
 const candidateRegenerateBtn = document.getElementById('candidate-regenerate-btn');
@@ -118,6 +123,7 @@ let candidateLines = [];
 let candidateAbort = null;
 let candidateOrigin = null;              // {lat, lng} the current candidate set was generated around
 let pendingCandidateOriginResolver = null; // set while waiting for a map click / search pick to supply the origin
+let recommender = null;                  // KNN over the rider's rated rides (null until loaded)
 
 // ---------- Init ----------
 (async () => {
@@ -137,6 +143,7 @@ let pendingCandidateOriginResolver = null; // set while waiting for a map click 
   updateButtons();
   updateGoalHint();
   await loadSavedRoutes();
+  loadRecommender(user); // fire-and-forget: personalises candidates once ready
 
   const loadId = new URLSearchParams(window.location.search).get('load');
   const loadRoute = loadId ? savedRoutes.find(r => r.id === loadId) : null;
@@ -347,9 +354,13 @@ async function runCandidateGeneration(origin) {
   }
   candidatesLoadingEl.style.display = 'none';
   candidatesBodyEl.style.display = '';
+  scoreAllCandidates();
   initCandidatesMap();
   renderCandidateTabs();
-  showCandidate(0);
+  // Open on the rider's best-matching option when we can personalise; else the
+  // engine's own top pick (index 0, already sorted best-first).
+  const opener = bestMatchIndex();
+  showCandidate(opener >= 0 ? opener : 0);
 }
 
 function initCandidatesMap() {
@@ -367,13 +378,53 @@ function initCandidatesMap() {
   candidatesMap.fitBounds(bounds, { padding: [30, 30] });
 }
 
+// Pull the rider's rated rides (feature record + enjoyment) and build the
+// personal KNN. Quietly does nothing until there are enough rated rides.
+async function loadRecommender(user) {
+  try {
+    const { data, error } = await supabase
+      .from('ride_logs')
+      .select('ai_features, feedback')
+      .eq('user_id', user.id)
+      .not('ai_features', 'is', null)
+      .not('feedback', 'is', null);
+    if (error) return; // columns not migrated / older schema: stay quiet
+    const rated = (data || [])
+      .filter(r => r.feedback && Number.isFinite(r.feedback.enjoyment))
+      .map(r => ({ features: r.ai_features, enjoyment: r.feedback.enjoyment }));
+    recommender = buildRecommender(rated);
+    // If candidates are already on screen, re-render the current one with matches.
+    if (recommender && recommender.ready && candidates.length && selectedCandidateIndex >= 0) {
+      scoreAllCandidates();
+      showCandidate(selectedCandidateIndex);
+      renderCandidateTabs();
+    }
+  } catch (_) { /* recommender is a bonus, never block planning on it */ }
+}
+
+function scoreAllCandidates() {
+  if (!recommender || !recommender.ready) return;
+  candidates.forEach(c => { c.match = recommender.score(c); });
+}
+
 function renderCandidateTabs() {
-  candidatesTabsEl.innerHTML = candidates.map((c, i) =>
-    `<button type="button" class="planner-candidate-tab" data-index="${i}">${escapeHtml(String.fromCharCode(65 + i))} · ${escapeHtml(c.tag)}</button>`
-  ).join('');
+  candidatesTabsEl.innerHTML = candidates.map((c, i) => {
+    const best = c.match && bestMatchIndex() === i;
+    const badge = best ? ' <span class="planner-tab-badge">Best match</span>' : '';
+    return `<button type="button" class="planner-candidate-tab" data-index="${i}">${escapeHtml(String.fromCharCode(65 + i))} · ${escapeHtml(c.tag)}${badge}</button>`;
+  }).join('');
   candidatesTabsEl.querySelectorAll('.planner-candidate-tab').forEach(btn => {
     btn.addEventListener('click', () => showCandidate(parseInt(btn.dataset.index, 10)));
   });
+}
+
+// Index of the candidate with the highest personal match (or -1 if unscored).
+function bestMatchIndex() {
+  let best = -1, bestPct = -1;
+  candidates.forEach((c, i) => {
+    if (c.match && c.match.matchPct > bestPct) { bestPct = c.match.matchPct; best = i; }
+  });
+  return best;
 }
 
 function showCandidate(index) {
@@ -395,6 +446,19 @@ function showCandidate(index) {
   candidateElevationEl.textContent = c.elevationGainM != null ? `+${c.elevationGainM} m` : '–';
   candidateWhyListEl.innerHTML = buildWhyBullets(c, ridingMood).map(b => `<li>${escapeHtml(b)}</li>`).join('');
   candidateCautionListEl.innerHTML = buildCautions(c, targetMinutes).map(b => `<li>${escapeHtml(b)}</li>`).join('');
+  renderCandidateMatch(c);
+}
+
+// The personal "how much you'll like this" panel. Only appears once the
+// recommender has enough rated rides; otherwise it stays hidden (no guessing).
+function renderCandidateMatch(c) {
+  if (!c.match) { candidateMatchEl.style.display = 'none'; return; }
+  candidateMatchEl.style.display = '';
+  candidateMatchEl.classList.toggle('planner-match-strong', c.match.matchPct >= 70);
+  candidateMatchPctEl.textContent = `${c.match.matchPct}%`;
+  const conf = c.match.confidence === 'low' ? ' · low confidence so far' : '';
+  candidateMatchLabelEl.textContent = `match for you${conf}`;
+  candidateMatchWhyEl.innerHTML = c.match.reasons.map(r => `<li>${escapeHtml(r)}</li>`).join('');
 }
 
 async function regenerateCandidates(minutesOverride) {
