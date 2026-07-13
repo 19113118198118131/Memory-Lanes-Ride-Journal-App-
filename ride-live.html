@@ -17,78 +17,72 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=82" />
+  <link rel="stylesheet" href="style.css?v=83" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="assets/logo/favicon.png">
 </head>
-<body>
-  <div class="theme-toggle-corner"><button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch theme" title="Toggle light / dark">
-      <svg class="ml-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-      <svg class="ml-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-    </button></div>
+<body class="live-cockpit-page">
+  <main class="live-shell">
+    <div id="live-loading" class="live-loading">Loading ride cockpit…</div>
 
-  <header class="main-header vibe-header">
-    <a class="brand-row" href="index.html" aria-label="Memory Lanes home">
-      <span class="logo-card">
-        <img src="assets/logo/Memory%20Lanes%20Logo.png" alt="" class="brand-logo" />
-      </span>
-      <span class="brand-titlebox">
-        <span class="site-title">Memory Lanes</span>
-        <span class="tagline">journal your ride</span>
-      </span>
-    </a>
-    <nav class="site-nav vibe-nav" aria-label="Main navigation">
-      <a class="nav-link" href="dashboard.html" data-nav="dashboard.html">Logs</a>
-      <span class="nav-sep">|</span>
-      <a class="nav-link" href="journal.html" data-nav="journal.html">Moments</a>
-      <span class="nav-sep">|</span>
-      <a class="nav-link" href="stats.html" data-nav="stats.html">Journeys</a>
-      <span class="nav-sep">|</span>
-      <a class="nav-link" href="planner.html" data-nav="planner.html">Plan</a>
-    </nav>
-  </header>
-
-  <header>
-    <div class="dashboard-header">
-      <h1 data-head-icon="flag" id="live-title">Ride Tracker</h1>
-      <div class="button-group">
-        <button id="live-cancel-btn" class="btn-plain-danger">Cancel</button>
-      </div>
-    </div>
-  </header>
-
-  <main>
-    <div id="live-loading" class="chart-desc">Loading…</div>
-
-    <div id="live-body" style="display:none;">
-      <p class="section-sub" id="live-route-title"></p>
-      <p class="chart-desc">Keep this tab open and your screen on while recording. GPS tracking pauses if the browser goes to sleep. Pause anytime, and Finish Ride to save your track (you can edit it afterwards from Logs).</p>
-
-      <section id="planner-map-section">
+    <div id="live-body" class="live-cockpit" style="display:none;">
+      <section id="planner-map-section" class="live-map-stage" aria-label="Live ride map">
         <div id="live-map"></div>
-        <div id="live-status-banner" class="planner-map-hint">Tap Start Ride when you're ready to go</div>
-      </section>
 
-      <div class="planner-stats">
-        <div class="planner-stat">
-          <span class="planner-stat-label">Distance</span>
-          <span class="planner-stat-value" id="live-distance">0.0 km</span>
+        <div class="live-glassbar">
+          <div class="live-brand">
+            <span class="live-menu-dot" aria-hidden="true"></span>
+            <span>
+              <span class="live-brand-name">Memory Lanes</span>
+              <span class="live-recording-state"><span class="live-recording-dot"></span><span id="live-title">Ride Tracker</span></span>
+            </span>
+          </div>
+          <div class="live-chip-row" aria-label="Ride status">
+            <span class="live-status-chip">GPS</span>
+            <button id="live-cancel-btn" class="live-icon-button" type="button" aria-label="Cancel ride">Cancel</button>
+          </div>
         </div>
-        <div class="planner-stat">
-          <span class="planner-stat-label">Elapsed</span>
-          <span class="planner-stat-value" id="live-elapsed">0h 0m</span>
-        </div>
-        <div class="planner-stat">
-          <span class="planner-stat-label">Speed</span>
-          <span class="planner-stat-value" id="live-speed">–</span>
-        </div>
-        <div class="planner-stat" id="live-onroute-card">
-          <span class="planner-stat-label">On Route</span>
-          <span class="planner-stat-value" id="live-route-status">–</span>
-        </div>
-      </div>
+
+        <p class="live-route-context" id="live-route-title"></p>
+        <div id="live-status-banner" class="planner-map-hint live-status-banner">Tap Start Ride when you're ready to go</div>
+        <button id="live-recenter-btn" class="live-recenter-button" style="display:none;" type="button" aria-label="Recenter map">Recenter</button>
+
+        <section class="live-control-sheet" aria-label="Ride controls and metrics">
+          <div class="live-sheet-handle" aria-hidden="true"></div>
+
+          <div class="planner-stats live-metrics-grid">
+            <div class="planner-stat live-metric">
+              <span class="planner-stat-label">Distance</span>
+              <span class="planner-stat-value" id="live-distance">0.0 km</span>
+            </div>
+            <div class="planner-stat live-metric">
+              <span class="planner-stat-label">Time</span>
+              <span class="planner-stat-value" id="live-elapsed">0:00</span>
+            </div>
+            <div class="planner-stat live-metric">
+              <span class="planner-stat-label">Speed</span>
+              <span class="planner-stat-value" id="live-speed">–</span>
+            </div>
+            <div class="planner-stat live-metric">
+              <span class="planner-stat-label">Elevation</span>
+              <span class="planner-stat-value" id="live-elevation">0 m</span>
+            </div>
+            <div class="planner-stat live-metric live-route-metric" id="live-onroute-card">
+              <span class="planner-stat-label">Route</span>
+              <span class="planner-stat-value" id="live-route-status">–</span>
+            </div>
+          </div>
+
+          <div class="planner-toolbar-actions live-action-dock">
+            <button id="live-moment-btn" class="live-secondary-action" style="display:none;">Add Moment</button>
+            <button id="live-start-btn" class="live-primary-action">Start Ride</button>
+            <button id="live-pause-btn" class="live-primary-action" style="display:none;">Pause</button>
+            <button id="live-finish-btn" class="live-secondary-action live-finish-action" style="display:none;">Finish Ride</button>
+          </div>
+        </section>
+      </section>
 
       <div id="live-broadcast-row" class="onboarding-checks" style="display:none;">
         <label>
@@ -104,14 +98,6 @@
         <div id="live-group-list" class="live-group-list">
           <p class="chart-desc" style="margin:0;">No one else is broadcasting yet. Riders appear here the moment they start.</p>
         </div>
-      </div>
-
-      <div class="planner-toolbar-actions" style="margin-bottom:1.5rem;">
-        <button id="live-start-btn" class="btn-primary">Start Ride</button>
-        <button id="live-pause-btn" class="btn-outline" style="display:none;">Pause</button>
-        <button id="live-moment-btn" class="btn-outline" style="display:none;">Add Moment</button>
-        <button id="live-finish-btn" class="btn-primary" style="display:none;">Finish Ride</button>
-        <button id="live-recenter-btn" class="btn-outline" style="display:none;">Recenter</button>
       </div>
 
       <div id="live-moment-form" class="moment-entry" style="display:none;">
@@ -136,13 +122,20 @@
         </div>
         <p id="live-save-status"></p>
       </div>
+
+      <nav class="live-tabbar" aria-label="App sections">
+        <a class="active" href="ride-live.html" aria-current="page"><span data-icon="play"></span><span>Ride</span></a>
+        <a href="planner.html"><span data-icon="route"></span><span>Routes</span></a>
+        <a href="journal.html"><span data-icon="book"></span><span>Journal</span></a>
+        <a href="stats.html"><span data-icon="stats"></span><span>Stats</span></a>
+      </nav>
     </div>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="ride-live.js?v=82"></script>
-  <script type="module" src="icons.js?v=82"></script>
-  <script src="theme.js?v=82"></script>
+  <script type="module" src="ride-live.js?v=83"></script>
+  <script type="module" src="icons.js?v=83"></script>
+  <script src="theme.js?v=83"></script>
 </body>
 </html>

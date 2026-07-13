@@ -11,7 +11,7 @@ import supabase from './supabaseClient.js';
 // ride-live.html exactly. A bare './icons.js' is a DIFFERENT module URL to
 // './icons.js?v=N', so the browser loads icons.js twice and applyIcons()
 // runs twice, duplicating every button icon on this page.
-import { mlIconSVG } from './icons.js?v=82';
+import { mlIconSVG } from './icons.js?v=83';
 
 // Native iOS recorder bridge (Capacitor). Loaded LAZILY: the bridge pulls in
 // @capacitor/core from a CDN, so importing it statically would make every web
@@ -20,7 +20,7 @@ import { mlIconSVG } from './icons.js?v=82';
 // recording routes through CoreLocation and keeps tracking with the screen off.
 let nativeBridge = null;
 async function loadNativeBridge() {
-  if (!nativeBridge) nativeBridge = await import('./iosRideRecorder.js?v=82');
+  if (!nativeBridge) nativeBridge = await import('./iosRideRecorder.js?v=83');
   return nativeBridge;
 }
 
@@ -35,6 +35,7 @@ const statusBanner    = document.getElementById('live-status-banner');
 const distanceEl      = document.getElementById('live-distance');
 const elapsedEl       = document.getElementById('live-elapsed');
 const speedEl         = document.getElementById('live-speed');
+const elevationEl     = document.getElementById('live-elevation');
 const onRouteCard     = document.getElementById('live-onroute-card');
 const routeStatusEl   = document.getElementById('live-route-status');
 const startBtn        = document.getElementById('live-start-btn');
@@ -85,6 +86,7 @@ let liveMarker = null;
 let recordedLine = null;
 let recordedPoints = [];
 let totalDistanceM = 0;
+let elevationGainM = 0;
 let startTime = null;
 let watchId = null;
 let followMode = true;
@@ -106,6 +108,11 @@ let nativeProcessed = 0;      // how many native buffer points are already merge
 let groupRide = null;        // { id, token, title } when riding as part of a group ride
 let groupRiderMarkers = [];  // other group riders shown on the live map
 let groupPollTimer = null;
+
+function setRideState(state) {
+  document.body.dataset.rideState = state;
+}
+setRideState('idle');
 
 // ---------- Init ----------
 (async () => {
@@ -255,7 +262,7 @@ function startGroupRiderPolling() {
 }
 
 function initMap() {
-  map = L.map('live-map', { zoomControl: true });
+  map = L.map('live-map', { zoomControl: false });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors'
@@ -376,8 +383,10 @@ function startRide() {
   }
   recordedPoints = [];
   totalDistanceM = 0;
+  elevationGainM = 0;
   startTime = new Date();
   recording = true;
+  setRideState('recording');
   followMode = true;
   hasCenteredOnFix = false;
   clearLiveMoments();
@@ -406,9 +415,11 @@ async function togglePause() {
     endWatch();
     pauseBtn.textContent = 'Resume';
     statusBanner.textContent = 'Paused. Distance and time stop counting until you resume.';
+    setRideState('paused');
   } else {
     beginWatch();
     pauseBtn.textContent = 'Pause';
+    setRideState('recording');
   }
 }
 
@@ -474,6 +485,7 @@ async function beginNativeWatch() {
     momentBtn.style.display = 'none';
     finishBtn.style.display = 'none';
     recording = false;
+    setRideState('idle');
     return;
   }
   clearInterval(nativeSyncTimer);
@@ -519,6 +531,9 @@ function onPosition(pos) {
   if (recordedPoints.length) {
     const prev = recordedPoints[recordedPoints.length - 1];
     totalDistanceM += haversineMeters(prev.lat, prev.lng, pt.lat, pt.lng);
+    if (Number.isFinite(pt.ele) && Number.isFinite(prev.ele) && pt.ele > prev.ele) {
+      elevationGainM += pt.ele - prev.ele;
+    }
   }
   recordedPoints.push(pt);
 
@@ -571,11 +586,17 @@ function onPositionError(err) {
 function updateTelemetry(pt, speedMs) {
   distanceEl.textContent = `${(totalDistanceM / 1000).toFixed(2)} km`;
 
-  const elapsedMin = Math.max(0, Math.floor((pt.time - startTime) / 60000));
-  elapsedEl.textContent = `${Math.floor(elapsedMin / 60)}h ${elapsedMin % 60}m`;
+  const elapsedSec = Math.max(0, Math.floor((pt.time - startTime) / 1000));
+  const hours = Math.floor(elapsedSec / 3600);
+  const mins = Math.floor((elapsedSec % 3600) / 60);
+  const secs = elapsedSec % 60;
+  elapsedEl.textContent = hours
+    ? `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+    : `${mins}:${String(secs).padStart(2, '0')}`;
 
   const kmh = speedMs != null && Number.isFinite(speedMs) ? speedMs * 3.6 : null;
   speedEl.textContent = kmh != null ? `${kmh.toFixed(0)} km/h` : '–';
+  if (elevationEl) elevationEl.textContent = `${Math.round(elevationGainM)} m`;
 
   if (!plannedRoute) return;
   let minD = Infinity;
@@ -595,6 +616,7 @@ async function finishRide() {
   if (nativeMode && watching) await drainNative();
   endWatch();
   recording = false;
+  setRideState('saving');
   stopBroadcasting();
   if (recordedPoints.length < 2) {
     statusBanner.textContent = 'Not enough GPS points were recorded to save this ride.';
@@ -602,6 +624,7 @@ async function finishRide() {
     pauseBtn.style.display = 'none';
     momentBtn.style.display = 'none';
     finishBtn.style.display = 'none';
+    setRideState('idle');
     clearLiveMoments();
     return;
   }
