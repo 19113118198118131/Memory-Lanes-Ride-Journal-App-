@@ -4222,10 +4222,15 @@ body[data-ride-state="saving"] .live-recording-dot { background: var(--cockpit-a
 .live-cockpit .planner-stat-value {
   color: var(--cockpit-text);
   font-family: 'Rajdhani', 'Inter', system-ui, sans-serif;
-  font-size: clamp(25px, 8vw, 42px);
+  font-size: clamp(21px, 6.2vw, 38px);
   line-height: 0.95;
   font-weight: 700;
   letter-spacing: 0;
+  /* Keep the number and its unit ("12.4 km") on one line instead of
+     orphaning the unit onto a second row in the narrow metric columns. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .live-cockpit .live-route-metric .planner-stat-value {
@@ -4430,7 +4435,7 @@ body[data-ride-state="saving"] .live-recording-dot { background: var(--cockpit-a
   .live-brand-name { font-size: 20px; }
   .live-status-chip { display: none; }
   .live-cockpit .planner-stat-label { font-size: 9px; }
-  .live-cockpit .planner-stat-value { font-size: clamp(22px, 7.2vw, 31px); }
+  .live-cockpit .planner-stat-value { font-size: clamp(18px, 5.3vw, 26px); }
   .live-action-dock {
     grid-template-columns: minmax(66px, 1fr) 96px minmax(66px, 1fr);
     gap: 10px;
