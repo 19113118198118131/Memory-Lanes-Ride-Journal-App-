@@ -8,10 +8,31 @@ import SwiftUI
 // each screen's ViewModel so there are no globals.
 
 struct RootView: View {
-    // Swap `PreviewRideService` for the live `RideService` once Supabase is wired.
-    private let rideService: RideServing = PreviewRideService()
+    @StateObject private var authStore = AuthStore()
+
+    var body: some View {
+        switch authStore.state {
+        case .checking:
+            ProgressView()
+                .tint(.mlAccent)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.mlBackground)
+        case .signedOut:
+            AuthView(authStore: authStore)
+        case .signedIn:
+            MainTabShell(authStore: authStore)
+        }
+    }
+}
+
+private struct MainTabShell: View {
+    @ObservedObject var authStore: AuthStore
     @State private var ridePath = NavigationPath()
     @State private var showingRecorder = false
+
+    private var rideService: RideServing {
+        RideService(accessToken: { authStore.accessToken })
+    }
 
     var body: some View {
         TabView {
@@ -24,6 +45,16 @@ struct RootView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: Ride.self) { ride in
                     RideDetailView(viewModel: RideDetailViewModel(ride: ride, rideService: rideService))
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            authStore.signOut()
+                        } label: {
+                            Image(systemName: "person.crop.circle.badge.xmark")
+                        }
+                        .accessibilityLabel("Sign out")
+                    }
                 }
             }
             .tabItem { Label("Ride", systemImage: "location.north.line.fill") }
