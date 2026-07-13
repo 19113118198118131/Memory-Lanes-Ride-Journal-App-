@@ -79,7 +79,11 @@ private struct MainTabShell: View {
             .tabItem { Label("Stats", systemImage: "chart.bar") }
         }
         .fullScreenCover(isPresented: $showingRecorder) {
-            RecordingView()
+            if let session = authStore.session {
+                RecordingView(session: session) { _ in
+                    refreshTrigger = UUID()
+                }
+            }
         }
         .sheet(isPresented: $showingImporter) {
             if let session = authStore.session {

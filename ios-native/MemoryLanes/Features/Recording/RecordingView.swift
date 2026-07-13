@@ -7,6 +7,9 @@ import SwiftUI
 
 struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
+    let session: AuthSession
+    let onSaved: (Ride) -> Void
+
     @StateObject private var recorder = LiveRideRecorder()
     @State private var showingFinishConfirmation = false
     @State private var showingDiscardConfirmation = false
@@ -31,7 +34,7 @@ struct RecordingView: View {
                 finishedRide = recorder.finish()
             }
         } message: {
-            Text("Memory Lanes will stop recording, export a GPX locally, and keep this ready for journal sync.")
+            Text("Memory Lanes will stop recording, export a GPX backup, and let you save it to your journal.")
         }
         .alert("Discard ride?", isPresented: $showingDiscardConfirmation) {
             Button("Keep Riding", role: .cancel) {}
@@ -44,10 +47,14 @@ struct RecordingView: View {
             Text("This deletes the active recording draft from this device.")
         }
         .sheet(item: $finishedRide) { result in
-            RecordingFinishedSheet(result: result) {
+            RecordingFinishedSheet(
+                result: result,
+                session: session,
+                onSaved: onSaved
+            ) {
                 dismiss()
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
     }
@@ -239,18 +246,54 @@ struct RecordingView: View {
 
 private struct RecordingFinishedSheet: View {
     let result: RecordedRideResult
+    let session: AuthSession
+    let onSaved: (Ride) -> Void
     let onDone: () -> Void
+
+    @State private var title: String
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    private let importService = RideImportService()
+
+    init(
+        result: RecordedRideResult,
+        session: AuthSession,
+        onSaved: @escaping (Ride) -> Void,
+        onDone: @escaping () -> Void
+    ) {
+        self.result = result
+        self.session = session
+        self.onSaved = onSaved
+        self.onDone = onDone
+        _title = State(initialValue: Self.defaultTitle(for: result.startedAt))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("Ride recorded").mlKicker()
-                Text("GPX ready")
+                Text("Save to Journal")
                     .font(MLFont.display)
                     .foregroundStyle(Color.mlTextPrimary)
-                Text("The ride was recorded locally and exported as GPX. Supabase journal sync is the next layer.")
+                Text("Your GPX backup is ready. Save it now to sync this ride across Memory Lanes.")
                     .font(MLFont.body)
                     .foregroundStyle(Color.mlTextSecondary)
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Ride title").mlKicker()
+                TextField("Recorded ride", text: $title)
+                    .font(MLFont.body)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .padding(.horizontal, Spacing.md)
+                    .frame(height: 52)
+                    .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                            .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+                    )
+                    .disabled(isSaving)
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
@@ -260,13 +303,55 @@ private struct RecordingFinishedSheet: View {
                 StatCard(label: "Points", value: "\(result.points.count)", systemImage: "location.fill")
             }
 
-            PrimaryButton(title: "Done", systemImage: "checkmark") {
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlDanger)
+                    .padding(Spacing.md)
+                    .background(Color.mlDanger.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            }
+
+            PrimaryButton(title: "Save to Journal", systemImage: "tray.and.arrow.down.fill", isLoading: isSaving) {
+                Task { await save() }
+            }
+            .disabled(!canSave)
+
+            SecondaryButton(title: "Not Now", systemImage: "clock") {
                 onDone()
             }
+            .disabled(isSaving)
         }
         .padding(Spacing.lg)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.mlBackground)
+    }
+
+    private var cleanTitle: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canSave: Bool {
+        !cleanTitle.isEmpty && !isSaving
+    }
+
+    private func save() async {
+        guard canSave else { return }
+        isSaving = true
+        errorMessage = nil
+        do {
+            let saved = try await importService.saveRecordedRide(
+                title: cleanTitle,
+                result: result,
+                session: session
+            )
+            Haptics.success()
+            onSaved(saved)
+            onDone()
+        } catch {
+            Haptics.error()
+            errorMessage = error.localizedDescription
+        }
+        isSaving = false
     }
 
     private func duration(_ seconds: TimeInterval) -> String {
@@ -275,6 +360,13 @@ private struct RecordingFinishedSheet: View {
         let m = (total % 3600) / 60
         return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
+
+    private static func defaultTitle(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return "Ride \(formatter.string(from: date))"
+    }
 }
 
 extension RecordedRideResult: Identifiable {
@@ -282,6 +374,9 @@ extension RecordedRideResult: Identifiable {
 }
 
 #Preview {
-    RecordingView()
+    RecordingView(
+        session: AuthSession(accessToken: "", refreshToken: "", expiresAt: Date().addingTimeInterval(3600), userID: UUID(), email: "preview@example.com"),
+        onSaved: { _ in }
+    )
         .preferredColorScheme(.dark)
 }

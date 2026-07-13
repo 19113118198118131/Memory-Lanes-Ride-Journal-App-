@@ -43,6 +43,46 @@ struct RideImportService {
         }
     }
 
+    func saveRecordedRide(
+        title: String,
+        result: RecordedRideResult,
+        session: AuthSession
+    ) async throws -> Ride {
+        let gpxData = Data(result.gpxText.utf8)
+        let filePath = "\(session.userID.uuidString.lowercased())/recorded-\(Int(Date().timeIntervalSince1970 * 1000)).gpx"
+        try await client.upload(
+            path: "storage/v1/object/gpx-files/\(filePath)",
+            data: gpxData,
+            contentType: "application/gpx+xml",
+            accessToken: session.accessToken
+        )
+
+        let payload = RideInsertPayload(
+            title: title,
+            userID: session.userID,
+            distanceKm: result.distanceMeters / 1000,
+            durationMin: result.durationSeconds / 60,
+            elevationM: result.elevationGainMeters,
+            rideDate: result.startedAt,
+            gpxPath: filePath
+        )
+
+        do {
+            let rows: [RideInsertResponse] = try await client.post(
+                path: "rest/v1/ride_logs",
+                queryItems: [URLQueryItem(name: "select", value: "*")],
+                body: payload,
+                accessToken: session.accessToken,
+                prefer: "return=representation"
+            )
+            guard let row = rows.first else { throw RideImportError.missingInsertedRide }
+            return row.ride(routePreview: result.points.routePreview, source: .live)
+        } catch {
+            try? await deleteUploadedGPX(path: filePath, accessToken: session.accessToken)
+            throw error
+        }
+    }
+
     private func deleteUploadedGPX(path: String, accessToken: String) async throws {
         let payload = StorageDeletePayload(prefixes: [path])
         let _: StorageDeleteResponse = try await client.post(
@@ -103,7 +143,7 @@ private struct RideInsertResponse: Decodable {
         case gpxPath = "gpx_path"
     }
 
-    func ride(routePreview: [Coordinate]) -> Ride {
+    func ride(routePreview: [Coordinate], source: RideSource? = nil) -> Ride {
         Ride(
             id: id,
             title: cleanTitle,
@@ -111,7 +151,7 @@ private struct RideInsertResponse: Decodable {
             distanceMeters: (distanceKm ?? 0) * 1000,
             durationSeconds: (durationMin ?? 0) * 60,
             elevationGainMeters: elevationM ?? 0,
-            source: gpxPath == nil ? .live : .gpx,
+            source: source ?? (gpxPath == nil ? .live : .gpx),
             routePreview: routePreview,
             gpxPath: gpxPath
         )
