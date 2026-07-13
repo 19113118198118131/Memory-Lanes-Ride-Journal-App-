@@ -30,8 +30,18 @@ final class AuthStore: ObservableObject {
         return nil
     }
 
+    var session: AuthSession? {
+        if case .signedIn(let session) = state { return session }
+        return nil
+    }
+
     var email: String? {
         if case .signedIn(let session) = state { return session.email }
+        return nil
+    }
+
+    var userID: UUID? {
+        if case .signedIn(let session) = state { return session.userID }
         return nil
     }
 

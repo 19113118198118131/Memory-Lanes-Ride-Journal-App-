@@ -29,6 +29,8 @@ private struct MainTabShell: View {
     @ObservedObject var authStore: AuthStore
     @State private var ridePath = NavigationPath()
     @State private var showingRecorder = false
+    @State private var showingImporter = false
+    @State private var refreshTrigger = UUID()
 
     private var rideService: RideServing {
         RideService(accessToken: { authStore.accessToken })
@@ -39,8 +41,10 @@ private struct MainTabShell: View {
             NavigationStack(path: $ridePath) {
                 DashboardView(
                     viewModel: DashboardViewModel(rideService: rideService),
+                    refreshTrigger: refreshTrigger,
                     onSelectRide: { ridePath.append($0) },
-                    onStartRide: { showingRecorder = true }
+                    onStartRide: { showingRecorder = true },
+                    onImportRide: { showingImporter = true }
                 )
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: Ride.self) { ride in
@@ -76,6 +80,13 @@ private struct MainTabShell: View {
         }
         .fullScreenCover(isPresented: $showingRecorder) {
             RecordingView()
+        }
+        .sheet(isPresented: $showingImporter) {
+            if let session = authStore.session {
+                GPXImportView(session: session) { _ in
+                    refreshTrigger = UUID()
+                }
+            }
         }
     }
 }

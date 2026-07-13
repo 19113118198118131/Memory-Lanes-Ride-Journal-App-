@@ -9,17 +9,23 @@ import SwiftUI
 struct DashboardView: View {
     @State private var viewModel: DashboardViewModel
     @State private var toast: Toast?
+    let refreshTrigger: UUID
     let onSelectRide: (Ride) -> Void
     let onStartRide: () -> Void
+    let onImportRide: () -> Void
 
     init(
         viewModel: DashboardViewModel,
+        refreshTrigger: UUID = UUID(),
         onSelectRide: @escaping (Ride) -> Void = { _ in },
-        onStartRide: @escaping () -> Void = {}
+        onStartRide: @escaping () -> Void = {},
+        onImportRide: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
+        self.refreshTrigger = refreshTrigger
         self.onSelectRide = onSelectRide
         self.onStartRide = onStartRide
+        self.onImportRide = onImportRide
     }
 
     var body: some View {
@@ -40,7 +46,7 @@ struct DashboardView: View {
         }
         .background(Color.mlBackground)
         .refreshable { await viewModel.refresh() }
-        .task { await viewModel.load() }
+        .task(id: refreshTrigger) { await viewModel.load() }
         .mlToast($toast)
     }
 
@@ -79,8 +85,13 @@ struct DashboardView: View {
     // MARK: Start tile
 
     private var startTile: some View {
-        PrimaryButton(title: "Start Ride", systemImage: "play.fill") {
-            onStartRide()
+        VStack(spacing: Spacing.md) {
+            PrimaryButton(title: "Start Ride", systemImage: "play.fill") {
+                onStartRide()
+            }
+            SecondaryButton(title: "Import GPX", systemImage: "square.and.arrow.down") {
+                onImportRide()
+            }
         }
     }
 

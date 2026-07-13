@@ -21,14 +21,32 @@ struct SupabaseHTTPClient {
         path: String,
         queryItems: [URLQueryItem] = [],
         body: Body,
-        accessToken: String? = nil
+        accessToken: String? = nil,
+        prefer: String? = nil
     ) async throws -> Response {
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
         components?.queryItems = queryItems.isEmpty ? nil : queryItems
         guard let url = components?.url else { throw SupabaseHTTPError.invalidURL }
         var request = request(url: url, method: "POST", accessToken: accessToken)
+        if let prefer {
+            request.setValue(prefer, forHTTPHeaderField: "Prefer")
+        }
         request.httpBody = try JSONEncoder.supabase.encode(body)
         return try await send(request)
+    }
+
+    func upload(
+        path: String,
+        data: Data,
+        contentType: String,
+        accessToken: String
+    ) async throws {
+        let url = baseURL.appendingPathComponent(path)
+        var request = request(url: url, method: "POST", accessToken: accessToken)
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.setValue("false", forHTTPHeaderField: "x-upsert")
+        request.httpBody = data
+        try await sendWithoutDecoding(request)
     }
 
     private func request(url: URL, method: String, accessToken: String?) -> URLRequest {
@@ -50,6 +68,16 @@ struct SupabaseHTTPClient {
             throw SupabaseHTTPError.server(status: http.statusCode, message: message)
         }
         return try JSONDecoder.supabase.decode(T.self, from: data)
+    }
+
+    private func sendWithoutDecoding(_ request: URLRequest) async throws {
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw SupabaseHTTPError.invalidResponse }
+        guard 200..<300 ~= http.statusCode else {
+            let message = (try? JSONDecoder.supabase.decode(SupabaseErrorPayload.self, from: data).message)
+                ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
+            throw SupabaseHTTPError.server(status: http.statusCode, message: message)
+        }
     }
 }
 
