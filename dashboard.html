@@ -15,14 +15,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Ride Journal Dashboard</title>
-  <link rel="stylesheet" href="style.css?v=82" />
+  <link rel="stylesheet" href="style.css?v=84" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="assets/logo/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="premium-home-page">
   <div class="theme-toggle-corner"><button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch theme" title="Toggle light / dark">
       <svg class="ml-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       <svg class="ml-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
@@ -50,21 +50,61 @@
     </nav>
   </header>
 
-  <header>
-    <div class="dashboard-header">
-      <h1>My Ride Journal</h1>
-      <div class="button-group">
-        <button id="home-btn" class="btn-primary">New Ride</button>
-        <button id="record-ride-btn" class="btn-outline">Record a Ride</button>
-        <button id="stats-btn" class="btn-outline">Stats</button>
-        <button id="export-data-btn" class="btn-outline">Export</button>
-        <button id="journal-btn" class="btn-outline">Rider’s Journal</button>
-        <button id="logout-btn" class="btn-plain-danger">Logout</button></div>
-    </div>
-  </header>
-
   <!-- ========== MAIN RIDE LIST ========= -->
-  <main>
+  <main class="premium-home-shell">
+    <section class="premium-app-topbar" aria-label="Memory Lanes dashboard">
+      <div>
+        <p class="premium-kicker">Ride journal</p>
+        <h1>Memory Lanes</h1>
+      </div>
+      <div class="premium-top-actions">
+        <button id="export-data-btn" class="premium-icon-action" type="button" aria-label="Export ride data">Export</button>
+        <button id="logout-btn" class="premium-icon-action premium-logout-action" type="button">Logout</button>
+      </div>
+    </section>
+
+    <section class="premium-action-grid" aria-label="Primary actions">
+      <button id="record-ride-btn" class="premium-start-tile" type="button">
+        <span class="premium-tile-icon" data-icon="play"></span>
+        <span>Start Ride</span>
+      </button>
+      <div class="premium-action-stack">
+        <a class="premium-action-tile" href="planner.html">
+          <span data-icon="route"></span>
+          <span>Plan Route</span>
+        </a>
+        <button id="home-btn" class="premium-action-tile" type="button">
+          <span data-icon="upload"></span>
+          <span>Upload GPX</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="premium-last-ride" class="premium-last-ride" aria-live="polite">
+      <div class="premium-section-head">
+        <span>Last Ride</span>
+      </div>
+      <div class="premium-empty-card">Loading your latest ride…</div>
+    </section>
+
+    <section class="premium-metric-row" aria-label="Ride summary">
+      <article class="premium-metric-card">
+        <span class="premium-metric-label">This Week</span>
+        <strong id="premium-week-distance">-- km</strong>
+        <span id="premium-week-rides">-- rides</span>
+      </article>
+      <article class="premium-metric-card">
+        <span class="premium-metric-label">Best Flow</span>
+        <strong id="premium-best-flow">--</strong>
+        <span>Coach score</span>
+      </article>
+      <article class="premium-metric-card premium-metric-card-warm">
+        <span class="premium-metric-label">Moments</span>
+        <strong id="premium-moments">--</strong>
+        <span>Captures</span>
+      </article>
+    </section>
+
     <!-- Rider profile: the name shown on shared-route invite pages -->
     <section id="profile-section" class="profile-card">
       <div class="profile-head">
@@ -95,14 +135,26 @@
       <div id="group-rides-list"></div>
     </section>
 
-    <h2>Your Rides &amp; Planned Routes</h2>
+    <div class="premium-section-head premium-recent-head">
+      <span>Recent Rides</span>
+      <button id="stats-btn" class="premium-link-button" type="button">View Stats</button>
+      <button id="journal-btn" class="premium-link-button" type="button">Journal</button>
+    </div>
     <div id="ride-list">Loading…</div>
+
+    <nav class="premium-tabbar" aria-label="App sections">
+      <a class="active" href="dashboard.html" aria-current="page"><span data-icon="play"></span><span>Ride</span></a>
+      <a href="planner.html"><span data-icon="route"></span><span>Routes</span></a>
+      <a href="journal.html"><span data-icon="book"></span><span>Journal</span></a>
+      <a href="stats.html"><span data-icon="stats"></span><span>Stats</span></a>
+      <a href="dashboard.html#profile-section"><span data-icon="gauge"></span><span>Profile</span></a>
+    </nav>
   </main>
 
   <!-- ========== JS for dashboard ========= -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script type="module" src="dashboard.js?v=82"></script>
-  <script type="module" src="icons.js?v=82"></script>
-  <script src="theme.js?v=82"></script>
+  <script type="module" src="dashboard.js?v=84"></script>
+  <script type="module" src="icons.js?v=84"></script>
+  <script src="theme.js?v=84"></script>
 </body>
 </html>

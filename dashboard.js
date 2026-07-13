@@ -7,12 +7,17 @@
 
 // Supabase config
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=82';
+import { mlIconSVG } from './icons.js?v=84';
 
 // DOM references
 const rideList = document.getElementById('ride-list');
 const logoutBtn = document.getElementById('logout-btn');
 const newRideBtn = document.getElementById('home-btn');
+const lastRideEl = document.getElementById('premium-last-ride');
+const weekDistanceEl = document.getElementById('premium-week-distance');
+const weekRidesEl = document.getElementById('premium-week-rides');
+const bestFlowEl = document.getElementById('premium-best-flow');
+const momentsEl = document.getElementById('premium-moments');
 
 // --- Filters UI container setup (above the ride list) ---
 const filtersContainer = document.createElement('div');
@@ -53,6 +58,89 @@ function escapeHtml(str) {
   );
 }
 
+function formatDistance(km) {
+  return Number.isFinite(km) ? `${km.toFixed(km >= 100 ? 0 : 1)} km` : '-- km';
+}
+
+function formatDuration(min) {
+  if (!Number.isFinite(Number(min))) return '--';
+  const total = Math.max(0, Math.round(Number(min)));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}` : `${m} min`;
+}
+
+function rideScore(ride) {
+  if (!ride.skills?.scores) return null;
+  const scores = Object.values(ride.skills.scores).filter(Number.isFinite);
+  if (!scores.length) return null;
+  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+}
+
+function routePreview(seed = '') {
+  let hash = 0;
+  for (const ch of String(seed)) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0;
+  const offset = Math.abs(hash % 16);
+  return `
+    <div class="premium-route-thumb" aria-hidden="true">
+      <svg viewBox="0 0 120 96" preserveAspectRatio="none">
+        <path class="premium-map-line premium-map-line-muted" d="M-5 ${28 + offset} C 25 12, 38 54, 62 38 S 94 18, 126 50"/>
+        <path class="premium-map-line premium-map-line-muted" d="M10 ${78 - offset} C 34 58, 52 84, 78 64 S 104 48, 122 72"/>
+        <path class="premium-route-line" d="M18 ${68 - offset / 2} C 35 45, 31 20, 58 24 S 90 48, 76 70 S 38 86, 18 ${68 - offset / 2}"/>
+        <circle class="premium-route-start" cx="18" cy="${68 - offset / 2}" r="5"/>
+      </svg>
+    </div>`;
+}
+
+function renderPremiumOverview(items) {
+  const completed = items.filter(item => item._type === 'ride');
+  const latest = completed[0] || null;
+  if (lastRideEl) {
+    const head = '<div class="premium-section-head"><span>Last Ride</span></div>';
+    if (!latest) {
+      lastRideEl.innerHTML = `${head}<div class="premium-empty-card">No rides yet. Start recording or upload a GPX to begin.</div>`;
+    } else {
+      const date = latest._date ? new Date(latest._date).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+      lastRideEl.innerHTML = `
+        ${head}
+        <article class="premium-feature-card" data-id="${latest.id}">
+          ${routePreview(latest.title)}
+          <div class="premium-feature-main">
+            <div class="premium-feature-title-row">
+              <h2>${escapeHtml(latest.title || 'Untitled Ride')}</h2>
+              <span class="premium-weather-chip">18°</span>
+            </div>
+            <div class="premium-feature-stats">
+              <span>${mlIconSVG('route')} ${formatDistance(Number(latest.distance_km))}</span>
+              <span>${mlIconSVG('clock')} ${formatDuration(latest.duration_min)}</span>
+              <span>${mlIconSVG('mountain')} ${latest.elevation_m != null ? Math.round(latest.elevation_m) : '--'} m</span>
+            </div>
+            <div class="premium-feature-footer">
+              <span>${escapeHtml(date)}</span>
+              <span>${Array.isArray(latest.moments) ? latest.moments.length : 0} moments</span>
+            </div>
+          </div>
+        </article>`;
+      lastRideEl.querySelector('.premium-feature-card').addEventListener('click', () => {
+        window.location.href = `index.html?ride=${latest.id}`;
+      });
+    }
+  }
+
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - 7);
+  const weekRides = completed.filter(item => item._date && new Date(item._date) >= weekStart);
+  const weekKm = weekRides.reduce((sum, item) => sum + (Number(item.distance_km) || 0), 0);
+  if (weekDistanceEl) weekDistanceEl.textContent = formatDistance(weekKm);
+  if (weekRidesEl) weekRidesEl.textContent = `${weekRides.length} ride${weekRides.length === 1 ? '' : 's'}`;
+
+  const best = completed.map(rideScore).filter(Number.isFinite).sort((a, b) => b - a)[0];
+  if (bestFlowEl) bestFlowEl.textContent = best != null ? `${best}%` : '--';
+
+  const totalMoments = completed.reduce((sum, item) => sum + (Array.isArray(item.moments) ? item.moments.length : 0), 0);
+  if (momentsEl) momentsEl.textContent = String(totalMoments);
+}
+
 // ========== Main initialization ==========
 (async () => {
   // Get logged-in user, redirect to login if not authenticated
@@ -90,6 +178,7 @@ function escapeHtml(str) {
   }
 
   allItems = [...rides, ...planned];
+  renderPremiumOverview(allItems);
 
   initProfileEditor(user);
   loadMyGroupRides();
@@ -363,29 +452,32 @@ function renderItems(items) {
 
 function renderPlannedCard(route) {
   const item = document.createElement('div');
-  item.className = 'ride-entry planned-route-card';
+  item.className = 'ride-entry planned-route-card premium-ride-row';
   const created = route._date ? new Date(route._date).toLocaleDateString() : '';
   item.innerHTML = `
-    <div class="ride-title-row">
-      <div class="ride-title">
-        ${escapeHtml(route.title)}
-        ${statusChip(route)}
+    ${routePreview(route.title)}
+    <div class="premium-ride-row-main">
+      <div class="ride-title-row">
+        <div class="ride-title">
+          ${escapeHtml(route.title)}
+          ${statusChip(route)}
+        </div>
+        <div class="ride-meta">
+          <span class="ride-date">${created}</span>
+          <div class="delete-icon" title="Delete this route">${mlIconSVG('trash')}</div>
+        </div>
       </div>
-      <div class="ride-meta">
-        <span class="ride-date">${created}</span>
-        <div class="delete-icon" title="Delete this route">${mlIconSVG('trash')}</div>
+      <div class="ride-details">
+        <span>${mlIconSVG('route')} ${route.distance_km ? route.distance_km.toFixed(1) : '--'} km est.</span>
+        <span>${mlIconSVG('mountain')} ${route.elevation_m != null ? Math.round(route.elevation_m) : '--'} m est.</span>
       </div>
-    </div>
-    <div class="ride-details">
-      <span>${mlIconSVG('pin')} ${route.distance_km ? route.distance_km.toFixed(1) : '--'} km (est.)</span>
-      <span>${mlIconSVG('mountain')} ${route.elevation_m != null ? Math.round(route.elevation_m) : '--'} m (est.)</span>
-    </div>
-    <div class="planner-route-actions">
-      <button type="button" class="btn-primary planned-start-btn">${mlIconSVG('play')} Start Ride</button>
-      <button type="button" class="btn-outline planned-edit-btn">${mlIconSVG('edit')} Edit</button>
-      <button type="button" class="btn-outline planned-export-btn">${mlIconSVG('download')} Export</button>
-      <button type="button" class="btn-outline planned-share-btn">${mlIconSVG('share')} ${route.is_public ? 'Copy Invite Link' : 'Invite a Rider'}</button>
-      <button type="button" class="btn-outline planned-groupride-btn">${mlIconSVG('flag')} Group Ride</button>
+      <div class="planner-route-actions">
+        <button type="button" class="btn-primary planned-start-btn">${mlIconSVG('play')} Start</button>
+        <button type="button" class="btn-outline planned-edit-btn">${mlIconSVG('edit')} Edit</button>
+        <button type="button" class="btn-outline planned-export-btn">${mlIconSVG('download')} Export</button>
+        <button type="button" class="btn-outline planned-share-btn">${mlIconSVG('share')} ${route.is_public ? 'Copy Link' : 'Invite'}</button>
+        <button type="button" class="btn-outline planned-groupride-btn">${mlIconSVG('flag')} Group</button>
+      </div>
     </div>
   `;
   item.querySelector('.planned-start-btn').addEventListener('click', (e) => {
@@ -448,31 +540,31 @@ function renderPlannedCard(route) {
 
 function renderRideCard(ride) {
   const item = document.createElement('div');
-  item.className = 'ride-entry';
+  item.className = 'ride-entry premium-ride-row';
   const rideDate = ride._date ? new Date(ride._date).toLocaleDateString() : '';
-  const overall = ride.skills?.scores
-    ? Math.round(Object.values(ride.skills.scores).filter(Number.isFinite).reduce((a, b) => a + b, 0) /
-        Math.max(1, Object.values(ride.skills.scores).filter(Number.isFinite).length))
-    : null;
+  const overall = rideScore(ride);
 
   item.innerHTML = `
-    <div class="ride-title-row">
-      <div class="ride-title">
-        ${escapeHtml(ride.title)}
-        ${Array.isArray(ride.moments) && ride.moments.length > 0
-          ? `<span class="moments-icon" title="This ride has moments">${mlIconSVG('book')}</span>` : ''}
-        ${statusChip(ride)}
+    ${routePreview(ride.title)}
+    <div class="premium-ride-row-main">
+      <div class="ride-title-row">
+        <div class="ride-title">
+          ${escapeHtml(ride.title)}
+          ${Array.isArray(ride.moments) && ride.moments.length > 0
+            ? `<span class="moments-icon" title="This ride has moments">${mlIconSVG('book')}</span>` : ''}
+          ${statusChip(ride)}
+        </div>
+        <div class="ride-meta">
+          <span class="ride-date">${rideDate}</span>
+          <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">${mlIconSVG('trash')}</div>
+        </div>
       </div>
-      <div class="ride-meta">
-        <span class="ride-date">${rideDate}</span>
-        <div class="delete-icon" title="Delete this ride" data-id="${ride.id}" data-path="${ride.gpx_path}">${mlIconSVG('trash')}</div>
+      <div class="ride-details">
+        <span>${mlIconSVG('route')} ${ride.distance_km ? ride.distance_km.toFixed(1) : '--'} km</span>
+        <span>${mlIconSVG('clock')} ${formatDuration(ride.duration_min)}</span>
+        <span>${mlIconSVG('mountain')} ${ride.elevation_m || '--'} m</span>
+        ${overall != null ? `<span>${mlIconSVG('gauge')} ${overall}% flow</span>` : ''}
       </div>
-    </div>
-    <div class="ride-details">
-      <span>${mlIconSVG('pin')} ${ride.distance_km ? ride.distance_km.toFixed(1) : '--'} km</span>
-      <span>⏱ ${ride.duration_min || '--'} min</span>
-      <span>${mlIconSVG('mountain')} ${ride.elevation_m || '--'} m</span>
-      ${overall != null ? `<span>${mlIconSVG('gauge')} Coach: ${overall}/100</span>` : ''}
     </div>
   `;
 
