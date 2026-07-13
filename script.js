@@ -3,12 +3,12 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=85';
-import { buildRideInsights } from './insights.js?v=85';
-import { mlIconSVG } from './icons.js?v=85';
-import { extractRideFeatures } from './ai/feature-extractor.js?v=85';
-import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=85';
-import { initRideFeedback } from './ai/ride-feedback.js?v=85';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=86';
+import { buildRideInsights } from './insights.js?v=86';
+import { mlIconSVG } from './icons.js?v=86';
+import { extractRideFeatures } from './ai/feature-extractor.js?v=86';
+import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=86';
+import { initRideFeedback } from './ai/ride-feedback.js?v=86';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -2460,6 +2460,11 @@ saveBtn.addEventListener('click', async () => {
 // ========== INIT ==========
 resetUIToInitial();
 
+function shouldOpenDashboardOnLaunch() {
+  const params = new URLSearchParams(window.location.search);
+  return !params.has('ride') && !params.has('share') && !params.has('token') && !window.location.hash;
+}
+
 // ========== HEADER LOGIN / ACCOUNT CONTROLS ==========
 // The landing page previously had no visible way to log in unless you first
 // triggered an upload/save flow - confusing for a returning visitor. This
@@ -2470,6 +2475,10 @@ headerAuthControls.style.display = '';
 (async () => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
+    if (user && shouldOpenDashboardOnLaunch()) {
+      window.location.replace('dashboard.html');
+      return;
+    }
     headerLoginBtn.style.display = user ? 'none' : '';
     headerAccountControls.style.display = user ? '' : 'none';
   } catch (e) {
@@ -3293,4 +3302,3 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW registration failed:', err));
   });
 }
-
