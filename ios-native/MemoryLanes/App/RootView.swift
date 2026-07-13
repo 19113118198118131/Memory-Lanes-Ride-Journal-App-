@@ -11,13 +11,15 @@ struct RootView: View {
     // Swap `PreviewRideService` for the live `RideService` once Supabase is wired.
     private let rideService: RideServing = PreviewRideService()
     @State private var ridePath = NavigationPath()
+    @State private var showingRecorder = false
 
     var body: some View {
         TabView {
             NavigationStack(path: $ridePath) {
                 DashboardView(
                     viewModel: DashboardViewModel(rideService: rideService),
-                    onSelectRide: { ridePath.append($0) }
+                    onSelectRide: { ridePath.append($0) },
+                    onStartRide: { showingRecorder = true }
                 )
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: Ride.self) { ride in
@@ -40,6 +42,9 @@ struct RootView: View {
                 StatsView()
             }
             .tabItem { Label("Stats", systemImage: "chart.bar") }
+        }
+        .fullScreenCover(isPresented: $showingRecorder) {
+            RecordingView()
         }
     }
 }

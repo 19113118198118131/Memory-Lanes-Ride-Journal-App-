@@ -124,7 +124,7 @@ struct ElevationChart: View {
 // MARK: - Accessibility chart descriptor
 
 extension ElevationChart: AXChartDescriptorRepresentable {
-    func makeChartDescriptor() -> AXChartDescriptor {
+    nonisolated func makeChartDescriptor() -> AXChartDescriptor {
         let xValues = samples.map(\.distanceKm)
         let yValues = samples.map(\.elevationM)
 
