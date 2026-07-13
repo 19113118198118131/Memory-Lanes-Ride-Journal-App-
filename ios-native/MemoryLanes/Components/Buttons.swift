@@ -35,7 +35,7 @@ struct PrimaryButton: View {
             .background(Color.mlAccent, in: Capsule())
             .opacity(isLoading ? 0.85 : 1)
         }
-        .buttonStyle(.mlPressable)
+        .buttonStyle(MLPressableButtonStyle())
         .disabled(isLoading)
         .animation(Motion.spring, value: isLoading)
         .accessibilityLabel(title)
@@ -69,7 +69,7 @@ struct SecondaryButton: View {
                 Capsule().stroke(Color.mlHairline, lineWidth: Layout.hairline)
             )
         }
-        .buttonStyle(.mlPressable)
+        .buttonStyle(MLPressableButtonStyle())
         .accessibilityLabel(title)
     }
 }
@@ -105,7 +105,7 @@ struct DestructiveButton: View {
                 Capsule().stroke(Color.mlDanger.opacity(0.4), lineWidth: Layout.hairline)
             )
         }
-        .buttonStyle(.mlPressable)
+        .buttonStyle(MLPressableButtonStyle())
         .confirmationDialog(
             confirmationTitle,
             isPresented: $confirming,

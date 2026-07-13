@@ -54,7 +54,7 @@ struct RideCard: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
-        .buttonStyle(.mlPressable(scale: 0.985))
+        .buttonStyle(MLPressableButtonStyle(scale: 0.985))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(ride.title), \(ride.distanceFormatted) kilometres, \(ride.durationFormatted), \(cardSubtitle)")
         .accessibilityAddTraits(.isButton)

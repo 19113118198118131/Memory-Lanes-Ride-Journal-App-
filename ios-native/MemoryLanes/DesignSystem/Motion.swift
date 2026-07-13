@@ -22,7 +22,7 @@ enum Motion {
 // A reusable "press-scale" that gives every tappable surface the same
 // physics-based response. Attach with `.mlPressable { … }`.
 
-private struct PressableStyle: ButtonStyle {
+struct MLPressableButtonStyle: ButtonStyle {
     var scale: CGFloat = 0.97
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -30,10 +30,4 @@ private struct PressableStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.9 : 1)
             .animation(Motion.spring, value: configuration.isPressed)
     }
-}
-
-extension ButtonStyle where Self == PressableStyle {
-    /// Spring press-scale shared by every custom button in the app.
-    static var mlPressable: PressableStyle { PressableStyle() }
-    static func mlPressable(scale: CGFloat) -> PressableStyle { PressableStyle(scale: scale) }
 }
