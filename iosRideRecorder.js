@@ -1,6 +1,24 @@
-import { registerPlugin } from 'https://cdn.jsdelivr.net/npm/@capacitor/core@8/+esm';
+// Inside the native iOS app Capacitor injects `window.Capacitor` (with
+// `registerPlugin`) before any web code runs, so we use that directly and the
+// app never depends on a runtime CDN fetch to reach its own native recorder —
+// which matters most exactly when connectivity is poor (a tunnel, the middle of
+// nowhere). The dynamic CDN import is only a fallback for a browser context,
+// where every exported function below already short-circuits on
+// `isNativeRideRecorderAvailable()` and the plugin is never actually invoked.
+async function resolveRegisterPlugin() {
+  if (window.Capacitor?.registerPlugin) return window.Capacitor.registerPlugin;
+  const mod = await import('https://cdn.jsdelivr.net/npm/@capacitor/core@8/+esm');
+  return mod.registerPlugin;
+}
 
-const NativeRideRecorder = registerPlugin('MemoryLanesRideRecorder');
+let nativeRideRecorderPromise = null;
+function getNativeRideRecorder() {
+  if (!nativeRideRecorderPromise) {
+    nativeRideRecorderPromise = resolveRegisterPlugin()
+      .then(register => register('MemoryLanesRideRecorder'));
+  }
+  return nativeRideRecorderPromise;
+}
 
 export function isNativeRideRecorderAvailable() {
   return Boolean(window.Capacitor?.isNativePlatform?.());
@@ -8,54 +26,54 @@ export function isNativeRideRecorderAvailable() {
 
 export async function checkRideRecorderPermission() {
   if (!isNativeRideRecorderAvailable()) return { location: 'web' };
-  return NativeRideRecorder.checkPermissions();
+  return (await getNativeRideRecorder()).checkPermissions();
 }
 
 export async function requestRideRecorderPermission() {
   if (!isNativeRideRecorderAvailable()) return { location: 'web' };
-  return NativeRideRecorder.requestPermissions();
+  return (await getNativeRideRecorder()).requestPermissions();
 }
 
 export async function startNativeRideRecording() {
   if (!isNativeRideRecorderAvailable()) {
     throw new Error('Native ride recording is only available inside the iOS app.');
   }
-  return NativeRideRecorder.start();
+  return (await getNativeRideRecorder()).start();
 }
 
 export async function stopNativeRideRecording() {
   if (!isNativeRideRecorderAvailable()) return { recording: false, pointCount: 0 };
-  return NativeRideRecorder.stop();
+  return (await getNativeRideRecorder()).stop();
 }
 
 export async function getNativeRideRecordingStatus() {
   if (!isNativeRideRecorderAvailable()) return { recording: false, pointCount: 0, permission: 'web' };
-  return NativeRideRecorder.getStatus();
+  return (await getNativeRideRecorder()).getStatus();
 }
 
 export async function getNativeRideTrack() {
   if (!isNativeRideRecorderAvailable()) return { startedAt: null, pointCount: 0, points: [] };
-  return NativeRideRecorder.getTrack();
+  return (await getNativeRideRecorder()).getTrack();
 }
 
 export async function clearNativeRideTrack() {
   if (!isNativeRideRecorderAvailable()) return { recording: false, pointCount: 0 };
-  return NativeRideRecorder.clear();
+  return (await getNativeRideRecorder()).clear();
 }
 
 export async function onNativeRidePoint(callback) {
   if (!isNativeRideRecorderAvailable()) return { remove: () => {} };
-  return NativeRideRecorder.addListener('rideRecorderPoint', callback);
+  return (await getNativeRideRecorder()).addListener('rideRecorderPoint', callback);
 }
 
 export async function onNativeRideStatus(callback) {
   if (!isNativeRideRecorderAvailable()) return { remove: () => {} };
-  return NativeRideRecorder.addListener('rideRecorderStatus', callback);
+  return (await getNativeRideRecorder()).addListener('rideRecorderStatus', callback);
 }
 
 export async function onNativeRideError(callback) {
   if (!isNativeRideRecorderAvailable()) return { remove: () => {} };
-  return NativeRideRecorder.addListener('rideRecorderError', callback);
+  return (await getNativeRideRecorder()).addListener('rideRecorderError', callback);
 }
 
 export function nativeTrackToGPX(track, title = 'Memory Lanes Ride') {

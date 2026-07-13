@@ -17,10 +17,25 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
     ]
 
     private let manager = CLLocationManager()
+
+    // Capacitor invokes plugin methods on a background queue while CoreLocation
+    // delivers delegate callbacks on the main run loop. All three of these are
+    // touched from both sides, so every read/write goes through this serial
+    // queue to avoid a data race on the recorded track.
+    private let stateQueue = DispatchQueue(label: "app.memorylanes.riderecorder.state")
     private var points: [[String: Any]] = []
     private var isRecording = false
     private var startedAt: Date?
+
     private var permissionCallID: String?
+
+    // Reused across every recorded point instead of allocating per fix (a ride
+    // can produce thousands of points).
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
 
     public override func load() {
         manager.delegate = self
@@ -42,18 +57,15 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
             return
         }
 
-        let status = CLLocationManager.authorizationStatus()
-        if status == .notDetermined {
+        // Instance property (iOS 14+); the class method is deprecated and warns
+        // about blocking the calling thread.
+        let status = manager.authorizationStatus
+        if status == .notDetermined || status == .authorizedWhenInUse {
             bridge?.saveCall(call)
             permissionCallID = call.callbackId
-            manager.requestAlwaysAuthorization()
-            return
-        }
-
-        if status == .authorizedWhenInUse {
-            bridge?.saveCall(call)
-            permissionCallID = call.callbackId
-            manager.requestAlwaysAuthorization()
+            // CLLocationManager must be driven from the main thread; Capacitor
+            // invokes plugin methods on a background queue.
+            DispatchQueue.main.async { self.manager.requestAlwaysAuthorization() }
             return
         }
 
@@ -66,23 +78,26 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
             return
         }
 
-        guard CLLocationManager.authorizationStatus() == .authorizedAlways else {
+        guard manager.authorizationStatus == .authorizedAlways else {
             call.reject("Always location permission is required for background ride recording")
             return
         }
 
-        points.removeAll()
-        startedAt = Date()
-        isRecording = true
-        manager.startUpdatingLocation()
+        stateQueue.sync {
+            points.removeAll()
+            startedAt = Date()
+            isRecording = true
+        }
+        DispatchQueue.main.async { self.manager.startUpdatingLocation() }
 
-        notifyListeners("rideRecorderStatus", data: statusPayload())
-        call.resolve(statusPayload())
+        let payload = statusPayload()
+        notifyListeners("rideRecorderStatus", data: payload)
+        call.resolve(payload)
     }
 
     @objc public func stop(_ call: CAPPluginCall) {
-        manager.stopUpdatingLocation()
-        isRecording = false
+        DispatchQueue.main.async { self.manager.stopUpdatingLocation() }
+        stateQueue.sync { isRecording = false }
 
         let payload = statusPayload()
         notifyListeners("rideRecorderStatus", data: payload)
@@ -94,41 +109,57 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
     }
 
     @objc public func getTrack(_ call: CAPPluginCall) {
+        var snapshot: [[String: Any]] = []
+        var started: Date?
+        stateQueue.sync {
+            snapshot = points
+            started = startedAt
+        }
         call.resolve([
-            "startedAt": isoString(startedAt),
-            "pointCount": points.count,
-            "points": points
+            "startedAt": isoString(started) as Any,
+            "pointCount": snapshot.count,
+            "points": snapshot
         ])
     }
 
     @objc public func clear(_ call: CAPPluginCall) {
-        guard !isRecording else {
+        var recording = false
+        stateQueue.sync { recording = isRecording }
+        guard !recording else {
             call.reject("Stop recording before clearing the track")
             return
         }
 
-        points.removeAll()
-        startedAt = nil
+        stateQueue.sync {
+            points.removeAll()
+            startedAt = nil
+        }
         call.resolve(statusPayload())
     }
 
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard isRecording else { return }
-
-        for location in locations where location.horizontalAccuracy >= 0 {
-            let point: [String: Any] = [
-                "lat": location.coordinate.latitude,
-                "lng": location.coordinate.longitude,
-                "accuracy": location.horizontalAccuracy,
-                "altitude": location.altitude,
-                "speed": max(location.speed, 0),
-                "course": location.course,
-                "timestamp": isoString(location.timestamp) ?? ""
-            ]
-            points.append(point)
-            notifyListeners("rideRecorderPoint", data: point)
+        var newPoints: [[String: Any]] = []
+        stateQueue.sync {
+            guard isRecording else { return }
+            for location in locations where location.horizontalAccuracy >= 0 {
+                let point: [String: Any] = [
+                    "lat": location.coordinate.latitude,
+                    "lng": location.coordinate.longitude,
+                    "accuracy": location.horizontalAccuracy,
+                    "altitude": location.altitude,
+                    "speed": max(location.speed, 0),
+                    "course": location.course,
+                    "timestamp": isoString(location.timestamp) ?? ""
+                ]
+                points.append(point)
+                newPoints.append(point)
+            }
         }
 
+        guard !newPoints.isEmpty else { return }
+        for point in newPoints {
+            notifyListeners("rideRecorderPoint", data: point)
+        }
         notifyListeners("rideRecorderStatus", data: statusPayload())
     }
 
@@ -137,14 +168,6 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
     }
 
     public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        finishPermissionCallIfNeeded()
-    }
-
-    public func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        finishPermissionCallIfNeeded()
-    }
-
-    private func finishPermissionCallIfNeeded() {
         guard let callID = permissionCallID, let call = bridge?.getSavedCall(callID) else { return }
         permissionCallID = nil
         checkPermissions(call)
@@ -152,7 +175,7 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
     }
 
     private func permissionState() -> String {
-        switch CLLocationManager.authorizationStatus() {
+        switch manager.authorizationStatus {
         case .authorizedAlways:
             return "granted"
         case .authorizedWhenInUse:
@@ -167,18 +190,24 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
     }
 
     private func statusPayload() -> [String: Any] {
+        var recording = false
+        var count = 0
+        var started: Date?
+        stateQueue.sync {
+            recording = isRecording
+            count = points.count
+            started = startedAt
+        }
         return [
-            "recording": isRecording,
-            "startedAt": isoString(startedAt) as Any,
-            "pointCount": points.count,
+            "recording": recording,
+            "startedAt": isoString(started) as Any,
+            "pointCount": count,
             "permission": permissionState()
         ]
     }
 
     private func isoString(_ date: Date?) -> String? {
         guard let date else { return nil }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.string(from: date)
+        return Self.isoFormatter.string(from: date)
     }
 }

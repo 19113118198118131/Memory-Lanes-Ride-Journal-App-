@@ -11,8 +11,8 @@
 // feature design + the explanation, not the library.
 // ===============================
 
-import { MATCH_FEATURES, MIN_LABELLED_RIDES } from './feature-schema.js?v=87';
-import { matchVectorFromRide, matchVectorFromCandidate } from './feature-extractor.js?v=87';
+import { MATCH_FEATURES, MIN_LABELLED_RIDES } from './feature-schema.js?v=88';
+import { matchVectorFromRide, matchVectorFromCandidate } from './feature-extractor.js?v=88';
 
 // Per-feature mean/std across the rated rides, so no single dimension (e.g.
 // distance in the tens of km) dominates a dimension measured in single digits.

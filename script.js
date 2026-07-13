@@ -3,12 +3,12 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=87';
-import { buildRideInsights } from './insights.js?v=87';
-import { mlIconSVG } from './icons.js?v=87';
-import { extractRideFeatures } from './ai/feature-extractor.js?v=87';
-import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=87';
-import { initRideFeedback } from './ai/ride-feedback.js?v=87';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=88';
+import { buildRideInsights } from './insights.js?v=88';
+import { mlIconSVG } from './icons.js?v=88';
+import { extractRideFeatures } from './ai/feature-extractor.js?v=88';
+import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=88';
+import { initRideFeedback } from './ai/ride-feedback.js?v=88';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
