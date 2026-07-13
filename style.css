@@ -5017,6 +5017,71 @@ body[data-ride-state="saving"] .live-recording-dot { background: var(--cockpit-a
   }
 }
 
+/* ---------- LIVE RIDE: unsaved-ride recovery prompt ---------- */
+.live-recovery-overlay {
+  /* !important defends against the broad "[data-theme=light] body > *"
+     stacking rule, which is more specific and would otherwise drop this
+     modal to position:relative/z-index:1 (off-screen) on a light-theme device. */
+  position: fixed !important;
+  inset: 0;
+  z-index: 4000 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(3, 6, 8, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.live-recovery-card {
+  box-sizing: border-box;
+  width: min(420px, 100%);
+  padding: 26px 24px;
+  border: 1px solid var(--cockpit-border, rgba(255, 255, 255, 0.13));
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(16, 22, 25, 0.98), rgba(8, 11, 13, 0.98));
+  color: #f5f7f8;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+/* The card is always dark, so force light heading text - otherwise the
+   [data-theme=light] h2 rule (near-black ink) makes the title vanish. */
+.live-recovery-card h2 { margin: 0 0 8px; font-size: 1.3rem; color: #f5f7f8 !important; }
+.live-recovery-card p {
+  margin: 0 0 14px;
+  color: rgba(245, 247, 248, 0.7);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+.live-recovery-stats { display: flex; gap: 12px; margin: 4px 0 12px; }
+.live-recovery-stats > div {
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.live-recovery-stats span {
+  display: block;
+  font-family: 'Rajdhani', 'Inter', system-ui, sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #64ffda;
+  line-height: 1;
+}
+.live-recovery-stats small {
+  color: rgba(245, 247, 248, 0.55);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.live-recovery-when { font-size: 0.82rem !important; color: rgba(245, 247, 248, 0.5) !important; }
+.live-recovery-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.live-recovery-actions .btn-primary,
+.live-recovery-actions .btn-plain-danger { width: 100%; }
+
 /* ---------- GOAL-FIRST ONBOARDING (planner.html) ---------- */
 .planner-onboarding {
   background: var(--surface-panel);

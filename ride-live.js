@@ -11,7 +11,7 @@ import supabase from './supabaseClient.js';
 // ride-live.html exactly. A bare './icons.js' is a DIFFERENT module URL to
 // './icons.js?v=N', so the browser loads icons.js twice and applyIcons()
 // runs twice, duplicating every button icon on this page.
-import { mlIconSVG } from './icons.js?v=88';
+import { mlIconSVG } from './icons.js?v=89';
 
 // Native iOS recorder bridge (Capacitor). Loaded LAZILY: the bridge pulls in
 // @capacitor/core from a CDN, so importing it statically would make every web
@@ -20,7 +20,7 @@ import { mlIconSVG } from './icons.js?v=88';
 // recording routes through CoreLocation and keeps tracking with the screen off.
 let nativeBridge = null;
 async function loadNativeBridge() {
-  if (!nativeBridge) nativeBridge = await import('./iosRideRecorder.js?v=88');
+  if (!nativeBridge) nativeBridge = await import('./iosRideRecorder.js?v=89');
   return nativeBridge;
 }
 
@@ -114,6 +114,143 @@ function setRideState(state) {
 }
 setRideState('idle');
 
+// ---------- Crash-safe draft persistence ----------
+// The in-progress ride is written to storage as it records, so an iOS app
+// eviction, a browser tab reclaim, a crash, or a dead battery can no longer
+// silently lose the whole ride. On the next visit we detect the draft and
+// offer to recover and save it. (This covers the web path fully and the native
+// path up to the last foreground sync; a fuller native fix would also persist
+// CoreLocation's background buffer to disk.)
+const DRAFT_KEY = 'ml-live-ride-draft';
+let lastDraftWrite = 0;
+
+function persistDraft() {
+  if (!recording || recordedPoints.length < 1) return;
+  try {
+    const payload = {
+      v: 1,
+      startedAt: startTime ? startTime.getTime() : Date.now(),
+      routeId: plannedRoute ? plannedRoute.id : null,
+      routeTitle: plannedRoute ? plannedRoute.title : null,
+      groupRideId: groupRide ? groupRide.id : null,
+      dist: totalDistanceM,
+      elev: elevationGainM,
+      moments: liveMoments,
+      // Compact tuple per point: [lat, lng, ele, timeMs, speedKmh]
+      pts: recordedPoints.map(p => [p.lat, p.lng, p.ele, p.time.getTime(), p.speedKmh]),
+      savedAt: Date.now()
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+    lastDraftWrite = Date.now();
+  } catch (_) {
+    // Storage full or disabled: recording keeps working, we just can't checkpoint.
+  }
+}
+
+// Called on every GPS fix; the actual write is at most once every few seconds
+// so a long ride doesn't thrash localStorage.
+function persistDraftThrottled() {
+  if (Date.now() - lastDraftWrite < 4000) return;
+  persistDraft();
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+}
+
+function readDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d || !Array.isArray(d.pts) || d.pts.length < 2) return null;
+    return d;
+  } catch (_) { return null; }
+}
+
+// Show a recovery card summarising the interrupted ride, with Save / Discard.
+function presentRecovery(draft) {
+  let distKm = 0;
+  for (let i = 1; i < draft.pts.length; i++) {
+    distKm += haversineMeters(draft.pts[i - 1][0], draft.pts[i - 1][1], draft.pts[i][0], draft.pts[i][1]);
+  }
+  distKm = (distKm / 1000).toFixed(1);
+  const started = new Date(draft.startedAt);
+  const when = started.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  const overlay = document.createElement('div');
+  overlay.className = 'live-recovery-overlay';
+  overlay.innerHTML = `
+    <div class="live-recovery-card" role="dialog" aria-modal="true" aria-labelledby="live-recovery-title">
+      <h2 id="live-recovery-title">Unsaved ride found</h2>
+      <p>A ride you were recording didn't get saved — it looks like the app was closed mid-ride.</p>
+      <div class="live-recovery-stats">
+        <div><span>${distKm}</span><small>km tracked</small></div>
+        <div><span>${draft.pts.length}</span><small>GPS points</small></div>
+      </div>
+      <p class="live-recovery-when">Started ${escapeHtml(when)}</p>
+      <div class="live-recovery-actions">
+        <button type="button" id="live-recovery-save" class="btn-primary">Recover &amp; Save</button>
+        <button type="button" id="live-recovery-discard" class="btn-plain-danger">Discard</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#live-recovery-save').addEventListener('click', () => {
+    overlay.remove();
+    recoverDraft(draft);
+  });
+  overlay.querySelector('#live-recovery-discard').addEventListener('click', () => {
+    if (!confirm('Permanently discard this unsaved ride?')) return;
+    clearDraft();
+    overlay.remove();
+    // Reload so the page sets up a normal fresh ride with no draft.
+    window.location.reload();
+  });
+}
+
+// Restore an interrupted ride into the save-ready state so it can be kept.
+function recoverDraft(draft) {
+  recordedPoints = draft.pts.map(a => ({
+    lat: a[0], lng: a[1], ele: a[2], time: new Date(a[3]), speedKmh: a[4]
+  }));
+  totalDistanceM = draft.dist || 0;
+  elevationGainM = draft.elev || 0;
+  startTime = new Date(draft.startedAt);
+  liveMoments = Array.isArray(draft.moments) ? draft.moments : [];
+  // Keep the planned-route link so the saved ride still ties back to the plan,
+  // but we don't have the route geometry here, so hide the live on-route metric.
+  if (draft.routeId) {
+    plannedRoute = { id: draft.routeId, title: draft.routeTitle || 'Route', route: [], is_public: false };
+  }
+  onRouteCard.style.display = 'none';
+
+  recordedLine = L.polyline(recordedPoints.map(p => [p.lat, p.lng]), {
+    color: '#00c6ff', weight: 4, opacity: 0.9
+  }).addTo(map);
+  try { map.fitBounds(recordedLine.getBounds(), { padding: [40, 40] }); } catch (_) {}
+  liveMoments.forEach(addMomentMarker);
+  renderLiveMoments();
+
+  const last = recordedPoints[recordedPoints.length - 1];
+  updateTelemetry(last, null);
+
+  recording = false;
+  setRideState('saving');
+  liveTitleEl.textContent = 'Recovered Ride';
+  routeTitleEl.textContent = 'This ride was recovered after the app closed mid-record.';
+  startBtn.style.display = 'none';
+  pauseBtn.style.display = 'none';
+  momentBtn.style.display = 'none';
+  finishBtn.style.display = 'none';
+  recenterBtn.style.display = 'none';
+  statusBanner.textContent = 'Recovered your unsaved ride. Save it below to keep it.';
+  saveForm.style.display = '';
+  rideTitleInput.value = plannedRoute
+    ? `${plannedRoute.title} - ${startTime.toLocaleDateString()}`
+    : `Ride - ${startTime.toLocaleDateString()}`;
+}
+
 // ---------- Init ----------
 (async () => {
   const params = new URLSearchParams(window.location.search);
@@ -127,6 +264,17 @@ setRideState('idle');
   }
 
   currentUser = user;
+
+  // Before setting up a fresh ride, see if a previous one was cut off mid-record
+  // (app evicted, crash, battery). If so, offer to recover it instead.
+  const draft = readDraft();
+  if (draft) {
+    loadingEl.style.display = 'none';
+    bodyEl.style.display = '';
+    initMap();
+    presentRecovery(draft);
+    return;
+  }
 
   if (groupToken) {
     // Group ride: the token both admits us (membership row) and returns the
@@ -300,6 +448,7 @@ cancelBtn.addEventListener('click', () => {
   if (recording && !confirm('Stop tracking and leave without saving?')) return;
   endWatch();
   recording = false;
+  clearDraft(); // deliberate abandon: don't offer to recover this one later
   stopBroadcasting();
   window.location.href = plannedRoute ? 'planner.html' : 'dashboard.html';
 });
@@ -335,6 +484,7 @@ momentSaveBtn.addEventListener('click', () => {
   renderLiveMoments();
   pendingMoment = null;
   momentForm.style.display = 'none';
+  persistDraft();
 });
 
 momentCancelBtn.addEventListener('click', () => {
@@ -372,6 +522,7 @@ function renderLiveMoments() {
       if (momentMarkers[idx]) { map.removeLayer(momentMarkers[idx]); momentMarkers.splice(idx, 1); }
       liveMoments.splice(idx, 1);
       renderLiveMoments();
+      if (recording) persistDraft();
     });
   });
 }
@@ -413,6 +564,7 @@ async function togglePause() {
   if (watching) {
     if (nativeMode) await drainNative(); // capture points up to the pause before stopping
     endWatch();
+    persistDraft(); // checkpoint the full track at the pause boundary
     pauseBtn.textContent = 'Resume';
     statusBanner.textContent = 'Paused. Distance and time stop counting until you resume.';
     setRideState('paused');
@@ -564,6 +716,7 @@ function onPosition(pos) {
   }
 
   updateTelemetry(pt, speed);
+  persistDraftThrottled();
 }
 
 function onPositionError(err) {
@@ -598,7 +751,7 @@ function updateTelemetry(pt, speedMs) {
   speedEl.textContent = kmh != null ? `${kmh.toFixed(0)} km/h` : '–';
   if (elevationEl) elevationEl.textContent = `${Math.round(elevationGainM)} m`;
 
-  if (!plannedRoute) return;
+  if (!plannedRoute || !plannedRouteSample) return;
   let minD = Infinity;
   for (const [plat, plng] of plannedRouteSample) {
     const d = haversineMeters(pt.lat, pt.lng, plat, plng);
@@ -626,6 +779,7 @@ async function finishRide() {
     finishBtn.style.display = 'none';
     setRideState('idle');
     clearLiveMoments();
+    clearDraft(); // nothing worth recovering
     return;
   }
   pauseBtn.style.display = 'none';
@@ -757,6 +911,7 @@ saveBtn.addEventListener('click', async () => {
       throw insertErr;
     }
 
+    clearDraft(); // the ride is safely in the database now
     setSaveStatus('Ride saved!', false);
     window.location.href = `index.html?ride=${insertData.id}`;
   } catch (e) {
