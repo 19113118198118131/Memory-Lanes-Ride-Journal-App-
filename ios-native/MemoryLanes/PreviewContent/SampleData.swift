@@ -64,11 +64,38 @@ enum SampleData {
         let noise = 40 * sin(d * .pi * 9)
         return ElevationSample(distanceKm: d * 84.3, elevationM: base + noise)
     }
-}
 
-/// One point on an elevation chart.
-struct ElevationSample: Identifiable, Hashable, Sendable {
-    var id: Double { distanceKm }
-    let distanceKm: Double
-    let elevationM: Double
+    static let corners: [CornerTicket] = [
+        .init(index: 1, shape: .rightHairpin, entrySpeed: 74, apexSpeed: 38, exitSpeed: 61,
+              verdict: .smooth, tip: "Great patience on entry — trail-braked right to the apex.",
+              repeatNote: "Ridden 4× · apex today 38 km/h, a new best"),
+        .init(index: 2, shape: .leftSweeper, entrySpeed: 88, apexSpeed: 71, exitSpeed: 95,
+              verdict: .tidy, tip: "Carried strong corner speed and got on the gas early."),
+        .init(index: 3, shape: .rightSweeper, entrySpeed: 92, apexSpeed: 58, exitSpeed: 70,
+              verdict: .rushed, tip: "A touch quick on the brakes — try releasing 10 m sooner."),
+        .init(index: 4, shape: .leftHairpin, entrySpeed: 66, apexSpeed: 34, exitSpeed: 58,
+              verdict: .early, tip: "Apex arrived early; look further through the exit next time.")
+    ]
+
+    static let moments: [Moment] = [
+        .init(note: "Fog lifting over the ridge — unreal light.",
+              coordinate: ridgeRoute[2], symbol: "camera.fill"),
+        .init(note: "Coffee stop at the summit café.",
+              coordinate: ridgeRoute[5], symbol: "cup.and.saucer.fill"),
+        .init(note: "New personal best through the esses.",
+              coordinate: ridgeRoute[7], symbol: "flag.checkered")
+    ]
+
+    static let weather = Weather(
+        temperatureC: 18, condition: "Partly cloudy", windKph: 12, symbol: "cloud.sun.fill"
+    )
+
+    static let heroDetail = RideDetail(
+        id: hero.id,
+        elevation: elevationSamples,
+        corners: corners,
+        moments: moments,
+        weather: weather,
+        debrief: "Your smoothest ride this month. Corner exits were consistently strong — the one thing to practise next time is releasing the brakes a touch earlier into fast right-handers."
+    )
 }

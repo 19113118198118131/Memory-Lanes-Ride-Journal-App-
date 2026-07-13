@@ -8,6 +8,8 @@ import Foundation
 
 protocol RideServing: Sendable {
     func fetchRides() async throws -> [Ride]
+    /// Full analysis for one ride, loaded when the rider opens it.
+    func fetchDetail(for rideID: UUID) async throws -> RideDetail
 }
 
 // MARK: - Preview / demo implementation
@@ -25,6 +27,21 @@ struct PreviewRideService: RideServing {
         if let failure { throw failure }
         return rides
     }
+
+    func fetchDetail(for rideID: UUID) async throws -> RideDetail {
+        try await Task.sleep(for: delay)
+        if let failure { throw failure }
+        // Sample detail is keyed to the hero ride; reuse its analysis with the
+        // requested id so any previewed ride resolves to something to show.
+        return RideDetail(
+            id: rideID,
+            elevation: SampleData.heroDetail.elevation,
+            corners: SampleData.heroDetail.corners,
+            moments: SampleData.heroDetail.moments,
+            weather: SampleData.heroDetail.weather,
+            debrief: SampleData.heroDetail.debrief
+        )
+    }
 }
 
 // MARK: - Live implementation (skeleton)
@@ -39,6 +56,12 @@ struct RideService: RideServing {
     func fetchRides() async throws -> [Ride] {
         // TODO: fetch `ride_logs` for the signed-in user, decode GPX previews,
         // and map to `[Ride]`. Runs off the main actor via async/await.
+        throw RideServiceError.notImplemented
+    }
+
+    func fetchDetail(for rideID: UUID) async throws -> RideDetail {
+        // TODO: load the GPX for this ride, run the coaching engine on a
+        // background actor, and assemble the detail. Left as a typed stub.
         throw RideServiceError.notImplemented
     }
 }

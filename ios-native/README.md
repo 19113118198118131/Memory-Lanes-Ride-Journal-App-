@@ -10,10 +10,13 @@ Building in the order the brief mandates:
 
 - ✅ **Design system** — colour, typography, spacing, radius, motion, haptics
   (`DesignSystem/`, documented in `DESIGN-SYSTEM.md`).
-- ✅ **Component library** — 13 reusable components with `#Preview`s for every
-  state (`Components/`).
-- 🚧 **Screens** — Dashboard (ride list) rebuilt from the library; Ride Detail,
-  Upload/Import, Analytics, Journal, Planner next.
+- ✅ **Component library** — reusable components with `#Preview`s for every
+  state (`Components/`): the original 13 plus segmented control, corner ticket,
+  moment row, weather strip, and an exportable share card.
+- 🚧 **Screens** — Dashboard (ride list) and **Ride Detail** (hero map,
+  stats-over-map, interactive elevation chart, corners/moments/weather sections,
+  one-tap share) rebuilt from the library. Upload/Import, Analytics, Journal,
+  Planner next.
 - ⬜ **Services** — Supabase-backed `RideService` (protocol + stub in place),
   GPX parser, Strava import.
 

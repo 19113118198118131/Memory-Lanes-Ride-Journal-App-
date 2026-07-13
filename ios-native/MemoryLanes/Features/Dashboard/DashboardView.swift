@@ -9,11 +9,17 @@ import SwiftUI
 struct DashboardView: View {
     @State private var viewModel: DashboardViewModel
     @State private var toast: Toast?
-    var onSelectRide: (Ride) -> Void = { _ in }
-    var onStartRide: () -> Void = {}
+    let onSelectRide: (Ride) -> Void
+    let onStartRide: () -> Void
 
-    init(viewModel: DashboardViewModel) {
+    init(
+        viewModel: DashboardViewModel,
+        onSelectRide: @escaping (Ride) -> Void = { _ in },
+        onStartRide: @escaping () -> Void = {}
+    ) {
         _viewModel = State(initialValue: viewModel)
+        self.onSelectRide = onSelectRide
+        self.onStartRide = onStartRide
     }
 
     var body: some View {

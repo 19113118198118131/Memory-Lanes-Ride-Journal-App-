@@ -10,12 +10,19 @@ import SwiftUI
 struct RootView: View {
     // Swap `PreviewRideService` for the live `RideService` once Supabase is wired.
     private let rideService: RideServing = PreviewRideService()
+    @State private var ridePath = NavigationPath()
 
     var body: some View {
         TabView {
-            NavigationStack {
-                DashboardView(viewModel: DashboardViewModel(rideService: rideService))
-                    .navigationBarTitleDisplayMode(.inline)
+            NavigationStack(path: $ridePath) {
+                DashboardView(
+                    viewModel: DashboardViewModel(rideService: rideService),
+                    onSelectRide: { ridePath.append($0) }
+                )
+                .navigationBarTitleDisplayMode(.inline)
+                .navigationDestination(for: Ride.self) { ride in
+                    RideDetailView(viewModel: RideDetailViewModel(ride: ride, rideService: rideService))
+                }
             }
             .tabItem { Label("Ride", systemImage: "location.north.line.fill") }
 
