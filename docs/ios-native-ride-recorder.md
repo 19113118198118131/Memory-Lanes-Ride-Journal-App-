@@ -8,7 +8,7 @@ This scaffold adds the next layer after the Capacitor shell: a native CoreLocati
   - Capacitor plugin scaffold using CoreLocation
   - Requests Always location permission
   - Starts/stops native location updates
-  - Keeps an in-memory track while recording
+  - Keeps the track in memory and mirrored to disk (survives a process kill)
   - Emits `rideRecorderPoint`, `rideRecorderStatus`, and `rideRecorderError` events to JavaScript
 - `iosRideRecorder.js`
   - Browser-facing wrapper around `registerPlugin('MemoryLanesRideRecorder')`
@@ -106,11 +106,26 @@ Finish, replaying each new point through the same pipeline the web path uses.
 Pause/Resume and "Add Moment" all work unchanged, and the saved GPX is built
 from the merged track exactly as before.
 
-## Next implementation step
+## Crash-safe persistence
 
-The current Swift scaffold stores the active ride in memory. Before TestFlight,
-persist points to disk during recording so a crash, battery kill, or OS
-termination does not lose the ride. A simple next step is to append JSON lines
-to a file in the app documents directory and rebuild GPX from that file on
-stop/recovery. (The JS side already tolerates this: it re-reads the whole track
-via `getTrack()`, so on-disk recovery would flow through without JS changes.)
+The plugin persists the active ride to disk as it records, so a background
+process-kill mid-ride (iOS reclaiming memory while the screen is off) no longer
+loses the part of the track recorded while backgrounded.
+
+- The buffer is written to `MemoryLanesRideBuffer.json` in Application Support,
+  rewritten every ~10 new points and forced on `start`/`stop`, off the location
+  thread via a dedicated serial queue with atomic writes.
+- On launch, `load()` restores the buffer. If it was flagged `recording` at the
+  time of the kill, the buffer is marked interrupted (`getStatus().interrupted`)
+  and `getTrack()` returns the recovered points; `isRecording` is forced false
+  since a cold launch is never actively recording.
+- `start` resets the buffer, `stop` writes a final not-recording snapshot, and
+  `clear` deletes the file.
+
+On the JS side, `ride-live.js` reads this via `readNativeInterruptedDraft()` at
+launch and folds it into the same unsaved-ride recovery flow used on the web
+(`localStorage` draft). When both exist, the native buffer wins on track
+completeness (it includes the backgrounded portion) while the localStorage
+draft contributes the JS-only context - pinned moments and the planned-route
+link. The buffer is cleared on a successful save, an explicit discard, or
+Cancel.

@@ -11,7 +11,7 @@ import supabase from './supabaseClient.js';
 // ride-live.html exactly. A bare './icons.js' is a DIFFERENT module URL to
 // './icons.js?v=N', so the browser loads icons.js twice and applyIcons()
 // runs twice, duplicating every button icon on this page.
-import { mlIconSVG } from './icons.js?v=89';
+import { mlIconSVG } from './icons.js?v=90';
 
 // Native iOS recorder bridge (Capacitor). Loaded LAZILY: the bridge pulls in
 // @capacitor/core from a CDN, so importing it statically would make every web
@@ -20,7 +20,7 @@ import { mlIconSVG } from './icons.js?v=89';
 // recording routes through CoreLocation and keeps tracking with the screen off.
 let nativeBridge = null;
 async function loadNativeBridge() {
-  if (!nativeBridge) nativeBridge = await import('./iosRideRecorder.js?v=89');
+  if (!nativeBridge) nativeBridge = await import('./iosRideRecorder.js?v=90');
   return nativeBridge;
 }
 
@@ -118,9 +118,9 @@ setRideState('idle');
 // The in-progress ride is written to storage as it records, so an iOS app
 // eviction, a browser tab reclaim, a crash, or a dead battery can no longer
 // silently lose the whole ride. On the next visit we detect the draft and
-// offer to recover and save it. (This covers the web path fully and the native
-// path up to the last foreground sync; a fuller native fix would also persist
-// CoreLocation's background buffer to disk.)
+// offer to recover and save it. In the native app this pairs with the
+// recorder plugin's own on-disk buffer (readNativeInterruptedDraft), which
+// additionally survives a background process-kill mid-ride.
 const DRAFT_KEY = 'ml-live-ride-draft';
 let lastDraftWrite = 0;
 
@@ -168,6 +168,48 @@ function readDraft() {
   } catch (_) { return null; }
 }
 
+// Native only: read the disk-persisted CoreLocation buffer left behind when the
+// app was killed mid-ride, and shape it like a draft. Returns null unless the
+// native layer flags the buffer as interrupted (so a cleanly-finished ride
+// isn't re-offered).
+async function readNativeInterruptedDraft() {
+  try {
+    const b = await loadNativeBridge();
+    const status = await b.getNativeRideRecordingStatus();
+    if (!status || status.recording || !status.interrupted) return null;
+    const track = await b.getNativeRideTrack();
+    const pts = Array.isArray(track && track.points) ? track.points : [];
+    const tuples = [];
+    let dist = 0, elev = 0, prev = null;
+    for (const p of pts) {
+      const lat = Number(p.lat), lng = Number(p.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const ele = Number.isFinite(Number(p.altitude)) ? Number(p.altitude) : 0;
+      const tMs = p.timestamp ? Date.parse(p.timestamp) : Date.now();
+      const speedKmh = Number.isFinite(Number(p.speed)) ? Number(p.speed) * 3.6 : 0;
+      if (prev) {
+        dist += haversineMeters(prev[0], prev[1], lat, lng);
+        if (ele > prev[2]) elev += ele - prev[2];
+      }
+      const tuple = [lat, lng, ele, tMs, speedKmh];
+      tuples.push(tuple);
+      prev = tuple;
+    }
+    if (tuples.length < 2) return null;
+    return {
+      v: 1,
+      startedAt: track.startedAt ? Date.parse(track.startedAt) : tuples[0][3],
+      routeId: null, routeTitle: null, groupRideId: null,
+      dist, elev, moments: [], pts: tuples, savedAt: Date.now(), _native: true
+    };
+  } catch (_) { return null; }
+}
+
+// Drop the native disk buffer too, so a recovered ride isn't offered again.
+function clearNativeDraft() {
+  if (nativeMode) loadNativeBridge().then(b => b.clearNativeRideTrack()).catch(() => {});
+}
+
 // Show a recovery card summarising the interrupted ride, with Save / Discard.
 function presentRecovery(draft) {
   let distKm = 0;
@@ -203,6 +245,7 @@ function presentRecovery(draft) {
   overlay.querySelector('#live-recovery-discard').addEventListener('click', () => {
     if (!confirm('Permanently discard this unsaved ride?')) return;
     clearDraft();
+    clearNativeDraft();
     overlay.remove();
     // Reload so the page sets up a normal fresh ride with no draft.
     window.location.reload();
@@ -267,7 +310,25 @@ function recoverDraft(draft) {
 
   // Before setting up a fresh ride, see if a previous one was cut off mid-record
   // (app evicted, crash, battery). If so, offer to recover it instead.
-  const draft = readDraft();
+  let draft = readDraft();
+  if (nativeMode) {
+    // The native recorder persists its buffer to disk, so after a background
+    // process-kill it still holds the part of the ride recorded while the screen
+    // was off - more complete than the localStorage draft (which only advances
+    // while the app is foreground). Prefer it, but keep the JS-only context
+    // (pinned moments, planned-route link) the native layer never sees.
+    const nativeDraft = await readNativeInterruptedDraft();
+    if (nativeDraft) {
+      if (draft && nativeDraft.pts.length >= draft.pts.length) {
+        nativeDraft.moments = draft.moments;
+        nativeDraft.routeId = draft.routeId;
+        nativeDraft.routeTitle = draft.routeTitle;
+        draft = nativeDraft;
+      } else if (!draft) {
+        draft = nativeDraft;
+      }
+    }
+  }
   if (draft) {
     loadingEl.style.display = 'none';
     bodyEl.style.display = '';
@@ -449,6 +510,7 @@ cancelBtn.addEventListener('click', () => {
   endWatch();
   recording = false;
   clearDraft(); // deliberate abandon: don't offer to recover this one later
+  clearNativeDraft();
   stopBroadcasting();
   window.location.href = plannedRoute ? 'planner.html' : 'dashboard.html';
 });
@@ -912,6 +974,7 @@ saveBtn.addEventListener('click', async () => {
     }
 
     clearDraft(); // the ride is safely in the database now
+    clearNativeDraft();
     setSaveStatus('Ride saved!', false);
     window.location.href = `index.html?ride=${insertData.id}`;
   } catch (e) {

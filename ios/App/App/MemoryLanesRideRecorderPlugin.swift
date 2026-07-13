@@ -19,15 +19,38 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
     private let manager = CLLocationManager()
 
     // Capacitor invokes plugin methods on a background queue while CoreLocation
-    // delivers delegate callbacks on the main run loop. All three of these are
-    // touched from both sides, so every read/write goes through this serial
-    // queue to avoid a data race on the recorded track.
+    // delivers delegate callbacks on the main run loop. All shared state below is
+    // touched from both sides, so every read/write goes through this serial queue
+    // to avoid a data race on the recorded track.
     private let stateQueue = DispatchQueue(label: "app.memorylanes.riderecorder.state")
     private var points: [[String: Any]] = []
     private var isRecording = false
     private var startedAt: Date?
+    // True when the buffer was restored from disk after the app process was
+    // killed mid-ride (so JS can offer to recover it).
+    private var wasInterrupted = false
+    // How many points were in the last on-disk snapshot, so we only rewrite the
+    // file every so often rather than on every single GPS fix.
+    private var lastPersistedCount = 0
 
     private var permissionCallID: String?
+
+    // Serializes file I/O off the location/plugin threads.
+    private let diskQueue = DispatchQueue(label: "app.memorylanes.riderecorder.disk")
+
+    // The ride buffer is written here as it records, so an iOS process kill while
+    // backgrounded (screen off, mid-ride) no longer loses the background portion
+    // of the track. Application Support is the correct home for app-managed data
+    // the system shouldn't purge.
+    private let storeURL: URL = {
+        let fm = FileManager.default
+        let base = (try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
+            ?? fm.temporaryDirectory
+        return base.appendingPathComponent("MemoryLanesRideBuffer.json")
+    }()
+
+    // Rewrite the on-disk buffer once this many new points have accumulated.
+    private let persistEvery = 10
 
     // Reused across every recorded point instead of allocating per fix (a ride
     // can produce thousands of points).
@@ -45,6 +68,7 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
         manager.pausesLocationUpdatesAutomatically = false
         manager.allowsBackgroundLocationUpdates = true
         manager.showsBackgroundLocationIndicator = true
+        loadFromDisk()
     }
 
     @objc override public func checkPermissions(_ call: CAPPluginCall) {
@@ -87,7 +111,10 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
             points.removeAll()
             startedAt = Date()
             isRecording = true
+            lastPersistedCount = 0
+            wasInterrupted = false
         }
+        persistToDisk(force: true) // mark a ride as in-progress from the first moment
         DispatchQueue.main.async { self.manager.startUpdatingLocation() }
 
         let payload = statusPayload()
@@ -98,6 +125,7 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
     @objc public func stop(_ call: CAPPluginCall) {
         DispatchQueue.main.async { self.manager.stopUpdatingLocation() }
         stateQueue.sync { isRecording = false }
+        persistToDisk(force: true) // final snapshot, now flagged not-recording
 
         let payload = statusPayload()
         notifyListeners("rideRecorderStatus", data: payload)
@@ -133,7 +161,10 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
         stateQueue.sync {
             points.removeAll()
             startedAt = nil
+            lastPersistedCount = 0
+            wasInterrupted = false
         }
+        deleteDisk()
         call.resolve(statusPayload())
     }
 
@@ -157,6 +188,7 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
         }
 
         guard !newPoints.isEmpty else { return }
+        persistToDisk(force: false)
         for point in newPoints {
             notifyListeners("rideRecorderPoint", data: point)
         }
@@ -193,17 +225,68 @@ public class MemoryLanesRideRecorderPlugin: CAPPlugin, CAPBridgedPlugin, CLLocat
         var recording = false
         var count = 0
         var started: Date?
+        var interrupted = false
         stateQueue.sync {
             recording = isRecording
             count = points.count
             started = startedAt
+            interrupted = wasInterrupted
         }
         return [
             "recording": recording,
             "startedAt": isoString(started) as Any,
             "pointCount": count,
-            "permission": permissionState()
+            "permission": permissionState(),
+            "interrupted": interrupted
         ]
+    }
+
+    // MARK: - Disk persistence
+
+    // Snapshot the buffer under the state lock, then hand the encode + atomic
+    // write to a dedicated serial queue so file I/O never blocks GPS delivery.
+    private func persistToDisk(force: Bool) {
+        var payload: [String: Any]?
+        stateQueue.sync {
+            guard force || points.count - lastPersistedCount >= persistEvery else { return }
+            lastPersistedCount = points.count
+            payload = [
+                "startedAt": isoString(startedAt) as Any,
+                "recording": isRecording,
+                "points": points
+            ]
+        }
+        guard let payload else { return }
+        let url = storeURL
+        diskQueue.async {
+            if let data = try? JSONSerialization.data(withJSONObject: payload) {
+                try? data.write(to: url, options: .atomic)
+            }
+        }
+    }
+
+    private func deleteDisk() {
+        let url = storeURL
+        diskQueue.async { try? FileManager.default.removeItem(at: url) }
+    }
+
+    // Called once at launch. If a buffer is on disk from a ride that was cut off
+    // (the app was killed while recording), restore it so JS can offer recovery.
+    private func loadFromDisk() {
+        guard
+            let data = try? Data(contentsOf: storeURL),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let pts = obj["points"] as? [[String: Any]], pts.count >= 2
+        else { return }
+        let started = (obj["startedAt"] as? String).flatMap { Self.isoFormatter.date(from: $0) }
+        let wasRecording = (obj["recording"] as? Bool) ?? false
+        stateQueue.sync {
+            points = pts
+            lastPersistedCount = pts.count
+            startedAt = started
+            isRecording = false // a cold launch is never actively recording
+            wasInterrupted = wasRecording
+        }
     }
 
     private func isoString(_ date: Date?) -> String? {
