@@ -49,6 +49,19 @@ struct SupabaseHTTPClient {
         try await sendWithoutDecoding(request)
     }
 
+    func download(path: String, accessToken: String) async throws -> Data {
+        let url = baseURL.appendingPathComponent(path)
+        let request = request(url: url, method: "GET", accessToken: accessToken)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw SupabaseHTTPError.invalidResponse }
+        guard 200..<300 ~= http.statusCode else {
+            let message = (try? JSONDecoder.supabase.decode(SupabaseErrorPayload.self, from: data).message)
+                ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
+            throw SupabaseHTTPError.server(status: http.statusCode, message: message)
+        }
+        return data
+    }
+
     private func request(url: URL, method: String, accessToken: String?) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = method

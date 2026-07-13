@@ -24,6 +24,8 @@ struct Ride: Identifiable, Hashable, Sendable {
     var source: RideSource
     /// The route polyline, decimated for map thumbnails.
     var routePreview: [Coordinate]
+    /// Supabase Storage path for the original GPX, when available.
+    var gpxPath: String?
 
     init(
         id: UUID = UUID(),
@@ -35,7 +37,8 @@ struct Ride: Identifiable, Hashable, Sendable {
         flowScore: Int? = nil,
         locationName: String? = nil,
         source: RideSource = .gpx,
-        routePreview: [Coordinate] = []
+        routePreview: [Coordinate] = [],
+        gpxPath: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -47,6 +50,7 @@ struct Ride: Identifiable, Hashable, Sendable {
         self.locationName = locationName
         self.source = source
         self.routePreview = routePreview
+        self.gpxPath = gpxPath
     }
 
     // Hashable/Equatable by id — coordinates aren't Hashable and identity is enough.

@@ -16,18 +16,22 @@ struct RideCard: View {
             onTap()
         }) {
             VStack(alignment: .leading, spacing: 0) {
-                RouteThumbnail(route: ride.routePreview)
-                    .frame(height: 148)
-                    .overlay(alignment: .topTrailing) {
-                        SourceBadge(source: ride.source)
+                ZStack(alignment: .topTrailing) {
+                    if ride.routePreview.count > 1 {
+                        RouteThumbnail(route: ride.routePreview)
+                    } else {
+                        EmptyRouteArtwork()
+                    }
+                    SourceBadge(source: ride.source)
+                        .padding(Spacing.sm)
+                }
+                .frame(height: 148)
+                .overlay(alignment: .topLeading) {
+                    if let score = ride.flowScore {
+                        FlowChip(score: score)
                             .padding(Spacing.sm)
                     }
-                    .overlay(alignment: .topLeading) {
-                        if let score = ride.flowScore {
-                            FlowChip(score: score)
-                                .padding(Spacing.sm)
-                        }
-                    }
+                }
 
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -65,6 +69,22 @@ struct RideCard: View {
             return "\(location) · \(ride.relativeDate)"
         }
         return ride.relativeDate
+    }
+}
+
+private struct EmptyRouteArtwork: View {
+    var body: some View {
+        ZStack {
+            Color.mlSurfaceElevated
+            VStack(spacing: Spacing.xs) {
+                Image(systemName: "map")
+                    .font(MLFont.displaySmall)
+                    .foregroundStyle(Color.mlTextTertiary)
+                Text("Route loading")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+            }
+        }
     }
 }
 

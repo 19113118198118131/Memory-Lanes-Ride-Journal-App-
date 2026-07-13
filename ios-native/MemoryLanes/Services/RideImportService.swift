@@ -112,7 +112,8 @@ private struct RideInsertResponse: Decodable {
             durationSeconds: (durationMin ?? 0) * 60,
             elevationGainMeters: elevationM ?? 0,
             source: gpxPath == nil ? .live : .gpx,
-            routePreview: routePreview
+            routePreview: routePreview,
+            gpxPath: gpxPath
         )
     }
 

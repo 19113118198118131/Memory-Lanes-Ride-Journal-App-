@@ -92,6 +92,7 @@ enum SampleData {
 
     static let heroDetail = RideDetail(
         id: hero.id,
+        routePreview: ridgeRoute,
         elevation: elevationSamples,
         corners: corners,
         moments: moments,

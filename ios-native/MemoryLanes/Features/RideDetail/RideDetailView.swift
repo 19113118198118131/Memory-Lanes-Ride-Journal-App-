@@ -25,7 +25,7 @@ struct RideDetailView: View {
         ZStack(alignment: .top) {
             ScrollView {
                 VStack(spacing: 0) {
-                    MLMapView(route: viewModel.ride.routePreview, fadeColor: .mlBackground)
+                    heroMap
                         .frame(height: heroHeight)
 
                     content
@@ -54,6 +54,27 @@ struct RideDetailView: View {
     }
 
     // MARK: Scrolling content
+
+    @ViewBuilder
+    private var heroMap: some View {
+        if viewModel.ride.routePreview.count > 1 {
+            MLMapView(route: viewModel.ride.routePreview, fadeColor: .mlBackground)
+        } else if let detailRoute = viewModel.detailRoutePreview, detailRoute.count > 1 {
+            MLMapView(route: detailRoute, fadeColor: .mlBackground)
+        } else {
+            ZStack {
+                Color.mlSurfaceElevated
+                VStack(spacing: Spacing.xs) {
+                    Image(systemName: "map")
+                        .font(MLFont.display)
+                        .foregroundStyle(Color.mlTextTertiary)
+                    Text("Route unavailable")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
+            }
+        }
+    }
 
     private var content: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {

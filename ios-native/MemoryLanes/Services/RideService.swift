@@ -10,7 +10,7 @@ import Foundation
 protocol RideServing {
     func fetchRides() async throws -> [Ride]
     /// Full analysis for one ride, loaded when the rider opens it.
-    func fetchDetail(for rideID: UUID) async throws -> RideDetail
+    func fetchDetail(for ride: Ride) async throws -> RideDetail
 }
 
 // MARK: - Preview / demo implementation
@@ -29,13 +29,14 @@ struct PreviewRideService: RideServing {
         return rides
     }
 
-    func fetchDetail(for rideID: UUID) async throws -> RideDetail {
+    func fetchDetail(for ride: Ride) async throws -> RideDetail {
         try await Task.sleep(for: delay)
         if let failure { throw failure }
         // Sample detail is keyed to the hero ride; reuse its analysis with the
         // requested id so any previewed ride resolves to something to show.
         return RideDetail(
-            id: rideID,
+            id: ride.id,
+            routePreview: SampleData.heroDetail.routePreview,
             elevation: SampleData.heroDetail.elevation,
             corners: SampleData.heroDetail.corners,
             moments: SampleData.heroDetail.moments,
@@ -65,13 +66,45 @@ struct RideService: RideServing {
             ],
             accessToken: token
         )
-        return rows.map(\.ride)
+        var hydrated: [Ride] = []
+        for row in rows {
+            var ride = row.ride
+            if let gpxPath = row.gpxPath,
+               let track = try? await downloadTrack(path: gpxPath, accessToken: token) {
+                ride.routePreview = track.routePreview
+            }
+            hydrated.append(ride)
+        }
+        return hydrated
     }
 
-    func fetchDetail(for rideID: UUID) async throws -> RideDetail {
-        // Detail analysis still needs the GPX parser and Ride Coach port. Return a
-        // graceful empty detail for live rows so Ride Detail opens from real data.
-        RideDetail(id: rideID, elevation: [], corners: [], moments: [], weather: nil, debrief: "Detailed replay and coaching will appear here once GPX parsing lands.")
+    func fetchDetail(for ride: Ride) async throws -> RideDetail {
+        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        guard let gpxPath = ride.gpxPath else {
+            return RideDetail(id: ride.id, routePreview: [], elevation: [], corners: [], moments: [], weather: nil, debrief: "This ride does not have an attached GPX file yet.")
+        }
+        let data = try await client.download(
+            path: "storage/v1/object/gpx-files/\(gpxPath)",
+            accessToken: token
+        )
+        let track = try GPXParser().parse(data: data)
+        return RideDetail(
+            id: ride.id,
+            routePreview: track.routePreview,
+            elevation: track.elevationSamples,
+            corners: [],
+            moments: [],
+            weather: nil,
+            debrief: "Route and elevation loaded from the saved GPX. Ride Coach analysis is the next layer."
+        )
+    }
+
+    private func downloadTrack(path: String, accessToken: String) async throws -> GPXTrack {
+        let data = try await client.download(
+            path: "storage/v1/object/gpx-files/\(path)",
+            accessToken: accessToken
+        )
+        return try GPXParser().parse(data: data)
     }
 }
 
@@ -121,7 +154,8 @@ private struct SupabaseRideRow: Decodable {
             flowScore: skills?.flowScore,
             locationName: nil,
             source: gpxPath == nil ? .live : .gpx,
-            routePreview: []
+            routePreview: [],
+            gpxPath: gpxPath
         )
     }
 

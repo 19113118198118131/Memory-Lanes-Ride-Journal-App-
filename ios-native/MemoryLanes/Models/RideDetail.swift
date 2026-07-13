@@ -9,6 +9,7 @@ import Foundation
 
 struct RideDetail: Identifiable, Sendable {
     let id: UUID              // matches the parent Ride.id
+    var routePreview: [Coordinate]
     var elevation: [ElevationSample]
     var corners: [CornerTicket]
     var moments: [Moment]

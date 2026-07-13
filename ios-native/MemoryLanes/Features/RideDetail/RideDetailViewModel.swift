@@ -39,6 +39,10 @@ final class RideDetailViewModel {
         return nil
     }
 
+    var detailRoutePreview: [Coordinate]? {
+        detail?.routePreview
+    }
+
     /// Key headline stats shown under the title, available immediately.
     var headlineStats: [SegmentedMetric.Item] {
         [
@@ -51,7 +55,7 @@ final class RideDetailViewModel {
     func load() async {
         state = .loading
         do {
-            let detail = try await rideService.fetchDetail(for: ride.id)
+            let detail = try await rideService.fetchDetail(for: ride)
             state = .loaded(detail)
         } catch is CancellationError {
         } catch {
