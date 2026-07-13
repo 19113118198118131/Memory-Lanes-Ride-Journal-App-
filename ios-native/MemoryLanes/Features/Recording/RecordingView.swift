@@ -2,37 +2,15 @@ import SwiftUI
 
 // MARK: - RecordingView
 //
-// Native ride recording cockpit. This is intentionally local/demo-backed for now:
-// the next step is replacing simulated telemetry with Core Location updates and
-// writing completed rides through the service layer.
+// Native ride recording cockpit backed by Core Location. It records real device
+// points, persists an interrupted draft, and creates GPX text when finished.
 
 struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var elapsed: TimeInterval = 0
-    @State private var isPaused = false
+    @StateObject private var recorder = LiveRideRecorder()
     @State private var showingFinishConfirmation = false
-
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
-    private var distanceKm: Double {
-        elapsed * 0.0062
-    }
-
-    private var averageSpeedKmh: Double {
-        guard elapsed > 0 else { return 0 }
-        return distanceKm / (elapsed / 3600)
-    }
-
-    private var currentSpeedKmh: Double {
-        isPaused ? 0 : min(58, max(18, averageSpeedKmh + sin(elapsed / 12) * 6))
-    }
-
-    private var routePreview: [Coordinate] {
-        let route = SampleData.ridgeRoute
-        let progress = min(1, elapsed / 240)
-        let visibleCount = max(2, min(route.count, Int(Double(route.count) * progress) + 2))
-        return Array(route.prefix(visibleCount))
-    }
+    @State private var showingDiscardConfirmation = false
+    @State private var finishedRide: RecordedRideResult?
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -41,38 +19,63 @@ struct RecordingView: View {
         }
         .background(Color.mlBackground)
         .ignoresSafeArea(edges: .top)
-        .onReceive(timer) { _ in
-            guard !isPaused else { return }
-            elapsed += 1
+        .task {
+            if recorder.status == .idle {
+                recorder.start()
+            }
         }
         .alert("Finish ride?", isPresented: $showingFinishConfirmation) {
             Button("Keep Riding", role: .cancel) {}
-            Button("Finish", role: .destructive) {
+            Button("Finish") {
                 Haptics.success()
+                finishedRide = recorder.finish()
+            }
+        } message: {
+            Text("Memory Lanes will stop recording, export a GPX locally, and keep this ready for journal sync.")
+        }
+        .alert("Discard ride?", isPresented: $showingDiscardConfirmation) {
+            Button("Keep Riding", role: .cancel) {}
+            Button("Discard", role: .destructive) {
+                Haptics.warning()
+                recorder.discard()
                 dismiss()
             }
         } message: {
-            Text("This will end the current recording. Saving to your journal will be wired when live ride storage lands.")
+            Text("This deletes the active recording draft from this device.")
+        }
+        .sheet(item: $finishedRide) { result in
+            RecordingFinishedSheet(result: result) {
+                dismiss()
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
     }
 
     private var mapLayer: some View {
-        MLMapView(route: routePreview, fadeColor: .mlBackground)
-            .overlay(alignment: .top) {
-                VStack(spacing: Spacing.sm) {
-                    topBar
-                    gpsPill
-                }
-                .padding(.horizontal, Spacing.screenH)
-                .padding(.top, 58)
+        Group {
+            if recorder.routePreview.count > 1 {
+                MLMapView(route: recorder.routePreview, fadeColor: .mlBackground)
+            } else {
+                MLMapView(route: SampleData.ridgeRoute, fadeColor: .mlBackground)
+                    .overlay(Color.black.opacity(0.42))
             }
+        }
+        .overlay(alignment: .top) {
+            VStack(spacing: Spacing.sm) {
+                topBar
+                gpsPill
+            }
+            .padding(.horizontal, Spacing.screenH)
+            .padding(.top, 58)
+        }
     }
 
     private var topBar: some View {
         HStack {
             Button {
                 Haptics.selection()
-                showingFinishConfirmation = true
+                showingDiscardConfirmation = true
             } label: {
                 Image(systemName: "xmark")
                     .font(MLFont.headline)
@@ -85,9 +88,9 @@ struct RecordingView: View {
 
             Spacer()
 
-            Text(isPaused ? "Paused" : "Recording")
+            Text(statusTitle)
                 .font(MLFont.callout)
-                .foregroundStyle(isPaused ? Color.mlWarning : Color.mlAccent)
+                .foregroundStyle(statusColor)
                 .padding(.horizontal, Spacing.md)
                 .frame(height: 36)
                 .background(.ultraThinMaterial, in: Capsule())
@@ -97,13 +100,14 @@ struct RecordingView: View {
     private var gpsPill: some View {
         HStack(spacing: Spacing.xs) {
             Circle()
-                .fill(isPaused ? Color.mlWarning : Color.mlSuccess)
+                .fill(statusColor)
                 .frame(width: 8, height: 8)
-            Text(isPaused ? "GPS held while paused" : "GPS locked")
+            Text(recorder.lastErrorMessage ?? recorder.permissionSummary)
                 .font(MLFont.caption)
                 .foregroundStyle(Color.mlTextPrimary)
+                .lineLimit(1)
             Spacer()
-            Text("\(routePreview.count) pts")
+            Text("\(recorder.pointCount) pts")
                 .font(MLFont.monoSmall)
                 .foregroundStyle(Color.mlTextSecondary)
         }
@@ -116,27 +120,20 @@ struct RecordingView: View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text("Live ride").mlKicker()
-                Text(formattedDuration(elapsed))
+                Text(formattedDuration(recorder.elapsed))
                     .font(MLFont.displayXL)
                     .foregroundStyle(Color.mlTextPrimary)
                     .contentTransition(.numericText())
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
-                liveMetric(label: "Distance", value: String(format: "%.2f", distanceKm), unit: "km", symbol: "point.topleft.down.to.point.bottomright.curvepath")
-                liveMetric(label: "Current", value: String(format: "%.0f", currentSpeedKmh), unit: "km/h", symbol: "speedometer")
-                liveMetric(label: "Average", value: String(format: "%.0f", averageSpeedKmh), unit: "km/h", symbol: "gauge.with.dots.needle.67percent")
-                liveMetric(label: "Elevation", value: String(format: "%.0f", distanceKm * 21), unit: "m", symbol: "mountain.2.fill")
+                liveMetric(label: "Distance", value: String(format: "%.2f", recorder.distanceKm), unit: "km", symbol: "point.topleft.down.to.point.bottomright.curvepath")
+                liveMetric(label: "Current", value: speedText(recorder.currentSpeedMetersPerSecond), unit: "km/h", symbol: "speedometer")
+                liveMetric(label: "Average", value: speedText(recorder.averageSpeedMetersPerSecond), unit: "km/h", symbol: "gauge.with.dots.needle.67percent")
+                liveMetric(label: "Elevation", value: String(format: "%.0f", recorder.elevationGainMeters), unit: "m", symbol: "mountain.2.fill")
             }
 
-            HStack(spacing: Spacing.md) {
-                SecondaryButton(title: isPaused ? "Resume" : "Pause", systemImage: isPaused ? "play.fill" : "pause.fill") {
-                    isPaused.toggle()
-                }
-                PrimaryButton(title: "Finish", systemImage: "flag.checkered") {
-                    showingFinishConfirmation = true
-                }
-            }
+            actionButtons
         }
         .padding(Spacing.lg)
         .padding(.bottom, Spacing.md)
@@ -147,6 +144,52 @@ struct RecordingView: View {
                 .fill(Color.mlHairline)
                 .frame(width: 42, height: 4)
                 .padding(.top, Spacing.sm)
+        }
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        switch recorder.status {
+        case .permissionDenied:
+            PrimaryButton(title: "Try Again", systemImage: "location.fill") {
+                recorder.start()
+            }
+        case .idle:
+            PrimaryButton(title: "Start", systemImage: "location.fill") {
+                recorder.start()
+            }
+        case .recording, .paused:
+            HStack(spacing: Spacing.md) {
+                SecondaryButton(title: recorder.isPaused ? "Resume" : "Pause", systemImage: recorder.isPaused ? "play.fill" : "pause.fill") {
+                    recorder.isPaused ? recorder.resume() : recorder.pause()
+                }
+                PrimaryButton(title: "Finish", systemImage: "flag.checkered") {
+                    showingFinishConfirmation = true
+                }
+            }
+        case .finished:
+            PrimaryButton(title: "Done", systemImage: "checkmark") {
+                dismiss()
+            }
+        }
+    }
+
+    private var statusTitle: String {
+        switch recorder.status {
+        case .idle: "Starting"
+        case .recording: "Recording"
+        case .paused: "Paused"
+        case .permissionDenied: "Permission Needed"
+        case .finished: "Finished"
+        }
+    }
+
+    private var statusColor: Color {
+        switch recorder.status {
+        case .recording: .mlAccent
+        case .paused, .idle: .mlWarning
+        case .permissionDenied: .mlDanger
+        case .finished: .mlSuccess
         }
     }
 
@@ -178,6 +221,10 @@ struct RecordingView: View {
         )
     }
 
+    private func speedText(_ metersPerSecond: Double) -> String {
+        String(format: "%.0f", metersPerSecond * 3.6)
+    }
+
     private func formattedDuration(_ seconds: TimeInterval) -> String {
         let total = Int(seconds)
         let hours = total / 3600
@@ -188,6 +235,50 @@ struct RecordingView: View {
         }
         return String(format: "%02d:%02d", minutes, secs)
     }
+}
+
+private struct RecordingFinishedSheet: View {
+    let result: RecordedRideResult
+    let onDone: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Ride recorded").mlKicker()
+                Text("GPX ready")
+                    .font(MLFont.display)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text("The ride was recorded locally and exported as GPX. Supabase journal sync is the next layer.")
+                    .font(MLFont.body)
+                    .foregroundStyle(Color.mlTextSecondary)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
+                StatCard(label: "Distance", value: String(format: "%.2f", result.distanceMeters / 1000), unit: "km", systemImage: "map")
+                StatCard(label: "Time", value: duration(result.durationSeconds), systemImage: "clock")
+                StatCard(label: "Elevation", value: String(format: "%.0f", result.elevationGainMeters), unit: "m", systemImage: "mountain.2.fill")
+                StatCard(label: "Points", value: "\(result.points.count)", systemImage: "location.fill")
+            }
+
+            PrimaryButton(title: "Done", systemImage: "checkmark") {
+                onDone()
+            }
+        }
+        .padding(Spacing.lg)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.mlBackground)
+    }
+
+    private func duration(_ seconds: TimeInterval) -> String {
+        let total = Int(seconds)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        return h > 0 ? "\(h)h \(m)m" : "\(m)m"
+    }
+}
+
+extension RecordedRideResult: Identifiable {
+    var id: Date { startedAt }
 }
 
 #Preview {
