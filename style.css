@@ -5295,3 +5295,639 @@ body[data-ride-state="saving"] .live-recording-dot { background: var(--cockpit-a
   border-style: dashed solid solid solid;
   background: linear-gradient(90deg, rgba(255, 209, 102, 0.05), transparent 40%), var(--card-bg);
 }
+
+/* ============================================================
+   IOS REDESIGN HANDOFF IMPLEMENTATION
+   Shared premium app shell for Capacitor/iPhone screens.
+   ============================================================ */
+:root {
+  --ios-bg: #0a0d12;
+  --ios-surface: #151b23;
+  --ios-surface-2: #0f141b;
+  --ios-line: rgba(255,255,255,0.09);
+  --ios-line-strong: rgba(127,230,233,0.32);
+  --ios-text: #f3f6fa;
+  --ios-muted: rgba(243,246,250,0.62);
+  --ios-faint: rgba(243,246,250,0.44);
+  --ios-accent: #2bb8cf;
+  --ios-accent-soft: rgba(43,184,207,0.14);
+  --ios-accent-2: #7fe6e9;
+  --ios-amber: #ffb347;
+  --ios-pink: #ff8fa3;
+  --ios-green: #5fe0a0;
+  --ios-danger: #ff6b6b;
+  --ios-radius: 22px;
+  --ios-radius-sm: 14px;
+  --ios-shadow: 0 10px 28px rgba(0,0,0,0.55);
+}
+
+body.ios-welcome-page,
+body.ios-app-page {
+  background:
+    radial-gradient(circle at 50% 4%, rgba(43,184,207,0.22), transparent 34rem),
+    radial-gradient(circle at 8% 20%, rgba(127,230,233,0.08), transparent 22rem),
+    var(--ios-bg);
+  color: var(--ios-text);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+body.ios-app-page { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+
+body.ios-welcome-page main,
+body.ios-app-page main,
+.premium-home-shell {
+  width: min(100%, 430px);
+  margin: 0 auto;
+  padding-inline: max(18px, env(safe-area-inset-left));
+}
+
+body.ios-app-page .theme-toggle-corner,
+body.ios-welcome-page .theme-toggle-corner { display: none; }
+
+body.ios-app-page .main-header,
+body.ios-welcome-page .main-header {
+  width: min(100%, 430px);
+  margin: 0 auto;
+  padding: calc(14px + env(safe-area-inset-top)) 18px 12px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+body.ios-app-page .brand-row,
+body.ios-welcome-page .brand-row { gap: 10px; color: var(--ios-text); }
+
+body.ios-app-page .logo-card,
+body.ios-welcome-page .logo-card {
+  width: 28px;
+  height: 28px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.ios-app-page .brand-logo,
+body.ios-welcome-page .brand-logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: saturate(0) brightness(1.8);
+}
+
+body.ios-app-page .site-title,
+body.ios-welcome-page .site-title {
+  color: var(--ios-text);
+  font-size: 19px;
+  font-weight: 600;
+  font-style: italic;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+body.ios-app-page .tagline,
+body.ios-welcome-page .tagline {
+  color: var(--ios-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body.ios-app-page .site-nav,
+body.ios-welcome-page .site-nav { display: none; }
+
+body.ios-app-page header:not(.main-header) {
+  width: min(100%, 430px);
+  margin: 0 auto;
+  padding: 0 18px;
+  background: transparent;
+  border: 0;
+}
+
+body.ios-app-page .dashboard-header {
+  display: block;
+  margin: 4px 0 18px;
+}
+
+body.ios-app-page .dashboard-header h1,
+body.ios-app-page main > section > h2,
+body.ios-app-page #journal-heading {
+  color: var(--ios-text);
+  font-size: 26px;
+  line-height: 1.12;
+  font-weight: 500;
+  margin: 0 0 16px;
+}
+
+body.ios-app-page .button-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ios-tabbar,
+.premium-tabbar,
+.live-tabbar {
+  position: fixed;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 1100;
+  width: min(calc(100vw - 22px), 408px);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  padding: 8px 9px;
+  background: rgba(15,20,27,0.92);
+  border: 1px solid var(--ios-line);
+  border-radius: 24px;
+  box-shadow: var(--ios-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.ios-tabbar a,
+.premium-tabbar a,
+.live-tabbar a {
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--ios-faint);
+  text-decoration: none;
+  border-radius: 18px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ios-tabbar a.active,
+.premium-tabbar a.active,
+.live-tabbar a.active {
+  color: var(--ios-accent-2);
+  background: rgba(43,184,207,0.1);
+}
+
+.ios-tabbar .ml-icon,
+.premium-tabbar .ml-icon,
+.live-tabbar .ml-icon { width: 18px; height: 18px; }
+
+body.ios-app-page .btn-primary,
+body.ios-app-page .btn-outline,
+body.ios-app-page .btn-muted,
+body.ios-app-page .btn-plain-danger,
+body.ios-welcome-page .btn-primary,
+body.ios-welcome-page .btn-outline,
+body.ios-welcome-page .btn-muted,
+body.ios-welcome-page .btn-plain-danger {
+  min-height: 46px;
+  border-radius: 999px;
+  border: 1px solid var(--ios-line);
+  font-weight: 600;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+body.ios-app-page .btn-primary,
+body.ios-welcome-page .btn-primary {
+  background: var(--ios-accent);
+  border-color: var(--ios-accent);
+  color: #061014;
+}
+
+body.ios-app-page .btn-outline,
+body.ios-app-page .btn-muted,
+body.ios-welcome-page .btn-outline,
+body.ios-welcome-page .btn-muted {
+  background: rgba(255,255,255,0.035);
+  color: var(--ios-text);
+}
+
+body.ios-app-page .btn-plain-danger,
+body.ios-welcome-page .btn-plain-danger {
+  color: var(--ios-danger);
+  background: rgba(255,107,107,0.09);
+}
+
+body.ios-app-page input,
+body.ios-app-page textarea,
+body.ios-app-page select,
+body.ios-welcome-page input,
+body.ios-welcome-page textarea,
+body.ios-welcome-page select {
+  background: rgba(255,255,255,0.045);
+  border: 1px solid var(--ios-line);
+  border-radius: var(--ios-radius-sm);
+  color: var(--ios-text);
+  min-height: 46px;
+}
+
+body.ios-app-page input::placeholder,
+body.ios-app-page textarea::placeholder,
+body.ios-welcome-page input::placeholder,
+body.ios-welcome-page textarea::placeholder { color: var(--ios-faint); }
+
+.ios-welcome-page .main-header { justify-content: center; }
+.ios-welcome-page .header-auth { display: none !important; }
+
+.ios-welcome-page #landing-hero {
+  min-height: calc(100vh - 110px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 26px 0 34px;
+  text-align: center;
+}
+
+.ios-welcome-page .hero-bg { opacity: 0.75; }
+
+.ios-welcome-page .hero-title {
+  font-size: 30px;
+  line-height: 1.05;
+  font-weight: 500;
+  color: var(--ios-text);
+  margin: 18px 0 8px;
+}
+
+.ios-welcome-page .hero-sub {
+  color: var(--ios-muted);
+  max-width: 34ch;
+  margin: 0 auto 22px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.ios-welcome-page .hero-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin: 0 auto 22px;
+  width: min(100%, 360px);
+}
+
+.ios-welcome-page .hero-card {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 10px;
+  text-align: left;
+  align-items: center;
+  padding: 12px 14px;
+  background: rgba(21,27,35,0.72);
+  border: 1px solid var(--ios-line);
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.ios-welcome-page .hero-card-icon {
+  grid-row: span 2;
+  color: var(--ios-accent-2);
+}
+
+.ios-welcome-page .hero-card-title {
+  color: var(--ios-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ios-welcome-page .hero-card-text {
+  color: var(--ios-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.ios-welcome-page .hero-actions {
+  width: min(100%, 360px);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.ios-welcome-page .hero-note {
+  color: var(--ios-faint);
+  max-width: 34ch;
+  margin: 15px auto 0;
+}
+
+.ios-welcome-page #auth-section,
+.ios-welcome-page #save-ride-form {
+  width: min(100%, 380px);
+  margin: 0 auto 28px !important;
+  padding: 20px;
+  border-radius: var(--ios-radius);
+  background: var(--ios-surface);
+  border: 1px solid var(--ios-line);
+  box-shadow: var(--ios-shadow);
+}
+
+.ios-welcome-page #auth-section h2,
+.ios-welcome-page #save-ride-form h3 {
+  margin-top: 0;
+  color: var(--ios-text);
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.ios-welcome-page .auth-form,
+.ios-welcome-page .ride-form { display: grid; gap: 10px; }
+
+.premium-home-page {
+  --premium-bg: var(--ios-bg);
+  --premium-card: var(--ios-surface);
+  --premium-line: var(--ios-line);
+  --premium-text: var(--ios-text);
+  --premium-muted: var(--ios-muted);
+  --premium-accent: var(--ios-accent);
+}
+
+.premium-home-shell { padding-top: calc(12px + env(safe-area-inset-top)); }
+.premium-app-topbar { margin-bottom: 20px; }
+.premium-app-topbar h1 { font-size: 27px; font-weight: 500; }
+
+.premium-kicker,
+.premium-section-head,
+.premium-metric-label,
+body.ios-app-page .planner-stat-label,
+body.ios-app-page .stat-label,
+body.ios-app-page .best-label {
+  font-size: 10.5px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--ios-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.premium-start-tile {
+  min-height: 96px;
+  border-radius: var(--ios-radius);
+  background:
+    linear-gradient(135deg, rgba(43,184,207,0.15), rgba(43,184,207,0.04)),
+    var(--ios-surface-2);
+  border: 1px solid var(--ios-line-strong);
+  box-shadow: 0 0 26px rgba(43,184,207,0.12);
+}
+
+.premium-action-tile,
+.premium-metric-card,
+.premium-empty-card,
+.premium-home-page .profile-card,
+.premium-home-page .filters-container,
+.premium-home-page .ride-entry.premium-ride-row,
+body.ios-app-page .chart-block,
+body.ios-app-page .card-section,
+body.ios-app-page .profile-card,
+body.ios-app-page .planner-onboarding,
+body.ios-app-page .planner-candidate-why,
+body.ios-app-page .planner-candidate-cautions,
+body.ios-app-page .planner-candidate-match,
+body.ios-app-page #planner-save-form,
+body.ios-app-page .stat-card,
+body.ios-app-page .best-card,
+.journal-moment-card {
+  background: var(--ios-surface);
+  border: 1px solid var(--ios-line);
+  border-radius: var(--ios-radius);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.premium-route-thumb {
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 36% 32%, rgba(43,184,207,0.18), transparent 36%),
+    linear-gradient(145deg, #101720, #090d12);
+}
+
+.premium-feature-stats,
+.premium-home-page .ride-details,
+.premium-home-page .ride-date,
+.premium-home-page .section-sub,
+.premium-home-page .chart-desc { color: var(--ios-muted); }
+
+.status-chip,
+.premium-weather-pill {
+  border-radius: 999px;
+  border: 1px solid var(--ios-line);
+  background: rgba(255,255,255,0.04);
+}
+
+.ios-routes-page main { padding-bottom: 18px; }
+
+.ios-routes-page #planner-auth-note {
+  padding: 18px;
+  border-radius: var(--ios-radius);
+  background: var(--ios-surface);
+  border: 1px solid var(--ios-line);
+}
+
+.ios-routes-page #planner-onboarding h2,
+.ios-routes-page #planner-saved-routes h2,
+.ios-routes-page #planner-save-form h3 {
+  font-size: 22px;
+  font-weight: 500;
+  margin-top: 0;
+}
+
+.ios-routes-page .onboarding-group { margin-bottom: 18px; }
+
+.ios-routes-page .onboarding-label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--ios-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ios-routes-page .onboarding-options,
+.ios-routes-page .planner-candidates-tabs,
+.ios-routes-page .planner-toolbar-actions { gap: 9px; }
+
+.ios-routes-page .onboarding-option,
+.ios-routes-page .planner-candidate-tab {
+  border-radius: 999px;
+  border: 1px solid var(--ios-line);
+  background: rgba(255,255,255,0.035);
+  color: var(--ios-text);
+  min-height: 40px;
+}
+
+.ios-routes-page .onboarding-option.active,
+.ios-routes-page .planner-candidate-tab.active {
+  border-color: var(--ios-accent);
+  background: rgba(43,184,207,0.18);
+  color: var(--ios-accent-2);
+}
+
+.ios-routes-page #planner-map,
+.ios-routes-page #planner-candidates-map,
+.ios-stats-page #all-routes-map,
+.ios-invite-page #route-map,
+.ios-group-page #group-map {
+  border-radius: var(--ios-radius);
+  border: 1px solid var(--ios-line);
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.ios-routes-page .planner-stats,
+.ios-live-page .planner-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.ios-routes-page .planner-stat,
+.ios-live-page .planner-stat,
+.ios-invite-page .planner-stat,
+.ios-group-page .planner-stat {
+  border-radius: 18px;
+  border: 1px solid var(--ios-line);
+  background: rgba(255,255,255,0.035);
+}
+
+.ios-invite-page #route-body,
+.ios-group-page #group-body,
+.ios-invite-page #route-loading,
+.ios-invite-page #route-error,
+.ios-group-page #group-loading,
+.ios-group-page #group-error {
+  padding: 18px;
+  border-radius: var(--ios-radius);
+  background: var(--ios-surface);
+  border: 1px solid var(--ios-line);
+}
+
+.ios-invite-page #route-body h2,
+.ios-group-page #group-body h2 {
+  margin-top: 0;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ios-text);
+}
+
+.ios-routes-page #planner-routes-list .planned-route-card,
+.ios-routes-page .ride-entry {
+  background: var(--ios-surface);
+  border: 1px solid var(--ios-line);
+  border-radius: var(--ios-radius);
+}
+
+.ios-journal-page #journal-toggle-view {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid var(--ios-line);
+}
+
+.ios-journal-page #journal-toggle-view button {
+  min-height: 38px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--ios-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ios-journal-page #journal-toggle-view button.active {
+  background: var(--ios-accent);
+  color: #061014;
+}
+
+.ios-journal-page .journal-moments-list {
+  display: grid;
+  gap: 12px;
+}
+
+.ios-journal-page .journal-moments-list.gallery-view {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ios-journal-page .journal-moment-card {
+  padding: 16px;
+  margin: 0;
+}
+
+.ios-journal-page .journal-moment-head {
+  font-size: 15px;
+  color: var(--ios-text);
+}
+
+.ios-journal-page .journal-moment-meta,
+.ios-journal-page .journal-moment-note { color: var(--ios-muted); }
+
+.ios-stats-page .stats-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ios-stats-page .stat-card { padding: 18px 12px; }
+
+.ios-stats-page .stat-card .stat-value {
+  color: var(--ios-accent-2);
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.ios-stats-page .bests-grid { grid-template-columns: 1fr; }
+.ios-stats-page .best-card { background: var(--ios-surface); }
+
+.ios-stats-page .best-card .best-value {
+  color: var(--ios-text);
+  font-weight: 500;
+}
+
+.live-cockpit-page { background: var(--ios-bg); }
+
+.live-cockpit .live-map-stage {
+  background:
+    radial-gradient(circle at 50% 40%, rgba(43,184,207,0.13), transparent 24rem),
+    #151b23;
+}
+
+.live-glassbar {
+  background: rgba(15,20,27,0.74);
+  border-color: var(--ios-line);
+  border-radius: 22px;
+  box-shadow: var(--ios-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.live-control-sheet {
+  background: rgba(21,27,35,0.94);
+  border-color: var(--ios-line);
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 -12px 36px rgba(0,0,0,0.45);
+}
+
+.live-primary-action {
+  border-radius: 999px;
+  background: var(--ios-accent);
+  color: #061014;
+  box-shadow: 0 0 22px rgba(43,184,207,0.2);
+}
+
+.live-secondary-action,
+.live-icon-button,
+.live-recenter-button {
+  border-radius: 999px;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid var(--ios-line);
+  color: var(--ios-text);
+}
+
+@media (max-width: 720px) {
+  body.ios-app-page main,
+  body.ios-welcome-page main,
+  .premium-home-shell { padding-inline: 16px; }
+
+  body.ios-app-page footer,
+  body.ios-welcome-page footer { display: none; }
+}

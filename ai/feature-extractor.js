@@ -7,7 +7,7 @@
 // cheap and stays consistent with what the coach shows.
 // ===============================
 
-import { FEATURE_SCHEMA_VERSION, MATCH_FEATURES } from './feature-schema.js?v=86';
+import { FEATURE_SCHEMA_VERSION, MATCH_FEATURES } from './feature-schema.js?v=87';
 
 function num(v) { return Number.isFinite(v) ? v : null; }
 function mean(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null; }

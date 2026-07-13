@@ -17,13 +17,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=86" />
+  <link rel="stylesheet" href="style.css?v=87" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a192f">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="assets/logo/favicon.png">
 </head>
-<body class="live-cockpit-page">
+<body class="live-cockpit-page ios-app-page ios-live-page">
   <main class="live-shell">
     <div id="live-loading" class="live-loading">Loading ride cockpit…</div>
 
@@ -124,18 +124,19 @@
       </div>
 
       <nav class="live-tabbar" aria-label="App sections">
-        <a class="active" href="ride-live.html" aria-current="page"><span data-icon="play"></span><span>Ride</span></a>
+        <a class="active" href="dashboard.html" aria-current="page"><span data-icon="play"></span><span>Ride</span></a>
         <a href="planner.html"><span data-icon="route"></span><span>Routes</span></a>
         <a href="journal.html"><span data-icon="book"></span><span>Journal</span></a>
         <a href="stats.html"><span data-icon="stats"></span><span>Stats</span></a>
+        <a href="dashboard.html#profile-section"><span data-icon="gauge"></span><span>Profile</span></a>
       </nav>
     </div>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="ride-live.js?v=86"></script>
-  <script type="module" src="icons.js?v=86"></script>
-  <script src="theme.js?v=86"></script>
+  <script type="module" src="ride-live.js?v=87"></script>
+  <script type="module" src="icons.js?v=87"></script>
+  <script src="theme.js?v=87"></script>
 </body>
 </html>

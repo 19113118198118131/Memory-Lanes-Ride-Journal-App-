@@ -3,12 +3,12 @@
 // =============================================
 
 import supabase from './supabaseClient.js';
-import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=86';
-import { buildRideInsights } from './insights.js?v=86';
-import { mlIconSVG } from './icons.js?v=86';
-import { extractRideFeatures } from './ai/feature-extractor.js?v=86';
-import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=86';
-import { initRideFeedback } from './ai/ride-feedback.js?v=86';
+import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=87';
+import { buildRideInsights } from './insights.js?v=87';
+import { mlIconSVG } from './icons.js?v=87';
+import { extractRideFeatures } from './ai/feature-extractor.js?v=87';
+import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=87';
+import { initRideFeedback } from './ai/ride-feedback.js?v=87';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let pendingSaveAfterLogin = false;
   const headerAuthControls    = document.getElementById('header-auth-controls');
   const headerLoginBtn        = document.getElementById('header-login-btn');
+  const iosGetStartedBtn      = document.getElementById('ios-get-started-btn');
   const headerAccountControls = document.getElementById('header-account-controls');
   const headerLogoutBtn       = document.getElementById('header-logout-btn');
   const headerMyRidesBtn      = document.getElementById('header-my-rides-btn');
@@ -2488,6 +2489,15 @@ headerAuthControls.style.display = '';
 
 headerLoginBtn.addEventListener('click', () => {
   pendingSaveAfterLogin = false; // header login: no ride pending, don't reveal the save form
+  authSection.style.display = 'block';
+  fadeInElement(authSection);
+  authSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const emailInput = document.getElementById('auth-email');
+  if (emailInput) emailInput.focus();
+});
+
+iosGetStartedBtn?.addEventListener('click', () => {
+  pendingSaveAfterLogin = false;
   authSection.style.display = 'block';
   fadeInElement(authSection);
   authSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
