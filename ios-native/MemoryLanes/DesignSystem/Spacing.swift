@@ -47,6 +47,8 @@ enum Layout {
     static let minTouchTarget: CGFloat = 44
     /// Hairline width.
     static let hairline: CGFloat = 1
+    /// Maximum width of controls docked beside content on a compact-height screen.
+    static let compactPanelMaxWidth: CGFloat = 360
 }
 
 extension View {

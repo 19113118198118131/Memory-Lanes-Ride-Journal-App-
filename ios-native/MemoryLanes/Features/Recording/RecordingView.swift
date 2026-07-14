@@ -8,6 +8,7 @@ import UIKit
 
 struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     let session: AuthSession
     let plannedRoute: PlannedRoute?
     let accessToken: @Sendable () async -> String?
@@ -33,7 +34,7 @@ struct RecordingView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack(alignment: controlPanelAlignment) {
             mapLayer
             controlPanel
         }
@@ -122,13 +123,19 @@ struct RecordingView: View {
             }
         }
         .overlay(alignment: .top) {
-            VStack(spacing: Spacing.sm) {
-                topBar
+            recorderHeader
+        }
+    }
+
+    private var recorderHeader: some View {
+        VStack(spacing: Spacing.sm) {
+            topBar
+            if !usesCompactHeightLayout {
                 gpsPill
             }
-            .padding(.horizontal, Spacing.screenH)
-            .padding(.top, Spacing.xxl + Spacing.xs)
         }
+        .padding(.horizontal, Spacing.screenH)
+        .padding(.top, usesCompactHeightLayout ? Spacing.sm : Spacing.xxl + Spacing.xs)
     }
 
     private var topBar: some View {
@@ -148,11 +155,12 @@ struct RecordingView: View {
 
             Spacer()
 
-            Text(statusTitle)
+            Text(usesCompactHeightLayout ? "\(statusTitle) · \(recorder.pointCount) pts" : statusTitle)
                 .font(MLFont.callout)
                 .foregroundStyle(statusColor)
+                .lineLimit(1)
                 .padding(.horizontal, Spacing.md)
-                .frame(height: 36)
+                .frame(height: Spacing.xl + Spacing.xxs)
                 .background(.ultraThinMaterial, in: Capsule())
         }
     }
@@ -187,7 +195,15 @@ struct RecordingView: View {
         }
         .padding(.horizontal, Spacing.screenH)
         .padding(.bottom, Spacing.sm)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: usesCompactHeightLayout ? Layout.compactPanelMaxWidth : .infinity)
+    }
+
+    private var usesCompactHeightLayout: Bool {
+        verticalSizeClass == .compact
+    }
+
+    private var controlPanelAlignment: Alignment {
+        usesCompactHeightLayout ? .bottomTrailing : .bottom
     }
 
     private var rideHUD: some View {
