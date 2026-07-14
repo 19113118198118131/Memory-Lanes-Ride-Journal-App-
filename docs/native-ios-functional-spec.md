@@ -182,8 +182,8 @@ Acceptance criteria:
 
 Current native status:
 
-- Ride detail map and elevation chart exist.
-- Full replay timeline/scrubber still required.
+- Ride detail map, replay timeline, scrubber, live replay telemetry, and evidence-linked map focus are implemented.
+- Selecting a chart point or coaching event returns to a corner-scale map view of that moment.
 
 ### 4.6 Analytics and Charts
 
@@ -205,8 +205,11 @@ Acceptance criteria:
 
 Current native status:
 
-- Elevation chart exists.
-- Other analytics charts still required.
+- Combined elevation and speed profile with independent display modes is implemented.
+- Acceleration profile, braking/drive bands, corner speed versus radius, and grip-usage diagram are implemented.
+- Ride-specific plain-English insights and a progressively disclosed reading guide are implemented.
+- Ride Coach includes a five-axis technique polygon, debrief, trend, and expandable score captions.
+- Rider Craft includes its own calibration-aware reading guide and replay-linked evidence.
 
 ### 4.7 Ride Coach
 

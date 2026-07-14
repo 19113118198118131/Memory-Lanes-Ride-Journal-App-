@@ -3,17 +3,28 @@ import SwiftUI
 
 struct RideAnalyticsView: View {
     let analytics: RideAnalytics
+    let replayPoints: [ReplayPoint]
+    let coachScores: [RideCoachScore]
+    let debrief: String?
+    let coachTrend: String?
     let onSelectReplayIndex: (Int) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             approximationLabel
-            RideCompositionView(slices: analytics.composition)
+            RideInsightOverview(insights: analytics.insights)
+            AnalyticsReadingGuide()
+            RideProfileChart(points: replayPoints, onSelectReplayIndex: onSelectReplayIndex)
+            CornerRadiusChart(points: analytics.cornerPoints, onSelectReplayIndex: onSelectReplayIndex)
             inputSummary
             InputProfileChart(analytics: analytics, onSelectReplayIndex: onSelectReplayIndex)
-            CornerRadiusChart(points: analytics.cornerPoints, onSelectReplayIndex: onSelectReplayIndex)
             GripUsageChart(points: analytics.gripUsage)
-            insightSection
+            RideCoachTechniqueView(
+                scores: coachScores,
+                debrief: debrief,
+                trend: coachTrend
+            )
+            RideCompositionView(slices: analytics.composition)
         }
     }
 
@@ -63,30 +74,66 @@ struct RideAnalyticsView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var insightSection: some View {
+}
+
+private struct RideInsightOverview: View {
+    let insights: [RideAnalyticsInsight]
+    @State private var showsAll = false
+
+    private var visibleInsights: [RideAnalyticsInsight] {
+        showsAll ? insights : Array(insights.prefix(1))
+    }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            SectionHeader(title: "What This Ride Says")
-            ForEach(Array(analytics.insights.enumerated()), id: \.element.id) { index, insight in
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Label(insightTitle(insight.kind), systemImage: insightSymbol(insight.kind))
-                        .font(MLFont.headline)
-                        .foregroundStyle(Color.mlAccent)
-                    Text(insight.summary)
-                        .font(MLFont.bodyEmphasised)
-                        .foregroundStyle(Color.mlTextPrimary)
-                    Text(insight.detail)
-                        .font(MLFont.callout)
-                        .foregroundStyle(Color.mlTextSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                SectionHeader(title: "Ride Insights")
+                Spacer()
+                Text("GPS ESTIMATE").mlKicker()
+            }
+
+            if insights.isEmpty {
+                Text("This ride does not yet have enough clean data for a plain-English insight.")
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlTextSecondary)
+            } else {
+                ForEach(visibleInsights) { insight in
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Label(title(insight.kind), systemImage: symbol(insight.kind))
+                            .font(MLFont.headline)
+                            .foregroundStyle(Color.mlAccent)
+                        Text(insight.summary)
+                            .font(MLFont.bodyEmphasised)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text(insight.detail)
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
-                if index < analytics.insights.count - 1 {
-                    Divider().overlay(Color.mlHairline)
+
+                if insights.count > 1 {
+                    Button {
+                        Haptics.selection()
+                        withAnimation(Motion.spring) { showsAll.toggle() }
+                    } label: {
+                        Label(
+                            showsAll ? "Show key insight" : "Show all \(insights.count) insights",
+                            systemImage: showsAll ? "chevron.up" : "chevron.down"
+                        )
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget)
+                    }
+                    .buttonStyle(MLPressableButtonStyle())
                 }
             }
         }
+        .analyticsCard()
     }
 
-    private func insightTitle(_ kind: RideAnalyticsInsight.Kind) -> String {
+    private func title(_ kind: RideAnalyticsInsight.Kind) -> String {
         switch kind {
         case .grip: "Riding Signature"
         case .corners: "Corner Rhythm"
@@ -95,13 +142,210 @@ struct RideAnalyticsView: View {
         }
     }
 
-    private func insightSymbol(_ kind: RideAnalyticsInsight.Kind) -> String {
+    private func symbol(_ kind: RideAnalyticsInsight.Kind) -> String {
         switch kind {
         case .grip: "circle.hexagongrid.fill"
         case .corners: "point.topleft.down.to.point.bottomright.curvepath"
         case .elevation: "mountain.2.fill"
         case .inputs: "gauge.with.dots.needle.67percent"
         }
+    }
+}
+
+private struct AnalyticsReadingGuide: View {
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Button {
+                Haptics.selection()
+                withAnimation(Motion.spring) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "book.closed.fill")
+                        .foregroundStyle(Color.mlAccent)
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("How to read ride analytics")
+                            .font(MLFont.bodyEmphasised)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text("A short guide to every visual")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
+                .frame(minHeight: Layout.minTouchTarget)
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    guideRow("Elevation & speed", "Read the road shape and pace together. Dips can be corners, climbs, junctions, stops, or traffic, so use the map before drawing a conclusion.")
+                    guideRow("Corner radius", "Each dot is a detected bend. Left is tighter, right is more open. Vertical spread shows how differently similar-radius bends were approached. Dashed curves are references, never targets.")
+                    guideRow("Acceleration", "Below zero is deceleration; above zero is drive. Red and green bands show detected braking and drive zones. Smooth alternation reveals rhythm; spikes may be abrupt input or GPS noise.")
+                    guideRow("Grip signature", "Left and right are cornering, down is braking, up is drive. The cloud is a riding signature, not a score and not something to maximise.")
+                    guideRow("Ride Coach", "The polygon shows balance across five GPS-supported technique estimates. Use the captions and replay evidence; one ride is never a verdict.")
+                }
+                .padding(.top, Spacing.xs)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.xs)
+        .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        )
+    }
+
+    private func guideRow(_ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(title)
+                .font(MLFont.headline)
+                .foregroundStyle(Color.mlTextPrimary)
+            Text(detail)
+                .font(MLFont.callout)
+                .foregroundStyle(Color.mlTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct RideProfileChart: View {
+    enum Mode: String, CaseIterable, Hashable {
+        case both = "Both"
+        case elevation = "Elevation"
+        case speed = "Speed"
+    }
+
+    let points: [ReplayPoint]
+    let onSelectReplayIndex: (Int) -> Void
+
+    @State private var mode = Mode.both
+    @State private var selected: ReplayPoint?
+
+    private var elevationBounds: (min: Double, max: Double) {
+        let values = points.map(\.elevationMeters)
+        return (values.min() ?? 0, values.max() ?? 1)
+    }
+
+    private var maximumSpeed: Double { points.map(\.speedKmh).max() ?? 0 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            chartTitle("Elevation & Speed Profile", detail: "The shape of the road and the rhythm of the ride")
+
+            MLSegmentedControl(items: Mode.allCases, title: { $0.rawValue }, selection: $mode, compact: true)
+
+            HStack(spacing: Spacing.md) {
+                legend("Elevation", value: selected.map { "\(Int($0.elevationMeters.rounded())) m" } ?? elevationSummary, color: .mlAccent)
+                legend("Speed", value: selected.map { "\(Int($0.speedKmh.rounded())) km/h" } ?? speedSummary, color: .mlInfo)
+            }
+
+            if points.count < 3 {
+                analyticsEmpty("Not enough timed points for the combined profile.")
+            } else {
+                Chart {
+                    if mode != .speed {
+                        ForEach(points) { point in
+                            LineMark(
+                                x: .value("Distance", point.distanceKm),
+                                y: .value("Elevation shape", normalizedElevation(point.elevationMeters))
+                            )
+                            .foregroundStyle(Color.mlAccent)
+                            .lineStyle(StrokeStyle(lineWidth: 2.5))
+                            .interpolationMethod(.catmullRom)
+                        }
+                    }
+                    if mode != .elevation {
+                        ForEach(points) { point in
+                            LineMark(
+                                x: .value("Distance", point.distanceKm),
+                                y: .value("Speed shape", normalizedSpeed(point.speedKmh))
+                            )
+                            .foregroundStyle(Color.mlInfo)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+                            .interpolationMethod(.catmullRom)
+                        }
+                    }
+                    if let selected {
+                        RuleMark(x: .value("Selection", selected.distanceKm))
+                            .foregroundStyle(Color.mlTextSecondary.opacity(0.7))
+                    }
+                }
+                .chartYScale(domain: 0...1)
+                .chartYAxis(.hidden)
+                .chartXAxisLabel("Distance (km)")
+                .chartXAxis {
+                    AxisMarks { _ in
+                        AxisGridLine().foregroundStyle(Color.mlHairline.opacity(0.5))
+                        AxisValueLabel().foregroundStyle(Color.mlTextTertiary)
+                    }
+                }
+                .chartOverlay { proxy in
+                    GeometryReader { geometry in
+                        Rectangle().fill(.clear).contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { value in select(value.location, proxy: proxy, geometry: geometry) }
+                                    .onEnded { _ in
+                                        guard let selected else { return }
+                                        onSelectReplayIndex(selected.index)
+                                    }
+                            )
+                    }
+                }
+                .frame(height: 220)
+            }
+
+            Text("The two lines use independent scales so their shapes can be compared; their vertical positions are not equal units.")
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextTertiary)
+        }
+        .analyticsCard()
+    }
+
+    private var elevationSummary: String {
+        "\(Int(elevationBounds.min.rounded()))–\(Int(elevationBounds.max.rounded())) m"
+    }
+
+    private var speedSummary: String { "max \(Int(maximumSpeed.rounded())) km/h" }
+
+    private func normalizedElevation(_ value: Double) -> Double {
+        let span = elevationBounds.max - elevationBounds.min
+        return span > 0 ? (value - elevationBounds.min) / span : 0.5
+    }
+
+    private func normalizedSpeed(_ value: Double) -> Double {
+        maximumSpeed > 0 ? value / maximumSpeed : 0
+    }
+
+    private func legend(_ title: String, value: String, color: Color) -> some View {
+        HStack(spacing: Spacing.xs) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(title).mlKicker()
+                Text(value)
+                    .font(MLFont.monoSmall)
+                    .foregroundStyle(Color.mlTextPrimary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func select(_ location: CGPoint, proxy: ChartProxy, geometry: GeometryProxy) {
+        guard let plotFrame = proxy.plotFrame else { return }
+        let origin = geometry[plotFrame].origin
+        guard let distance: Double = proxy.value(atX: location.x - origin.x),
+              let nearest = points.min(by: {
+                  abs($0.distanceKm - distance) < abs($1.distanceKm - distance)
+              }) else { return }
+        if selected?.id != nearest.id { Haptics.selection() }
+        selected = nearest
     }
 }
 
@@ -223,9 +467,16 @@ private struct InputProfileChart: View {
             .chartOverlay { proxy in
                 GeometryReader { geometry in
                     Rectangle().fill(.clear).contentShape(Rectangle())
-                        .gesture(DragGesture(minimumDistance: 0).onChanged { value in
-                            scrub(value.location, proxy: proxy, geometry: geometry)
-                        })
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    scrub(value.location, proxy: proxy, geometry: geometry)
+                                }
+                                .onEnded { _ in
+                                    guard let selected else { return }
+                                    onSelectReplayIndex(selected.index)
+                                }
+                        )
                 }
             }
             .frame(height: 190)
@@ -242,7 +493,6 @@ private struct InputProfileChart: View {
               }) else { return }
         if selected?.id != nearest.id { Haptics.selection() }
         selected = nearest
-        onSelectReplayIndex(nearest.index)
     }
 }
 
@@ -377,6 +627,186 @@ private struct GripUsageChart: View {
     }
 }
 
+private struct RideCoachTechniqueView: View {
+    let scores: [RideCoachScore]
+    let debrief: String?
+    let trend: String?
+
+    @State private var showsBreakdown = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            chartTitle("Ride Coach", detail: "Five views of technique balance, never a speed target")
+
+            if let debrief {
+                Label(debrief, systemImage: "quote.opening")
+                    .font(MLFont.bodyEmphasised)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(Spacing.md)
+                    .background(Color.mlAccent.opacity(0.08), in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+            }
+
+            if scores.count >= 3 {
+                TechniquePolygon(scores: scores)
+                    .frame(height: 280)
+
+                if let trend {
+                    Label(trend, systemImage: "chart.line.uptrend.xyaxis")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Button {
+                    Haptics.selection()
+                    withAnimation(Motion.spring) { showsBreakdown.toggle() }
+                } label: {
+                    Label(
+                        showsBreakdown ? "Hide score breakdown" : "Read the five axes",
+                        systemImage: showsBreakdown ? "chevron.up" : "chevron.down"
+                    )
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlAccent)
+                    .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget)
+                }
+                .buttonStyle(MLPressableButtonStyle())
+
+                if showsBreakdown {
+                    VStack(spacing: Spacing.md) {
+                        ForEach(orderedScores) { score in
+                            scoreRow(score)
+                        }
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            } else {
+                analyticsEmpty("Not enough detected corners and input zones for the Ride Coach polygon.")
+            }
+
+            Text("GPS-derived technique estimates. Compare shape and captions across your own rides; do not chase a larger polygon on public roads.")
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .analyticsCard()
+    }
+
+    private var orderedScores: [RideCoachScore] {
+        RideCoachScore.Kind.allCases.compactMap { kind in scores.first { $0.kind == kind } }
+    }
+
+    private func scoreRow(_ score: RideCoachScore) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack {
+                Label(score.kind.title, systemImage: score.kind.symbol)
+                    .font(MLFont.headline)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Spacer()
+                Text("\(score.value)")
+                    .font(MLFont.mono)
+                    .foregroundStyle(Color.mlAccent)
+            }
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.mlSurfaceElevated)
+                    Capsule()
+                        .fill(Color.mlAccent)
+                        .frame(width: geometry.size.width * CGFloat(score.value) / 100)
+                }
+            }
+            .frame(height: 6)
+            Text(score.caption)
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct TechniquePolygon: View {
+    let scores: [RideCoachScore]
+
+    private let labels = ["Entry", "Exit", "Brake", "Throttle", "Repeat"]
+
+    private var values: [Double] {
+        RideCoachScore.Kind.allCases.map { kind in
+            Double(scores.first { $0.kind == kind }?.value ?? 0) / 100
+        }
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            let radius = max(40, min(geometry.size.width, geometry.size.height) / 2 - 42)
+
+            ZStack {
+                Canvas { context, _ in
+                    for level in [0.25, 0.5, 0.75, 1.0] {
+                        context.stroke(
+                            polygonPath(center: center, radius: radius, values: Array(repeating: level, count: 5)),
+                            with: .color(Color.mlHairline.opacity(level == 1 ? 0.8 : 0.45)),
+                            lineWidth: level == 1 ? 1.2 : 0.8
+                        )
+                    }
+
+                    for index in 0..<5 {
+                        var axis = Path()
+                        axis.move(to: center)
+                        axis.addLine(to: point(index: index, scale: 1, center: center, radius: radius))
+                        context.stroke(axis, with: .color(Color.mlHairline.opacity(0.6)), lineWidth: 0.8)
+                    }
+
+                    let scorePath = polygonPath(center: center, radius: radius, values: values)
+                    context.fill(scorePath, with: .color(Color.mlAccent.opacity(0.18)))
+                    context.stroke(scorePath, with: .color(Color.mlAccent), lineWidth: 2.5)
+
+                    for index in values.indices {
+                        let marker = point(index: index, scale: values[index], center: center, radius: radius)
+                        context.fill(
+                            Path(ellipseIn: CGRect(x: marker.x - 4, y: marker.y - 4, width: 8, height: 8)),
+                            with: .color(Color.mlAccent)
+                        )
+                    }
+                }
+
+                ForEach(labels.indices, id: \.self) { index in
+                    let location = point(index: index, scale: 1.23, center: center, radius: radius)
+                    Text(labels[index])
+                        .font(MLFont.kicker)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .position(location)
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Ride Coach technique polygon")
+        .accessibilityValue(accessibilitySummary)
+    }
+
+    private var accessibilitySummary: String {
+        zip(labels, values).map { "\($0.0) \(Int(($0.1 * 100).rounded()))" }.joined(separator: ", ")
+    }
+
+    private func polygonPath(center: CGPoint, radius: CGFloat, values: [Double]) -> Path {
+        var path = Path()
+        for index in values.indices {
+            let location = point(index: index, scale: values[index], center: center, radius: radius)
+            index == 0 ? path.move(to: location) : path.addLine(to: location)
+        }
+        path.closeSubpath()
+        return path
+    }
+
+    private func point(index: Int, scale: Double, center: CGPoint, radius: CGFloat) -> CGPoint {
+        let angle = -Double.pi / 2 + Double(index) * 2 * Double.pi / 5
+        return CGPoint(
+            x: center.x + cos(angle) * radius * scale,
+            y: center.y + sin(angle) * radius * scale
+        )
+    }
+}
+
 private struct GripReferencePoint: Identifiable {
     let level: Double
     let radius: Double
@@ -434,7 +864,14 @@ private extension View {
 
 #Preview("Ride Analytics") {
     ScrollView {
-        RideAnalyticsView(analytics: .empty, onSelectReplayIndex: { _ in })
+        RideAnalyticsView(
+            analytics: .empty,
+            replayPoints: [],
+            coachScores: [],
+            debrief: nil,
+            coachTrend: nil,
+            onSelectReplayIndex: { _ in }
+        )
             .padding()
     }
     .background(Color.mlBackground)

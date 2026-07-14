@@ -264,9 +264,6 @@ struct RideDetailView: View {
                let routeMatch = viewModel.detail?.routeMatch {
                 routeMatchCard(route: plannedRoute, match: routeMatch)
             }
-            if let scores = viewModel.detail?.coachScores, !scores.isEmpty {
-                coachScoreGrid(scores)
-            }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.md),
                                 GridItem(.flexible(), spacing: Spacing.md)],
                       spacing: Spacing.md) {
@@ -274,23 +271,6 @@ struct RideDetailView: View {
                          systemImage: "waveform.path.ecg")
                 StatCard(label: "Ascent", value: viewModel.ride.elevationFormatted, unit: "m",
                          systemImage: "mountain.2")
-            }
-            switch viewModel.state {
-            case .loading:
-                SkeletonBar(height: 180, radius: Radius.card).mlShimmer()
-            case .loaded(let detail):
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    ElevationChart(samples: detail.elevation)
-                    if detail.replayPoints.count > 2 {
-                        SpeedChart(
-                            points: detail.replayPoints,
-                            playbackPoint: viewModel.currentReplayPoint,
-                            onScrub: { viewModel.scrubPlayback(to: $0) }
-                        )
-                    }
-                }
-            case .failed(let message):
-                inlineError(message)
             }
         }
     }
@@ -304,10 +284,15 @@ struct RideDetailView: View {
                 SkeletonBar(height: 220, radius: Radius.card).mlShimmer()
             }
         case .loaded(let detail):
-            if let analytics = detail.analytics,
-               !analytics.acceleration.isEmpty || !analytics.cornerPoints.isEmpty {
-                RideAnalyticsView(analytics: analytics) { index in
-                    viewModel.scrubPlayback(to: index)
+            if detail.replayPoints.count > 2 {
+                RideAnalyticsView(
+                    analytics: detail.analytics ?? .empty,
+                    replayPoints: detail.replayPoints,
+                    coachScores: detail.coachScores,
+                    debrief: detail.debrief,
+                    coachTrend: detail.coachTrend
+                ) { index in
+                    focusReplayOnMap(index)
                 }
             } else {
                 EmptyState(

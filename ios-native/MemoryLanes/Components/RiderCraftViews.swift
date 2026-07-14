@@ -33,6 +33,7 @@ struct RiderCraftRideView: View {
             }
 
             headline
+            RiderCraftReadingGuide()
 
             if let line = analysis.calibrationDebriefLine {
                 Label(line, systemImage: "scope")
@@ -166,6 +167,68 @@ struct RiderCraftRideView: View {
         case .flatExit: "arrow.up.forward"
         case .earlyApex: "arrow.turn.up.right"
         case .brakedDeep: "scope"
+        }
+    }
+}
+
+private struct RiderCraftReadingGuide: View {
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Button {
+                Haptics.selection()
+                withAnimation(Motion.spring) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "book.closed.fill")
+                        .foregroundStyle(Color.mlAccent)
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("How to read Rider Craft")
+                            .font(MLFont.bodyEmphasised)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text("Detections, evidence, and calibration")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
+                .frame(minHeight: Layout.minTouchTarget)
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    guideRow("Detections per corner", "This is a normalised count of four GPS-supported patterns, not a score. Lower can mean fewer detected patterns, but one ride is never a verdict.")
+                    guideRow("Detector tiles", "Each tile counts where the model saw braking after turn-in, a flat-exit proxy, an early-apex proxy, or braking deep into a detected bend.")
+                    guideRow("Replay evidence", "Tap Replay to inspect the road shape and moment yourself. Geometry, traffic, GPS noise, and one-second sampling can explain a detection.")
+                    guideRow("Calibrating", "The thresholds are still being tested across roads, devices, riders, and weather. Treat every result as a reflection prompt, not proof of an error.")
+                }
+                .padding(.top, Spacing.xs)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.xs)
+        .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        )
+    }
+
+    private func guideRow(_ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(title)
+                .font(MLFont.headline)
+                .foregroundStyle(Color.mlTextPrimary)
+            Text(detail)
+                .font(MLFont.callout)
+                .foregroundStyle(Color.mlTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
