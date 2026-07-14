@@ -15,6 +15,7 @@ struct RecordingView: View {
     @State private var showingFinishConfirmation = false
     @State private var showingDiscardConfirmation = false
     @State private var finishedRide: RecordedRideResult?
+    private let routeFollowAnalyzer = RouteFollowAnalyzer()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -143,6 +144,10 @@ struct RecordingView: View {
                 }
             }
 
+            if let followSnapshot {
+                followRouteCard(followSnapshot)
+            }
+
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
                 liveMetric(label: "Distance", value: String(format: "%.2f", recorder.distanceKm), unit: "km", symbol: "point.topleft.down.to.point.bottomright.curvepath")
                 liveMetric(label: "Current", value: speedText(recorder.currentSpeedMetersPerSecond), unit: "km/h", symbol: "speedometer")
@@ -162,6 +167,15 @@ struct RecordingView: View {
                 .frame(width: 42, height: 4)
                 .padding(.top, Spacing.sm)
         }
+    }
+
+    private var followSnapshot: RouteFollowSnapshot? {
+        guard let plannedRoute else { return nil }
+        return routeFollowAnalyzer.snapshot(
+            route: plannedRoute,
+            recordedPoints: recorder.points,
+            distanceMeters: recorder.distanceMeters
+        )
     }
 
     @ViewBuilder
@@ -236,6 +250,66 @@ struct RecordingView: View {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(Color.mlHairline, lineWidth: Layout.hairline)
         )
+    }
+
+    private func followRouteCard(_ snapshot: RouteFollowSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Route guidance").mlKicker()
+                    Text(snapshot.status)
+                        .font(MLFont.headline)
+                        .foregroundStyle(routeStatusColor(snapshot))
+                }
+                Spacer()
+                Text(snapshot.onRouteText)
+                    .font(MLFont.monoSmall)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xxs)
+                    .background(Color.mlSurfaceElevated, in: Capsule())
+            }
+
+            ProgressView(value: snapshot.progressPercent, total: 100)
+                .tint(Color.mlAccent)
+                .accessibilityLabel("Route progress")
+                .accessibilityValue("\(Int(snapshot.progressPercent.rounded())) percent")
+
+            HStack(spacing: Spacing.sm) {
+                followMetric("Remaining", snapshot.remainingText, "flag.checkered")
+                followMetric("Drift", snapshot.deviationText, "scope")
+                followMetric("Progress", String(format: "%.0f%%", snapshot.progressPercent), "chart.line.uptrend.xyaxis")
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        )
+    }
+
+    private func followMetric(_ label: String, _ value: String, _ systemImage: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Label(label, systemImage: systemImage)
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextSecondary)
+                .lineLimit(1)
+            Text(value)
+                .font(MLFont.monoSmall)
+                .foregroundStyle(Color.mlTextPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func routeStatusColor(_ snapshot: RouteFollowSnapshot) -> Color {
+        switch snapshot.status {
+        case "On route": .mlSuccess
+        case "Near route", "Waiting for GPS": .mlWarning
+        default: .mlDanger
+        }
     }
 
     private func speedText(_ metersPerSecond: Double) -> String {
