@@ -28,6 +28,11 @@ final class RideDetailViewModel {
     var section: Section = .overview
     var momentErrorMessage: String?
     var isSavingMoment = false
+    var playbackIndex = 0
+    var isPlaying = false
+    var playbackSpeed: Double = 1
+
+    @ObservationIgnored private var playbackTask: Task<Void, Never>?
 
     private let rideService: RideServing
 
@@ -46,8 +51,37 @@ final class RideDetailViewModel {
     }
 
     var routeForMomentPinning: [Coordinate] {
+        if let replayRoute = detail?.replayPoints.map(\.coordinate), !replayRoute.isEmpty { return replayRoute }
         if let detailRoutePreview, !detailRoutePreview.isEmpty { return detailRoutePreview }
         return ride.routePreview
+    }
+
+    var canReplay: Bool {
+        (detail?.replayPoints.count ?? 0) > 1
+    }
+
+    var currentReplayPoint: ReplayPoint? {
+        guard let points = detail?.replayPoints, !points.isEmpty else { return nil }
+        return points[min(playbackIndex, points.count - 1)]
+    }
+
+    var mapReplayIndex: Int? {
+        canReplay ? min(playbackIndex, max(routeForMomentPinning.count - 1, 0)) : nil
+    }
+
+    var playbackProgressText: String {
+        guard let point = currentReplayPoint else { return "00:00" }
+        return point.elapsedFormatted
+    }
+
+    var playbackDistanceText: String {
+        guard let point = currentReplayPoint else { return "0.0 km" }
+        return String(format: "%.1f km", point.distanceKm)
+    }
+
+    var playbackSpeedText: String {
+        guard let point = currentReplayPoint else { return "0 km/h" }
+        return "\(Int(point.speedKmh.rounded())) km/h"
     }
 
     /// Key headline stats shown under the title, available immediately.
@@ -64,10 +98,60 @@ final class RideDetailViewModel {
         do {
             let detail = try await rideService.fetchDetail(for: ride)
             state = .loaded(detail)
+            playbackIndex = min(playbackIndex, max(detail.replayPoints.count - 1, 0))
         } catch is CancellationError {
         } catch {
             state = .failed(error.localizedDescription)
         }
+    }
+
+    func togglePlayback() {
+        guard canReplay else { return }
+        isPlaying ? pausePlayback() : startPlayback()
+    }
+
+    func pausePlayback() {
+        isPlaying = false
+        playbackTask?.cancel()
+        playbackTask = nil
+    }
+
+    func setPlaybackSpeed(_ speed: Double) {
+        playbackSpeed = speed
+        if isPlaying {
+            startPlayback()
+        }
+    }
+
+    func scrubPlayback(to index: Int) {
+        pausePlayback()
+        setPlaybackIndex(index)
+    }
+
+    private func startPlayback() {
+        guard let count = detail?.replayPoints.count, count > 1 else { return }
+        playbackTask?.cancel()
+        isPlaying = true
+        if playbackIndex >= count - 1 { playbackIndex = 0 }
+        playbackTask = Task { @MainActor in
+            while !Task.isCancelled, isPlaying {
+                try? await Task.sleep(for: .milliseconds(Int(650 / max(playbackSpeed, 0.5))))
+                guard !Task.isCancelled else { return }
+                if playbackIndex >= count - 1 {
+                    pausePlayback()
+                    return
+                }
+                playbackIndex += 1
+            }
+        }
+    }
+
+    private func setPlaybackIndex(_ index: Int) {
+        guard let count = detail?.replayPoints.count, count > 0 else {
+            playbackIndex = 0
+            return
+        }
+        playbackIndex = min(max(index, 0), count - 1)
     }
 
     func saveMoment(
@@ -90,12 +174,15 @@ final class RideDetailViewModel {
         }
 
         let safeIndex = min(max(routeIndex, 0), route.count - 1)
+        let replayPoint = detail.replayPoints.indices.contains(safeIndex) ? detail.replayPoints[safeIndex] : nil
         let moment = Moment(
             id: editingID ?? UUID(),
             title: cleanTitle,
             note: cleanNote,
-            coordinate: route[safeIndex],
+            coordinate: replayPoint?.coordinate ?? route[safeIndex],
             routeIndex: safeIndex,
+            speedKmh: replayPoint?.speedKmh,
+            elevationMeters: replayPoint?.elevationMeters,
             symbol: cleanNote.isEmpty ? "mappin.circle.fill" : "note.text"
         )
 

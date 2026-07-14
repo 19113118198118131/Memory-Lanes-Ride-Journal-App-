@@ -10,12 +10,31 @@ import Foundation
 struct RideDetail: Identifiable, Sendable {
     let id: UUID              // matches the parent Ride.id
     var routePreview: [Coordinate]
+    var replayPoints: [ReplayPoint]
     var elevation: [ElevationSample]
     var corners: [CornerTicket]
     var moments: [Moment]
     var weather: Weather?
     /// The coaching debrief — one plain-English takeaway.
     var debrief: String?
+}
+
+struct ReplayPoint: Identifiable, Hashable, Sendable {
+    var id: Int { index }
+    let index: Int
+    let coordinate: Coordinate
+    let elapsedSeconds: TimeInterval
+    let distanceKm: Double
+    let elevationMeters: Double
+    let speedKmh: Double
+
+    var elapsedFormatted: String {
+        let total = Int(elapsedSeconds)
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, seconds) : String(format: "%02d:%02d", minutes, seconds)
+    }
 }
 
 // MARK: - ElevationSample

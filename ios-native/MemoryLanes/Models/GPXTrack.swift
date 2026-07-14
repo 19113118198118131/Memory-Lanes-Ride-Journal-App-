@@ -7,6 +7,7 @@ struct GPXTrack: Sendable {
     let durationSeconds: TimeInterval
     let elevationGainMeters: Double
     let routePreview: [Coordinate]
+    let replayPoints: [ReplayPoint]
     let elevationSamples: [ElevationSample]
 
     var startedAt: Date {
@@ -23,9 +24,11 @@ extension GPXTrack {
         var distance: Double = 0
         var gain: Double = 0
         var samples: [ElevationSample] = []
+        var replay: [ReplayPoint] = []
         var previous: RecordingPoint?
+        let firstTimestamp = points.first?.timestamp ?? Date()
 
-        for point in points {
+        for (index, point) in points.enumerated() {
             if let previous {
                 let from = previous.clLocation
                 let to = point.clLocation
@@ -36,15 +39,26 @@ extension GPXTrack {
                 }
             }
             samples.append(ElevationSample(distanceKm: distance / 1000, elevationM: point.elevationMeters))
+            replay.append(
+                ReplayPoint(
+                    index: index,
+                    coordinate: point.coordinate,
+                    elapsedSeconds: max(0, point.timestamp.timeIntervalSince(firstTimestamp)),
+                    distanceKm: distance / 1000,
+                    elevationMeters: point.elevationMeters,
+                    speedKmh: point.speedMetersPerSecond * 3.6
+                )
+            )
             previous = point
         }
 
-        let duration = points.last?.timestamp.timeIntervalSince(points.first?.timestamp ?? Date()) ?? 0
+        let duration = points.last?.timestamp.timeIntervalSince(firstTimestamp) ?? 0
         self.points = points
         distanceMeters = distance
         durationSeconds = max(0, duration)
         elevationGainMeters = gain
         routePreview = points.routePreview
+        replayPoints = replay
         elevationSamples = samples
     }
 }

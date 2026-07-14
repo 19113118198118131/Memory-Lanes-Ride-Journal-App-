@@ -48,6 +48,7 @@ struct RideDetailView: View {
         .background(Color.mlBackground)
         .toolbar(.hidden, for: .navigationBar)
         .task { await viewModel.load() }
+        .onDisappear { viewModel.pausePlayback() }
         .sheet(item: $shareItem) { item in
             ActivityView(items: [item.image])
                 .presentationDetents([.medium, .large])
@@ -94,10 +95,9 @@ struct RideDetailView: View {
 
     @ViewBuilder
     private var heroMap: some View {
-        if viewModel.ride.routePreview.count > 1 {
-            MLMapView(route: viewModel.ride.routePreview, fadeColor: .mlBackground)
-        } else if let detailRoute = viewModel.detailRoutePreview, detailRoute.count > 1 {
-            MLMapView(route: detailRoute, fadeColor: .mlBackground)
+        let route = viewModel.routeForMomentPinning
+        if route.count > 1 {
+            MLMapView(route: route, fadeColor: .mlBackground, replayIndex: viewModel.mapReplayIndex)
         } else {
             ZStack {
                 Color.mlSurfaceElevated
@@ -166,6 +166,9 @@ struct RideDetailView: View {
 
     private var overviewSection: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
+            if viewModel.canReplay {
+                replaySection
+            }
             if let debrief = viewModel.detail?.debrief {
                 debriefCard(debrief)
             }
@@ -186,6 +189,83 @@ struct RideDetailView: View {
                 inlineError(message)
             }
         }
+    }
+
+    private var replaySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            SectionHeader(title: "Replay", actionTitle: "Pin Current") {
+                openMomentEditor(defaultRouteIndex: viewModel.playbackIndex)
+            }
+
+            HStack(alignment: .center, spacing: Spacing.md) {
+                Button {
+                    Haptics.selection()
+                    viewModel.togglePlayback()
+                } label: {
+                    Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlOnAccent)
+                        .frame(width: 48, height: 48)
+                        .background(Color.mlAccent, in: Circle())
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .accessibilityLabel(viewModel.isPlaying ? "Pause replay" : "Play replay")
+
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    HStack {
+                        Text(viewModel.playbackProgressText)
+                            .font(MLFont.monoSmall)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Spacer()
+                        Text(viewModel.playbackDistanceText)
+                            .font(MLFont.monoSmall)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Slider(
+                        value: Binding(
+                            get: { Double(viewModel.playbackIndex) },
+                            set: { viewModel.scrubPlayback(to: Int($0.rounded())) }
+                        ),
+                        in: 0...Double(maxReplayIndex),
+                        step: 1
+                    )
+                    .tint(.mlAccent)
+                }
+            }
+
+            HStack(spacing: Spacing.sm) {
+                Label(viewModel.playbackSpeedText, systemImage: "speedometer")
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlTextSecondary)
+                Spacer()
+                ForEach([1.0, 2.0, 4.0], id: \.self) { speed in
+                    Button {
+                        Haptics.selection()
+                        viewModel.setPlaybackSpeed(speed)
+                    } label: {
+                        Text("\(Int(speed))x")
+                            .font(MLFont.caption)
+                            .foregroundStyle(viewModel.playbackSpeed == speed ? Color.mlOnAccent : Color.mlTextPrimary)
+                            .frame(width: 42, height: 30)
+                            .background(
+                                Capsule()
+                                    .fill(viewModel.playbackSpeed == speed ? Color.mlAccent : Color.mlSurfaceElevated)
+                            )
+                    }
+                    .buttonStyle(MLPressableButtonStyle())
+                }
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        )
+    }
+
+    private var maxReplayIndex: Int {
+        max((viewModel.detail?.replayPoints.count ?? 1) - 1, 1)
     }
 
     @ViewBuilder
@@ -337,9 +417,8 @@ struct RideDetailView: View {
         }
     }
 
-    private func openMomentEditor(_ moment: Moment? = nil) {
-        let routeCount = viewModel.routeForMomentPinning.count
-        let defaultIndex = max(0, routeCount / 2)
+    private func openMomentEditor(_ moment: Moment? = nil, defaultRouteIndex: Int? = nil) {
+        let defaultIndex = defaultRouteIndex ?? viewModel.playbackIndex
         momentEditor = MomentEditorContext(moment: moment, defaultRouteIndex: moment?.routeIndex ?? defaultIndex)
     }
 }

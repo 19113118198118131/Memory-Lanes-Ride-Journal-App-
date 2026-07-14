@@ -35,14 +35,27 @@ struct RouteThumbnail: View {
 struct MLMapView: View {
     let route: [Coordinate]
     var fadeColor: Color = .mlBackground
+    var replayIndex: Int? = nil
 
     private var coordinates: [CLLocationCoordinate2D] { route.clCoordinates }
+    private var replayCoordinate: CLLocationCoordinate2D? {
+        guard let replayIndex, route.indices.contains(replayIndex) else { return nil }
+        return route[replayIndex].clCoordinate
+    }
+    private var completedCoordinates: [CLLocationCoordinate2D] {
+        guard let replayIndex, replayIndex > 0 else { return [] }
+        return Array(route.prefix(min(replayIndex + 1, route.count))).clCoordinates
+    }
 
     var body: some View {
         Map(initialPosition: .region(RouteGeometry.region(for: route))) {
             if coordinates.count > 1 {
                 MapPolyline(coordinates: coordinates)
-                    .stroke(Color.mlAccent, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                    .stroke(Color.mlAccent.opacity(replayIndex == nil ? 1 : 0.32), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+            }
+            if completedCoordinates.count > 1 {
+                MapPolyline(coordinates: completedCoordinates)
+                    .stroke(Color.mlAccent, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
             }
             if let start = coordinates.first {
                 Annotation("Start", coordinate: start) {
@@ -52,6 +65,11 @@ struct MLMapView: View {
             if let end = coordinates.last, coordinates.count > 1 {
                 Annotation("Finish", coordinate: end) {
                     endpointDot(fill: Color.mlSurfaceElevated, ring: Color.mlAccent)
+                }
+            }
+            if let replayCoordinate {
+                Annotation("Replay position", coordinate: replayCoordinate) {
+                    replayDot
                 }
             }
         }
@@ -70,6 +88,19 @@ struct MLMapView: View {
             .frame(width: 14, height: 14)
             .overlay(Circle().stroke(ring, lineWidth: 2))
             .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
+    }
+
+    private var replayDot: some View {
+        ZStack {
+            Circle()
+                .fill(Color.mlAccent.opacity(0.22))
+                .frame(width: 34, height: 34)
+            Circle()
+                .fill(Color.mlAccent)
+                .frame(width: 16, height: 16)
+                .overlay(Circle().stroke(Color.white, lineWidth: 3))
+        }
+        .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
     }
 }
 

@@ -65,6 +65,18 @@ enum SampleData {
         return ElevationSample(distanceKm: d * 84.3, elevationM: base + noise)
     }
 
+    static let replayPoints: [ReplayPoint] = elevationSamples.enumerated().map { index, sample in
+        let routeIndex = min(index * ridgeRoute.count / max(elevationSamples.count, 1), ridgeRoute.count - 1)
+        return ReplayPoint(
+            index: index,
+            coordinate: ridgeRoute[routeIndex],
+            elapsedSeconds: Double(index) * 66,
+            distanceKm: sample.distanceKm,
+            elevationMeters: sample.elevationM,
+            speedKmh: 58 + 18 * sin(Double(index) / 12)
+        )
+    }
+
     static let corners: [CornerTicket] = [
         .init(index: 1, shape: .rightHairpin, entrySpeed: 74, apexSpeed: 38, exitSpeed: 61,
               verdict: .smooth, tip: "Great patience on entry — trail-braked right to the apex.",
@@ -129,6 +141,7 @@ enum SampleData {
     static let heroDetail = RideDetail(
         id: hero.id,
         routePreview: ridgeRoute,
+        replayPoints: replayPoints,
         elevation: elevationSamples,
         corners: corners,
         moments: moments,
