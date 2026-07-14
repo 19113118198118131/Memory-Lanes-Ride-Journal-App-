@@ -12,6 +12,7 @@ struct RiderCraftCalibrationReviewView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var reviewSet: ReviewSet = .candidates
     @State private var selectedTargetID: String?
+    @State private var selectedControlKind: RiderCraftEvent.Kind?
     @State private var activityPayload: ActivityPayload?
 
     var body: some View {
@@ -74,10 +75,16 @@ struct RiderCraftCalibrationReviewView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { selectFirstTarget(preferUnreviewed: true) }
+        .onAppear {
+            selectFirstTarget(preferUnreviewed: true)
+            syncSelectedControlKind()
+        }
         .onChange(of: reviewSet) { _, _ in selectFirstTarget(preferUnreviewed: true) }
         .onChange(of: selectedTargetID) { _, _ in
-            if let selectedTarget { viewModel.focusCalibrationTarget(selectedTarget) }
+            if let selectedTarget {
+                viewModel.focusCalibrationTarget(selectedTarget)
+                syncSelectedControlKind()
+            }
         }
         .sheet(item: $activityPayload) { payload in
             ActivityView(items: payload.items)
@@ -95,7 +102,10 @@ struct RiderCraftCalibrationReviewView: View {
     }
 
     private var summary: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        let reviewSummary = viewModel.calibrationReviewSummary
+        let candidateMatches = reviewSummary.detectors.map(\.candidateMatches).reduce(0, +)
+        let candidateMismatches = reviewSummary.detectors.map(\.candidateMismatches).reduce(0, +)
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("Development review").mlKicker()
             Text("Replay the evidence, then label whether the detector and map agree.")
                 .font(MLFont.headline)
@@ -113,6 +123,14 @@ struct RiderCraftCalibrationReviewView: View {
             Text("\(viewModel.calibrationReviewedCount) of \(viewModel.calibrationReviewTargets.count) reviewed")
                 .font(MLFont.caption)
                 .foregroundStyle(Color.mlTextSecondary)
+
+            Divider().overlay(Color.mlHairline)
+
+            HStack(spacing: Spacing.sm) {
+                summaryMetric("Supported", value: candidateMatches, tint: .mlSuccess)
+                summaryMetric("Rejected", value: candidateMismatches, tint: .mlDanger)
+                summaryMetric("Control misses", value: reviewSummary.controlMisses, tint: .mlInfo)
+            }
         }
         .padding(Spacing.md)
         .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -211,6 +229,25 @@ struct RiderCraftCalibrationReviewView: View {
     private func decisionControls(_ target: RiderCraftCalibrationReviewTarget) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("Review decision").mlKicker()
+            if target.isControl {
+                HStack {
+                    Text("If missed, detector")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                    Spacer()
+                    Picker("Missed detector", selection: $selectedControlKind) {
+                        Text("Choose detector").tag(RiderCraftEvent.Kind?.none)
+                        ForEach(RiderCraftEvent.Kind.calibrationControlKinds, id: \.self) { kind in
+                            Text(kind.title).tag(RiderCraftEvent.Kind?.some(kind))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(.mlAccent)
+                }
+                .padding(.horizontal, Spacing.sm)
+                .frame(minHeight: 44)
+                .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.button))
+            }
             HStack(spacing: Spacing.sm) {
                 decisionButton(
                     target.isControl ? "No miss" : "Supports",
@@ -247,7 +284,11 @@ struct RiderCraftCalibrationReviewView: View {
         let isSelected = viewModel.calibrationDecision(for: target) == decision
         return Button {
             Task {
-                let saved = await viewModel.saveCalibrationDecision(decision, for: target)
+                let saved = await viewModel.saveCalibrationDecision(
+                    decision,
+                    for: target,
+                    suspectedKind: target.isControl ? selectedControlKind : nil
+                )
                 if saved {
                     Haptics.selection()
                     selectNextUnreviewed(after: target)
@@ -277,6 +318,7 @@ struct RiderCraftCalibrationReviewView: View {
             )
         }
         .buttonStyle(MLPressableButtonStyle())
+        .disabled(target.isControl && decision == .mismatch && selectedControlKind == nil)
     }
 
     private var selectedIndex: Int {
@@ -305,6 +347,28 @@ struct RiderCraftCalibrationReviewView: View {
         if let next = ordered.first(where: { viewModel.calibrationDecision(for: $0) == nil }) {
             selectedTargetID = next.id
         }
+    }
+
+    private func syncSelectedControlKind() {
+        guard let selectedTarget else {
+            selectedControlKind = nil
+            return
+        }
+        selectedControlKind = viewModel.calibrationSuspectedKind(for: selectedTarget)
+    }
+
+    private func summaryMetric(_ title: String, value: Int, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text("\(value)")
+                .font(MLFont.mono)
+                .foregroundStyle(tint)
+            Text(title)
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func evidenceText(_ target: RiderCraftCalibrationReviewTarget) -> String? {

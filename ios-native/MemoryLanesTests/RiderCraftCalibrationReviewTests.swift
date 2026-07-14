@@ -47,8 +47,64 @@ final class RiderCraftCalibrationReviewTests: XCTestCase {
 
         XCTAssertEqual(reviews.count, 1)
         XCTAssertEqual(reviews.first?.decision, .mismatch)
-        XCTAssertEqual(archive.version, 1)
+        XCTAssertEqual(archive.version, 2)
         XCTAssertEqual(archive.reviews, reviews)
+        XCTAssertEqual(archive.summary.candidateReviewed, 1)
+        XCTAssertEqual(archive.summary.detectors.first(where: { $0.kind == .flatExit })?.candidateMismatches, 1)
+    }
+
+    func testReviewSummaryAttributesControlMissToSelectedDetector() {
+        let rideID = UUID()
+        let reviews = [
+            review(rideID: rideID, targetID: "flat-1", candidateKind: .flatExit, decision: .match),
+            review(rideID: rideID, targetID: "deep-2", candidateKind: .brakedDeep, decision: .mismatch),
+            review(
+                rideID: rideID,
+                targetID: "control-3",
+                candidateKind: nil,
+                suspectedKind: .brakeAfterTurnIn,
+                decision: .mismatch
+            ),
+            review(rideID: rideID, targetID: "control-4", candidateKind: nil, decision: .match)
+        ]
+
+        let summary = RiderCraftCalibrationReviewSummary(reviews: reviews)
+
+        XCTAssertEqual(summary.reviewedCount, 4)
+        XCTAssertEqual(summary.candidateReviewed, 2)
+        XCTAssertEqual(summary.controlReviewed, 2)
+        XCTAssertEqual(summary.controlMisses, 1)
+        XCTAssertEqual(summary.controlNoMisses, 1)
+        XCTAssertEqual(summary.unclassifiedControlMisses, 0)
+        XCTAssertEqual(summary.detectors.first(where: { $0.kind == .flatExit })?.candidateMatches, 1)
+        XCTAssertEqual(summary.detectors.first(where: { $0.kind == .brakedDeep })?.candidateMismatches, 1)
+        XCTAssertEqual(summary.detectors.first(where: { $0.kind == .brakeAfterTurnIn })?.controlMisses, 1)
+    }
+
+    func testVersionOneReviewWithoutSuspectedKindStillDecodes() throws {
+        let rideID = UUID()
+        let json = """
+        {
+          "rideID": "\(rideID.uuidString)",
+          "thresholdVersion": 1,
+          "targetID": "flatExit-1-15",
+          "candidateKind": "flatExit",
+          "cornerIndex": 1,
+          "replayIndex": 15,
+          "measuredValue": 0.05,
+          "threshold": 0.10,
+          "decision": "match",
+          "reviewedAt": "2023-11-14T22:13:20Z"
+        }
+        """
+
+        let decoded = try JSONDecoder.reviewArchive.decode(
+            RiderCraftCalibrationReview.self,
+            from: try XCTUnwrap(json.data(using: .utf8))
+        )
+
+        XCTAssertEqual(decoded.rideID, rideID)
+        XCTAssertNil(decoded.suspectedKind)
     }
 
     private func signal(index: Int, start: Int, apex: Int, end: Int, drive: Double) -> RiderCraftCornerSignal {
@@ -65,17 +121,21 @@ final class RiderCraftCalibrationReviewTests: XCTestCase {
 
     private func review(
         rideID: UUID,
+        targetID: String = "flatExit-1-15",
+        candidateKind: RiderCraftEvent.Kind? = .flatExit,
+        suspectedKind: RiderCraftEvent.Kind? = nil,
         decision: RiderCraftCalibrationReview.Decision
     ) -> RiderCraftCalibrationReview {
         RiderCraftCalibrationReview(
             rideID: rideID,
             thresholdVersion: 1,
-            targetID: "flatExit-1-15",
-            candidateKind: .flatExit,
+            targetID: targetID,
+            candidateKind: candidateKind,
             cornerIndex: 1,
             replayIndex: 15,
             measuredValue: 0.05,
             threshold: 0.10,
+            suspectedKind: suspectedKind,
             decision: decision,
             reviewedAt: Date(timeIntervalSince1970: 1_700_000_000)
         )
@@ -84,6 +144,7 @@ final class RiderCraftCalibrationReviewTests: XCTestCase {
 
 private struct TestArchive: Decodable {
     let version: Int
+    let summary: RiderCraftCalibrationReviewSummary
     let reviews: [RiderCraftCalibrationReview]
 }
 

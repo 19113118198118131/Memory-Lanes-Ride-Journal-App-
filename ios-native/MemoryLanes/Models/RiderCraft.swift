@@ -15,6 +15,12 @@ struct RiderCraftEvent: Identifiable, Hashable, Sendable {
             case .brakedDeep: "Braked deep"
             }
         }
+
+        static let calibrationControlKinds: [Self] = [
+            .brakeAfterTurnIn,
+            .flatExit,
+            .brakedDeep
+        ]
     }
 
     let kind: Kind
@@ -61,10 +67,110 @@ struct RiderCraftCalibrationReview: Identifiable, Codable, Equatable, Sendable {
     let replayIndex: Int
     let measuredValue: Double?
     let threshold: Double?
+    let suspectedKind: RiderCraftEvent.Kind?
     let decision: Decision
     let reviewedAt: Date
 
     var id: String { "\(rideID.uuidString)-v\(thresholdVersion)-\(targetID)" }
+
+    init(
+        rideID: UUID,
+        thresholdVersion: Int,
+        targetID: String,
+        candidateKind: RiderCraftEvent.Kind?,
+        cornerIndex: Int,
+        replayIndex: Int,
+        measuredValue: Double?,
+        threshold: Double?,
+        suspectedKind: RiderCraftEvent.Kind? = nil,
+        decision: Decision,
+        reviewedAt: Date
+    ) {
+        self.rideID = rideID
+        self.thresholdVersion = thresholdVersion
+        self.targetID = targetID
+        self.candidateKind = candidateKind
+        self.cornerIndex = cornerIndex
+        self.replayIndex = replayIndex
+        self.measuredValue = measuredValue
+        self.threshold = threshold
+        self.suspectedKind = suspectedKind
+        self.decision = decision
+        self.reviewedAt = reviewedAt
+    }
+}
+
+struct RiderCraftCalibrationReviewSummary: Codable, Equatable, Sendable {
+    struct Detector: Codable, Equatable, Sendable {
+        let kind: RiderCraftEvent.Kind
+        var candidateMatches: Int
+        var candidateMismatches: Int
+        var candidateUnsure: Int
+        var controlMisses: Int
+
+        var candidateReviewed: Int {
+            candidateMatches + candidateMismatches + candidateUnsure
+        }
+    }
+
+    let reviewedCount: Int
+    let candidateReviewed: Int
+    let controlReviewed: Int
+    let controlNoMisses: Int
+    let controlMisses: Int
+    let controlUnsure: Int
+    let unclassifiedControlMisses: Int
+    let detectors: [Detector]
+
+    init(reviews: [RiderCraftCalibrationReview]) {
+        var detectorMap = Dictionary(uniqueKeysWithValues: RiderCraftEvent.Kind.allCases.map {
+            ($0, Detector(kind: $0, candidateMatches: 0, candidateMismatches: 0, candidateUnsure: 0, controlMisses: 0))
+        })
+        var candidateReviewed = 0
+        var controlReviewed = 0
+        var controlNoMisses = 0
+        var controlMisses = 0
+        var controlUnsure = 0
+        var unclassifiedControlMisses = 0
+
+        for review in reviews {
+            if let kind = review.candidateKind {
+                candidateReviewed += 1
+                switch review.decision {
+                case .match:
+                    detectorMap[kind]?.candidateMatches += 1
+                case .mismatch:
+                    detectorMap[kind]?.candidateMismatches += 1
+                case .unsure:
+                    detectorMap[kind]?.candidateUnsure += 1
+                }
+            } else {
+                controlReviewed += 1
+                switch review.decision {
+                case .match:
+                    controlNoMisses += 1
+                case .mismatch:
+                    controlMisses += 1
+                    if let kind = review.suspectedKind {
+                        detectorMap[kind]?.controlMisses += 1
+                    } else {
+                        unclassifiedControlMisses += 1
+                    }
+                case .unsure:
+                    controlUnsure += 1
+                }
+            }
+        }
+
+        reviewedCount = reviews.count
+        self.candidateReviewed = candidateReviewed
+        self.controlReviewed = controlReviewed
+        self.controlNoMisses = controlNoMisses
+        self.controlMisses = controlMisses
+        self.controlUnsure = controlUnsure
+        self.unclassifiedControlMisses = unclassifiedControlMisses
+        detectors = RiderCraftEvent.Kind.allCases.compactMap { detectorMap[$0] }
+    }
 }
 
 struct RiderCraftAnalysis: Sendable {

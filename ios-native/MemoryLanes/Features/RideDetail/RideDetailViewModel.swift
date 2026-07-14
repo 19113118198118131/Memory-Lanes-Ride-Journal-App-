@@ -94,6 +94,10 @@ final class RideDetailViewModel {
         calibrationReviewTargets.filter { calibrationReviews[$0.id] != nil }.count
     }
 
+    var calibrationReviewSummary: RiderCraftCalibrationReviewSummary {
+        RiderCraftCalibrationReviewSummary(reviews: Array(calibrationReviews.values))
+    }
+
     var currentReplayPoint: ReplayPoint? {
         guard let points = detail?.replayPoints, !points.isEmpty else { return nil }
         return points[min(playbackIndex, points.count - 1)]
@@ -235,9 +239,14 @@ final class RideDetailViewModel {
         calibrationReviews[target.id]?.decision
     }
 
+    func calibrationSuspectedKind(for target: RiderCraftCalibrationReviewTarget) -> RiderCraftEvent.Kind? {
+        calibrationReviews[target.id]?.suspectedKind
+    }
+
     func saveCalibrationDecision(
         _ decision: RiderCraftCalibrationReview.Decision,
-        for target: RiderCraftCalibrationReviewTarget
+        for target: RiderCraftCalibrationReviewTarget,
+        suspectedKind: RiderCraftEvent.Kind? = nil
     ) async -> Bool {
         guard let analysis = detail?.riderCraft else { return false }
         let review = RiderCraftCalibrationReview(
@@ -249,6 +258,7 @@ final class RideDetailViewModel {
             replayIndex: target.replayIndex,
             measuredValue: target.measuredValue,
             threshold: target.threshold,
+            suspectedKind: target.isControl && decision == .mismatch ? suspectedKind : nil,
             decision: decision,
             reviewedAt: Date()
         )

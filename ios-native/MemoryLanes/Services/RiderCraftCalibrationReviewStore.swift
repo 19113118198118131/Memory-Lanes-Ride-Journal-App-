@@ -19,6 +19,13 @@ actor RiderCraftCalibrationReviewStore: RiderCraftCalibrationReviewStoring {
         }
     }
 
+    private struct ExportArchive: Encodable {
+        let version = 2
+        let generatedAt: Date
+        let summary: RiderCraftCalibrationReviewSummary
+        let reviews: [RiderCraftCalibrationReview]
+    }
+
     private let fileManager: FileManager
     private let fileURL: URL
     private var cachedReviews: [RiderCraftCalibrationReview]?
@@ -50,10 +57,15 @@ actor RiderCraftCalibrationReviewStore: RiderCraftCalibrationReviewStoring {
     }
 
     func makeExportFile() async throws -> URL {
-        let archive = Archive(reviews: try loadReviews())
+        let reviews = try loadReviews()
+        let archive = ExportArchive(
+            generatedAt: Date(),
+            summary: RiderCraftCalibrationReviewSummary(reviews: reviews),
+            reviews: reviews
+        )
         let data = try Self.encoder.encode(archive)
         let url = fileManager.temporaryDirectory
-            .appendingPathComponent("rider-craft-calibration-reviews-v1.json")
+            .appendingPathComponent("rider-craft-calibration-reviews-v2.json")
         try data.write(to: url, options: .atomic)
         return url
     }

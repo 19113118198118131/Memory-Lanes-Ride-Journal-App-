@@ -63,7 +63,7 @@ Audit result: **not approved for public rollout**. The existing production gate 
 
 ## Next Review
 
-The development build now includes a calibration-only review surface that opens each candidate and unflagged control corner at its stored replay index. Decisions are stored locally by ride and threshold version and can be exported as versioned JSON. They do not change coaching, upload to Supabase, or enable production UI.
+The development build now includes a calibration-only review surface that opens each candidate and unflagged control corner at its stored replay index. Decisions are stored locally by ride and threshold version and can be exported as versioned JSON with per-detector summaries. A control miss must name the detector that failed to flag it. Existing version 1 labels remain readable. Reviews do not change coaching, upload to Supabase, or enable production UI.
 
 1. Manually label a balanced sample of candidate and control corners for the three plausible detectors.
 2. Replace or remove early-apex before any Rider Craft UI is enabled.

@@ -141,7 +141,7 @@ Completed in native SwiftUI:
 - Positive, negative, insufficient-data, debrief, replay-link, and storage fixtures.
 - A rollout gate that keeps calibration copy out of production UI.
 - A development-only replay review surface for candidate and unflagged control corners.
-- Local, versioned calibration labels with JSON export; review data does not alter rider coaching or Supabase records.
+- Local, versioned calibration labels with per-detector JSON summaries; control misses require a named detector, and review data does not alter rider coaching or Supabase records.
 
 Still required before Phase 1 can surface publicly:
 
