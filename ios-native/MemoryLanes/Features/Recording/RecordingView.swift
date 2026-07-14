@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - RecordingView
 //
@@ -28,6 +29,12 @@ struct RecordingView: View {
             if recorder.status == .idle {
                 recorder.start()
             }
+        }
+        .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
         }
         .alert("Finish ride?", isPresented: $showingFinishConfirmation) {
             Button("Keep Riding", role: .cancel) {}
