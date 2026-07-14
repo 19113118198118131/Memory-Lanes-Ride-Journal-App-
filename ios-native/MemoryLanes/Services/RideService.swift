@@ -12,6 +12,7 @@ protocol RideServing {
     /// Full analysis for one ride, loaded when the rider opens it.
     func fetchDetail(for ride: Ride) async throws -> RideDetail
     func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment]
+    func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride
 }
 
 // MARK: - Preview / demo implementation
@@ -56,6 +57,15 @@ struct PreviewRideService: RideServing {
         if let failure { throw failure }
         return moments
     }
+
+    func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride {
+        try await Task.sleep(for: .milliseconds(250))
+        if let failure { throw failure }
+        var updated = ride
+        updated.isPublic = isPublic
+        updated.shareToken = isPublic ? (updated.shareToken ?? UUID()) : updated.shareToken
+        return updated
+    }
 }
 
 // MARK: - Live implementation
@@ -74,7 +84,7 @@ struct RideService: RideServing {
         let rows: [SupabaseRideRow] = try await client.get(
             path: "rest/v1/ride_logs",
             queryItems: [
-                URLQueryItem(name: "select", value: "id,title,distance_km,duration_min,elevation_m,ride_date,gpx_path,moments,is_public,skills,planned_route_id"),
+                URLQueryItem(name: "select", value: Self.rideSelectColumns),
                 URLQueryItem(name: "order", value: "ride_date.desc")
             ],
             accessToken: token
@@ -152,6 +162,26 @@ struct RideService: RideServing {
         return payload.moments.map(\.moment)
     }
 
+    func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride {
+        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        let payload = RideShareUpdatePayload(isPublic: isPublic)
+        let rows: [SupabaseRideRow] = try await client.patch(
+            path: "rest/v1/ride_logs",
+            queryItems: [
+                URLQueryItem(name: "id", value: "eq.\(ride.id.uuidString)"),
+                URLQueryItem(name: "select", value: Self.rideSelectColumns)
+            ],
+            body: payload,
+            accessToken: token,
+            prefer: "return=representation"
+        )
+        var updated = rows.first?.ride ?? ride
+        updated.routePreview = ride.routePreview
+        return updated
+    }
+
+    private static let rideSelectColumns = "id,title,distance_km,duration_min,elevation_m,ride_date,gpx_path,moments,is_public,share_token,skills,planned_route_id"
+
     private func downloadTrack(path: String, accessToken: String) async throws -> GPXTrack {
         let data = try await client.download(
             path: "storage/v1/object/gpx-files/\(path)",
@@ -213,11 +243,13 @@ struct RideService: RideServing {
 enum RideServiceError: LocalizedError {
     case notImplemented
     case notAuthenticated
+    case sharingUnavailable
 
     var errorDescription: String? {
         switch self {
         case .notImplemented: "Ride syncing isn’t connected yet."
         case .notAuthenticated: "Sign in to sync your rides."
+        case .sharingUnavailable: "The ride was shared, but no public link was returned."
         }
     }
 }
@@ -231,6 +263,8 @@ private struct SupabaseRideRow: Decodable {
     let rideDate: String?
     let gpxPath: String?
     let moments: [SupabaseMoment]?
+    let isPublic: Bool?
+    let shareToken: UUID?
     let skills: SupabaseSkills?
     let plannedRouteID: UUID?
 
@@ -243,6 +277,8 @@ private struct SupabaseRideRow: Decodable {
         case rideDate = "ride_date"
         case gpxPath = "gpx_path"
         case moments
+        case isPublic = "is_public"
+        case shareToken = "share_token"
         case skills
         case plannedRouteID = "planned_route_id"
     }
@@ -260,7 +296,9 @@ private struct SupabaseRideRow: Decodable {
             source: gpxPath == nil ? .live : .gpx,
             routePreview: [],
             gpxPath: gpxPath,
-            plannedRouteID: plannedRouteID
+            plannedRouteID: plannedRouteID,
+            isPublic: isPublic ?? false,
+            shareToken: shareToken
         )
     }
 
@@ -337,6 +375,14 @@ private struct RideMomentsUpdatePayload: Encodable {
 
 private struct RideSkillsUpdatePayload: Encodable {
     let skills: RideCoachStorageSummary
+}
+
+private struct RideShareUpdatePayload: Encodable {
+    let isPublic: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case isPublic = "is_public"
+    }
 }
 
 private struct SupabaseLinkedPlannedRouteRow: Decodable {

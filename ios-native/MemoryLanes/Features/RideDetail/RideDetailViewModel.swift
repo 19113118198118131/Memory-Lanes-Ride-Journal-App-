@@ -23,11 +23,13 @@ final class RideDetailViewModel {
         case failed(String)
     }
 
-    let ride: Ride
+    private(set) var ride: Ride
     private(set) var state: DetailState = .loading
     var section: Section = .overview
     var momentErrorMessage: String?
     var isSavingMoment = false
+    var isUpdatingShareLink = false
+    var shareErrorMessage: String?
     var playbackIndex = 0
     var isPlaying = false
     var playbackSpeed: Double = 1
@@ -58,6 +60,10 @@ final class RideDetailViewModel {
 
     var plannedGuideRoute: [Coordinate] {
         detail?.plannedRoute?.route ?? []
+    }
+
+    var publicShareURL: URL? {
+        ride.isPublic ? ride.publicShareURL : nil
     }
 
     var canReplay: Bool {
@@ -214,6 +220,40 @@ final class RideDetailViewModel {
         guard case .loaded(var detail) = state else { return false }
         detail.moments.removeAll { $0.id == moment.id }
         return await persistMoments(detail.moments, detail: detail)
+    }
+
+    func publicShareLink() async throws -> URL {
+        if let publicShareURL {
+            return publicShareURL
+        }
+        isUpdatingShareLink = true
+        shareErrorMessage = nil
+        defer { isUpdatingShareLink = false }
+        do {
+            let updated = try await rideService.setSharing(true, for: ride)
+            ride = updated
+            guard let url = updated.publicShareURL else {
+                throw RideServiceError.sharingUnavailable
+            }
+            return url
+        } catch {
+            shareErrorMessage = error.localizedDescription
+            throw error
+        }
+    }
+
+    func revokePublicShareLink() async -> Bool {
+        guard ride.isPublic else { return true }
+        isUpdatingShareLink = true
+        shareErrorMessage = nil
+        defer { isUpdatingShareLink = false }
+        do {
+            ride = try await rideService.setSharing(false, for: ride)
+            return true
+        } catch {
+            shareErrorMessage = error.localizedDescription
+            return false
+        }
     }
 
     private func persistMoments(_ moments: [Moment], detail: RideDetail) async -> Bool {

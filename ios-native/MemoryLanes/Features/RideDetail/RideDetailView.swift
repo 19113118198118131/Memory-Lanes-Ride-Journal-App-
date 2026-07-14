@@ -11,7 +11,7 @@ import SwiftUI
 
 struct RideDetailView: View {
     @State private var viewModel: RideDetailViewModel
-    @State private var shareItem: ShareableImage?
+    @State private var activityPayload: ActivityPayload?
     @State private var momentEditor: MomentEditorContext?
     @State private var isRendering = false
     @Environment(\.dismiss) private var dismiss
@@ -49,8 +49,8 @@ struct RideDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task { await viewModel.load() }
         .onDisappear { viewModel.pausePlayback() }
-        .sheet(item: $shareItem) { item in
-            ActivityView(items: item.items)
+        .sheet(item: $activityPayload) { payload in
+            ActivityView(items: payload.items)
                 .presentationDetents([.medium, .large])
         }
         .sheet(item: $momentEditor) { context in
@@ -176,6 +176,9 @@ struct RideDetailView: View {
             }
             if let debrief = viewModel.detail?.debrief {
                 debriefCard(debrief)
+            }
+            if viewModel.ride.isPublic {
+                publicShareCard
             }
             if let plannedRoute = viewModel.detail?.plannedRoute,
                let routeMatch = viewModel.detail?.routeMatch {
@@ -372,6 +375,48 @@ struct RideDetailView: View {
         .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
     }
 
+    private var publicShareCard: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Public link").mlKicker()
+                    Text("This ride is shareable")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                }
+                Spacer()
+                Image(systemName: "link.circle.fill")
+                    .foregroundStyle(Color.mlAccent)
+            }
+            if let url = viewModel.publicShareURL {
+                Text(url.absoluteString)
+                    .font(MLFont.monoSmall)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            HStack(spacing: Spacing.sm) {
+                SecondaryButton(title: "Copy Link", systemImage: "square.and.arrow.up") {
+                    sharePublicLink()
+                }
+                .disabled(viewModel.isUpdatingShareLink)
+                SecondaryButton(title: "Stop Sharing", systemImage: "eye.slash") {
+                    Task { @MainActor in
+                        let revoked = await viewModel.revokePublicShareLink()
+                        revoked ? Haptics.success() : Haptics.error()
+                    }
+                }
+                .disabled(viewModel.isUpdatingShareLink)
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        )
+    }
+
     @ViewBuilder
     private var momentsSection: some View {
         switch viewModel.state {
@@ -458,6 +503,11 @@ struct RideDetailView: View {
         HStack {
             circleButton(systemImage: "chevron.left", label: "Back") { dismiss() }
             Spacer()
+            circleButton(systemImage: viewModel.isUpdatingShareLink ? "hourglass" : "link",
+                         label: "Share public link") {
+                sharePublicLink()
+            }
+            .disabled(viewModel.isUpdatingShareLink)
             circleButton(systemImage: isRendering ? "hourglass" : "square.and.arrow.up",
                          label: "Share ride") {
                 renderShareImage()
@@ -491,11 +541,23 @@ struct RideDetailView: View {
             defer { isRendering = false }
             if let image = ShareCardRenderer.image(for: viewModel.ride) {
                 Haptics.success()
-                shareItem = ShareableImage(
-                    image: image,
-                    text: ShareCardRenderer.summaryText(for: viewModel.ride)
-                )
+                activityPayload = ActivityPayload(items: [
+                    image,
+                    ShareCardRenderer.summaryText(for: viewModel.ride)
+                ])
             } else {
+                Haptics.error()
+            }
+        }
+    }
+
+    private func sharePublicLink() {
+        Task { @MainActor in
+            do {
+                let url = try await viewModel.publicShareLink()
+                Haptics.success()
+                activityPayload = ActivityPayload(items: [url])
+            } catch {
                 Haptics.error()
             }
         }

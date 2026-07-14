@@ -28,6 +28,9 @@ struct Ride: Identifiable, Hashable, Sendable {
     var gpxPath: String?
     /// Planned route followed while recording, when the ride started from Planner.
     var plannedRouteID: UUID?
+    /// Public read-only sharing state for web share links.
+    var isPublic: Bool
+    var shareToken: UUID?
 
     init(
         id: UUID = UUID(),
@@ -41,7 +44,9 @@ struct Ride: Identifiable, Hashable, Sendable {
         source: RideSource = .gpx,
         routePreview: [Coordinate] = [],
         gpxPath: String? = nil,
-        plannedRouteID: UUID? = nil
+        plannedRouteID: UUID? = nil,
+        isPublic: Bool = false,
+        shareToken: UUID? = nil
     ) {
         self.id = id
         self.title = title
@@ -55,6 +60,8 @@ struct Ride: Identifiable, Hashable, Sendable {
         self.routePreview = routePreview
         self.gpxPath = gpxPath
         self.plannedRouteID = plannedRouteID
+        self.isPublic = isPublic
+        self.shareToken = shareToken
     }
 
     // Hashable/Equatable by id — coordinates aren't Hashable and identity is enough.
@@ -104,5 +111,10 @@ extension Ride {
 
     var relativeDate: String {
         date.formatted(.relative(presentation: .named))
+    }
+
+    var publicShareURL: URL? {
+        guard let shareToken else { return nil }
+        return URL(string: "https://memory-lanes-ride-journal-app.vercel.app/index.html?share=\(shareToken.uuidString)")
     }
 }

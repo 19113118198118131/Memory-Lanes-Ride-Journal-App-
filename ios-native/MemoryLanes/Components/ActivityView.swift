@@ -16,6 +16,11 @@ struct ActivityView: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
+struct ActivityPayload: Identifiable {
+    let id = UUID()
+    let items: [Any]
+}
+
 /// A shareable image wrapper that is `Identifiable` so it can drive `.sheet(item:)`.
 struct ShareableImage: Identifiable {
     let id = UUID()
