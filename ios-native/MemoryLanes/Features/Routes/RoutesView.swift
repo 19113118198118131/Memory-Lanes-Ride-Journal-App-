@@ -536,7 +536,30 @@ struct PlannedRouteDetailView: View {
         isWorking = true
         errorMessage = nil
         do {
-            route = try await routeService.updateRoute(draft, for: route)
+            var routedDraft = draft
+            if draft.waypoints == route.editableWaypoints {
+                // A rename must not replace the existing road geometry with the
+                // editor's lightweight straight-line preview.
+                routedDraft.route = route.route
+                routedDraft.distanceKm = route.distanceKm
+                routedDraft.elevationM = route.elevationM
+            } else {
+                let roadRoute = try await RoadRoutePlanner().route(through: draft.waypoints)
+                let distanceKm = roadRoute.distanceMeters / 1000
+                let elevationPerKm: Double
+                if let oldElevation = route.elevationM,
+                   let oldDistance = route.distanceKm,
+                   oldDistance > 0 {
+                    elevationPerKm = oldElevation / oldDistance
+                } else {
+                    elevationPerKm = 8
+                }
+                routedDraft.route = roadRoute.coordinates.decimated(maxCount: 1_600)
+                routedDraft.distanceKm = distanceKm
+                routedDraft.elevationM = distanceKm * elevationPerKm
+            }
+
+            route = try await routeService.updateRoute(routedDraft, for: route)
             Haptics.success()
             onChanged()
             showingEditSheet = false
@@ -654,7 +677,7 @@ private struct RouteEditSheet: View {
                     Text("Edit Route")
                         .font(MLFont.display)
                         .foregroundStyle(Color.mlTextPrimary)
-                    Text("Rename the route, tap the map to add stops, or reorder the waypoint list. Saving rebuilds the route line used by GPX export and ride recording.")
+                    Text("Rename the route, tap the map to add stops, or reorder the waypoint list. Saving recalculates changed waypoints along real roads for GPX export and ride recording.")
                         .font(MLFont.body)
                         .foregroundStyle(Color.mlTextSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1061,7 +1084,12 @@ private struct RoadRoutePlanner {
             request.transportType = .automobile
             request.requestsAlternateRoutes = false
 
-            let response = try await MKDirections(request: request).calculate()
+            let response: MKDirections.Response
+            do {
+                response = try await MKDirections(request: request).calculate()
+            } catch {
+                throw RoadRoutePlannerError.noRoutes
+            }
             guard let leg = response.routes.first else { throw RoadRoutePlannerError.noRoutes }
             let legCoordinates = leg.polyline.routeCoordinates
             if coordinates.isEmpty {
