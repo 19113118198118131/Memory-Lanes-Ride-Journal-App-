@@ -32,12 +32,16 @@ final class RideDetailViewModel {
     var isUpdatingShareLink = false
     var isExportingGPX = false
     var shareErrorMessage: String?
+    var feedbackStatus: String?
+    var isSavingFeedback = false
     var playbackIndex = 0
     var playbackElapsedSeconds: TimeInterval = 0
     var isPlaying = false
     var playbackSpeed: Double = 1
 
     @ObservationIgnored private var playbackTask: Task<Void, Never>?
+    @ObservationIgnored private var feedbackSaveTask: Task<Void, Never>?
+    @ObservationIgnored private var feedbackSaveID = UUID()
 
     private let rideService: RideServing
 
@@ -147,6 +151,38 @@ final class RideDetailViewModel {
         } catch is CancellationError {
         } catch {
             state = .failed(error.localizedDescription)
+        }
+    }
+
+    func queueFeedbackSave(_ feedback: RideFeedback) {
+        guard case .loaded(var detail) = state else { return }
+        detail.feedback = feedback
+        state = .loaded(detail)
+        feedbackStatus = nil
+        feedbackSaveTask?.cancel()
+        let saveID = UUID()
+        feedbackSaveID = saveID
+        feedbackSaveTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            await self?.persistFeedback(feedback, saveID: saveID)
+        }
+    }
+
+    private func persistFeedback(_ feedback: RideFeedback, saveID: UUID) async {
+        isSavingFeedback = true
+        defer {
+            if feedbackSaveID == saveID { isSavingFeedback = false }
+        }
+        do {
+            let saved = try await rideService.saveFeedback(feedback, for: ride)
+            guard feedbackSaveID == saveID, case .loaded(var currentDetail) = state else { return }
+            currentDetail.feedback = saved
+            state = .loaded(currentDetail)
+            feedbackStatus = "Saved. This shapes your route matches."
+        } catch is CancellationError {
+        } catch {
+            if feedbackSaveID == saveID { feedbackStatus = "Could not save feedback." }
         }
     }
 

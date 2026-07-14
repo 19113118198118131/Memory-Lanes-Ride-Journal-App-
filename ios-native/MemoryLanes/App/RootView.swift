@@ -91,7 +91,8 @@ private struct MainTabShell: View {
             NavigationStack(path: $routesPath) {
                 RoutesView(
                     viewModel: RoutesViewModel(
-                        routeService: routeService
+                        routeService: routeService,
+                        rideService: rideService
                     ),
                     refreshTrigger: refreshTrigger,
                     onSelectRoute: { routesPath.append($0) }

@@ -232,6 +232,15 @@ struct RideDetailView: View {
             if let debrief = viewModel.detail?.debrief {
                 debriefCard(debrief, trend: viewModel.detail?.coachTrend)
             }
+            if let detail = viewModel.detail {
+                RideFeedbackCard(
+                    feedback: detail.feedback ?? .empty,
+                    isSaving: viewModel.isSavingFeedback,
+                    status: viewModel.feedbackStatus
+                ) { feedback in
+                    viewModel.queueFeedbackSave(feedback)
+                }
+            }
             if viewModel.ride.isPublic {
                 publicShareCard
             }

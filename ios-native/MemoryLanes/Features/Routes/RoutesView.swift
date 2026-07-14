@@ -171,6 +171,10 @@ struct RoutesView: View {
                 Task { await generateCandidates() }
             }
 
+            Label(viewModel.recommendationStatus, systemImage: "person.crop.circle.badge.checkmark")
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextSecondary)
+
             ForEach(routeCandidates) { route in
                 candidateCard(route)
             }
@@ -273,8 +277,17 @@ struct RoutesView: View {
                         .foregroundStyle(Color.mlTextSecondary)
                 }
                 Spacer()
-                Image(systemName: "sparkles")
-                    .foregroundStyle(Color.mlAccent)
+                if let recommendation = route.recommendation {
+                    VStack(alignment: .trailing, spacing: Spacing.xxs) {
+                        Text("\(recommendation.matchPercent)%")
+                            .font(MLFont.mono)
+                            .foregroundStyle(Color.mlAccent)
+                        Text("YOUR MATCH").mlKicker()
+                    }
+                } else {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(Color.mlAccent)
+                }
             }
 
             SegmentedMetric(items: [
@@ -282,6 +295,18 @@ struct RoutesView: View {
                 .init(value: route.time, unit: "", label: "Time"),
                 .init(value: route.elevation, unit: "m", label: "Ascent")
             ])
+
+            if let recommendation = route.recommendation {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    ForEach(recommendation.reasons, id: \.self) { reason in
+                        Label(reason, systemImage: "checkmark.circle")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Text("\(recommendation.confidence.rawValue.capitalized) confidence · based only on your rated rides")
+                        .mlKicker()
+                }
+            }
 
             SecondaryButton(title: "Use This Route", systemImage: "checkmark.circle.fill") {
                 Task { await saveCandidate(route) }
@@ -340,11 +365,18 @@ struct RoutesView: View {
         routeSaveError = nil
         defer { isGeneratingCandidates = false }
         do {
-            routeCandidates = try await RouteCandidate.candidates(
+            let generated = try await RouteCandidate.candidates(
                 mood: selectedMood,
                 time: selectedTime,
                 start: start
             )
+            routeCandidates = generated
+                .map { candidate in
+                    var ranked = candidate
+                    ranked.recommendation = viewModel.recommendation(for: candidate.matchVector)
+                    return ranked
+                }
+                .sorted { ($0.recommendation?.matchPercent ?? -1) > ($1.recommendation?.matchPercent ?? -1) }
             Haptics.success()
             withAnimation(Motion.spring) {
                 showCandidates = true
@@ -987,6 +1019,15 @@ private struct RouteCandidate: Identifiable {
     let summary: String
     let preview: [Coordinate]
     let waypoints: [Coordinate]
+    var recommendation: RouteRecommendation?
+
+    var matchVector: RouteMatchVector {
+        RouteMatchVector(
+            distanceKm: distanceKm,
+            elevationGainM: elevationM,
+            turnsPerKm: RouteGeometry.turnsPerKm(preview, distanceKm: distanceKm) ?? 0
+        )
+    }
 
     var distance: String {
         String(format: "%.1f", distanceKm)
@@ -1032,7 +1073,8 @@ private struct RouteCandidate: Identifiable {
                     elevationM: (roadRoute.distanceMeters / 1000) * mood.elevationMetersPerKm,
                     summary: attempt.summary,
                     preview: roadRoute.coordinates.decimated(maxCount: 1_600),
-                    waypoints: anchors
+                    waypoints: anchors,
+                    recommendation: nil
                 )
             )
             if candidates.count == 2 { break }
@@ -1232,7 +1274,7 @@ private struct FlowLayout<Content: View>: View {
 
 #Preview {
     NavigationStack {
-        RoutesView(viewModel: RoutesViewModel(routeService: PreviewRouteService()))
+        RoutesView(viewModel: RoutesViewModel(routeService: PreviewRouteService(), rideService: PreviewRideService()))
     }
     .preferredColorScheme(.dark)
 }

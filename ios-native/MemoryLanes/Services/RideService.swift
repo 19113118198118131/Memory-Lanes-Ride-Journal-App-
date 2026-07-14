@@ -19,6 +19,8 @@ protocol RideServing: Sendable {
     func fetchDetail(for ride: Ride) async throws -> RideDetail
     func gpxData(for ride: Ride) async throws -> Data
     func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment]
+    func saveFeedback(_ feedback: RideFeedback, for ride: Ride) async throws -> RideFeedback
+    func fetchRatedRideFeatures() async throws -> [RatedRideFeatures]
     func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride
 }
 
@@ -92,6 +94,14 @@ struct PreviewRideService: RideServing {
         return moments
     }
 
+    func saveFeedback(_ feedback: RideFeedback, for ride: Ride) async throws -> RideFeedback {
+        try await Task.sleep(for: .milliseconds(180))
+        if let failure { throw failure }
+        return feedback
+    }
+
+    func fetchRatedRideFeatures() async throws -> [RatedRideFeatures] { [] }
+
     func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride {
         try await Task.sleep(for: .milliseconds(250))
         if let failure { throw failure }
@@ -138,9 +148,9 @@ struct RideService: RideServing {
 
     func fetchDetail(for ride: Ride) async throws -> RideDetail {
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
-        let storedMoments = try await fetchStoredMoments(for: ride.id, accessToken: token)
+        let metadata = try await fetchStoredMetadata(for: ride.id, accessToken: token)
         guard let gpxPath = ride.gpxPath else {
-            return RideDetail(id: ride.id, routePreview: [], replayPoints: [], elevation: [], corners: [], moments: storedMoments, weather: nil, coachScore: nil, coachScores: [], debrief: "This ride does not have an attached GPX file yet.")
+            return RideDetail(id: ride.id, routePreview: [], replayPoints: [], elevation: [], corners: [], moments: metadata.moments, weather: nil, coachScore: nil, coachScores: [], feedback: metadata.feedback, debrief: "This ride does not have an attached GPX file yet.")
         }
         let data = try await client.download(
             path: "storage/v1/object/gpx-files/\(gpxPath)",
@@ -171,18 +181,26 @@ struct RideService: RideServing {
         if let summary = coach.storageSummary {
             try? await saveCoachSummary(summary, for: ride.id, accessToken: token)
         }
+        let features = RideFeatureExtractor().extract(
+            ride: ride,
+            points: track.points,
+            scores: coach.scores,
+            corners: coach.corners
+        )
+        try? await saveFeatureRecord(features, for: ride.id, accessToken: token)
         return RideDetail(
             id: ride.id,
             routePreview: track.routePreview,
             replayPoints: track.replayPoints,
             elevation: track.elevationSamples,
             corners: coach.corners,
-            moments: storedMoments,
+            moments: metadata.moments,
             weather: weather,
             coachScore: coach.score,
             coachScores: coach.scores,
             analytics: coach.analytics,
             coachTrend: coach.trend,
+            feedback: metadata.feedback,
             plannedRoute: plannedRoute,
             routeMatch: routeMatch,
             debrief: coach.debrief
@@ -210,6 +228,35 @@ struct RideService: RideServing {
             accessToken: token
         )
         return payload.moments.map(\.moment)
+    }
+
+    func saveFeedback(_ feedback: RideFeedback, for ride: Ride) async throws -> RideFeedback {
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        var saved = feedback
+        saved.at = Date()
+        try await client.patch(
+            path: "rest/v1/ride_logs",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(ride.id.uuidString)")],
+            body: RideFeedbackUpdatePayload(feedback: saved),
+            accessToken: token
+        )
+        return saved
+    }
+
+    func fetchRatedRideFeatures() async throws -> [RatedRideFeatures] {
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        let rows: [SupabaseRecommendationRideRow] = try await client.get(
+            path: "rest/v1/ride_logs",
+            queryItems: [
+                URLQueryItem(name: "select", value: "ai_features,feedback"),
+                URLQueryItem(name: "ai_features", value: "not.is.null"),
+                URLQueryItem(name: "feedback", value: "not.is.null"),
+                URLQueryItem(name: "order", value: "ride_date.desc"),
+                URLQueryItem(name: "limit", value: "100")
+            ],
+            accessToken: token
+        )
+        return rows.compactMap(\.ratedFeatures)
     }
 
     func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride {
@@ -240,17 +287,31 @@ struct RideService: RideServing {
         return try GPXParser().parse(data: data)
     }
 
-    private func fetchStoredMoments(for rideID: UUID, accessToken: String) async throws -> [Moment] {
-        let rows: [SupabaseRideMomentRow] = try await client.get(
-            path: "rest/v1/ride_logs",
-            queryItems: [
-                URLQueryItem(name: "select", value: "moments"),
-                URLQueryItem(name: "id", value: "eq.\(rideID.uuidString)"),
-                URLQueryItem(name: "limit", value: "1")
-            ],
-            accessToken: accessToken
-        )
-        return rows.first?.moments?.map(\.moment) ?? []
+    private func fetchStoredMetadata(for rideID: UUID, accessToken: String) async throws -> SupabaseRideMetadata {
+        let query = [
+            URLQueryItem(name: "id", value: "eq.\(rideID.uuidString)"),
+            URLQueryItem(name: "limit", value: "1")
+        ]
+        do {
+            let rows: [SupabaseRideMetadataRow] = try await client.get(
+                path: "rest/v1/ride_logs",
+                queryItems: [URLQueryItem(name: "select", value: "moments,feedback")] + query,
+                accessToken: accessToken
+            )
+            return SupabaseRideMetadata(
+                moments: rows.first?.moments?.map(\.moment) ?? [],
+                feedback: rows.first?.feedback
+            )
+        } catch {
+            // The AI migration is optional during rollout. A missing feedback
+            // column must never stop a rider opening an existing ride.
+            let rows: [SupabaseRideMomentsFallbackRow] = try await client.get(
+                path: "rest/v1/ride_logs",
+                queryItems: [URLQueryItem(name: "select", value: "moments")] + query,
+                accessToken: accessToken
+            )
+            return SupabaseRideMetadata(moments: rows.first?.moments?.map(\.moment) ?? [], feedback: nil)
+        }
     }
 
     private func saveCoachSummary(_ summary: RideCoachStorageSummary, for rideID: UUID, accessToken: String) async throws {
@@ -258,6 +319,15 @@ struct RideService: RideServing {
             path: "rest/v1/ride_logs",
             queryItems: [URLQueryItem(name: "id", value: "eq.\(rideID.uuidString)")],
             body: RideSkillsUpdatePayload(skills: summary),
+            accessToken: accessToken
+        )
+    }
+
+    private func saveFeatureRecord(_ features: RideFeatureRecord, for rideID: UUID, accessToken: String) async throws {
+        try await client.patch(
+            path: "rest/v1/ride_logs",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(rideID.uuidString)")],
+            body: RideFeatureUpdatePayload(aiFeatures: features, aiVersion: "ride-features-v1"),
             accessToken: accessToken
         )
     }
@@ -435,8 +505,18 @@ private struct SupabaseSkills: Decodable {
     }
 }
 
-private struct SupabaseRideMomentRow: Decodable {
+private struct SupabaseRideMetadataRow: Decodable {
     let moments: [SupabaseMoment]?
+    let feedback: RideFeedback?
+}
+
+private struct SupabaseRideMomentsFallbackRow: Decodable {
+    let moments: [SupabaseMoment]?
+}
+
+private struct SupabaseRideMetadata {
+    let moments: [Moment]
+    let feedback: RideFeedback?
 }
 
 private struct SupabaseRideSkillsRow: Decodable {
@@ -450,6 +530,35 @@ private struct RideMomentsUpdatePayload: Encodable {
 
 private struct RideSkillsUpdatePayload: Encodable {
     let skills: RideCoachStorageSummary
+}
+
+private struct RideFeatureUpdatePayload: Encodable {
+    let aiFeatures: RideFeatureRecord
+    let aiVersion: String
+
+    enum CodingKeys: String, CodingKey {
+        case aiFeatures = "ai_features"
+        case aiVersion = "ai_version"
+    }
+}
+
+private struct RideFeedbackUpdatePayload: Encodable {
+    let feedback: RideFeedback
+}
+
+private struct SupabaseRecommendationRideRow: Decodable {
+    let aiFeatures: RideFeatureRecord?
+    let feedback: RideFeedback?
+
+    enum CodingKeys: String, CodingKey {
+        case aiFeatures = "ai_features"
+        case feedback
+    }
+
+    var ratedFeatures: RatedRideFeatures? {
+        guard let aiFeatures, let enjoyment = feedback?.enjoyment else { return nil }
+        return RatedRideFeatures(features: aiFeatures, enjoyment: Double(enjoyment))
+    }
 }
 
 private struct RideShareUpdatePayload: Encodable {

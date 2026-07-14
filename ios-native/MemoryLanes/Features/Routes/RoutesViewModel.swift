@@ -14,9 +14,12 @@ final class RoutesViewModel {
     private(set) var state: LoadState = .loading
     private(set) var isSavingRoute = false
     private let routeService: RouteServing
+    private let rideService: RideServing
+    private var recommender = RideRecommendationEngine(ratedRides: [])
 
-    init(routeService: RouteServing) {
+    init(routeService: RouteServing, rideService: RideServing) {
         self.routeService = routeService
+        self.rideService = rideService
     }
 
     var routes: [PlannedRoute] {
@@ -27,6 +30,27 @@ final class RoutesViewModel {
     func load() async {
         state = .loading
         await refresh()
+        await refreshRecommendations()
+    }
+
+    var recommendationStatus: String {
+        recommender.isReady
+            ? "Personalised from \(recommender.ratedCount) rated rides"
+            : "Rate \(max(4 - recommender.ratedCount, 0)) more ride\(4 - recommender.ratedCount == 1 ? "" : "s") to unlock personal matches"
+    }
+
+    func recommendation(for vector: RouteMatchVector) -> RouteRecommendation? {
+        recommender.score(vector)
+    }
+
+    private func refreshRecommendations() async {
+        do {
+            recommender = RideRecommendationEngine(ratedRides: try await rideService.fetchRatedRideFeatures())
+        } catch {
+            // Personalisation is additive. Route planning remains fully usable
+            // before the optional AI migration or when the rider is offline.
+            recommender = RideRecommendationEngine(ratedRides: [])
+        }
     }
 
     func refresh() async {
