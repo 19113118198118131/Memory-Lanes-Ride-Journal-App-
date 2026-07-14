@@ -43,6 +43,7 @@ struct PreviewRideService: RideServing {
             corners: SampleData.heroDetail.corners,
             moments: SampleData.heroDetail.moments,
             weather: SampleData.heroDetail.weather,
+            coachScore: SampleData.heroDetail.coachScore,
             debrief: SampleData.heroDetail.debrief
         )
     }
@@ -90,22 +91,24 @@ struct RideService: RideServing {
         guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
         let storedMoments = try await fetchStoredMoments(for: ride.id, accessToken: token)
         guard let gpxPath = ride.gpxPath else {
-            return RideDetail(id: ride.id, routePreview: [], replayPoints: [], elevation: [], corners: [], moments: storedMoments, weather: nil, debrief: "This ride does not have an attached GPX file yet.")
+            return RideDetail(id: ride.id, routePreview: [], replayPoints: [], elevation: [], corners: [], moments: storedMoments, weather: nil, coachScore: nil, debrief: "This ride does not have an attached GPX file yet.")
         }
         let data = try await client.download(
             path: "storage/v1/object/gpx-files/\(gpxPath)",
             accessToken: token
         )
         let track = try GPXParser().parse(data: data)
+        let coach = RideCoachAnalyzer().analyze(points: track.points)
         return RideDetail(
             id: ride.id,
             routePreview: track.routePreview,
             replayPoints: track.replayPoints,
             elevation: track.elevationSamples,
-            corners: [],
+            corners: coach.corners,
             moments: storedMoments,
             weather: nil,
-            debrief: "Route and elevation loaded from the saved GPX. Ride Coach analysis is the next layer."
+            coachScore: coach.score,
+            debrief: coach.debrief
         )
     }
 

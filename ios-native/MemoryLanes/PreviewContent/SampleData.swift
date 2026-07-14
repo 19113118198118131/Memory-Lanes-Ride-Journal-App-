@@ -171,6 +171,7 @@ enum SampleData {
         corners: corners,
         moments: moments,
         weather: weather,
+        coachScore: 87,
         debrief: "Your smoothest ride this month. Corner exits were consistently strong — the one thing to practise next time is releasing the brakes a touch earlier into fast right-handers."
     )
 }

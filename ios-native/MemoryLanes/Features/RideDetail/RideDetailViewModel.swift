@@ -84,6 +84,13 @@ final class RideDetailViewModel {
         return "\(Int(point.speedKmh.rounded())) km/h"
     }
 
+    var flowScoreText: String {
+        if let score = detail?.coachScore ?? ride.flowScore {
+            return "\(score)"
+        }
+        return "—"
+    }
+
     /// Key headline stats shown under the title, available immediately.
     var headlineStats: [SegmentedMetric.Item] {
         [

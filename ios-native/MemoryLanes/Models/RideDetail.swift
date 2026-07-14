@@ -15,6 +15,7 @@ struct RideDetail: Identifiable, Sendable {
     var corners: [CornerTicket]
     var moments: [Moment]
     var weather: Weather?
+    var coachScore: Int?
     /// The coaching debrief — one plain-English takeaway.
     var debrief: String?
 }

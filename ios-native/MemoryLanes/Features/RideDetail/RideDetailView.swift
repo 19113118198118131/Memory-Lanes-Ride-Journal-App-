@@ -175,7 +175,7 @@ struct RideDetailView: View {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.md),
                                 GridItem(.flexible(), spacing: Spacing.md)],
                       spacing: Spacing.md) {
-                StatCard(label: "Flow", value: viewModel.ride.flowScore.map(String.init) ?? "—",
+                StatCard(label: "Flow", value: viewModel.flowScoreText,
                          systemImage: "waveform.path.ecg")
                 StatCard(label: "Ascent", value: viewModel.ride.elevationFormatted, unit: "m",
                          systemImage: "mountain.2")
