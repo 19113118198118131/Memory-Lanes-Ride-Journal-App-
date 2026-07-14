@@ -69,6 +69,16 @@ struct PlannedRoute: Identifiable, Hashable, Sendable {
         </gpx>
         """
     }
+
+    func draftCopy(title copyTitle: String) -> PlannedRouteDraft {
+        PlannedRouteDraft(
+            title: copyTitle,
+            distanceKm: distanceKm,
+            elevationM: elevationM,
+            waypoints: waypoints,
+            route: route
+        )
+    }
 }
 
 struct PlannedRouteDraft: Hashable, Sendable {

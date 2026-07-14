@@ -475,6 +475,11 @@ struct PlannedRouteDetailView: View {
             }
             .disabled(isWorking)
 
+            SecondaryButton(title: "Duplicate Route", systemImage: "plus.square.on.square") {
+                Task { await duplicateRoute() }
+            }
+            .disabled(isWorking)
+
             SecondaryButton(title: route.isPublic ? "Share Invite" : "Create Invite", systemImage: "square.and.arrow.up") {
                 Task { await shareInvite() }
             }
@@ -515,6 +520,21 @@ struct PlannedRouteDetailView: View {
             Haptics.success()
             onChanged()
             showingEditSheet = false
+        } catch {
+            Haptics.error()
+            errorMessage = error.localizedDescription
+        }
+        isWorking = false
+    }
+
+    private func duplicateRoute() async {
+        isWorking = true
+        errorMessage = nil
+        do {
+            let copy = try await routeService.createRoute(route.draftCopy(title: "\(route.title) Copy"))
+            route = copy
+            Haptics.success()
+            onChanged()
         } catch {
             Haptics.error()
             errorMessage = error.localizedDescription
