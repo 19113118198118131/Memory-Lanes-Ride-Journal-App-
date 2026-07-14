@@ -4,6 +4,7 @@ import Foundation
 protocol RouteServing {
     func fetchRoutes() async throws -> [PlannedRoute]
     func createRoute(_ draft: PlannedRouteDraft) async throws -> PlannedRoute
+    func updateRouteTitle(_ title: String, for route: PlannedRoute) async throws -> PlannedRoute
     func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute
     func deleteRoute(_ route: PlannedRoute) async throws
 }
@@ -33,6 +34,14 @@ struct PreviewRouteService: RouteServing {
             isPublic: false,
             shareToken: nil
         )
+    }
+
+    func updateRouteTitle(_ title: String, for route: PlannedRoute) async throws -> PlannedRoute {
+        try await Task.sleep(for: .milliseconds(250))
+        if let failure { throw failure }
+        var updated = route
+        updated.title = title
+        return updated
     }
 
     func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute {
@@ -80,6 +89,22 @@ struct RouteService: RouteServing {
         )
         guard let route = rows.first?.plannedRoute else { throw RouteServiceError.missingInsertedRoute }
         return route
+    }
+
+    func updateRouteTitle(_ title: String, for route: PlannedRoute) async throws -> PlannedRoute {
+        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        let payload = RouteTitleUpdatePayload(title: title)
+        let rows: [SupabasePlannedRouteRow] = try await client.patch(
+            path: "rest/v1/planned_routes",
+            queryItems: [
+                URLQueryItem(name: "id", value: "eq.\(route.id.uuidString)"),
+                URLQueryItem(name: "select", value: "id,title,distance_km,elevation_m,waypoints,route,created_at,is_public,share_token")
+            ],
+            body: payload,
+            accessToken: token,
+            prefer: "return=representation"
+        )
+        return rows.first?.plannedRoute ?? route
     }
 
     func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute {
@@ -208,6 +233,10 @@ private struct RouteShareUpdatePayload: Encodable {
     enum CodingKeys: String, CodingKey {
         case isPublic = "is_public"
     }
+}
+
+private struct RouteTitleUpdatePayload: Encodable {
+    let title: String
 }
 
 private struct WaypointPayload: Decodable {

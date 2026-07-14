@@ -345,6 +345,7 @@ struct PlannedRouteDetailView: View {
     @State private var sharePayload: RouteSharePayload?
     @State private var isWorking = false
     @State private var errorMessage: String?
+    @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
 
     let routeService: any RouteServing
@@ -441,6 +442,13 @@ struct PlannedRouteDetailView: View {
             ActivityView(items: payload.items)
                 .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $showingEditSheet) {
+            RouteEditSheet(route: route, isSaving: isWorking) { title in
+                await updateTitle(title)
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
         .confirmationDialog(
             "Delete this route?",
             isPresented: $showingDeleteConfirmation,
@@ -461,6 +469,11 @@ struct PlannedRouteDetailView: View {
                 Haptics.impact(.medium)
                 onStartRide(route)
             }
+
+            SecondaryButton(title: "Edit Route", systemImage: "pencil") {
+                showingEditSheet = true
+            }
+            .disabled(isWorking)
 
             SecondaryButton(title: route.isPublic ? "Share Invite" : "Create Invite", systemImage: "square.and.arrow.up") {
                 Task { await shareInvite() }
@@ -492,6 +505,21 @@ struct PlannedRouteDetailView: View {
             .buttonStyle(MLPressableButtonStyle())
             .disabled(isWorking)
         }
+    }
+
+    private func updateTitle(_ title: String) async {
+        isWorking = true
+        errorMessage = nil
+        do {
+            route = try await routeService.updateRouteTitle(title, for: route)
+            Haptics.success()
+            onChanged()
+            showingEditSheet = false
+        } catch {
+            Haptics.error()
+            errorMessage = error.localizedDescription
+        }
+        isWorking = false
     }
 
     private func shareInvite() async {
@@ -559,6 +587,75 @@ struct PlannedRouteDetailView: View {
 private struct RouteSharePayload: Identifiable {
     let id = UUID()
     let items: [Any]
+}
+
+private struct RouteEditSheet: View {
+    let route: PlannedRoute
+    let isSaving: Bool
+    let onSave: (String) async -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+
+    init(route: PlannedRoute, isSaving: Bool, onSave: @escaping (String) async -> Void) {
+        self.route = route
+        self.isSaving = isSaving
+        self.onSave = onSave
+        _title = State(initialValue: route.title)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Route details").mlKicker()
+                Text("Edit Route")
+                    .font(MLFont.display)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text("Rename this planned route. The route line, waypoints, GPX export, and invite link stay attached.")
+                    .font(MLFont.body)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Name").mlKicker()
+                TextField("Route name", text: $title)
+                    .font(MLFont.body)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .padding(.horizontal, Spacing.md)
+                    .frame(height: 52)
+                    .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                            .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+                    )
+                    .disabled(isSaving)
+            }
+
+            HStack(spacing: Spacing.md) {
+                SecondaryButton(title: "Cancel", systemImage: "xmark") {
+                    dismiss()
+                }
+                .disabled(isSaving)
+
+                PrimaryButton(title: "Save", systemImage: "checkmark", isLoading: isSaving) {
+                    Task { await onSave(cleanTitle) }
+                }
+                .disabled(!canSave)
+            }
+        }
+        .padding(Spacing.lg)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.mlBackground)
+    }
+
+    private var cleanTitle: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canSave: Bool {
+        !cleanTitle.isEmpty && cleanTitle != route.title && !isSaving
+    }
 }
 
 private enum RouteActionError: LocalizedError {
