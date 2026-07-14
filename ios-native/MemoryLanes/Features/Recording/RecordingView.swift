@@ -79,11 +79,29 @@ struct RecordingView: View {
     }
 
     private var mapLayer: some View {
-        Group {
+        let currentCoordinate = recorder.points.last?.coordinate
+        return Group {
             if recorder.routePreview.count > 1 {
-                MLMapView(route: recorder.routePreview, fadeColor: .mlBackground, guideRoute: plannedRoute?.route ?? [])
+                MLMapView(
+                    route: recorder.routePreview,
+                    fadeColor: .mlBackground,
+                    replayCoordinate: currentCoordinate,
+                    completedRoute: recorder.routePreview,
+                    guideRoute: plannedRoute?.route ?? []
+                )
             } else if let plannedRoute, plannedRoute.route.count > 1 {
-                MLMapView(route: [], fadeColor: .mlBackground, guideRoute: plannedRoute.route)
+                MLMapView(
+                    route: [],
+                    fadeColor: .mlBackground,
+                    replayCoordinate: currentCoordinate,
+                    guideRoute: plannedRoute.route
+                )
+            } else if let currentCoordinate {
+                MLMapView(
+                    route: [],
+                    fadeColor: .mlBackground,
+                    replayCoordinate: currentCoordinate
+                )
             } else {
                 MLMapView(route: SampleData.ridgeRoute, fadeColor: .mlBackground)
                     .overlay(Color.black.opacity(0.42))
@@ -271,11 +289,20 @@ struct RecordingView: View {
     private func followRouteCard(_ snapshot: RouteFollowSnapshot) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Route guidance").mlKicker()
-                    Text(snapshot.status)
-                        .font(MLFont.headline)
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: snapshot.guidanceSymbol)
+                        .font(MLFont.title2)
                         .foregroundStyle(routeStatusColor(snapshot))
+                        .frame(width: 36)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(snapshot.status).mlKicker()
+                        Text(snapshot.guidanceTitle)
+                            .font(MLFont.headline)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text(snapshot.guidanceDetail)
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
                 }
                 Spacer()
                 Text(snapshot.onRouteText)

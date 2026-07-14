@@ -92,7 +92,11 @@ struct MLMapView: View {
             }
         }
         .onAppear {
-            cameraPosition = .region(RouteGeometry.region(for: framingRoute))
+            if let replayCoordinate {
+                cameraPosition = .region(RouteGeometry.replayRegion(centeredOn: replayCoordinate))
+            } else {
+                cameraPosition = .region(RouteGeometry.region(for: framingRoute))
+            }
         }
         .onChange(of: replayCoordinate) { _, coordinate in
             guard let coordinate else { return }
