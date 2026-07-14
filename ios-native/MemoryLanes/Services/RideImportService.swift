@@ -137,6 +137,7 @@ private struct RideInsertResponse: Decodable {
     let elevationM: Double?
     let rideDate: Date?
     let gpxPath: String?
+    let plannedRouteID: UUID?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -146,6 +147,7 @@ private struct RideInsertResponse: Decodable {
         case elevationM = "elevation_m"
         case rideDate = "ride_date"
         case gpxPath = "gpx_path"
+        case plannedRouteID = "planned_route_id"
     }
 
     func ride(routePreview: [Coordinate], source: RideSource? = nil) -> Ride {
@@ -158,7 +160,8 @@ private struct RideInsertResponse: Decodable {
             elevationGainMeters: elevationM ?? 0,
             source: source ?? (gpxPath == nil ? .live : .gpx),
             routePreview: routePreview,
-            gpxPath: gpxPath
+            gpxPath: gpxPath,
+            plannedRouteID: plannedRouteID
         )
     }
 

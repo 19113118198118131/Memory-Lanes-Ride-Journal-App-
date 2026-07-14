@@ -17,8 +17,35 @@ struct RideDetail: Identifiable, Sendable {
     var weather: Weather?
     var coachScore: Int?
     var coachScores: [RideCoachScore]
+    var plannedRoute: PlannedRoute? = nil
+    var routeMatch: RouteMatchSummary? = nil
     /// The coaching debrief — one plain-English takeaway.
     var debrief: String?
+}
+
+struct RouteMatchSummary: Sendable {
+    let plannedDistanceKm: Double
+    let actualDistanceKm: Double
+    let distanceDeltaKm: Double
+    let matchedPercent: Double
+    let averageDeviationMeters: Double
+
+    var matchedText: String { String(format: "%.0f%%", matchedPercent) }
+    var averageDeviationText: String { String(format: "%.0f m", averageDeviationMeters) }
+    var distanceDeltaText: String {
+        let sign = distanceDeltaKm >= 0 ? "+" : ""
+        return "\(sign)\(String(format: "%.1f km", distanceDeltaKm))"
+    }
+
+    var verdict: String {
+        if matchedPercent >= 85 && abs(distanceDeltaKm) <= 2 {
+            return "Tightly followed"
+        }
+        if matchedPercent >= 65 {
+            return "Mostly followed"
+        }
+        return "Partial match"
+    }
 }
 
 struct RideCoachScore: Identifiable, Hashable, Sendable {

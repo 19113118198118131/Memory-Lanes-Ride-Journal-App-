@@ -97,7 +97,12 @@ struct RideDetailView: View {
     private var heroMap: some View {
         let route = viewModel.routeForMomentPinning
         if route.count > 1 {
-            MLMapView(route: route, fadeColor: .mlBackground, replayIndex: viewModel.mapReplayIndex)
+            MLMapView(
+                route: route,
+                fadeColor: .mlBackground,
+                replayIndex: viewModel.mapReplayIndex,
+                guideRoute: viewModel.plannedGuideRoute
+            )
         } else {
             ZStack {
                 Color.mlSurfaceElevated
@@ -171,6 +176,10 @@ struct RideDetailView: View {
             }
             if let debrief = viewModel.detail?.debrief {
                 debriefCard(debrief)
+            }
+            if let plannedRoute = viewModel.detail?.plannedRoute,
+               let routeMatch = viewModel.detail?.routeMatch {
+                routeMatchCard(route: plannedRoute, match: routeMatch)
             }
             if let scores = viewModel.detail?.coachScores, !scores.isEmpty {
                 coachScoreGrid(scores)
@@ -311,6 +320,56 @@ struct RideDetailView: View {
         case .failed(let message):
             inlineError(message)
         }
+    }
+
+    private func routeMatchCard(route: PlannedRoute, match: RouteMatchSummary) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Planned route").mlKicker()
+                    Text(route.title)
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                }
+                Spacer()
+                Text(match.verdict)
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlInfo)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xxs)
+                    .background(Color.mlInfo.opacity(0.12), in: Capsule())
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                      spacing: Spacing.sm) {
+                compactMetric("On route", match.matchedText, "point.topleft.down.to.point.bottomright.curvepath")
+                compactMetric("Distance", match.distanceDeltaText, "road.lanes")
+                compactMetric("Avg drift", match.averageDeviationText, "scope")
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        )
+    }
+
+    private func compactMetric(_ label: String, _ value: String, _ systemImage: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Image(systemName: systemImage)
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextSecondary)
+            Text(value)
+                .font(MLFont.monoSmall)
+                .foregroundStyle(Color.mlTextPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(label).mlKicker()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.sm)
+        .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
     }
 
     @ViewBuilder

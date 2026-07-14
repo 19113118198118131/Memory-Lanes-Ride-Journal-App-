@@ -179,6 +179,14 @@ enum SampleData {
             .init(kind: .throttleFeel, value: 82, caption: "Throttle traces are clean with a few small pulses."),
             .init(kind: .consistency, value: 89, caption: "Similar bends are ridden with repeatable rhythm.")
         ],
+        plannedRoute: plannedRoutes[0],
+        routeMatch: RouteMatchSummary(
+            plannedDistanceKm: 72.4,
+            actualDistanceKm: 74.1,
+            distanceDeltaKm: 1.7,
+            matchedPercent: 88,
+            averageDeviationMeters: 42
+        ),
         debrief: "Your smoothest ride this month. Corner exits were consistently strong — the one thing to practise next time is releasing the brakes a touch earlier into fast right-handers."
     )
 }

@@ -56,6 +56,10 @@ final class RideDetailViewModel {
         return ride.routePreview
     }
 
+    var plannedGuideRoute: [Coordinate] {
+        detail?.plannedRoute?.route ?? []
+    }
+
     var canReplay: Bool {
         (detail?.replayPoints.count ?? 0) > 1
     }
