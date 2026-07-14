@@ -34,6 +34,7 @@ private struct MainTabShell: View {
     @State private var showingRecorder = false
     @State private var showingImporter = false
     @State private var refreshTrigger = UUID()
+    @State private var recorderRoute: PlannedRoute?
 
     private var rideService: RideServing {
         RideService(accessToken: { authStore.accessToken })
@@ -50,7 +51,10 @@ private struct MainTabShell: View {
                     viewModel: DashboardViewModel(rideService: rideService),
                     refreshTrigger: refreshTrigger,
                     onSelectRide: { ridePath.append($0) },
-                    onStartRide: { showingRecorder = true },
+                    onStartRide: {
+                        recorderRoute = nil
+                        showingRecorder = true
+                    },
                     onImportRide: { showingImporter = true }
                 )
                 .navigationBarTitleDisplayMode(.inline)
@@ -82,6 +86,10 @@ private struct MainTabShell: View {
                     PlannedRouteDetailView(
                         route: route,
                         routeService: routeService,
+                        onStartRide: { route in
+                            recorderRoute = route
+                            showingRecorder = true
+                        },
                         onChanged: { refreshTrigger = UUID() },
                         onDeleted: {
                             refreshTrigger = UUID()
@@ -122,7 +130,7 @@ private struct MainTabShell: View {
         }
         .fullScreenCover(isPresented: $showingRecorder) {
             if let session = authStore.session {
-                RecordingView(session: session) { _ in
+                RecordingView(session: session, plannedRoute: recorderRoute) { _ in
                     refreshTrigger = UUID()
                 }
             }

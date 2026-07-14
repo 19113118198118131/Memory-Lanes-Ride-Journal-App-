@@ -263,17 +263,20 @@ struct PlannedRouteDetailView: View {
     @State private var showingDeleteConfirmation = false
 
     let routeService: any RouteServing
+    let onStartRide: (PlannedRoute) -> Void
     let onChanged: () -> Void
     let onDeleted: () -> Void
 
     init(
         route: PlannedRoute,
         routeService: any RouteServing,
+        onStartRide: @escaping (PlannedRoute) -> Void = { _ in },
         onChanged: @escaping () -> Void = {},
         onDeleted: @escaping () -> Void = {}
     ) {
         _route = State(initialValue: route)
         self.routeService = routeService
+        self.onStartRide = onStartRide
         self.onChanged = onChanged
         self.onDeleted = onDeleted
     }
@@ -369,9 +372,15 @@ struct PlannedRouteDetailView: View {
 
     private var actionPanel: some View {
         VStack(spacing: Spacing.md) {
-            PrimaryButton(title: route.isPublic ? "Share Invite" : "Create Invite", systemImage: "square.and.arrow.up", isLoading: isWorking) {
+            PrimaryButton(title: "Start Ride", systemImage: "location.north.line.fill") {
+                Haptics.impact(.medium)
+                onStartRide(route)
+            }
+
+            SecondaryButton(title: route.isPublic ? "Share Invite" : "Create Invite", systemImage: "square.and.arrow.up") {
                 Task { await shareInvite() }
             }
+            .disabled(isWorking)
 
             HStack(spacing: Spacing.md) {
                 SecondaryButton(title: "Export GPX", systemImage: "square.and.arrow.down") {

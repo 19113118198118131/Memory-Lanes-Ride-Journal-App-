@@ -8,6 +8,7 @@ import SwiftUI
 struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
     let session: AuthSession
+    let plannedRoute: PlannedRoute?
     let onSaved: (Ride) -> Void
 
     @StateObject private var recorder = LiveRideRecorder()
@@ -50,6 +51,7 @@ struct RecordingView: View {
             RecordingFinishedSheet(
                 result: result,
                 session: session,
+                plannedRoute: plannedRoute,
                 onSaved: onSaved
             ) {
                 dismiss()
@@ -62,7 +64,9 @@ struct RecordingView: View {
     private var mapLayer: some View {
         Group {
             if recorder.routePreview.count > 1 {
-                MLMapView(route: recorder.routePreview, fadeColor: .mlBackground)
+                MLMapView(route: recorder.routePreview, fadeColor: .mlBackground, guideRoute: plannedRoute?.route ?? [])
+            } else if let plannedRoute, plannedRoute.route.count > 1 {
+                MLMapView(route: [], fadeColor: .mlBackground, guideRoute: plannedRoute.route)
             } else {
                 MLMapView(route: SampleData.ridgeRoute, fadeColor: .mlBackground)
                     .overlay(Color.black.opacity(0.42))
@@ -126,11 +130,17 @@ struct RecordingView: View {
     private var controlPanel: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text("Live ride").mlKicker()
+                Text(plannedRoute == nil ? "Live ride" : "Following route").mlKicker()
                 Text(formattedDuration(recorder.elapsed))
                     .font(MLFont.displayXL)
                     .foregroundStyle(Color.mlTextPrimary)
                     .contentTransition(.numericText())
+                if let plannedRoute {
+                    Text(plannedRoute.title)
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .lineLimit(1)
+                }
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
@@ -247,6 +257,7 @@ struct RecordingView: View {
 private struct RecordingFinishedSheet: View {
     let result: RecordedRideResult
     let session: AuthSession
+    let plannedRoute: PlannedRoute?
     let onSaved: (Ride) -> Void
     let onDone: () -> Void
 
@@ -259,11 +270,13 @@ private struct RecordingFinishedSheet: View {
     init(
         result: RecordedRideResult,
         session: AuthSession,
+        plannedRoute: PlannedRoute? = nil,
         onSaved: @escaping (Ride) -> Void,
         onDone: @escaping () -> Void
     ) {
         self.result = result
         self.session = session
+        self.plannedRoute = plannedRoute
         self.onSaved = onSaved
         self.onDone = onDone
         _title = State(initialValue: Self.defaultTitle(for: result.startedAt))
@@ -279,6 +292,12 @@ private struct RecordingFinishedSheet: View {
                 Text("Your GPX backup is ready. Save it now to sync this ride across Memory Lanes.")
                     .font(MLFont.body)
                     .foregroundStyle(Color.mlTextSecondary)
+                if let plannedRoute {
+                    Label(plannedRoute.title, systemImage: "map.fill")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlAccent)
+                        .lineLimit(1)
+                }
             }
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -342,6 +361,7 @@ private struct RecordingFinishedSheet: View {
             let saved = try await importService.saveRecordedRide(
                 title: cleanTitle,
                 result: result,
+                plannedRouteID: plannedRoute?.id,
                 session: session
             )
             Haptics.success()
@@ -376,6 +396,7 @@ extension RecordedRideResult: Identifiable {
 #Preview {
     RecordingView(
         session: AuthSession(accessToken: "", refreshToken: "", expiresAt: Date().addingTimeInterval(3600), userID: UUID(), email: "preview@example.com"),
+        plannedRoute: nil,
         onSaved: { _ in }
     )
         .preferredColorScheme(.dark)

@@ -36,8 +36,13 @@ struct MLMapView: View {
     let route: [Coordinate]
     var fadeColor: Color = .mlBackground
     var replayIndex: Int? = nil
+    var guideRoute: [Coordinate] = []
 
     private var coordinates: [CLLocationCoordinate2D] { route.clCoordinates }
+    private var guideCoordinates: [CLLocationCoordinate2D] { guideRoute.clCoordinates }
+    private var framingRoute: [Coordinate] {
+        route.isEmpty ? guideRoute : route + guideRoute
+    }
     private var replayCoordinate: CLLocationCoordinate2D? {
         guard let replayIndex, route.indices.contains(replayIndex) else { return nil }
         return route[replayIndex].clCoordinate
@@ -48,7 +53,11 @@ struct MLMapView: View {
     }
 
     var body: some View {
-        Map(initialPosition: .region(RouteGeometry.region(for: route))) {
+        Map(initialPosition: .region(RouteGeometry.region(for: framingRoute))) {
+            if guideCoordinates.count > 1 {
+                MapPolyline(coordinates: guideCoordinates)
+                    .stroke(Color.mlInfo.opacity(0.78), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round, dash: [9, 8]))
+            }
             if coordinates.count > 1 {
                 MapPolyline(coordinates: coordinates)
                     .stroke(Color.mlAccent.opacity(replayIndex == nil ? 1 : 0.32), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))

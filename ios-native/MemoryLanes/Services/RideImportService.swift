@@ -24,7 +24,8 @@ struct RideImportService {
             durationMin: track.durationSeconds / 60,
             elevationM: track.elevationGainMeters,
             rideDate: track.startedAt,
-            gpxPath: filePath
+            gpxPath: filePath,
+            plannedRouteID: nil
         )
 
         do {
@@ -46,6 +47,7 @@ struct RideImportService {
     func saveRecordedRide(
         title: String,
         result: RecordedRideResult,
+        plannedRouteID: UUID? = nil,
         session: AuthSession
     ) async throws -> Ride {
         let gpxData = Data(result.gpxText.utf8)
@@ -64,7 +66,8 @@ struct RideImportService {
             durationMin: result.durationSeconds / 60,
             elevationM: result.elevationGainMeters,
             rideDate: result.startedAt,
-            gpxPath: filePath
+            gpxPath: filePath,
+            plannedRouteID: plannedRouteID
         )
 
         do {
@@ -112,6 +115,7 @@ private struct RideInsertPayload: Encodable {
     let elevationM: Double
     let rideDate: Date
     let gpxPath: String
+    let plannedRouteID: UUID?
 
     enum CodingKeys: String, CodingKey {
         case title
@@ -121,6 +125,7 @@ private struct RideInsertPayload: Encodable {
         case elevationM = "elevation_m"
         case rideDate = "ride_date"
         case gpxPath = "gpx_path"
+        case plannedRouteID = "planned_route_id"
     }
 }
 
