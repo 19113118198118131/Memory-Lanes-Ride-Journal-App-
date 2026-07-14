@@ -29,6 +29,16 @@ struct RideCoachScore: Identifiable, Hashable, Sendable {
         case throttleFeel
         case consistency
 
+        var storageKey: String {
+            switch self {
+            case .cornerEntry: "cornerEntry"
+            case .exitDrive: "exitDrive"
+            case .brakingFeel: "brakingSmoothness"
+            case .throttleFeel: "throttleSmoothness"
+            case .consistency: "consistency"
+            }
+        }
+
         var title: String {
             switch self {
             case .cornerEntry: "Corner Entry"

@@ -4,7 +4,76 @@ struct RideCoachAnalysis: Sendable {
     var score: Int?
     var scores: [RideCoachScore]
     var corners: [CornerTicket]
+    var storageSummary: RideCoachStorageSummary?
     var debrief: String?
+}
+
+struct RideCoachStorageSummary: Encodable, Sendable {
+    let version: Int
+    let analysedAt: Date
+    let scores: [String: Double]
+    let corners: [RideCoachCornerSummary]
+    let note: String?
+
+    enum CodingKeys: String, CodingKey {
+        case version = "v"
+        case analysedAt = "at"
+        case scores
+        case corners
+        case note
+    }
+}
+
+struct RideCoachCornerSummary: Encodable, Sendable {
+    let latitude: Double
+    let longitude: Double
+    let headingDegrees: Int
+    let apexKmh: Int
+    let radiusMeters: Int
+    let sweepDegrees: Int
+
+    enum CodingKeys: String, CodingKey {
+        case latitude = "la"
+        case longitude = "ln"
+        case headingDegrees = "hd"
+        case apexKmh = "ak"
+        case radiusMeters = "r"
+        case sweepDegrees = "sw"
+    }
+}
+
+private extension RideCoachStorageSummary {
+    init(scores: [RideCoachScore], corners: [CornerEvent]) {
+        self.version = 1
+        self.analysedAt = Date()
+        self.scores = Dictionary(uniqueKeysWithValues: scores.map { ($0.kind.storageKey, Double($0.value)) })
+        self.corners = corners
+            .sorted { $0.maxSignal > $1.maxSignal }
+            .prefix(40)
+            .map(RideCoachCornerSummary.init(event:))
+        self.note = nil
+    }
+
+    static func insufficient(_ note: String) -> RideCoachStorageSummary {
+        RideCoachStorageSummary(
+            version: 1,
+            analysedAt: Date(),
+            scores: [:],
+            corners: [],
+            note: note
+        )
+    }
+}
+
+private extension RideCoachCornerSummary {
+    init(event: CornerEvent) {
+        latitude = (event.apexCoordinate.latitude * 100_000).rounded() / 100_000
+        longitude = (event.apexCoordinate.longitude * 100_000).rounded() / 100_000
+        headingDegrees = event.apexHeadingDegrees
+        apexKmh = Int(event.apexKmh.rounded())
+        radiusMeters = Int(event.radiusMeters.rounded())
+        sweepDegrees = Int(event.sweepDegrees.rounded())
+    }
 }
 
 struct RideCoachAnalyzer {
@@ -16,6 +85,7 @@ struct RideCoachAnalyzer {
                 score: nil,
                 scores: [],
                 corners: [],
+                storageSummary: .insufficient("Not enough GPS points"),
                 debrief: "Not enough GPS points for Ride Coach yet. A one-second GPX recording gives the best feedback."
             )
         }
@@ -26,6 +96,7 @@ struct RideCoachAnalyzer {
                 score: nil,
                 scores: [],
                 corners: [],
+                storageSummary: .insufficient("Ride too short"),
                 debrief: "This ride is too short for useful technique feedback."
             )
         }
@@ -63,6 +134,7 @@ struct RideCoachAnalyzer {
             score: score,
             scores: coachScores,
             corners: cornerEvents.map(\.ticket),
+            storageSummary: RideCoachStorageSummary(scores: coachScores, corners: cornerEvents),
             debrief: buildDebrief(score: score, corners: cornerEvents, brakingSmoothness: brakingSmoothness, throttleSmoothness: throttleSmoothness)
         )
     }
@@ -125,6 +197,8 @@ struct RideCoachAnalyzer {
                 start: start,
                 apex: apex,
                 end: end,
+                apexCoordinate: points[apex].coordinate,
+                apexHeadingDegrees: headingDegrees(heading[apex]),
                 sweepDegrees: sweep,
                 radiusMeters: minRadius,
                 entryKmh: speeds[start] * 3.6,
@@ -257,6 +331,8 @@ private struct CornerEvent: Sendable {
     let start: Int
     let apex: Int
     let end: Int
+    let apexCoordinate: Coordinate
+    let apexHeadingDegrees: Int
     let sweepDegrees: Double
     let radiusMeters: Double
     let entryKmh: Double
@@ -428,6 +504,13 @@ private func signedHeadingDelta(heading: [Double], start: Int, end: Int) -> Doub
         delta += normalizedAngle(heading[index] - heading[index - 1])
     }
     return delta
+}
+
+private func headingDegrees(_ heading: Double) -> Int {
+    var degrees = heading * 180 / .pi
+    while degrees < 0 { degrees += 360 }
+    while degrees >= 360 { degrees -= 360 }
+    return Int(degrees.rounded())
 }
 
 private func normalizedAngle(_ value: Double) -> Double {

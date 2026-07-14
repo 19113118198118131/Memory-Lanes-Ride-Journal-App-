@@ -100,6 +100,9 @@ struct RideService: RideServing {
         )
         let track = try GPXParser().parse(data: data)
         let coach = RideCoachAnalyzer().analyze(points: track.points)
+        if let summary = coach.storageSummary {
+            try? await saveCoachSummary(summary, for: ride.id, accessToken: token)
+        }
         return RideDetail(
             id: ride.id,
             routePreview: track.routePreview,
@@ -147,6 +150,15 @@ struct RideService: RideServing {
             accessToken: accessToken
         )
         return rows.first?.moments?.map(\.moment) ?? []
+    }
+
+    private func saveCoachSummary(_ summary: RideCoachStorageSummary, for rideID: UUID, accessToken: String) async throws {
+        try await client.patch(
+            path: "rest/v1/ride_logs",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(rideID.uuidString)")],
+            body: RideSkillsUpdatePayload(skills: summary),
+            accessToken: accessToken
+        )
     }
 }
 
@@ -264,6 +276,10 @@ private struct SupabaseRideMomentRow: Decodable {
 
 private struct RideMomentsUpdatePayload: Encodable {
     let moments: [SupabaseMomentPayload]
+}
+
+private struct RideSkillsUpdatePayload: Encodable {
+    let skills: RideCoachStorageSummary
 }
 
 private struct SupabaseMomentPayload: Encodable {
