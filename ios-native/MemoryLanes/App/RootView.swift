@@ -28,6 +28,7 @@ struct RootView: View {
 private struct MainTabShell: View {
     @ObservedObject var authStore: AuthStore
     @State private var ridePath = NavigationPath()
+    @State private var journalPath = NavigationPath()
     @State private var showingRecorder = false
     @State private var showingImporter = false
     @State private var refreshTrigger = UUID()
@@ -68,8 +69,17 @@ private struct MainTabShell: View {
             }
             .tabItem { Label("Routes", systemImage: "map") }
 
-            NavigationStack {
-                JournalView()
+            NavigationStack(path: $journalPath) {
+                JournalView(
+                    viewModel: JournalViewModel(
+                        journalService: JournalService(accessToken: { authStore.accessToken })
+                    ),
+                    refreshTrigger: refreshTrigger,
+                    onSelectRide: { journalPath.append($0) }
+                )
+                .navigationDestination(for: Ride.self) { ride in
+                    RideDetailView(viewModel: RideDetailViewModel(ride: ride, rideService: rideService))
+                }
             }
             .tabItem { Label("Journal", systemImage: "book") }
 

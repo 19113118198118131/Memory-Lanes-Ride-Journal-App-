@@ -86,6 +86,42 @@ enum SampleData {
               coordinate: ridgeRoute[7], symbol: "flag.checkered")
     ]
 
+    static let journalEntries: [JournalEntry] = [
+        .init(
+            id: "sample-0",
+            title: "Ridge light",
+            note: "Fog lifting over the ridge — unreal light.",
+            ride: hero,
+            rideDate: hero.date,
+            index: 0,
+            coordinate: ridgeRoute[2],
+            speedKmh: 62,
+            elevationMeters: 690
+        ),
+        .init(
+            id: "sample-1",
+            title: "Summit stop",
+            note: "Coffee stop at the summit cafe.",
+            ride: rides[1],
+            rideDate: rides[1].date,
+            index: 1,
+            coordinate: ridgeRoute[5],
+            speedKmh: 0,
+            elevationMeters: 920
+        ),
+        .init(
+            id: "sample-2",
+            title: "The esses",
+            note: "New personal best through the esses.",
+            ride: rides[2],
+            rideDate: rides[2].date,
+            index: 2,
+            coordinate: ridgeRoute[7],
+            speedKmh: 74,
+            elevationMeters: 740
+        )
+    ]
+
     static let weather = Weather(
         temperatureC: 18, condition: "Partly cloudy", windKph: 12, symbol: "cloud.sun.fill"
     )

@@ -2,26 +2,31 @@ import SwiftUI
 
 // MARK: - JournalView
 //
-// Native moments timeline and gallery. Uses the same Moment model as Ride
-// Detail, so Supabase wiring later only needs to provide real moment rows.
+// Cross-ride moments timeline. This now reads the same `ride_logs.moments`
+// payload as the web app, so the native Journal is no longer sample content.
 
 struct JournalView: View {
+    @State private var viewModel: JournalViewModel
     @State private var mode: JournalMode = .timeline
-    private let moments = SampleData.moments
+    let refreshTrigger: UUID
+    let onSelectRide: (Ride) -> Void
+
+    init(
+        viewModel: JournalViewModel,
+        refreshTrigger: UUID = UUID(),
+        onSelectRide: @escaping (Ride) -> Void = { _ in }
+    ) {
+        _viewModel = State(initialValue: viewModel)
+        self.refreshTrigger = refreshTrigger
+        self.onSelectRide = onSelectRide
+    }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.lg) {
                 header
-
                 MLSegmentedControl(items: JournalMode.allCases, title: { $0.title }, selection: $mode)
-
-                switch mode {
-                case .timeline:
-                    timeline
-                case .gallery:
-                    gallery
-                }
+                content
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
@@ -29,6 +34,8 @@ struct JournalView: View {
         .background(Color.mlBackground)
         .navigationTitle("Journal")
         .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await viewModel.refresh() }
+        .task(id: refreshTrigger) { await viewModel.load() }
     }
 
     private var header: some View {
@@ -37,68 +44,185 @@ struct JournalView: View {
             Text("Moments worth keeping")
                 .font(MLFont.displayXL)
                 .foregroundStyle(Color.mlTextPrimary)
-            Text("Pinned notes, stops, photos, and personal bests from your rides.")
+            Text("Pinned notes and favourite stops from your saved rides.")
                 .font(MLFont.body)
                 .foregroundStyle(Color.mlTextSecondary)
         }
     }
 
-    private var timeline: some View {
+    @ViewBuilder
+    private var content: some View {
+        switch viewModel.state {
+        case .loading:
+            LazyVStack(spacing: Spacing.md) {
+                MomentSkeleton()
+                MomentSkeleton()
+                MomentSkeleton()
+            }
+        case .loaded(let entries):
+            switch mode {
+            case .timeline:
+                timeline(entries)
+            case .gallery:
+                gallery(entries)
+            }
+        case .empty:
+            EmptyState(
+                systemImage: "mappin.and.ellipse",
+                title: "No moments yet",
+                message: "Pin a moment during ride replay or while recording, and it will appear here."
+            )
+            .padding(.top, Spacing.xl)
+        case .failed(let message):
+            EmptyState(
+                systemImage: "wifi.exclamationmark",
+                title: "Couldn’t load moments",
+                message: message,
+                actionTitle: "Try Again"
+            ) {
+                Task { await viewModel.load() }
+            }
+            .padding(.top, Spacing.xl)
+        }
+    }
+
+    private func timeline(_ entries: [JournalEntry]) -> some View {
         LazyVStack(spacing: Spacing.md) {
-            ForEach(Array(moments.enumerated()), id: \.element.id) { index, moment in
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    HStack {
-                        Text("Moment \(index + 1)").mlKicker()
-                        Spacer()
-                        Text(SampleData.hero.relativeDate)
-                            .font(MLFont.caption)
-                            .foregroundStyle(Color.mlTextTertiary)
-                    }
-                    MomentRow(moment: moment)
+            ForEach(entries) { entry in
+                JournalMomentCard(entry: entry, compact: false) {
+                    onSelectRide(entry.ride)
                 }
             }
         }
     }
 
-    private var gallery: some View {
+    private func gallery(_ entries: [JournalEntry]) -> some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
-            ForEach(Array(moments.enumerated()), id: \.element.id) { index, moment in
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    ZStack(alignment: .bottomLeading) {
-                        RouteThumbnail(route: SampleData.ridgeRoute)
-                            .frame(height: 148)
-                            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-                            .overlay {
-                                LinearGradient(
-                                    colors: [.clear, .black.opacity(0.68)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Image(systemName: moment.symbol)
-                                .foregroundStyle(Color.mlAccent)
-                            Text("Moment \(index + 1)")
-                                .font(MLFont.headline)
-                                .foregroundStyle(Color.white)
-                        }
-                        .padding(Spacing.sm)
-                    }
-
-                    Text(moment.note)
-                        .font(MLFont.caption)
-                        .foregroundStyle(Color.mlTextSecondary)
-                        .lineLimit(2)
+            ForEach(entries) { entry in
+                JournalMomentCard(entry: entry, compact: true) {
+                    onSelectRide(entry.ride)
                 }
-                .padding(Spacing.xs)
-                .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .stroke(Color.mlHairline, lineWidth: Layout.hairline)
-                )
             }
         }
+    }
+}
+
+private struct JournalMomentCard: View {
+    let entry: JournalEntry
+    var compact: Bool
+    let onOpenRide: () -> Void
+
+    var body: some View {
+        Button(action: onOpenRide) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                if compact {
+                    compactArtwork
+                }
+                header
+                Text(entry.displayNote)
+                    .font(compact ? MLFont.caption : MLFont.body)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .lineLimit(compact ? 3 : nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                metadata
+            }
+            .padding(Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+            )
+        }
+        .buttonStyle(MLPressableButtonStyle())
+        .accessibilityLabel("\(entry.displayTitle). \(entry.displayNote). From \(entry.ride.title)")
+    }
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            Image(systemName: entry.coordinate == nil ? "note.text" : "mappin.circle.fill")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Color.mlAccent)
+                .frame(width: 38, height: 38)
+                .background(Color.mlAccent.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.displayTitle)
+                    .font(MLFont.headline)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .lineLimit(2)
+                Text(entry.ride.title)
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: Spacing.xs)
+
+            Image(systemName: "chevron.right")
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextTertiary)
+        }
+    }
+
+    private var metadata: some View {
+        HStack(spacing: Spacing.sm) {
+            Label(entry.relativeDate, systemImage: "calendar")
+            if let speedKmh = entry.speedKmh {
+                Label("\(Int(speedKmh.rounded())) km/h", systemImage: "speedometer")
+            }
+            if let elevation = entry.elevationMeters {
+                Label("\(Int(elevation.rounded())) m", systemImage: "mountain.2.fill")
+            }
+        }
+        .font(MLFont.caption)
+        .foregroundStyle(Color.mlTextTertiary)
+        .lineLimit(1)
+    }
+
+    private var compactArtwork: some View {
+        ZStack(alignment: .bottomLeading) {
+            RouteThumbnail(route: entry.ride.routePreview.isEmpty ? SampleData.ridgeRoute : entry.ride.routePreview)
+                .frame(height: 122)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay {
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.68)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                }
+
+            Text(entry.ride.source.rawValue)
+                .font(MLFont.caption)
+                .foregroundStyle(Color.white)
+                .padding(.horizontal, Spacing.sm)
+                .frame(height: 26)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(Spacing.sm)
+        }
+    }
+}
+
+private struct MomentSkeleton: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                Circle()
+                    .fill(Color.mlSurfaceElevated)
+                    .frame(width: 38, height: 38)
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Capsule().fill(Color.mlSurfaceElevated).frame(width: 160, height: 14)
+                    Capsule().fill(Color.mlSurfaceElevated).frame(width: 110, height: 10)
+                }
+            }
+            Capsule().fill(Color.mlSurfaceElevated).frame(height: 12)
+            Capsule().fill(Color.mlSurfaceElevated).frame(width: 220, height: 12)
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .redacted(reason: .placeholder)
     }
 }
 
@@ -109,6 +233,8 @@ private enum JournalMode: String, CaseIterable, Identifiable {
 }
 
 #Preview {
-    NavigationStack { JournalView() }
-        .preferredColorScheme(.dark)
+    NavigationStack {
+        JournalView(viewModel: JournalViewModel(journalService: PreviewJournalService()))
+    }
+    .preferredColorScheme(.dark)
 }
