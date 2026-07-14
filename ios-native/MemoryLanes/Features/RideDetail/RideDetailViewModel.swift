@@ -29,6 +29,7 @@ final class RideDetailViewModel {
     var momentErrorMessage: String?
     var isSavingMoment = false
     var isUpdatingShareLink = false
+    var isExportingGPX = false
     var shareErrorMessage: String?
     var playbackIndex = 0
     var isPlaying = false
@@ -253,6 +254,21 @@ final class RideDetailViewModel {
         } catch {
             shareErrorMessage = error.localizedDescription
             return false
+        }
+    }
+
+    func exportGPXFile() async throws -> URL {
+        isExportingGPX = true
+        shareErrorMessage = nil
+        defer { isExportingGPX = false }
+        do {
+            let data = try await rideService.gpxData(for: ride)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(ride.gpxFileName)
+            try data.write(to: url, options: [.atomic])
+            return url
+        } catch {
+            shareErrorMessage = error.localizedDescription
+            throw error
         }
     }
 

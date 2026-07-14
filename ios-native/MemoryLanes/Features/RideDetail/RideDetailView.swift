@@ -508,6 +508,11 @@ struct RideDetailView: View {
                 sharePublicLink()
             }
             .disabled(viewModel.isUpdatingShareLink)
+            circleButton(systemImage: viewModel.isExportingGPX ? "hourglass" : "doc.badge.arrow.up",
+                         label: "Export GPX") {
+                exportGPX()
+            }
+            .disabled(viewModel.isExportingGPX)
             circleButton(systemImage: isRendering ? "hourglass" : "square.and.arrow.up",
                          label: "Share ride") {
                 renderShareImage()
@@ -555,6 +560,18 @@ struct RideDetailView: View {
         Task { @MainActor in
             do {
                 let url = try await viewModel.publicShareLink()
+                Haptics.success()
+                activityPayload = ActivityPayload(items: [url])
+            } catch {
+                Haptics.error()
+            }
+        }
+    }
+
+    private func exportGPX() {
+        Task { @MainActor in
+            do {
+                let url = try await viewModel.exportGPXFile()
                 Haptics.success()
                 activityPayload = ActivityPayload(items: [url])
             } catch {

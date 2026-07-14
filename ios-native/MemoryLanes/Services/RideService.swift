@@ -17,6 +17,7 @@ protocol RideServing: Sendable {
     func routePreview(for ride: Ride) async throws -> [Coordinate]
     /// Full analysis for one ride, loaded when the rider opens it.
     func fetchDetail(for ride: Ride) async throws -> RideDetail
+    func gpxData(for ride: Ride) async throws -> Data
     func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment]
     func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride
 }
@@ -62,6 +63,27 @@ struct PreviewRideService: RideServing {
             routeMatch: SampleData.heroDetail.routeMatch,
             debrief: SampleData.heroDetail.debrief
         )
+    }
+
+    func gpxData(for ride: Ride) async throws -> Data {
+        try await Task.sleep(for: .milliseconds(150))
+        if let failure { throw failure }
+        let points = (ride.routePreview.isEmpty ? SampleData.ridgeRoute : ride.routePreview)
+            .map { coordinate in
+                "    <trkpt lat=\"\(coordinate.latitude)\" lon=\"\(coordinate.longitude)\"></trkpt>"
+            }
+            .joined(separator: "\n")
+        return Data("""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx version="1.1" creator="Memory Lanes" xmlns="http://www.topografix.com/GPX/1/1">
+          <trk>
+            <name>\(ride.title.xmlEscaped)</name>
+            <trkseg>
+        \(points)
+            </trkseg>
+          </trk>
+        </gpx>
+        """.utf8)
     }
 
     func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment] {
@@ -161,6 +183,15 @@ struct RideService: RideServing {
         )
     }
 
+    func gpxData(for ride: Ride) async throws -> Data {
+        guard let gpxPath = ride.gpxPath else { throw RideServiceError.gpxUnavailable }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        return try await client.download(
+            path: "storage/v1/object/gpx-files/\(gpxPath)",
+            accessToken: token
+        )
+    }
+
     func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment] {
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let payload = RideMomentsUpdatePayload(moments: moments.enumerated().map { offset, moment in
@@ -257,13 +288,25 @@ enum RideServiceError: LocalizedError {
     case notImplemented
     case notAuthenticated
     case sharingUnavailable
+    case gpxUnavailable
 
     var errorDescription: String? {
         switch self {
         case .notImplemented: "Ride syncing isn’t connected yet."
         case .notAuthenticated: "Sign in to sync your rides."
         case .sharingUnavailable: "The ride was shared, but no public link was returned."
+        case .gpxUnavailable: "This ride does not have an exportable GPX file."
         }
+    }
+}
+
+private extension String {
+    var xmlEscaped: String {
+        replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
     }
 }
 

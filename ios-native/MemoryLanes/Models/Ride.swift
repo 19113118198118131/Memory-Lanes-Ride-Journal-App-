@@ -117,4 +117,12 @@ extension Ride {
         guard let shareToken else { return nil }
         return URL(string: "https://memory-lanes-ride-journal-app.vercel.app/index.html?share=\(shareToken.uuidString)")
     }
+
+    var gpxFileName: String {
+        let clean = title
+            .lowercased()
+            .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return "\(clean.isEmpty ? "memory-lanes-ride" : clean).gpx"
+    }
 }
