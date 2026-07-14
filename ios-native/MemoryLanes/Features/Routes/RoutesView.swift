@@ -103,8 +103,9 @@ struct RoutesView: View {
                 SkeletonBar(height: 112, radius: Radius.card).mlShimmer()
             case .loaded(let groupRides):
                 LazyVStack(spacing: Spacing.sm) {
-                    ForEach(groupRides) { groupRide in
+                    ForEach(Array(groupRides.enumerated()), id: \.element.id) { index, groupRide in
                         groupRideCard(groupRide)
+                            .mlStaggeredReveal(index: index)
                     }
                 }
             case .empty:
@@ -174,6 +175,7 @@ struct RoutesView: View {
             )
         }
         .buttonStyle(MLPressableButtonStyle())
+        .mlHoverLift()
         .accessibilityLabel("\(groupRide.title), \(groupRide.memberCount) riders")
     }
 

@@ -100,7 +100,7 @@ struct MLMapView: View {
         }
         .onChange(of: replayCoordinate) { _, coordinate in
             guard let coordinate else { return }
-            withAnimation(.linear(duration: 0.12)) {
+            withAnimation(Motion.springSnappy) {
                 cameraPosition = .region(RouteGeometry.replayRegion(centeredOn: coordinate))
             }
         }

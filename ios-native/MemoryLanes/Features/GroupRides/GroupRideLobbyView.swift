@@ -5,6 +5,7 @@ struct GroupRideLobbyView: View {
     @State private var activityPayload: ActivityPayload?
     @State private var showingMeetingEditor = false
     @State private var showingEndConfirmation = false
+    @State private var showAllAttendees = false
 
     let onStartRoute: (PlannedRoute) -> Void
     let onEnded: () -> Void
@@ -101,9 +102,11 @@ struct GroupRideLobbyView: View {
                     MLMapView(route: groupRide.route, fadeColor: .mlBackground)
                         .frame(height: 300)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                        .mlStaggeredReveal(index: 0, distance: 8)
                 }
 
                 header(groupRide)
+                    .mlStaggeredReveal(index: 1)
 
                 SegmentedMetric(items: [
                     .init(value: groupRide.distanceKm.map { String(format: "%.1f", $0) } ?? "--", unit: "km", label: "Distance"),
@@ -116,25 +119,45 @@ struct GroupRideLobbyView: View {
                     RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                         .stroke(Color.mlHairline, lineWidth: Layout.hairline)
                 )
+                .mlStaggeredReveal(index: 2)
 
                 meetingCard(groupRide)
+                    .mlStaggeredReveal(index: 3)
                 rsvpCard(groupRide)
+                    .mlStaggeredReveal(index: 4)
                 attendees(groupRide)
+                    .mlStaggeredReveal(index: 5)
                 actions(groupRide)
+                    .mlStaggeredReveal(index: 6)
 
                 if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .font(MLFont.callout)
-                        .foregroundStyle(Color.mlDanger)
-                        .padding(Spacing.md)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.mlDanger.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.card))
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Color.mlDanger)
+                        Text(errorMessage)
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Button {
+                            withAnimation(Motion.spring) { viewModel.clearError() }
+                        } label: {
+                            Image(systemName: "xmark")
+                                .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                        }
+                        .buttonStyle(MLPressableButtonStyle())
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .accessibilityLabel("Dismiss error")
+                    }
+                    .padding(.leading, Spacing.md)
+                    .background(Color.mlDanger.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.card))
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
         }
         .refreshable { await viewModel.refresh() }
+        .animation(Motion.spring, value: viewModel.errorMessage)
     }
 
     private func header(_ groupRide: GroupRide) -> some View {
@@ -217,7 +240,14 @@ struct GroupRideLobbyView: View {
                         }
                     } label: {
                         VStack(spacing: Spacing.xxs) {
-                            Image(systemName: rsvp.symbol)
+                            if viewModel.pendingRSVP == rsvp {
+                                ProgressView()
+                                    .tint(selected ? .mlOnAccent : .mlAccent)
+                                    .transition(.scale.combined(with: .opacity))
+                            } else {
+                                Image(systemName: rsvp.symbol)
+                                    .transition(.scale.combined(with: .opacity))
+                            }
                             Text(rsvp.title)
                                 .font(MLFont.caption)
                                 .lineLimit(1)
@@ -234,10 +264,12 @@ struct GroupRideLobbyView: View {
                     .buttonStyle(MLPressableButtonStyle())
                     .disabled(viewModel.isWorking)
                     .accessibilityLabel(rsvp.title)
+                    .accessibilityValue(viewModel.pendingRSVP == rsvp ? "Updating" : selected ? "Selected" : "Not selected")
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
         }
+        .animation(Motion.springSnappy, value: viewModel.pendingRSVP)
     }
 
     private func attendees(_ groupRide: GroupRide) -> some View {
@@ -248,7 +280,7 @@ struct GroupRideLobbyView: View {
                     .font(MLFont.callout)
                     .foregroundStyle(Color.mlTextSecondary)
             } else {
-                ForEach(Array(groupRide.members.enumerated()), id: \.offset) { _, member in
+                ForEach(Array(visibleMembers(groupRide).enumerated()), id: \.offset) { index, member in
                     HStack(spacing: Spacing.md) {
                         Image(systemName: "person.crop.circle.fill")
                             .font(MLFont.title2)
@@ -262,9 +294,33 @@ struct GroupRideLobbyView: View {
                             .foregroundStyle(rsvpTint(member.rsvp))
                     }
                     .padding(.vertical, Spacing.xs)
+                    .mlStaggeredReveal(index: index)
+                }
+
+                if groupRide.members.count > 4 {
+                    Button {
+                        Haptics.selection()
+                        withAnimation(Motion.spring) {
+                            showAllAttendees.toggle()
+                        }
+                    } label: {
+                        Label(
+                            showAllAttendees ? "Show fewer riders" : "Show all \(groupRide.members.count) riders",
+                            systemImage: showAllAttendees ? "chevron.up" : "chevron.down"
+                        )
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: Layout.minTouchTarget)
+                    }
+                    .buttonStyle(MLPressableButtonStyle())
                 }
             }
         }
+    }
+
+    private func visibleMembers(_ groupRide: GroupRide) -> [GroupRideMember] {
+        showAllAttendees ? groupRide.members : Array(groupRide.members.prefix(4))
     }
 
     private func rsvpTint(_ rsvp: GroupRideRSVP) -> Color {
@@ -344,12 +400,14 @@ struct GroupRideCreationSheet: View {
                             .font(MLFont.body)
                             .foregroundStyle(Color.mlTextSecondary)
                     }
+                    .mlStaggeredReveal(index: 0)
 
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("Ride name").mlKicker()
                         TextField("Group ride name", text: $title)
                             .textFieldStyle(MLTextFieldStyle())
                     }
+                    .mlStaggeredReveal(index: 1)
 
                     VStack(alignment: .leading, spacing: Spacing.md) {
                         Toggle("Set meeting time", isOn: $hasMeetTime)
@@ -365,17 +423,21 @@ struct GroupRideCreationSheet: View {
                     }
                     .padding(Spacing.md)
                     .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card))
+                    .mlStaggeredReveal(index: 2)
+                    .animation(Motion.spring, value: hasMeetTime)
 
                     if let errorMessage {
                         Text(errorMessage)
                             .font(MLFont.callout)
                             .foregroundStyle(Color.mlDanger)
+                            .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
                     PrimaryButton(title: "Create & Share", systemImage: "person.3.fill", isLoading: isSaving) {
                         Task { await create() }
                     }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .mlStaggeredReveal(index: 3)
                 }
                 .padding(.vertical, Spacing.md)
                 .mlScreenPadding()
@@ -388,6 +450,7 @@ struct GroupRideCreationSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .animation(Motion.spring, value: errorMessage)
         }
         .preferredColorScheme(.dark)
     }

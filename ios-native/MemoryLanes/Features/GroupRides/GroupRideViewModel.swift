@@ -12,6 +12,7 @@ final class GroupRideViewModel {
 
     private(set) var state: LoadState = .loading
     private(set) var isWorking = false
+    private(set) var pendingRSVP: GroupRideRSVP?
     private(set) var didEndRide = false
     var errorMessage: String?
 
@@ -46,8 +47,12 @@ final class GroupRideViewModel {
     func setRSVP(_ rsvp: GroupRideRSVP) async -> Bool {
         guard !isWorking else { return false }
         isWorking = true
+        pendingRSVP = rsvp
         errorMessage = nil
-        defer { isWorking = false }
+        defer {
+            pendingRSVP = nil
+            isWorking = false
+        }
         do {
             state = .loaded(try await service.setRSVP(rsvp, shareToken: shareToken))
             return true
@@ -55,6 +60,10 @@ final class GroupRideViewModel {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    func clearError() {
+        errorMessage = nil
     }
 
     func updateMeeting(meetTime: Date?, meetPoint: String?) async -> Bool {

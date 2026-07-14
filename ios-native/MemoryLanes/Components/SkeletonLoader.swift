@@ -7,25 +7,23 @@ import SwiftUI
 // spinner over an empty screen.
 
 private struct Shimmer: ViewModifier {
-    @State private var phase: CGFloat = -1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var intensity: Double = 0
 
     func body(content: Content) -> some View {
         content
             .overlay(
-                GeometryReader { geo in
-                    let width = geo.size.width
-                    LinearGradient(
-                        colors: [.clear, Color.white.opacity(0.08), .clear],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .frame(width: width * 0.6)
-                    .offset(x: phase * width * 1.6)
-                }
+                LinearGradient(
+                    colors: [.clear, Color.white.opacity(0.08), .clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .opacity(reduceMotion ? 0.35 : 0.2 + (intensity * 0.8))
                 .allowsHitTesting(false)
             )
             .onAppear {
-                withAnimation(Motion.shimmer) { phase = 1 }
+                guard !reduceMotion else { return }
+                withAnimation(Motion.shimmer) { intensity = 1 }
             }
             .clipped()
     }
