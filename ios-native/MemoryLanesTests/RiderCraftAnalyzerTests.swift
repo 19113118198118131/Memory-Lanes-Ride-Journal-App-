@@ -61,6 +61,37 @@ final class RiderCraftAnalyzerTests: XCTestCase {
         XCTAssertFalse(line.contains("score"))
     }
 
+    func testCalibrationReportIncludesNonEventsAndInterpolatedDistributions() throws {
+        let first = RiderCraftAnalyzer().analyze(
+            corners: [
+                signal(index: 1, start: 10, apex: 15, end: 20, drive: 0.05, apexPosition: 0.20, brakeDepth: 0.80),
+                signal(index: 2, start: 30, apex: 35, end: 40, drive: 0.20, apexPosition: 0.40, brakeDepth: 0.60),
+                signal(index: 3, start: 50, apex: 55, end: 60, drive: 0.35, apexPosition: 0.60, brakeDepth: 0.20)
+            ],
+            brakingZones: [zone(start: 12, end: 14)]
+        )
+        let insufficient = RiderCraftAnalyzer().analyze(
+            corners: [signal(index: 1, start: 70, apex: 75, end: 80, drive: 0.50, apexPosition: 0.80, brakeDepth: 0)],
+            brakingZones: []
+        )
+
+        let report = RiderCraftCalibrationReport(analyses: [first, insufficient])
+
+        XCTAssertEqual(report.rideCount, 2)
+        XCTAssertEqual(report.eligibleRideCount, 1)
+        XCTAssertEqual(report.insufficientRideCount, 1)
+        XCTAssertEqual(report.detectedCornerCount, 4)
+        XCTAssertEqual(report.drive.count, 4)
+        XCTAssertEqual(try XCTUnwrap(report.drive.median), 0.275, accuracy: 0.001)
+        XCTAssertEqual(report.brakeAfterTurnInProgress.count, 1)
+        XCTAssertEqual(report.categoryCounts[RiderCraftEvent.Kind.flatExit.rawValue], 1)
+        XCTAssertEqual(try XCTUnwrap(report.eventsPerCorner), Double(report.eventCount) / 4, accuracy: 0.001)
+        XCTAssertEqual(report.flatExitSensitivity.first(where: { $0.threshold == 0.10 })?.eventCount, 1)
+        XCTAssertEqual(report.earlyApexSensitivity.first(where: { $0.threshold == 0.20 })?.eventCount, 1)
+        XCTAssertEqual(report.deepBrakingSensitivity.first(where: { $0.threshold == 0.60 })?.eventCount, 1)
+        XCTAssertEqual(report.brakeAfterTurnInSensitivity.first(where: { $0.threshold == 0.10 })?.eventCount, 1)
+    }
+
     private func signal(
         index: Int,
         start: Int,

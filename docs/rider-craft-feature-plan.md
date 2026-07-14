@@ -1,6 +1,6 @@
 # Rider Craft: Safety-First Skill Progression
 
-Status: Phase 1 implemented; real-ride calibration pending
+Status: Phase 1 implemented; first real-ride calibration batch complete, rollout still gated
 Owner surface: Native SwiftUI app
 Depends on: Ride Coach analytics, corner replay, weather, persisted skill history
 
@@ -143,8 +143,9 @@ Completed in native SwiftUI:
 
 Still required before Phase 1 can surface publicly:
 
-- Run the detector output across a representative batch of real rides.
+- Expand beyond the first nine-ride, same-rider calibration batch to varied riders, roads, devices, and weather.
 - Review false positives by replaying the linked corners.
-- Revisit the flat-exit and early-apex thresholds using that evidence.
-- Record and pass the Phase 1 perverse-incentive audit.
+- Replace or remove the early-apex proxy; threshold sensitivity remained too noisy for production.
+- Review a zero-drive flat-exit candidate against replay evidence.
+- Resolve the failed Phase 1 perverse-incentive audit recorded in `rider-craft-phase1-calibration.md`.
 - Change the stored calibration status only through a versioned threshold release.

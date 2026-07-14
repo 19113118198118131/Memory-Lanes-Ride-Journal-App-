@@ -26,10 +26,19 @@ struct RiderCraftEvent: Identifiable, Hashable, Sendable {
     var id: String { "\(kind.rawValue)-\(cornerIndex)-\(replayIndex)" }
 }
 
+struct RiderCraftCalibrationSample: Hashable, Sendable {
+    let cornerIndex: Int
+    let drive: Double
+    let apexPosition: Double
+    let brakeDepth: Double
+    let brakeAfterTurnInProgress: Double?
+}
+
 struct RiderCraftAnalysis: Sendable {
     let thresholdVersion: Int
     let detectedCornerCount: Int
     let events: [RiderCraftEvent]
+    let calibrationSamples: [RiderCraftCalibrationSample]
     let eventsPerCorner: Double?
     let unavailableReason: String?
 
@@ -38,6 +47,7 @@ struct RiderCraftAnalysis: Sendable {
             thresholdVersion: RiderCraftThresholds.current.version,
             detectedCornerCount: 0,
             events: [],
+            calibrationSamples: [],
             eventsPerCorner: nil,
             unavailableReason: reason
         )
@@ -63,6 +73,128 @@ struct RiderCraftAnalysis: Sendable {
             return "\(count) detected corner\(count == 1 ? "" : "s") showed an early-apex pattern. Road geometry can influence this proxy."
         case .brakedDeep:
             return "\(count) detected corner\(count == 1 ? "" : "s") where braking continued deep towards the apex. That is the one worth reviewing."
+        }
+    }
+}
+
+struct RiderCraftCalibrationDistribution: Codable, Equatable, Sendable {
+    let count: Int
+    let minimum: Double?
+    let lowerQuartile: Double?
+    let median: Double?
+    let upperQuartile: Double?
+    let maximum: Double?
+
+    init(values: [Double]) {
+        let sorted = values.filter(\.isFinite).sorted()
+        count = sorted.count
+        minimum = sorted.first
+        lowerQuartile = Self.percentile(0.25, in: sorted)
+        median = Self.percentile(0.5, in: sorted)
+        upperQuartile = Self.percentile(0.75, in: sorted)
+        maximum = sorted.last
+    }
+
+    private static func percentile(_ fraction: Double, in sorted: [Double]) -> Double? {
+        guard !sorted.isEmpty else { return nil }
+        let position = fraction * Double(sorted.count - 1)
+        let lower = Int(position.rounded(.down))
+        let upper = Int(position.rounded(.up))
+        guard lower != upper else { return sorted[lower] }
+        let weight = position - Double(lower)
+        return sorted[lower] + (sorted[upper] - sorted[lower]) * weight
+    }
+}
+
+struct RiderCraftThresholdSensitivity: Codable, Equatable, Sendable {
+    let threshold: Double
+    let eventCount: Int
+    let ratePerCorner: Double
+}
+
+struct RiderCraftCalibrationReport: Codable, Equatable, Sendable {
+    let thresholdVersion: Int
+    let rideCount: Int
+    let eligibleRideCount: Int
+    let insufficientRideCount: Int
+    let detectedCornerCount: Int
+    let eventCount: Int
+    let eventsPerCorner: Double?
+    let categoryCounts: [String: Int]
+    let categoryRatesPerCorner: [String: Double]
+    let drive: RiderCraftCalibrationDistribution
+    let apexPosition: RiderCraftCalibrationDistribution
+    let brakeDepth: RiderCraftCalibrationDistribution
+    let brakeAfterTurnInProgress: RiderCraftCalibrationDistribution
+    let flatExitSensitivity: [RiderCraftThresholdSensitivity]
+    let earlyApexSensitivity: [RiderCraftThresholdSensitivity]
+    let deepBrakingSensitivity: [RiderCraftThresholdSensitivity]
+    let brakeAfterTurnInSensitivity: [RiderCraftThresholdSensitivity]
+
+    init(analyses: [RiderCraftAnalysis]) {
+        let samples = analyses.flatMap(\.calibrationSamples)
+        let events = analyses.flatMap(\.events)
+        let corners = analyses.map(\.detectedCornerCount).reduce(0, +)
+        let counts = Dictionary(uniqueKeysWithValues: RiderCraftEvent.Kind.allCases.map { kind in
+            (kind.rawValue, events.filter { $0.kind == kind }.count)
+        })
+
+        thresholdVersion = analyses.map(\.thresholdVersion).max() ?? RiderCraftThresholds.current.version
+        rideCount = analyses.count
+        eligibleRideCount = analyses.filter { $0.eventsPerCorner != nil }.count
+        insufficientRideCount = analyses.count - eligibleRideCount
+        detectedCornerCount = corners
+        eventCount = events.count
+        eventsPerCorner = corners > 0 ? Double(events.count) / Double(corners) : nil
+        categoryCounts = counts
+        categoryRatesPerCorner = counts.mapValues { count in
+            corners > 0 ? Double(count) / Double(corners) : 0
+        }
+        drive = RiderCraftCalibrationDistribution(values: samples.map(\.drive))
+        apexPosition = RiderCraftCalibrationDistribution(values: samples.map(\.apexPosition))
+        brakeDepth = RiderCraftCalibrationDistribution(values: samples.map(\.brakeDepth))
+        brakeAfterTurnInProgress = RiderCraftCalibrationDistribution(
+            values: samples.compactMap(\.brakeAfterTurnInProgress)
+        )
+        flatExitSensitivity = Self.sensitivity(
+            thresholds: [-0.10, 0, 0.05, 0.10, 0.15],
+            cornerCount: corners,
+            values: samples.map(\.drive),
+            matches: <
+        )
+        earlyApexSensitivity = Self.sensitivity(
+            thresholds: [0.10, 0.15, 0.20, 0.25, 0.30, 0.35],
+            cornerCount: corners,
+            values: samples.map(\.apexPosition),
+            matches: <=
+        )
+        deepBrakingSensitivity = Self.sensitivity(
+            thresholds: [0.40, 0.50, 0.60, 0.70, 0.80],
+            cornerCount: corners,
+            values: samples.map(\.brakeDepth),
+            matches: >
+        )
+        brakeAfterTurnInSensitivity = Self.sensitivity(
+            thresholds: [0, 0.10, 0.20, 0.30, 0.50],
+            cornerCount: corners,
+            values: samples.compactMap(\.brakeAfterTurnInProgress),
+            matches: >
+        )
+    }
+
+    private static func sensitivity(
+        thresholds: [Double],
+        cornerCount: Int,
+        values: [Double],
+        matches: (Double, Double) -> Bool
+    ) -> [RiderCraftThresholdSensitivity] {
+        thresholds.map { threshold in
+            let count = values.filter { matches($0, threshold) }.count
+            return RiderCraftThresholdSensitivity(
+                threshold: threshold,
+                eventCount: count,
+                ratePerCorner: cornerCount > 0 ? Double(count) / Double(cornerCount) : 0
+            )
         }
     }
 }

@@ -22,14 +22,29 @@ struct RiderCraftAnalyzer: Sendable {
     func analyze(corners: [RiderCraftCornerSignal], brakingZones: [RideInputZone]) -> RiderCraftAnalysis {
         guard !corners.isEmpty else { return .unavailable("No significant corners detected") }
         var events: [RiderCraftEvent] = []
+        var samples: [RiderCraftCalibrationSample] = []
 
         for corner in corners {
-            if let zone = brakingZones.first(where: {
+            let lateBrakingZone = brakingZones.first(where: {
                 $0.startIndex > corner.startIndex && $0.startIndex <= corner.endIndex
-            }) {
+            })
+            let lateBrakingProgress: Double?
+            if let zone = lateBrakingZone {
                 let progress = Double(zone.startIndex - corner.startIndex) / Double(max(1, corner.endIndex - corner.startIndex))
+                lateBrakingProgress = progress
                 events.append(event(.brakeAfterTurnIn, corner: corner, replayIndex: zone.startIndex, value: progress, threshold: 0))
+            } else {
+                lateBrakingProgress = nil
             }
+            samples.append(
+                RiderCraftCalibrationSample(
+                    cornerIndex: corner.cornerIndex,
+                    drive: corner.drive,
+                    apexPosition: corner.apexPosition,
+                    brakeDepth: corner.brakeDepth,
+                    brakeAfterTurnInProgress: lateBrakingProgress
+                )
+            )
             if corner.drive < thresholds.flatExitDrive {
                 events.append(event(.flatExit, corner: corner, replayIndex: corner.apexIndex, value: corner.drive, threshold: thresholds.flatExitDrive))
             }
@@ -46,6 +61,7 @@ struct RiderCraftAnalyzer: Sendable {
             thresholdVersion: thresholds.version,
             detectedCornerCount: corners.count,
             events: events,
+            calibrationSamples: samples,
             eventsPerCorner: isSufficient ? Double(events.count) / Double(corners.count) : nil,
             unavailableReason: isSufficient ? nil : "At least \(minimumCornerCount) detected corners are needed"
         )
