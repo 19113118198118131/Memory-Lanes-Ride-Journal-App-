@@ -187,7 +187,13 @@ struct RideDetailView: View {
             case .loading:
                 SkeletonBar(height: 180, radius: Radius.card).mlShimmer()
             case .loaded(let detail):
-                ElevationChart(samples: detail.elevation)
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    ElevationChart(samples: detail.elevation)
+                    if detail.replayPoints.count > 2 {
+                        SpeedChart(points: detail.replayPoints)
+                        AccelerationChart(points: detail.replayPoints)
+                    }
+                }
             case .failed(let message):
                 inlineError(message)
             }
