@@ -34,6 +34,7 @@ final class LiveRideRecorder: NSObject, ObservableObject {
     /// resurrect a stale or discarded draft.
     private var draftSequence = 0
     private lazy var draftPersister = DraftPersister(url: draftURL)
+    private lazy var completedRidePersister = CompletedRidePersister(directory: pendingCompletedDirectory)
 
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
@@ -97,6 +98,23 @@ final class LiveRideRecorder: NSObject, ObservableObject {
         }
     }
 
+    /// Restores a finished ride that has not reached Supabase yet. A pending
+    /// upload always takes priority over starting a new recording so a weak or
+    /// missing connection can never make a completed ride disappear.
+    func prepareForPresentation() async -> RecordedRideResult? {
+        guard status != .recording else { return nil }
+        if let pendingRide = await completedRidePersister.latest() {
+            stopLocationSession()
+            status = .finished
+            lastErrorMessage = "Recovered a completed ride that still needs to be saved."
+            return pendingRide
+        }
+        if status == .idle {
+            start()
+        }
+        return nil
+    }
+
     func pause() {
         guard status == .recording else { return }
         status = .paused
@@ -129,7 +147,7 @@ final class LiveRideRecorder: NSObject, ObservableObject {
         removeDraft()
     }
 
-    func finish(title: String = "Recorded Ride") -> RecordedRideResult? {
+    func finish(title: String = "Recorded Ride") async -> RecordedRideResult? {
         guard !points.isEmpty else {
             discard()
             return nil
@@ -137,6 +155,7 @@ final class LiveRideRecorder: NSObject, ObservableObject {
 
         stopLocationSession()
         let result = RecordedRideResult(
+            id: UUID(),
             title: title,
             startedAt: startedAt ?? points.first?.timestamp ?? Date(),
             durationSeconds: elapsed,
@@ -146,9 +165,23 @@ final class LiveRideRecorder: NSObject, ObservableObject {
             gpxText: GPXWriter.gpx(title: title, points: points)
         )
         writeCompletedGPX(result)
-        removeDraft()
+        do {
+            try await completedRidePersister.write(result)
+            removeDraft()
+        } catch {
+            // Keep the active draft when the completed snapshot could not be
+            // written. It can still be reconstructed after an app restart.
+            lastErrorMessage = "Ride finished, but its pending save could not be secured on this device."
+        }
         status = .finished
         return result
+    }
+
+    func markCompletedRideSaved(_ result: RecordedRideResult) async {
+        await completedRidePersister.remove(result)
+        // Also clear any older active snapshot left behind if the app was
+        // terminated between securing the completed ride and draft cleanup.
+        removeDraft()
     }
 
     private func beginRecording() {
@@ -222,6 +255,10 @@ final class LiveRideRecorder: NSObject, ObservableObject {
 
     private var completedDirectory: URL {
         applicationSupportDirectory.appendingPathComponent("CompletedRides", isDirectory: true)
+    }
+
+    private var pendingCompletedDirectory: URL {
+        applicationSupportDirectory.appendingPathComponent("PendingRides", isDirectory: true)
     }
 
     private var applicationSupportDirectory: URL {
@@ -335,7 +372,8 @@ enum RecordingStatus: String, Codable, Sendable {
     case finished
 }
 
-struct RecordedRideResult: Sendable {
+struct RecordedRideResult: Codable, Identifiable, Sendable {
+    let id: UUID
     let title: String
     let startedAt: Date
     let durationSeconds: TimeInterval
@@ -377,6 +415,46 @@ private actor DraftPersister {
         guard sequence > lastSequence else { return }
         lastSequence = sequence
         try? FileManager.default.removeItem(at: url)
+    }
+}
+
+// A completed ride is stored separately from the active draft until Supabase
+// confirms the upload. This is deliberately an actor so a large recording is
+// encoded and written away from the UI thread.
+private actor CompletedRidePersister {
+    private let directory: URL
+
+    init(directory: URL) {
+        self.directory = directory
+    }
+
+    func write(_ result: RecordedRideResult) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let data = try JSONEncoder.recordingEncoder.encode(result)
+        try data.write(to: url(for: result), options: [.atomic])
+    }
+
+    func latest() -> RecordedRideResult? {
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else { return nil }
+
+        return urls
+            .compactMap { url -> RecordedRideResult? in
+                guard let data = try? Data(contentsOf: url) else { return nil }
+                return try? JSONDecoder.recordingDecoder.decode(RecordedRideResult.self, from: data)
+            }
+            .max(by: { $0.startedAt < $1.startedAt })
+    }
+
+    func remove(_ result: RecordedRideResult) {
+        try? FileManager.default.removeItem(at: url(for: result))
+    }
+
+    private func url(for result: RecordedRideResult) -> URL {
+        directory.appendingPathComponent("\(result.id.uuidString.lowercased()).json")
     }
 }
 

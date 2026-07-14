@@ -16,6 +16,7 @@ struct RecordingView: View {
     @State private var showingFinishConfirmation = false
     @State private var showingDiscardConfirmation = false
     @State private var finishedRide: RecordedRideResult?
+    @State private var recoveredFinishedRide = false
     private let routeFollowAnalyzer = RouteFollowAnalyzer()
 
     var body: some View {
@@ -26,8 +27,9 @@ struct RecordingView: View {
         .background(Color.mlBackground)
         .ignoresSafeArea(edges: .top)
         .task {
-            if recorder.status == .idle {
-                recorder.start()
+            if let recovered = await recorder.prepareForPresentation() {
+                recoveredFinishedRide = true
+                finishedRide = recovered
             }
         }
         .onAppear {
@@ -40,7 +42,10 @@ struct RecordingView: View {
             Button("Keep Riding", role: .cancel) {}
             Button("Finish") {
                 Haptics.success()
-                finishedRide = recorder.finish()
+                Task {
+                    recoveredFinishedRide = false
+                    finishedRide = await recorder.finish()
+                }
             }
         } message: {
             Text("Memory Lanes will stop recording, export a GPX backup, and let you save it to your journal.")
@@ -60,7 +65,11 @@ struct RecordingView: View {
                 result: result,
                 session: session,
                 plannedRoute: plannedRoute,
-                onSaved: onSaved
+                isRecovered: recoveredFinishedRide,
+                onSaved: { ride in
+                    await recorder.markCompletedRideSaved(result)
+                    onSaved(ride)
+                }
             ) {
                 dismiss()
             }
@@ -339,7 +348,8 @@ private struct RecordingFinishedSheet: View {
     let result: RecordedRideResult
     let session: AuthSession
     let plannedRoute: PlannedRoute?
-    let onSaved: (Ride) -> Void
+    let isRecovered: Bool
+    let onSaved: (Ride) async -> Void
     let onDone: () -> Void
 
     @State private var title: String
@@ -352,12 +362,14 @@ private struct RecordingFinishedSheet: View {
         result: RecordedRideResult,
         session: AuthSession,
         plannedRoute: PlannedRoute? = nil,
-        onSaved: @escaping (Ride) -> Void,
+        isRecovered: Bool = false,
+        onSaved: @escaping (Ride) async -> Void,
         onDone: @escaping () -> Void
     ) {
         self.result = result
         self.session = session
         self.plannedRoute = plannedRoute
+        self.isRecovered = isRecovered
         self.onSaved = onSaved
         self.onDone = onDone
         _title = State(initialValue: Self.defaultTitle(for: result.startedAt))
@@ -370,7 +382,9 @@ private struct RecordingFinishedSheet: View {
                 Text("Save to Journal")
                     .font(MLFont.display)
                     .foregroundStyle(Color.mlTextPrimary)
-                Text("Your GPX backup is ready. Save it now to sync this ride across Memory Lanes.")
+                Text(isRecovered
+                    ? "This completed ride was recovered from your device. Save it now to finish syncing it to Memory Lanes."
+                    : "Your GPX backup is ready. Save it now to sync this ride across Memory Lanes.")
                     .font(MLFont.body)
                     .foregroundStyle(Color.mlTextSecondary)
                 if let plannedRoute {
@@ -446,7 +460,7 @@ private struct RecordingFinishedSheet: View {
                 session: session
             )
             Haptics.success()
-            onSaved(saved)
+            await onSaved(saved)
             onDone()
         } catch {
             Haptics.error()
@@ -468,10 +482,6 @@ private struct RecordingFinishedSheet: View {
         formatter.timeStyle = .none
         return "Ride \(formatter.string(from: date))"
     }
-}
-
-extension RecordedRideResult: Identifiable {
-    var id: Date { startedAt }
 }
 
 #Preview {
