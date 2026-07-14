@@ -43,7 +43,7 @@ struct ShareCard: View {
                     Image(systemName: "location.north.line.fill")
                     Text("MEMORY LANES")
                         .font(MLFont.kicker)
-                        .tracking(1.5)
+                        .tracking(0)
                     if let flow = ride.flowScore {
                         Spacer()
                         FlowChip(score: flow)

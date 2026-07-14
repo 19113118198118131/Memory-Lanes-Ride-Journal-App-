@@ -17,8 +17,11 @@ struct RideDetailView: View {
     @State private var isRendering = false
     @State private var mapFocusRequest = 0
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    private let heroHeight: CGFloat = 340
+    private var heroHeight: CGFloat { verticalSizeClass == .compact ? 240 : 340 }
 
     init(viewModel: RideDetailViewModel) {
         _viewModel = State(initialValue: viewModel)
@@ -45,7 +48,7 @@ struct RideDetailView: View {
                 .scrollIndicators(.hidden)
                 .ignoresSafeArea(edges: .top)
                 .onChange(of: mapFocusRequest) { _, _ in
-                    withAnimation(Motion.springSnappy) {
+                    withAnimation(reduceMotion ? nil : Motion.springSnappy) {
                         scrollProxy.scrollTo("ride-detail-map", anchor: .top)
                     }
                 }
@@ -264,9 +267,7 @@ struct RideDetailView: View {
                let routeMatch = viewModel.detail?.routeMatch {
                 routeMatchCard(route: plannedRoute, match: routeMatch)
             }
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.md),
-                                GridItem(.flexible(), spacing: Spacing.md)],
-                      spacing: Spacing.md) {
+            LazyVGrid(columns: detailMetricColumns, spacing: Spacing.md) {
                 StatCard(label: "Flow", value: viewModel.flowScoreText,
                          systemImage: "waveform.path.ecg")
                 StatCard(label: "Ascent", value: viewModel.ride.elevationFormatted, unit: "m",
@@ -309,9 +310,7 @@ struct RideDetailView: View {
     private func coachScoreGrid(_ scores: [RideCoachScore]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             SectionHeader(title: "Ride Coach")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.md),
-                                GridItem(.flexible(), spacing: Spacing.md)],
-                      spacing: Spacing.md) {
+            LazyVGrid(columns: detailMetricColumns, spacing: Spacing.md) {
                 ForEach(scores) { score in
                     CoachScoreCard(score: score)
                 }
@@ -510,8 +509,7 @@ struct RideDetailView: View {
                     .background(Color.mlInfo.opacity(0.12), in: Capsule())
             }
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
-                      spacing: Spacing.sm) {
+            LazyVGrid(columns: routeMetricColumns, spacing: Spacing.sm) {
                 compactMetric("On route", match.matchedText, "point.topleft.down.to.point.bottomright.curvepath")
                 compactMetric("Distance", match.distanceDeltaText, "road.lanes")
                 compactMetric("Avg drift", match.averageDeviationText, "scope")
@@ -540,6 +538,18 @@ struct RideDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.sm)
         .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
+    }
+
+    private var detailMetricColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: Spacing.md), GridItem(.flexible(), spacing: Spacing.md)]
+    }
+
+    private var routeMetricColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : Array(repeating: GridItem(.flexible()), count: 3)
     }
 
     private var publicShareCard: some View {
@@ -916,7 +926,8 @@ private struct MomentEditorSheet: View {
                     .font(MLFont.body)
                     .foregroundStyle(Color.mlTextPrimary)
                     .padding(.horizontal, Spacing.md)
-                    .frame(height: 52)
+                    .padding(.vertical, Spacing.sm)
+                    .frame(minHeight: 52)
                     .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
@@ -978,7 +989,8 @@ private struct MomentEditorSheet: View {
                         .font(MLFont.headline)
                         .foregroundStyle(Color.mlDanger)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 52)
+                        .padding(.vertical, Spacing.sm)
+                        .frame(minHeight: 52)
                         .background(
                             Capsule().stroke(Color.mlDanger.opacity(0.4), lineWidth: Layout.hairline)
                         )

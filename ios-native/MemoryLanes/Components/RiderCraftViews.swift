@@ -5,6 +5,8 @@ struct RiderCraftRideView: View {
     let onReplay: (Int) -> Void
 
     @State private var showAllEvents = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var orderedEvents: [RiderCraftEvent] {
         analysis.events.sorted { $0.replayIndex < $1.replayIndex }
@@ -56,7 +58,7 @@ struct RiderCraftRideView: View {
                     if orderedEvents.count > 4 {
                         Button {
                             Haptics.selection()
-                            withAnimation(Motion.spring) { showAllEvents.toggle() }
+                            withAnimation(reduceMotion ? nil : Motion.spring) { showAllEvents.toggle() }
                         } label: {
                             Label(
                                 showAllEvents ? "Show key events" : "Review all \(orderedEvents.count) detections",
@@ -108,7 +110,7 @@ struct RiderCraftRideView: View {
 
     private var detectorGrid: some View {
         LazyVGrid(
-            columns: [GridItem(.flexible(), spacing: Spacing.sm), GridItem(.flexible(), spacing: Spacing.sm)],
+            columns: detectorColumns,
             spacing: Spacing.sm
         ) {
             ForEach(RiderCraftEvent.Kind.allCases, id: \.self) { kind in
@@ -126,6 +128,12 @@ struct RiderCraftRideView: View {
                 .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
             }
         }
+    }
+
+    private var detectorColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: Spacing.sm), GridItem(.flexible(), spacing: Spacing.sm)]
     }
 
     private func eventRow(_ event: RiderCraftEvent) -> some View {
@@ -173,12 +181,13 @@ struct RiderCraftRideView: View {
 
 private struct RiderCraftReadingGuide: View {
     @State private var isExpanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Button {
                 Haptics.selection()
-                withAnimation(Motion.spring) { isExpanded.toggle() }
+                withAnimation(reduceMotion ? nil : Motion.spring) { isExpanded.toggle() }
             } label: {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "book.closed.fill")
@@ -237,6 +246,7 @@ struct RiderCraftProgressView: View {
     let progress: RiderCraftProgress
 
     @State private var showBadges = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -331,7 +341,7 @@ struct RiderCraftProgressView: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Button {
                 Haptics.selection()
-                withAnimation(Motion.spring) { showBadges.toggle() }
+                withAnimation(reduceMotion ? nil : Motion.spring) { showBadges.toggle() }
             } label: {
                 HStack {
                     Text("Road-craft markers")

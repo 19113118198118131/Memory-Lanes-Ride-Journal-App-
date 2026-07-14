@@ -2,6 +2,7 @@ import SwiftUI
 import MapKit
 
 struct LimitPointPlannerView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let route: [Coordinate]
 
     @State private var referenceSpeedKmh = 70
@@ -58,7 +59,7 @@ struct LimitPointPlannerView: View {
             let result = await Task.detached {
                 LimitPointAnalyzer().analyze(route: route, referenceSpeedKmh: speed)
             }.value
-            withAnimation(Motion.spring) { analysis = result }
+            withAnimation(reduceMotion ? nil : Motion.spring) { analysis = result }
         }
     }
 
@@ -105,6 +106,8 @@ struct LimitPointRideView: View {
 }
 
 private struct LimitPointAnalysisContent: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let analysis: LimitPointAnalysis
     var onReplay: ((Int) -> Void)? = nil
 
@@ -144,7 +147,7 @@ private struct LimitPointAnalysisContent: View {
                 if analysis.corners.count > 3 {
                     Button {
                         Haptics.selection()
-                        withAnimation(Motion.spring) { showAll.toggle() }
+                        withAnimation(reduceMotion ? nil : Motion.spring) { showAll.toggle() }
                     } label: {
                         Label(
                             showAll ? "Show key bends" : "Review all \(analysis.corners.count) bends",
@@ -162,13 +165,12 @@ private struct LimitPointAnalysisContent: View {
     }
 
     private var summary: some View {
-        HStack(spacing: Spacing.sm) {
-            limitMetric(value: "\(analysis.corners.count)", label: "Bends")
-            limitMetric(value: "\(analysis.beyondViewCount)", label: "Below zero")
-            limitMetric(
-                value: analysis.worstCorner.map { String(format: "%.0f m", $0.marginMeters) } ?? "--",
-                label: "Thinnest"
-            )
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: Spacing.sm) { summaryMetrics }
+            } else {
+                HStack(spacing: Spacing.sm) { summaryMetrics }
+            }
         }
     }
 
@@ -205,7 +207,7 @@ private struct LimitPointAnalysisContent: View {
     private func cornerRow(_ corner: LimitPointCorner) -> some View {
         Button {
             Haptics.selection()
-            withAnimation(Motion.spring) { selectedCornerID = corner.id }
+            withAnimation(reduceMotion ? nil : Motion.spring) { selectedCornerID = corner.id }
             onReplay?(corner.replayIndex)
         } label: {
             HStack(spacing: Spacing.md) {
@@ -242,6 +244,16 @@ private struct LimitPointAnalysisContent: View {
             )
         }
         .buttonStyle(MLPressableButtonStyle(scale: 0.98))
+    }
+
+    @ViewBuilder
+    private var summaryMetrics: some View {
+        limitMetric(value: "\(analysis.corners.count)", label: "Bends")
+        limitMetric(value: "\(analysis.beyondViewCount)", label: "Below zero")
+        limitMetric(
+            value: analysis.worstCorner.map { String(format: "%.0f m", $0.marginMeters) } ?? "--",
+            label: "Thinnest"
+        )
     }
 
     private func tint(_ severity: LimitPointCorner.Severity) -> Color {

@@ -8,6 +8,7 @@ import SwiftUI
 struct JournalView: View {
     @State private var viewModel: JournalViewModel
     @State private var mode: JournalMode = .timeline
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let refreshTrigger: UUID
     let onSelectRide: (Ride) -> Void
 
@@ -97,13 +98,19 @@ struct JournalView: View {
     }
 
     private func gallery(_ entries: [JournalEntry]) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
+        LazyVGrid(columns: galleryColumns, spacing: Spacing.md) {
             ForEach(entries) { entry in
                 JournalMomentCard(entry: entry, compact: true) {
                     onSelectRide(entry.ride)
                 }
             }
         }
+    }
+
+    private var galleryColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible()), GridItem(.flexible())]
     }
 }
 

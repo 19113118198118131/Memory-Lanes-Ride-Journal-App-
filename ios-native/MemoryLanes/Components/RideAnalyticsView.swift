@@ -79,6 +79,7 @@ struct RideAnalyticsView: View {
 private struct RideInsightOverview: View {
     let insights: [RideAnalyticsInsight]
     @State private var showsAll = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var visibleInsights: [RideAnalyticsInsight] {
         showsAll ? insights : Array(insights.prefix(1))
@@ -116,7 +117,7 @@ private struct RideInsightOverview: View {
                 if insights.count > 1 {
                     Button {
                         Haptics.selection()
-                        withAnimation(Motion.spring) { showsAll.toggle() }
+                        withAnimation(reduceMotion ? nil : Motion.spring) { showsAll.toggle() }
                     } label: {
                         Label(
                             showsAll ? "Show key insight" : "Show all \(insights.count) insights",
@@ -154,12 +155,13 @@ private struct RideInsightOverview: View {
 
 private struct AnalyticsReadingGuide: View {
     @State private var isExpanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Button {
                 Haptics.selection()
-                withAnimation(Motion.spring) { isExpanded.toggle() }
+                withAnimation(reduceMotion ? nil : Motion.spring) { isExpanded.toggle() }
             } label: {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "book.closed.fill")
@@ -350,6 +352,7 @@ private struct RideProfileChart: View {
 }
 
 private struct RideCompositionView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let slices: [RideCompositionSlice]
 
     private var total: TimeInterval { slices.map(\.seconds).reduce(0, +) }
@@ -369,7 +372,7 @@ private struct RideCompositionView: View {
             .frame(height: Spacing.lg)
             .clipShape(Capsule())
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.xs) {
+            LazyVGrid(columns: compositionColumns, spacing: Spacing.xs) {
                 ForEach(slices.filter { $0.seconds > 0 }) { slice in
                     HStack(spacing: Spacing.xs) {
                         Circle()
@@ -387,6 +390,12 @@ private struct RideCompositionView: View {
             }
         }
         .analyticsCard()
+    }
+
+    private var compositionColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible()), GridItem(.flexible())]
     }
 
     private func percent(_ slice: RideCompositionSlice) -> String {
@@ -633,6 +642,7 @@ private struct RideCoachTechniqueView: View {
     let trend: String?
 
     @State private var showsBreakdown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -660,7 +670,7 @@ private struct RideCoachTechniqueView: View {
 
                 Button {
                     Haptics.selection()
-                    withAnimation(Motion.spring) { showsBreakdown.toggle() }
+                    withAnimation(reduceMotion ? nil : Motion.spring) { showsBreakdown.toggle() }
                 } label: {
                     Label(
                         showsBreakdown ? "Hide score breakdown" : "Read the five axes",

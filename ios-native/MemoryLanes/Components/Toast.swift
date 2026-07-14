@@ -59,6 +59,7 @@ private struct ToastView: View {
 // MARK: - Presentation modifier
 
 private struct ToastModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var toast: Toast?
     var duration: TimeInterval = 2.5
 
@@ -70,11 +71,11 @@ private struct ToastModifier: ViewModifier {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .task(id: toast.id) {
                         try? await Task.sleep(for: .seconds(duration))
-                        withAnimation(Motion.spring) { self.toast = nil }
+                        withAnimation(reduceMotion ? nil : Motion.spring) { self.toast = nil }
                     }
             }
         }
-        .animation(Motion.spring, value: toast)
+        .animation(reduceMotion ? nil : Motion.spring, value: toast)
     }
 }
 

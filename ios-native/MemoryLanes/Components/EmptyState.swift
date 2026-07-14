@@ -16,7 +16,7 @@ struct EmptyState: View {
     var body: some View {
         VStack(spacing: Spacing.md) {
             Image(systemName: systemImage)
-                .font(.system(size: 44, weight: .regular))
+                .font(MLFont.displayXL)
                 .foregroundStyle(Color.mlAccent)
                 .padding(Spacing.lg)
                 .background(Color.mlAccent.opacity(0.10), in: Circle())

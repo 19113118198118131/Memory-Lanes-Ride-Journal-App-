@@ -161,7 +161,7 @@ struct RiderCraftCalibrationReviewView: View {
                 moveSelection(by: -1)
             } label: {
                 Image(systemName: "chevron.left")
-                    .frame(width: 44, height: 40)
+                    .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
             }
             .buttonStyle(MLPressableButtonStyle())
             .disabled(selectedIndex == 0)
@@ -181,7 +181,7 @@ struct RiderCraftCalibrationReviewView: View {
                 moveSelection(by: 1)
             } label: {
                 Image(systemName: "chevron.right")
-                    .frame(width: 44, height: 40)
+                    .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
             }
             .buttonStyle(MLPressableButtonStyle())
             .disabled(selectedIndex >= filteredTargets.count - 1)

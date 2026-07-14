@@ -82,7 +82,8 @@ struct AuthView: View {
                 .font(MLFont.body)
                 .foregroundStyle(Color.mlTextPrimary)
                 .padding(.horizontal, Spacing.md)
-                .frame(height: 52)
+                .padding(.vertical, Spacing.sm)
+                .frame(minHeight: 52)
                 .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Radius.button, style: .continuous)

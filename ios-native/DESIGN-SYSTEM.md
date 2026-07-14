@@ -34,6 +34,7 @@ identity is dark. All text roles meet WCAG AA on their intended surface.
 
 SF Pro (system). Every role is anchored to a Dynamic Type `TextStyle`, so text
 scales with accessibility settings. **Never more than 3 sizes on one screen.**
+Letter spacing is always zero; hierarchy comes from weight, size, color, and space.
 
 | Role | Face | Use |
 |---|---|---|
@@ -54,6 +55,9 @@ Base unit **4pt**. No magic numbers in views.
 
 - Screen horizontal margin is always `Spacing.screenH` (20pt) via `.mlScreenPadding()`.
 - Minimum touch target 44×44pt via `.mlHitTarget()`.
+- Fixed heights are reserved for maps, charts, and other stable visual canvases.
+  Text controls use minimum heights so Dynamic Type can expand them.
+- Multi-column metric layouts collapse to one column at accessibility text sizes.
 
 ## Corner radius — `DesignSystem/Spacing.swift`
 
@@ -67,10 +71,19 @@ font system, never scaled manually.
 
 ## Motion — `DesignSystem/Motion.swift`
 
-- Interactive spring: `Motion.spring` → `.spring(response: 0.4, dampingFraction: 0.75)`.
-- Every custom button uses `.buttonStyle(.mlPressable)` for a shared press-scale.
+- Interactive spring: `Motion.spring` uses mass 0.8, stiffness 300, damping 30.
+- Every custom button uses `MLPressableButtonStyle` for a shared press-scale.
 - Transitions slide/fade, never bounce. Loading uses **skeletons** (`mlShimmer`),
   never a spinner over content.
+- Motion is disabled when Reduce Motion is enabled; state and opacity feedback remain.
+
+## Interaction and disclosure
+
+- Each screen has one visually dominant primary action.
+- Secondary actions use borders, menus, toolbars, or contextual disclosure.
+- Loading, empty, error, disabled, and success states are intentional product states.
+- Dense analysis starts with a plain-language summary, then reveals technical detail.
+- Compact segmented controls may scroll at accessibility text sizes rather than clip.
 
 ## Haptics — `DesignSystem/Haptics.swift`
 

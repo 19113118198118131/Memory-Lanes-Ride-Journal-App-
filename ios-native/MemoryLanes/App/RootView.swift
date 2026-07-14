@@ -75,7 +75,8 @@ private struct MainTabShell: View {
                         recorderRoute = nil
                         showingRecorder = true
                     },
-                    onImportRide: { showingImporter = true }
+                    onImportRide: { showingImporter = true },
+                    onShowStats: { selectedTab = .stats }
                 )
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: Ride.self) { ride in

@@ -57,7 +57,7 @@ struct MLPressableButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed && !reduceMotion ? scale : 1)
             .opacity(configuration.isPressed ? 0.9 : 1)
-            .animation(Motion.spring, value: configuration.isPressed)
+            .animation(reduceMotion ? nil : Motion.spring, value: configuration.isPressed)
     }
 }
 
@@ -103,7 +103,7 @@ private struct MLHoverLift: ViewModifier {
             }
             .scaleEffect(isHovering && !reduceMotion ? 1.02 : 1)
             .onHover { hovering in
-                withAnimation(Motion.spring) {
+                withAnimation(reduceMotion ? nil : Motion.spring) {
                     isHovering = hovering
                 }
             }

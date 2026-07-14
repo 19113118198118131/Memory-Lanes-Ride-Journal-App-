@@ -48,19 +48,34 @@ struct SegmentedMetric: View {
     }
 
     let items: [Item]
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: Spacing.sm) {
+                    ForEach(items) { item in
+                        HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                            Text(item.label).mlKicker()
+                            Spacer(minLength: Spacing.sm)
+                            metricValue(item)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(item.label): \(item.value) \(item.unit)")
+                    }
+                }
+                .padding(.vertical, Spacing.sm)
+            } else {
+                horizontalMetrics
+            }
+        }
+    }
+
+    private var horizontalMetrics: some View {
         HStack(spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 VStack(spacing: Spacing.xxs) {
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text(item.value)
-                            .font(MLFont.displaySmall)
-                            .foregroundStyle(Color.mlTextPrimary)
-                        Text(item.unit)
-                            .font(MLFont.caption)
-                            .foregroundStyle(Color.mlTextSecondary)
-                    }
+                    metricValue(item)
                     Text(item.label)
                         .mlKicker()
                 }
@@ -76,6 +91,18 @@ struct SegmentedMetric: View {
             }
         }
         .padding(.vertical, Spacing.sm)
+    }
+
+    private func metricValue(_ item: Item) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
+            Text(item.value)
+                .font(MLFont.displaySmall)
+                .foregroundStyle(Color.mlTextPrimary)
+                .minimumScaleFactor(0.75)
+            Text(item.unit)
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextSecondary)
+        }
     }
 }
 

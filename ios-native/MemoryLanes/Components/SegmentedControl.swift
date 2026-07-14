@@ -13,21 +13,40 @@ struct MLSegmentedControl<Item: Hashable>: View {
     @Binding var selection: Item
     var compact = false
     @Namespace private var namespace
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        Group {
+            if compact && dynamicTypeSize.isAccessibilitySize {
+                ScrollView(.horizontal) {
+                    segments(equalWidth: false)
+                }
+                .scrollIndicators(.hidden)
+            } else {
+                segments(equalWidth: true)
+            }
+        }
+        .padding(Spacing.xxs)
+        .background(Color.mlSurface, in: Capsule())
+        .overlay(Capsule().stroke(Color.mlHairline, lineWidth: Layout.hairline))
+    }
+
+    private func segments(equalWidth: Bool) -> some View {
         HStack(spacing: 0) {
             ForEach(items, id: \.self) { item in
                 let isSelected = item == selection
                 Button {
                     Haptics.selection()
-                    withAnimation(Motion.spring) { selection = item }
+                    withAnimation(reduceMotion ? nil : Motion.spring) { selection = item }
                 } label: {
                     Text(title(item))
                         .font(compact ? MLFont.caption.weight(.semibold) : MLFont.callout)
                         .lineLimit(1)
                         .minimumScaleFactor(compact ? 0.88 : 0.7)
                         .foregroundStyle(isSelected ? Color.mlOnAccent : Color.mlTextSecondary)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: equalWidth ? .infinity : nil)
+                        .frame(minWidth: equalWidth ? nil : 92)
                         .frame(height: compact ? Layout.minTouchTarget : nil)
                         .padding(.vertical, compact ? 0 : Spacing.xs)
                         .padding(.horizontal, compact ? 2 : 0)
@@ -45,9 +64,6 @@ struct MLSegmentedControl<Item: Hashable>: View {
                 .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
             }
         }
-        .padding(4)
-        .background(Color.mlSurface, in: Capsule())
-        .overlay(Capsule().stroke(Color.mlHairline, lineWidth: Layout.hairline))
     }
 }
 

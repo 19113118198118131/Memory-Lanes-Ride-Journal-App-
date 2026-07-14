@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RideFeedbackCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let feedback: RideFeedback
     let isSaving: Bool
     let status: String?
@@ -98,7 +99,9 @@ struct RideFeedbackCard: View {
     }
 
     private var feedbackColumns: [GridItem] {
-        [GridItem(.flexible(), spacing: Spacing.xs), GridItem(.flexible())]
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: Spacing.xs), GridItem(.flexible())]
     }
 }
 

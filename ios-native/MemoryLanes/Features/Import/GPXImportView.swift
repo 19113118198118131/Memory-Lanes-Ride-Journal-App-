@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct GPXImportView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let session: AuthSession
     let accessToken: @Sendable () async -> String?
     let onSaved: (Ride) -> Void
@@ -114,7 +115,7 @@ struct GPXImportView: View {
             RouteThumbnail(route: track.routePreview)
                 .frame(height: 220)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
+            LazyVGrid(columns: metricColumns, spacing: Spacing.md) {
                 StatCard(label: "Distance", value: String(format: "%.1f", track.distanceMeters / 1000), unit: "km", systemImage: "map")
                 StatCard(label: "Time", value: formattedDuration(track.durationSeconds), systemImage: "clock")
                 StatCard(label: "Elevation", value: String(format: "%.0f", track.elevationGainMeters), unit: "m", systemImage: "mountain.2.fill")
@@ -130,7 +131,8 @@ struct GPXImportView: View {
                 .font(MLFont.body)
                 .foregroundStyle(Color.mlTextPrimary)
                 .padding(.horizontal, Spacing.md)
-                .frame(height: 52)
+                .padding(.vertical, Spacing.sm)
+                .frame(minHeight: 52)
                 .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
@@ -148,6 +150,12 @@ struct GPXImportView: View {
 
     private var canSave: Bool {
         track != nil && gpxData != nil && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSaving
+    }
+
+    private var metricColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible()), GridItem(.flexible())]
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {

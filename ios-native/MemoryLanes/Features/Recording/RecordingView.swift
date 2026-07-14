@@ -398,6 +398,7 @@ struct RecordingView: View {
 }
 
 private struct RecordingFinishedSheet: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let result: RecordedRideResult
     let session: AuthSession
     let plannedRoute: PlannedRoute?
@@ -457,7 +458,8 @@ private struct RecordingFinishedSheet: View {
                     .font(MLFont.body)
                     .foregroundStyle(Color.mlTextPrimary)
                     .padding(.horizontal, Spacing.md)
-                    .frame(height: 52)
+                    .padding(.vertical, Spacing.sm)
+                    .frame(minHeight: 52)
                     .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
@@ -466,7 +468,7 @@ private struct RecordingFinishedSheet: View {
                     .disabled(isSaving)
             }
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
+            LazyVGrid(columns: metricColumns, spacing: Spacing.md) {
                 StatCard(label: "Distance", value: String(format: "%.2f", result.distanceMeters / 1000), unit: "km", systemImage: "map")
                 StatCard(label: "Time", value: duration(result.durationSeconds), systemImage: "clock")
                 StatCard(label: "Elevation", value: String(format: "%.0f", result.elevationGainMeters), unit: "m", systemImage: "mountain.2.fill")
@@ -498,6 +500,12 @@ private struct RecordingFinishedSheet: View {
 
     private var cleanTitle: String {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var metricColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible()), GridItem(.flexible())]
     }
 
     private var canSave: Bool {

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct GroupRideLobbyView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel: GroupRideViewModel
     @State private var activityPayload: ActivityPayload?
     @State private var showingMeetingEditor = false
@@ -139,7 +140,7 @@ struct GroupRideLobbyView: View {
                             .foregroundStyle(Color.mlTextPrimary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Button {
-                            withAnimation(Motion.spring) { viewModel.clearError() }
+                            withAnimation(reduceMotion ? nil : Motion.spring) { viewModel.clearError() }
                         } label: {
                             Image(systemName: "xmark")
                                 .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
@@ -157,7 +158,7 @@ struct GroupRideLobbyView: View {
             .mlScreenPadding()
         }
         .refreshable { await viewModel.refresh() }
-        .animation(Motion.spring, value: viewModel.errorMessage)
+        .animation(reduceMotion ? nil : Motion.spring, value: viewModel.errorMessage)
     }
 
     private func header(_ groupRide: GroupRide) -> some View {
@@ -269,7 +270,7 @@ struct GroupRideLobbyView: View {
                 }
             }
         }
-        .animation(Motion.springSnappy, value: viewModel.pendingRSVP)
+        .animation(reduceMotion ? nil : Motion.springSnappy, value: viewModel.pendingRSVP)
     }
 
     private func attendees(_ groupRide: GroupRide) -> some View {
@@ -300,7 +301,7 @@ struct GroupRideLobbyView: View {
                 if groupRide.members.count > 4 {
                     Button {
                         Haptics.selection()
-                        withAnimation(Motion.spring) {
+                        withAnimation(reduceMotion ? nil : Motion.spring) {
                             showAllAttendees.toggle()
                         }
                     } label: {
@@ -357,7 +358,8 @@ struct GroupRideLobbyView: View {
                         .font(MLFont.headline)
                         .foregroundStyle(Color.mlDanger)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 52)
+                        .padding(.vertical, Spacing.sm)
+                        .frame(minHeight: 52)
                         .background(Capsule().stroke(Color.mlDanger.opacity(0.4), lineWidth: Layout.hairline))
                 }
                 .buttonStyle(MLPressableButtonStyle())
@@ -373,6 +375,7 @@ struct GroupRideCreationSheet: View {
     let onCreated: (GroupRide) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var title: String
     @State private var hasMeetTime = true
     @State private var meetTime = Date().addingTimeInterval(86_400)
@@ -424,7 +427,7 @@ struct GroupRideCreationSheet: View {
                     .padding(Spacing.md)
                     .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card))
                     .mlStaggeredReveal(index: 2)
-                    .animation(Motion.spring, value: hasMeetTime)
+                    .animation(reduceMotion ? nil : Motion.spring, value: hasMeetTime)
 
                     if let errorMessage {
                         Text(errorMessage)
@@ -450,7 +453,7 @@ struct GroupRideCreationSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .animation(Motion.spring, value: errorMessage)
+            .animation(reduceMotion ? nil : Motion.spring, value: errorMessage)
         }
         .preferredColorScheme(.dark)
     }
@@ -536,7 +539,8 @@ private struct MLTextFieldStyle: TextFieldStyle {
             .font(MLFont.body)
             .foregroundStyle(Color.mlTextPrimary)
             .padding(.horizontal, Spacing.md)
-            .frame(height: 52)
+            .padding(.vertical, Spacing.sm)
+            .frame(minHeight: 52)
             .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.button, style: .continuous)

@@ -7,6 +7,7 @@ import MapKit
 // candidates are built locally from the chosen start, mood, and time window.
 
 struct RoutesView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel: RoutesViewModel
     @StateObject private var startLocation = RouteStartLocationProvider()
     @State private var selectedMood = RouteMood.flowing
@@ -239,7 +240,7 @@ struct RoutesView: View {
                 FlowLayout(spacing: Spacing.xs) {
                     ForEach(RouteMood.allCases) { mood in
                         ChoiceChip(title: mood.title, systemImage: mood.symbol, isSelected: selectedMood == mood) {
-                            withAnimation(Motion.springSnappy) { selectedMood = mood }
+                            withAnimation(reduceMotion ? nil : Motion.springSnappy) { selectedMood = mood }
                         }
                     }
                 }
@@ -250,7 +251,7 @@ struct RoutesView: View {
                 FlowLayout(spacing: Spacing.xs) {
                     ForEach(RouteTime.allCases) { time in
                         ChoiceChip(title: time.title, systemImage: "clock", isSelected: selectedTime == time) {
-                            withAnimation(Motion.springSnappy) { selectedTime = time }
+                            withAnimation(reduceMotion ? nil : Motion.springSnappy) { selectedTime = time }
                         }
                     }
                 }
@@ -444,7 +445,7 @@ struct RoutesView: View {
         do {
             let route = try await viewModel.createRoute(candidate.draft)
             Haptics.success()
-            withAnimation(Motion.spring) {
+            withAnimation(reduceMotion ? nil : Motion.spring) {
                 showCandidates = false
             }
             onSelectRoute(route)
@@ -478,7 +479,7 @@ struct RoutesView: View {
                 }
                 .sorted { ($0.recommendation?.matchPercent ?? -1) > ($1.recommendation?.matchPercent ?? -1) }
             Haptics.success()
-            withAnimation(Motion.spring) {
+            withAnimation(reduceMotion ? nil : Motion.spring) {
                 showCandidates = true
             }
         } catch {
@@ -681,7 +682,8 @@ struct PlannedRouteDetailView: View {
                     .font(MLFont.headline)
                     .foregroundStyle(Color.mlDanger)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 52)
+                    .padding(.vertical, Spacing.sm)
+                    .frame(minHeight: 52)
                     .background(
                         Capsule().stroke(Color.mlDanger.opacity(0.4), lineWidth: Layout.hairline)
                     )
@@ -848,7 +850,8 @@ private struct RouteEditSheet: View {
                         .font(MLFont.body)
                         .foregroundStyle(Color.mlTextPrimary)
                         .padding(.horizontal, Spacing.md)
-                        .frame(height: 52)
+                        .padding(.vertical, Spacing.sm)
+                        .frame(minHeight: 52)
                         .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: Radius.button, style: .continuous)

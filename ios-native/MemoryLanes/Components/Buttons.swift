@@ -7,6 +7,7 @@ import SwiftUI
 // screen never has to manage a separate spinner.
 
 struct PrimaryButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let title: String
     var systemImage: String? = nil
     var isLoading: Bool = false
@@ -31,13 +32,14 @@ struct PrimaryButton: View {
             .font(MLFont.headline)
             .foregroundStyle(Color.mlOnAccent)
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            .padding(.vertical, Spacing.sm)
+            .frame(minHeight: 52)
             .background(Color.mlAccent, in: Capsule())
             .opacity(isLoading ? 0.85 : 1)
         }
         .buttonStyle(MLPressableButtonStyle())
         .disabled(isLoading)
-        .animation(Motion.spring, value: isLoading)
+        .animation(reduceMotion ? nil : Motion.spring, value: isLoading)
         .accessibilityLabel(title)
         .accessibilityAddTraits(.isButton)
     }
@@ -64,7 +66,8 @@ struct SecondaryButton: View {
             .font(MLFont.headline)
             .foregroundStyle(Color.mlTextPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            .padding(.vertical, Spacing.sm)
+            .frame(minHeight: 52)
             .background(
                 Capsule().stroke(Color.mlHairline, lineWidth: Layout.hairline)
             )
@@ -100,7 +103,8 @@ struct DestructiveButton: View {
             .font(MLFont.headline)
             .foregroundStyle(Color.mlDanger)
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            .padding(.vertical, Spacing.sm)
+            .frame(minHeight: 52)
             .background(
                 Capsule().stroke(Color.mlDanger.opacity(0.4), lineWidth: Layout.hairline)
             )

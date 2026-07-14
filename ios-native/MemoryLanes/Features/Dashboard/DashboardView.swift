@@ -9,23 +9,27 @@ import SwiftUI
 struct DashboardView: View {
     @State private var viewModel: DashboardViewModel
     @State private var toast: Toast?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let refreshTrigger: UUID
     let onSelectRide: (Ride) -> Void
     let onStartRide: () -> Void
     let onImportRide: () -> Void
+    let onShowStats: () -> Void
 
     init(
         viewModel: DashboardViewModel,
         refreshTrigger: UUID = UUID(),
         onSelectRide: @escaping (Ride) -> Void = { _ in },
         onStartRide: @escaping () -> Void = {},
-        onImportRide: @escaping () -> Void = {}
+        onImportRide: @escaping () -> Void = {},
+        onShowStats: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
         self.refreshTrigger = refreshTrigger
         self.onSelectRide = onSelectRide
         self.onStartRide = onStartRide
         self.onImportRide = onImportRide
+        self.onShowStats = onShowStats
     }
 
     var body: some View {
@@ -37,7 +41,7 @@ struct DashboardView: View {
 
                 SectionHeader(title: "Recent Rides",
                               actionTitle: viewModel.rides.isEmpty ? nil : "Stats",
-                              action: viewModel.rides.isEmpty ? nil : {})
+                              action: viewModel.rides.isEmpty ? nil : onShowStats)
 
                 content
             }
@@ -65,7 +69,18 @@ struct DashboardView: View {
     // MARK: Hero metrics
 
     private var heroMetrics: some View {
-        HStack(spacing: Spacing.md) {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: Spacing.md) { heroMetricCards }
+            } else {
+                HStack(spacing: Spacing.md) { heroMetricCards }
+            }
+        }
+        .redacted(reason: isLoading ? .placeholder : [])
+    }
+
+    @ViewBuilder
+    private var heroMetricCards: some View {
             StatCard(
                 label: "This Week",
                 value: String(format: "%.0f", viewModel.weeklyDistanceKm),
@@ -78,8 +93,6 @@ struct DashboardView: View {
                 value: viewModel.bestFlow.map(String.init) ?? "—",
                 systemImage: "waveform.path.ecg"
             )
-        }
-        .redacted(reason: isLoading ? .placeholder : [])
     }
 
     // MARK: Start tile

@@ -7,6 +7,7 @@ import MapKit
 // totals, monthly distance, personal bests, and a glanceable ridden-routes map.
 
 struct StatsView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var viewModel: StatsViewModel
     let refreshTrigger: UUID
     let onSelectRide: (Ride) -> Void
@@ -84,7 +85,7 @@ struct StatsView: View {
 
     private var loadingContent: some View {
         VStack(spacing: Spacing.md) {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
+            LazyVGrid(columns: metricColumns, spacing: Spacing.md) {
                 SkeletonBar(height: 112, radius: Radius.card).mlShimmer()
                 SkeletonBar(height: 112, radius: Radius.card).mlShimmer()
                 SkeletonBar(height: 112, radius: Radius.card).mlShimmer()
@@ -96,12 +97,18 @@ struct StatsView: View {
     }
 
     private var totals: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
+        LazyVGrid(columns: metricColumns, spacing: Spacing.md) {
             StatCard(label: "Rides", value: "\(viewModel.rides.count)", systemImage: "helmet")
             StatCard(label: "Distance", value: String(format: "%.0f", viewModel.totalDistanceKm), unit: "km", systemImage: "road.lanes")
             StatCard(label: "Elevation", value: String(format: "%.0f", viewModel.totalElevationM), unit: "m", systemImage: "mountain.2.fill")
             StatCard(label: "Time Riding", value: formattedDuration(viewModel.totalDuration), systemImage: "clock.fill")
         }
+    }
+
+    private var metricColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible()), GridItem(.flexible())]
     }
 
     private var monthlyCard: some View {

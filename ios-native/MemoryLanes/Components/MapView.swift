@@ -40,6 +40,7 @@ struct MLMapView: View {
     var completedRoute: [Coordinate] = []
     var guideRoute: [Coordinate] = []
     @State private var cameraPosition: MapCameraPosition = .automatic
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var coordinates: [CLLocationCoordinate2D] { route.clCoordinates }
     private var guideCoordinates: [CLLocationCoordinate2D] { guideRoute.clCoordinates }
@@ -108,7 +109,7 @@ struct MLMapView: View {
         }
         .onChange(of: replayCoordinate) { _, coordinate in
             guard let coordinate else { return }
-            withAnimation(Motion.springSnappy) {
+            withAnimation(reduceMotion ? nil : Motion.springSnappy) {
                 cameraPosition = .region(
                     RouteGeometry.replayRegion(
                         centeredOn: coordinate,

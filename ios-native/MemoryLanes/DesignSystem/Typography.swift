@@ -55,7 +55,7 @@ extension View {
     /// Eyebrow label above a title — uppercase, tracked, tertiary colour.
     func mlKicker() -> some View {
         self.font(MLFont.kicker)
-            .tracking(1.2)
+            .tracking(0)
             .textCase(.uppercase)
             .foregroundStyle(Color.mlTextTertiary)
     }
