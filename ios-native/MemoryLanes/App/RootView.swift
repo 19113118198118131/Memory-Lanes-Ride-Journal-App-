@@ -41,6 +41,7 @@ private struct MainTabShell: View {
     @State private var statsPath = NavigationPath()
     @State private var showingRecorder = false
     @State private var showingImporter = false
+    @State private var showingAccount = false
     @State private var refreshTrigger = UUID()
     @State private var recorderRoute: PlannedRoute?
     @State private var toast: Toast?
@@ -76,11 +77,11 @@ private struct MainTabShell: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            authStore.signOut()
+                            showingAccount = true
                         } label: {
-                            Image(systemName: "person.crop.circle.badge.xmark")
+                            Image(systemName: "person.crop.circle")
                         }
-                        .accessibilityLabel("Sign out")
+                        .accessibilityLabel("Account")
                     }
                 }
             }
@@ -164,6 +165,16 @@ private struct MainTabShell: View {
                 ) { ride in
                     presentSavedRide(ride, message: "GPX saved to journal")
                 }
+            }
+        }
+        .sheet(isPresented: $showingAccount) {
+            if let session = authStore.session {
+                AccountView(
+                    email: session.email,
+                    userID: session.userID,
+                    accessToken: { await authStore.validAccessToken() },
+                    onSignOut: { authStore.signOut() }
+                )
             }
         }
     }
