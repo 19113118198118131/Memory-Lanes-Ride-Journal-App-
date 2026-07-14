@@ -177,44 +177,70 @@ struct RecordingView: View {
     }
 
     private var controlPanel: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(plannedRoute == nil ? "Live ride" : "Following route").mlKicker()
+        VStack(spacing: Spacing.sm) {
+            if let followSnapshot {
+                compactRouteGuidance(followSnapshot)
+            }
+
+            rideHUD
+            actionButtons
+        }
+        .padding(.horizontal, Spacing.screenH)
+        .padding(.bottom, Spacing.sm)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var rideHUD: some View {
+        VStack(spacing: Spacing.sm) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(plannedRoute == nil ? "Live ride" : "Following route").mlKicker()
+                    if let plannedRoute {
+                        Text(plannedRoute.title)
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer(minLength: Spacing.sm)
+
                 Text(formattedDuration(recorder.elapsed))
                     .font(MLFont.displayXL)
                     .foregroundStyle(Color.mlTextPrimary)
+                    .monospacedDigit()
                     .contentTransition(.numericText())
-                if let plannedRoute {
-                    Text(plannedRoute.title)
-                        .font(MLFont.callout)
-                        .foregroundStyle(Color.mlTextSecondary)
-                        .lineLimit(1)
-                }
+                    .minimumScaleFactor(0.8)
             }
 
-            if let followSnapshot {
-                followRouteCard(followSnapshot)
-            }
+            Divider()
+                .overlay(Color.mlHairline)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
-                liveMetric(label: "Distance", value: String(format: "%.2f", recorder.distanceKm), unit: "km", symbol: "point.topleft.down.to.point.bottomright.curvepath")
-                liveMetric(label: "Current", value: speedText(recorder.currentSpeedMetersPerSecond), unit: "km/h", symbol: "speedometer")
-                liveMetric(label: "Average", value: speedText(recorder.averageSpeedMetersPerSecond), unit: "km/h", symbol: "gauge.with.dots.needle.67percent")
-                liveMetric(label: "Elevation", value: String(format: "%.0f", recorder.elevationGainMeters), unit: "m", symbol: "mountain.2.fill")
+            HStack(spacing: 0) {
+                compactMetric(
+                    label: "Distance",
+                    value: String(format: "%.2f", recorder.distanceKm),
+                    unit: "km"
+                )
+                compactMetric(
+                    label: "Speed",
+                    value: speedText(recorder.currentSpeedMetersPerSecond),
+                    unit: "km/h"
+                )
+                compactMetric(
+                    label: "Climb",
+                    value: String(format: "%.0f", recorder.elevationGainMeters),
+                    unit: "m"
+                )
             }
-
-            actionButtons
         }
-        .padding(Spacing.lg)
-        .padding(.bottom, Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.mlBackground, in: UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28))
-        .overlay(alignment: .top) {
-            Capsule()
-                .fill(Color.mlHairline)
-                .frame(width: 42, height: 4)
-                .padding(.top, Spacing.sm)
-        }
+        .padding(Spacing.md)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.mlTextPrimary.opacity(0.12), lineWidth: Layout.hairline)
+        )
+        .shadow(color: .black.opacity(0.24), radius: Spacing.md, y: Spacing.xs)
     }
 
     private var followSnapshot: RouteFollowSnapshot? {
@@ -242,6 +268,7 @@ struct RecordingView: View {
                 SecondaryButton(title: recorder.isPaused ? "Resume" : "Pause", systemImage: recorder.isPaused ? "play.fill" : "pause.fill") {
                     recorder.isPaused ? recorder.resume() : recorder.pause()
                 }
+                .background(.ultraThinMaterial, in: Capsule())
                 PrimaryButton(title: "Finish", systemImage: "flag.checkered") {
                     showingFinishConfirmation = true
                 }
@@ -272,93 +299,62 @@ struct RecordingView: View {
         }
     }
 
-    private func liveMetric(label: String, value: String, unit: String, symbol: String) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(spacing: Spacing.xxs) {
-                Image(systemName: symbol)
-                    .font(MLFont.caption)
-                    .foregroundStyle(Color.mlAccent)
-                Text(label).mlKicker()
-            }
-
+    private func compactMetric(label: String, value: String, unit: String) -> some View {
+        VStack(spacing: Spacing.xxs) {
+            Text(label).mlKicker()
             HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
                 Text(value)
                     .font(MLFont.displaySmall)
                     .foregroundStyle(Color.mlTextPrimary)
+                    .monospacedDigit()
                     .contentTransition(.numericText())
                 Text(unit)
                     .font(MLFont.caption)
                     .foregroundStyle(Color.mlTextSecondary)
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.md)
-        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
-        )
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 
-    private func followRouteCard(_ snapshot: RouteFollowSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack(alignment: .firstTextBaseline) {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: snapshot.guidanceSymbol)
-                        .font(MLFont.title2)
-                        .foregroundStyle(routeStatusColor(snapshot))
-                        .frame(width: 36)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(snapshot.status).mlKicker()
-                        Text(snapshot.guidanceTitle)
-                            .font(MLFont.headline)
-                            .foregroundStyle(Color.mlTextPrimary)
-                        Text(snapshot.guidanceDetail)
-                            .font(MLFont.caption)
-                            .foregroundStyle(Color.mlTextSecondary)
-                    }
-                }
-                Spacer()
-                Text(snapshot.onRouteText)
-                    .font(MLFont.monoSmall)
+    private func compactRouteGuidance(_ snapshot: RouteFollowSnapshot) -> some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: snapshot.guidanceSymbol)
+                .font(MLFont.title2)
+                .foregroundStyle(routeStatusColor(snapshot))
+                .frame(width: Spacing.xl + Spacing.xxs, height: Spacing.xl + Spacing.xxs)
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(snapshot.guidanceTitle)
+                    .font(MLFont.headline)
                     .foregroundStyle(Color.mlTextPrimary)
-                    .padding(.horizontal, Spacing.sm)
-                    .padding(.vertical, Spacing.xxs)
-                    .background(Color.mlSurfaceElevated, in: Capsule())
+                    .lineLimit(1)
+                Text("\(snapshot.guidanceDetail)  ·  \(snapshot.remainingText) left")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .lineLimit(1)
             }
 
-            ProgressView(value: snapshot.progressPercent, total: 100)
-                .tint(Color.mlAccent)
-                .accessibilityLabel("Route progress")
-                .accessibilityValue("\(Int(snapshot.progressPercent.rounded())) percent")
+            Spacer(minLength: Spacing.xs)
 
-            HStack(spacing: Spacing.sm) {
-                followMetric("Remaining", snapshot.remainingText, "flag.checkered")
-                followMetric("Drift", snapshot.deviationText, "scope")
-                followMetric("Progress", String(format: "%.0f%%", snapshot.progressPercent), "chart.line.uptrend.xyaxis")
-            }
+            Text(snapshot.onRouteText)
+                .font(MLFont.monoSmall)
+                .foregroundStyle(routeStatusColor(snapshot))
+                .lineLimit(1)
         }
-        .padding(Spacing.md)
-        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .padding(.horizontal, Spacing.md)
+        .frame(minHeight: Spacing.xxl + Spacing.md)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+                .stroke(routeStatusColor(snapshot).opacity(0.35), lineWidth: Layout.hairline)
         )
-    }
-
-    private func followMetric(_ label: String, _ value: String, _ systemImage: String) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Label(label, systemImage: systemImage)
-                .font(MLFont.caption)
-                .foregroundStyle(Color.mlTextSecondary)
-                .lineLimit(1)
-            Text(value)
-                .font(MLFont.monoSmall)
-                .foregroundStyle(Color.mlTextPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .shadow(color: .black.opacity(0.2), radius: Spacing.sm, y: Spacing.xxs)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Route guidance")
+        .accessibilityValue("\(snapshot.guidanceTitle), \(snapshot.guidanceDetail), \(snapshot.remainingText) remaining")
     }
 
     private func routeStatusColor(_ snapshot: RouteFollowSnapshot) -> Color {
