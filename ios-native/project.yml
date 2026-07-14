@@ -34,6 +34,7 @@ targets:
       base:
         INFOPLIST_FILE: MemoryLanes/Resources/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: app.memorylanes.native
+        DEVELOPMENT_TEAM: 57HZXXHCLS
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"   # iPhone
         SUPPORTS_MACCATALYST: NO
