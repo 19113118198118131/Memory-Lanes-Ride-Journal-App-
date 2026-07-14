@@ -792,6 +792,13 @@ Deliverables:
 - AI ride feedback and recommendations.
 - Trend-aware coaching refinements.
 
+Current group-ride status:
+
+- Native route-based creation, meeting details, recoverable hosted/joined lists, lobby, RSVP, attendees, sharing, ending, and shared-route recording are implemented.
+- Group invite links remain compatible with the original web lobby.
+- Native invite deep linking and live rider positions remain pending.
+- RSVP never implies live-location consent; live sharing requires a separate explicit control and field-validation gate.
+
 ## 11. Definition of Done
 
 A feature is done when:

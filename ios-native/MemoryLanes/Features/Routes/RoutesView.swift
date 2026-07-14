@@ -17,15 +17,18 @@ struct RoutesView: View {
     @State private var isGeneratingCandidates = false
     let refreshTrigger: UUID
     let onSelectRoute: (PlannedRoute) -> Void
+    let onSelectGroupRide: (GroupRideSummary) -> Void
 
     init(
         viewModel: RoutesViewModel,
         refreshTrigger: UUID = UUID(),
-        onSelectRoute: @escaping (PlannedRoute) -> Void = { _ in }
+        onSelectRoute: @escaping (PlannedRoute) -> Void = { _ in },
+        onSelectGroupRide: @escaping (GroupRideSummary) -> Void = { _ in }
     ) {
         _viewModel = State(initialValue: viewModel)
         self.refreshTrigger = refreshTrigger
         self.onSelectRoute = onSelectRoute
+        self.onSelectGroupRide = onSelectGroupRide
     }
 
     var body: some View {
@@ -33,6 +36,7 @@ struct RoutesView: View {
             LazyVStack(alignment: .leading, spacing: Spacing.lg) {
                 header
                 actionRow
+                groupRidesSection
                 setupCard
 
                 if showCandidates {
@@ -56,7 +60,7 @@ struct RoutesView: View {
         .background(Color.mlBackground)
         .navigationTitle("Routes")
         .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await viewModel.refresh() }
+        .refreshable { await viewModel.refreshAll() }
         .task(id: refreshTrigger) { await viewModel.load() }
     }
 
@@ -88,6 +92,100 @@ struct RoutesView: View {
                 Task { await viewModel.refresh() }
             }
         }
+    }
+
+    private var groupRidesSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            SectionHeader(title: "Your Group Rides")
+
+            switch viewModel.groupState {
+            case .loading:
+                SkeletonBar(height: 112, radius: Radius.card).mlShimmer()
+            case .loaded(let groupRides):
+                LazyVStack(spacing: Spacing.sm) {
+                    ForEach(groupRides) { groupRide in
+                        groupRideCard(groupRide)
+                    }
+                }
+            case .empty:
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "person.3")
+                        .foregroundStyle(Color.mlAccent)
+                    Text("Open a saved route to organise a group ride.")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
+            case .failed(let message):
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text(message)
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlDanger)
+                    Button("Try Again") {
+                        Task { await viewModel.refreshGroupRides() }
+                    }
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlAccent)
+                }
+            }
+        }
+    }
+
+    private func groupRideCard(_ groupRide: GroupRideSummary) -> some View {
+        Button {
+            Haptics.selection()
+            onSelectGroupRide(groupRide)
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "person.3.fill")
+                    .font(MLFont.title2)
+                    .foregroundStyle(Color.mlOnAccent)
+                    .frame(width: 44, height: 44)
+                    .background(Color.mlAccent, in: Circle())
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    HStack(spacing: Spacing.xs) {
+                        Text(groupRide.title)
+                            .font(MLFont.headline)
+                            .foregroundStyle(Color.mlTextPrimary)
+                            .lineLimit(1)
+                        Text(groupRide.isOwner ? "Hosting" : "Joined")
+                            .font(MLFont.caption)
+                            .foregroundStyle(groupRide.isOwner ? Color.mlAccent : Color.mlInfo)
+                    }
+                    Text(groupRideMeta(groupRide))
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: Spacing.xs)
+                VStack(alignment: .trailing, spacing: Spacing.xxs) {
+                    Label("\(groupRide.memberCount)", systemImage: "person.2.fill")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(Color.mlAccent)
+                }
+            }
+            .padding(Spacing.md)
+            .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+            )
+        }
+        .buttonStyle(MLPressableButtonStyle())
+        .accessibilityLabel("\(groupRide.title), \(groupRide.memberCount) riders")
+    }
+
+    private func groupRideMeta(_ groupRide: GroupRideSummary) -> String {
+        var parts = [groupRide.routeTitle]
+        if let meetTime = groupRide.meetTime {
+            parts.append(meetTime.formatted(date: .abbreviated, time: .shortened))
+        }
+        if let meetPoint = groupRide.meetPoint, !meetPoint.isEmpty {
+            parts.append(meetPoint)
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var setupCard: some View {
@@ -399,8 +497,11 @@ struct PlannedRouteDetailView: View {
     @State private var errorMessage: String?
     @State private var showingEditSheet = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingGroupRideCreation = false
+    @State private var pendingGroupInviteURL: URL?
 
     let routeService: any RouteServing
+    let groupRideService: any GroupRideServing
     let onStartRide: (PlannedRoute) -> Void
     let onChanged: () -> Void
     let onDeleted: () -> Void
@@ -408,12 +509,14 @@ struct PlannedRouteDetailView: View {
     init(
         route: PlannedRoute,
         routeService: any RouteServing,
+        groupRideService: any GroupRideServing,
         onStartRide: @escaping (PlannedRoute) -> Void = { _ in },
         onChanged: @escaping () -> Void = {},
         onDeleted: @escaping () -> Void = {}
     ) {
         _route = State(initialValue: route)
         self.routeService = routeService
+        self.groupRideService = groupRideService
         self.onStartRide = onStartRide
         self.onChanged = onChanged
         self.onDeleted = onDeleted
@@ -501,6 +604,19 @@ struct PlannedRouteDetailView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showingGroupRideCreation) {
+            GroupRideCreationSheet(route: route, service: groupRideService) { groupRide in
+                onChanged()
+                pendingGroupInviteURL = groupRide.inviteURL
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
+        .onChange(of: showingGroupRideCreation) { _, isShowing in
+            guard !isShowing, let inviteURL = pendingGroupInviteURL else { return }
+            pendingGroupInviteURL = nil
+            sharePayload = RouteSharePayload(items: [inviteURL])
+        }
         .confirmationDialog(
             "Delete this route?",
             isPresented: $showingDeleteConfirmation,
@@ -529,6 +645,11 @@ struct PlannedRouteDetailView: View {
 
             SecondaryButton(title: "Duplicate Route", systemImage: "plus.square.on.square") {
                 Task { await duplicateRoute() }
+            }
+            .disabled(isWorking)
+
+            SecondaryButton(title: "Create Group Ride", systemImage: "person.3.fill") {
+                showingGroupRideCreation = true
             }
             .disabled(isWorking)
 

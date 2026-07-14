@@ -11,15 +11,29 @@ final class RoutesViewModel {
         case failed(String)
     }
 
+    enum GroupLoadState {
+        case loading
+        case loaded([GroupRideSummary])
+        case empty
+        case failed(String)
+    }
+
     private(set) var state: LoadState = .loading
+    private(set) var groupState: GroupLoadState = .loading
     private(set) var isSavingRoute = false
     private let routeService: RouteServing
     private let rideService: RideServing
+    private let groupRideService: GroupRideServing?
     private var recommender = RideRecommendationEngine(ratedRides: [])
 
-    init(routeService: RouteServing, rideService: RideServing) {
+    init(
+        routeService: RouteServing,
+        rideService: RideServing,
+        groupRideService: GroupRideServing? = nil
+    ) {
         self.routeService = routeService
         self.rideService = rideService
+        self.groupRideService = groupRideService
     }
 
     var routes: [PlannedRoute] {
@@ -29,8 +43,14 @@ final class RoutesViewModel {
 
     func load() async {
         state = .loading
-        await refresh()
+        groupState = .loading
+        await refreshAll()
         await refreshRecommendations()
+    }
+
+    func refreshAll() async {
+        await refresh()
+        await refreshGroupRides()
     }
 
     var recommendationStatus: String {
@@ -60,6 +80,20 @@ final class RoutesViewModel {
         } catch is CancellationError {
         } catch {
             state = .failed(error.localizedDescription)
+        }
+    }
+
+    func refreshGroupRides() async {
+        guard let groupRideService else {
+            groupState = .empty
+            return
+        }
+        do {
+            let groupRides = try await groupRideService.fetchMyGroupRides()
+            groupState = groupRides.isEmpty ? .empty : .loaded(groupRides)
+        } catch is CancellationError {
+        } catch {
+            groupState = .failed(error.localizedDescription)
         }
     }
 

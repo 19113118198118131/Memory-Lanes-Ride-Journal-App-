@@ -57,6 +57,13 @@ private struct MainTabShell: View {
         )
     }
 
+    private var groupRideService: GroupRideServing {
+        GroupRideService(
+            accessToken: { await authStore.validAccessToken() },
+            userID: authStore.session?.userID
+        )
+    }
+
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack(path: $ridePath) {
@@ -92,21 +99,42 @@ private struct MainTabShell: View {
                 RoutesView(
                     viewModel: RoutesViewModel(
                         routeService: routeService,
-                        rideService: rideService
+                        rideService: rideService,
+                        groupRideService: groupRideService
                     ),
                     refreshTrigger: refreshTrigger,
-                    onSelectRoute: { routesPath.append($0) }
+                    onSelectRoute: { routesPath.append($0) },
+                    onSelectGroupRide: { routesPath.append($0) }
                 )
                 .navigationDestination(for: PlannedRoute.self) { route in
                     PlannedRouteDetailView(
                         route: route,
                         routeService: routeService,
+                        groupRideService: groupRideService,
                         onStartRide: { route in
                             recorderRoute = route
                             showingRecorder = true
                         },
                         onChanged: { refreshTrigger = UUID() },
                         onDeleted: {
+                            refreshTrigger = UUID()
+                            if !routesPath.isEmpty {
+                                routesPath.removeLast()
+                            }
+                        }
+                    )
+                }
+                .navigationDestination(for: GroupRideSummary.self) { groupRide in
+                    GroupRideLobbyView(
+                        viewModel: GroupRideViewModel(
+                            shareToken: groupRide.shareToken,
+                            service: groupRideService
+                        ),
+                        onStartRoute: { route in
+                            recorderRoute = route
+                            showingRecorder = true
+                        },
+                        onEnded: {
                             refreshTrigger = UUID()
                             if !routesPath.isEmpty {
                                 routesPath.removeLast()
