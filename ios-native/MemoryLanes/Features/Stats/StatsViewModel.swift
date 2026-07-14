@@ -1,0 +1,129 @@
+import Foundation
+import Observation
+
+@MainActor
+@Observable
+final class StatsViewModel {
+    enum LoadState {
+        case loading
+        case loaded([Ride])
+        case empty
+        case failed(String)
+    }
+
+    private(set) var state: LoadState = .loading
+    private let rideService: RideServing
+
+    init(rideService: RideServing) {
+        self.rideService = rideService
+    }
+
+    var rides: [Ride] {
+        if case .loaded(let rides) = state { return rides }
+        return []
+    }
+
+    var totalDistanceKm: Double {
+        rides.reduce(0) { $0 + $1.distanceMeters } / 1000
+    }
+
+    var totalElevationM: Double {
+        rides.reduce(0) { $0 + $1.elevationGainMeters }
+    }
+
+    var totalDuration: TimeInterval {
+        rides.reduce(0) { $0 + $1.durationSeconds }
+    }
+
+    var bestFlowRide: Ride? {
+        rides.compactMap { ride in
+            ride.flowScore.map { (ride, $0) }
+        }
+        .max { $0.1 < $1.1 }?
+        .0
+    }
+
+    var longestRide: Ride? {
+        rides.max { $0.distanceMeters < $1.distanceMeters }
+    }
+
+    var highestRide: Ride? {
+        rides.max { $0.elevationGainMeters < $1.elevationGainMeters }
+    }
+
+    var longestDurationRide: Ride? {
+        rides.max { $0.durationSeconds < $1.durationSeconds }
+    }
+
+    var fastestAverageRide: Ride? {
+        rides
+            .filter { $0.durationSeconds > 0 && $0.distanceMeters >= 5_000 }
+            .max { averageSpeedKmh($0) < averageSpeedKmh($1) }
+    }
+
+    var monthlyBars: [StatsMonthBar] {
+        let calendar = Calendar.current
+        let now = Date()
+        let startMonths = (0..<6).reversed().compactMap {
+            calendar.date(byAdding: .month, value: -$0, to: calendar.startOfMonth(for: now))
+        }
+
+        let buckets = startMonths.map { monthStart -> StatsMonthBar in
+            let next = calendar.date(byAdding: .month, value: 1, to: monthStart) ?? monthStart
+            let monthRides = rides.filter { $0.date >= monthStart && $0.date < next }
+            let km = monthRides.reduce(0) { $0 + $1.distanceMeters } / 1000
+            return StatsMonthBar(
+                id: monthStart,
+                label: monthStart.formatted(.dateTime.month(.abbreviated)),
+                rideCount: monthRides.count,
+                distanceKm: km
+            )
+        }
+
+        let maxKm = max(buckets.map(\.distanceKm).max() ?? 0, 1)
+        return buckets.map { bar in
+            var copy = bar
+            copy.heightRatio = bar.distanceKm / maxKm
+            return copy
+        }
+    }
+
+    var routePreviews: [[Coordinate]] {
+        rides.map(\.routePreview).filter { $0.count > 1 }
+    }
+
+    func averageSpeedKmh(_ ride: Ride) -> Double {
+        guard ride.durationSeconds > 0 else { return 0 }
+        return (ride.distanceMeters / 1000) / (ride.durationSeconds / 3600)
+    }
+
+    func load() async {
+        state = .loading
+        await refresh()
+    }
+
+    func refresh() async {
+        do {
+            let rides = try await rideService.fetchRides()
+            state = rides.isEmpty ? .empty : .loaded(rides)
+        } catch is CancellationError {
+        } catch {
+            state = .failed(error.localizedDescription)
+        }
+    }
+}
+
+struct StatsMonthBar: Identifiable, Hashable {
+    let id: Date
+    let label: String
+    let rideCount: Int
+    let distanceKm: Double
+    var heightRatio: Double = 0
+}
+
+private extension Calendar {
+    func startOfMonth(for date: Date) -> Date {
+        let components = dateComponents([.year, .month], from: date)
+        return self.date(from: components) ?? date
+    }
+}

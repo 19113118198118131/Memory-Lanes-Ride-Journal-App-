@@ -29,6 +29,7 @@ private struct MainTabShell: View {
     @ObservedObject var authStore: AuthStore
     @State private var ridePath = NavigationPath()
     @State private var journalPath = NavigationPath()
+    @State private var statsPath = NavigationPath()
     @State private var showingRecorder = false
     @State private var showingImporter = false
     @State private var refreshTrigger = UUID()
@@ -83,8 +84,15 @@ private struct MainTabShell: View {
             }
             .tabItem { Label("Journal", systemImage: "book") }
 
-            NavigationStack {
-                StatsView()
+            NavigationStack(path: $statsPath) {
+                StatsView(
+                    viewModel: StatsViewModel(rideService: rideService),
+                    refreshTrigger: refreshTrigger,
+                    onSelectRide: { statsPath.append($0) }
+                )
+                .navigationDestination(for: Ride.self) { ride in
+                    RideDetailView(viewModel: RideDetailViewModel(ride: ride, rideService: rideService))
+                }
             }
             .tabItem { Label("Stats", systemImage: "chart.bar") }
         }
