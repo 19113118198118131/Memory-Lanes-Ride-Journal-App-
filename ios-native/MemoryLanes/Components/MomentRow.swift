@@ -16,11 +16,23 @@ struct MomentRow: View {
                 .frame(width: 40, height: 40)
                 .background(Color.mlAccent.opacity(0.12), in: Circle())
 
-            Text(moment.note)
-                .font(MLFont.body)
-                .foregroundStyle(Color.mlTextPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 4) {
+                if !moment.title.isEmpty {
+                    Text(moment.title)
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                }
+                Text(moment.note.isEmpty ? "No note yet." : moment.note)
+                    .font(MLFont.body)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let routeIndex = moment.routeIndex {
+                    Text("Pinned at route point \(routeIndex + 1)")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Image(systemName: "mappin.and.ellipse")
                 .font(MLFont.caption)
@@ -33,7 +45,7 @@ struct MomentRow: View {
                 .stroke(Color.mlHairline, lineWidth: Layout.hairline)
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Moment: \(moment.note)")
+        .accessibilityLabel("Moment: \(moment.title.isEmpty ? moment.note : moment.title)")
     }
 }
 

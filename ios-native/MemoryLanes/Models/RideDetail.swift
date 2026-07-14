@@ -113,14 +113,31 @@ enum CornerShape: String, Sendable {
 
 struct Moment: Identifiable, Sendable {
     let id: UUID
+    var title: String
     var note: String
     var coordinate: Coordinate
+    var routeIndex: Int?
+    var speedKmh: Double?
+    var elevationMeters: Double?
     var symbol: String   // SF Symbol chosen for the moment
 
-    init(id: UUID = UUID(), note: String, coordinate: Coordinate, symbol: String = "mappin.circle.fill") {
+    init(
+        id: UUID = UUID(),
+        title: String = "",
+        note: String,
+        coordinate: Coordinate,
+        routeIndex: Int? = nil,
+        speedKmh: Double? = nil,
+        elevationMeters: Double? = nil,
+        symbol: String = "mappin.circle.fill"
+    ) {
         self.id = id
+        self.title = title
         self.note = note
         self.coordinate = coordinate
+        self.routeIndex = routeIndex
+        self.speedKmh = speedKmh
+        self.elevationMeters = elevationMeters
         self.symbol = symbol
     }
 }

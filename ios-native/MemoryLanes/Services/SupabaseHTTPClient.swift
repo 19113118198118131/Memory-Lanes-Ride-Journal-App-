@@ -35,6 +35,20 @@ struct SupabaseHTTPClient {
         return try await send(request)
     }
 
+    func patch<Body: Encodable>(
+        path: String,
+        queryItems: [URLQueryItem] = [],
+        body: Body,
+        accessToken: String? = nil
+    ) async throws {
+        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
+        components?.queryItems = queryItems.isEmpty ? nil : queryItems
+        guard let url = components?.url else { throw SupabaseHTTPError.invalidURL }
+        var request = request(url: url, method: "PATCH", accessToken: accessToken)
+        request.httpBody = try JSONEncoder.supabase.encode(body)
+        try await sendWithoutDecoding(request)
+    }
+
     func upload(
         path: String,
         data: Data,

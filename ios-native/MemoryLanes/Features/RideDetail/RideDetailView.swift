@@ -12,6 +12,7 @@ import SwiftUI
 struct RideDetailView: View {
     @State private var viewModel: RideDetailViewModel
     @State private var shareItem: ShareableImage?
+    @State private var momentEditor: MomentEditorContext?
     @State private var isRendering = false
     @Environment(\.dismiss) private var dismiss
 
@@ -50,6 +51,42 @@ struct RideDetailView: View {
         .sheet(item: $shareItem) { item in
             ActivityView(items: [item.image])
                 .presentationDetents([.medium, .large])
+        }
+        .sheet(item: $momentEditor) { context in
+            MomentEditorSheet(
+                context: context,
+                routeCount: viewModel.routeForMomentPinning.count,
+                isSaving: viewModel.isSavingMoment,
+                errorMessage: viewModel.momentErrorMessage,
+                onSave: { title, note, routeIndex in
+                    let saved = await viewModel.saveMoment(
+                        editingID: context.moment?.id,
+                        title: title,
+                        note: note,
+                        routeIndex: routeIndex
+                    )
+                    if saved {
+                        Haptics.success()
+                        momentEditor = nil
+                    } else {
+                        Haptics.error()
+                    }
+                },
+                onDelete: context.moment.map { moment in
+                    {
+                        let deleted = await viewModel.deleteMoment(moment)
+                        if deleted {
+                            Haptics.success()
+                            momentEditor = nil
+                        } else {
+                            Haptics.error()
+                        }
+                    }
+                },
+                onCancel: { momentEditor = nil }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -180,13 +217,30 @@ struct RideDetailView: View {
         case .loading:
             SkeletonBar(height: 72, radius: Radius.card).mlShimmer()
         case .loaded(let detail):
-            if detail.moments.isEmpty {
-                EmptyState(systemImage: "sparkles",
-                           title: "No moments captured",
-                           message: "Pin a moment during a ride to remember exactly where it happened.")
-            } else {
-                LazyVStack(spacing: Spacing.md) {
-                    ForEach(detail.moments) { MomentRow(moment: $0) }
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                SectionHeader(
+                    title: "Moments",
+                    actionTitle: detail.moments.count < 5 ? "Add" : nil
+                ) {
+                    openMomentEditor()
+                }
+
+                if detail.moments.isEmpty {
+                    EmptyState(systemImage: "sparkles",
+                               title: "No moments captured",
+                               message: "Pin a moment to remember exactly where it happened.")
+                } else {
+                    LazyVStack(spacing: Spacing.md) {
+                        ForEach(detail.moments) { moment in
+                            Button {
+                                Haptics.selection()
+                                openMomentEditor(moment)
+                            } label: {
+                                MomentRow(moment: moment)
+                            }
+                            .buttonStyle(MLPressableButtonStyle())
+                        }
+                    }
                 }
             }
         case .failed(let message):
@@ -281,6 +335,199 @@ struct RideDetailView: View {
                 Haptics.error()
             }
         }
+    }
+
+    private func openMomentEditor(_ moment: Moment? = nil) {
+        let routeCount = viewModel.routeForMomentPinning.count
+        let defaultIndex = max(0, routeCount / 2)
+        momentEditor = MomentEditorContext(moment: moment, defaultRouteIndex: moment?.routeIndex ?? defaultIndex)
+    }
+}
+
+private struct MomentEditorContext: Identifiable {
+    let id: UUID
+    var moment: Moment?
+    var defaultRouteIndex: Int
+
+    init(moment: Moment?, defaultRouteIndex: Int) {
+        self.id = moment?.id ?? UUID()
+        self.moment = moment
+        self.defaultRouteIndex = defaultRouteIndex
+    }
+}
+
+private struct MomentEditorSheet: View {
+    let context: MomentEditorContext
+    let routeCount: Int
+    let isSaving: Bool
+    let errorMessage: String?
+    let onSave: (String, String, Int) async -> Void
+    let onDelete: (() async -> Void)?
+    let onCancel: () -> Void
+
+    @State private var title: String
+    @State private var note: String
+    @State private var routeIndex: Int
+    @State private var showingDeleteConfirmation = false
+
+    init(
+        context: MomentEditorContext,
+        routeCount: Int,
+        isSaving: Bool,
+        errorMessage: String?,
+        onSave: @escaping (String, String, Int) async -> Void,
+        onDelete: (() async -> Void)?,
+        onCancel: @escaping () -> Void
+    ) {
+        self.context = context
+        self.routeCount = routeCount
+        self.isSaving = isSaving
+        self.errorMessage = errorMessage
+        self.onSave = onSave
+        self.onDelete = onDelete
+        self.onCancel = onCancel
+        _title = State(initialValue: context.moment?.title ?? "")
+        _note = State(initialValue: context.moment?.note ?? "")
+        _routeIndex = State(initialValue: min(max(context.defaultRouteIndex, 0), max(routeCount - 1, 0)))
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    header
+                    form
+                    if let errorMessage {
+                        errorCard(errorMessage)
+                    }
+                    actions
+                }
+                .padding(.vertical, Spacing.md)
+                .mlScreenPadding()
+            }
+            .background(Color.mlBackground)
+            .navigationTitle(context.moment == nil ? "Add Moment" : "Edit Moment")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onCancel() }
+                        .disabled(isSaving)
+                }
+            }
+            .confirmationDialog(
+                "Delete this moment?",
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Moment", role: .destructive) {
+                    Task { await onDelete?() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This removes the moment from this ride.")
+            }
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text("Ride memory").mlKicker()
+            Text(context.moment == nil ? "Pin a new note" : "Tune this memory")
+                .font(MLFont.display)
+                .foregroundStyle(Color.mlTextPrimary)
+            Text("Moments sync to your journal and stay attached to this ride.")
+                .font(MLFont.body)
+                .foregroundStyle(Color.mlTextSecondary)
+        }
+    }
+
+    private var form: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Title").mlKicker()
+                TextField("Summit stop", text: $title)
+                    .font(MLFont.body)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .padding(.horizontal, Spacing.md)
+                    .frame(height: 52)
+                    .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                            .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+                    )
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Note").mlKicker()
+                TextEditor(text: $note)
+                    .font(MLFont.body)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .scrollContentBackground(.hidden)
+                    .padding(Spacing.sm)
+                    .frame(minHeight: 132)
+                    .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+                    )
+            }
+
+            if routeCount > 1 {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    HStack {
+                        Text("Route position").mlKicker()
+                        Spacer()
+                        Text("\(routeIndex + 1) / \(routeCount)")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Slider(
+                        value: Binding(
+                            get: { Double(routeIndex) },
+                            set: { routeIndex = Int($0.rounded()) }
+                        ),
+                        in: 0...Double(max(routeCount - 1, 1)),
+                        step: 1
+                    )
+                    .tint(.mlAccent)
+                }
+            }
+        }
+        .disabled(isSaving)
+    }
+
+    private var actions: some View {
+        VStack(spacing: Spacing.md) {
+            PrimaryButton(title: "Save Moment", systemImage: "tray.and.arrow.down.fill", isLoading: isSaving) {
+                Task { await onSave(title, note, routeIndex) }
+            }
+            .disabled(isSaving)
+
+            if onDelete != nil {
+                Button(role: .destructive) {
+                    showingDeleteConfirmation = true
+                } label: {
+                    Label("Delete Moment", systemImage: "trash")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlDanger)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(
+                            Capsule().stroke(Color.mlDanger.opacity(0.4), lineWidth: Layout.hairline)
+                        )
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .disabled(isSaving)
+            }
+        }
+    }
+
+    private func errorCard(_ message: String) -> some View {
+        Text(message)
+            .font(MLFont.callout)
+            .foregroundStyle(Color.mlDanger)
+            .padding(Spacing.md)
+            .background(Color.mlDanger.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 }
 

@@ -11,6 +11,7 @@ protocol RideServing {
     func fetchRides() async throws -> [Ride]
     /// Full analysis for one ride, loaded when the rider opens it.
     func fetchDetail(for ride: Ride) async throws -> RideDetail
+    func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment]
 }
 
 // MARK: - Preview / demo implementation
@@ -43,6 +44,12 @@ struct PreviewRideService: RideServing {
             weather: SampleData.heroDetail.weather,
             debrief: SampleData.heroDetail.debrief
         )
+    }
+
+    func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment] {
+        try await Task.sleep(for: .milliseconds(250))
+        if let failure { throw failure }
+        return moments
     }
 }
 
@@ -80,8 +87,9 @@ struct RideService: RideServing {
 
     func fetchDetail(for ride: Ride) async throws -> RideDetail {
         guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        let storedMoments = try await fetchStoredMoments(for: ride.id, accessToken: token)
         guard let gpxPath = ride.gpxPath else {
-            return RideDetail(id: ride.id, routePreview: [], elevation: [], corners: [], moments: [], weather: nil, debrief: "This ride does not have an attached GPX file yet.")
+            return RideDetail(id: ride.id, routePreview: [], elevation: [], corners: [], moments: storedMoments, weather: nil, debrief: "This ride does not have an attached GPX file yet.")
         }
         let data = try await client.download(
             path: "storage/v1/object/gpx-files/\(gpxPath)",
@@ -93,10 +101,24 @@ struct RideService: RideServing {
             routePreview: track.routePreview,
             elevation: track.elevationSamples,
             corners: [],
-            moments: [],
+            moments: storedMoments,
             weather: nil,
             debrief: "Route and elevation loaded from the saved GPX. Ride Coach analysis is the next layer."
         )
+    }
+
+    func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment] {
+        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        let payload = RideMomentsUpdatePayload(moments: moments.enumerated().map { offset, moment in
+            SupabaseMomentPayload(moment: moment, fallbackIndex: offset)
+        })
+        try await client.patch(
+            path: "rest/v1/ride_logs",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(ride.id.uuidString)")],
+            body: payload,
+            accessToken: token
+        )
+        return payload.moments.map(\.moment)
     }
 
     private func downloadTrack(path: String, accessToken: String) async throws -> GPXTrack {
@@ -105,6 +127,19 @@ struct RideService: RideServing {
             accessToken: accessToken
         )
         return try GPXParser().parse(data: data)
+    }
+
+    private func fetchStoredMoments(for rideID: UUID, accessToken: String) async throws -> [Moment] {
+        let rows: [SupabaseRideMomentRow] = try await client.get(
+            path: "rest/v1/ride_logs",
+            queryItems: [
+                URLQueryItem(name: "select", value: "moments"),
+                URLQueryItem(name: "id", value: "eq.\(rideID.uuidString)"),
+                URLQueryItem(name: "limit", value: "1")
+            ],
+            accessToken: accessToken
+        )
+        return rows.first?.moments?.map(\.moment) ?? []
     }
 }
 
@@ -177,6 +212,34 @@ private struct SupabaseRideRow: Decodable {
 
 private struct SupabaseMoment: Decodable {
     let note: String?
+    let title: String?
+    let index: Int?
+    let latitude: Double?
+    let longitude: Double?
+    let speed: Double?
+    let elevation: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case note
+        case title
+        case index = "idx"
+        case latitude = "lat"
+        case longitude = "lng"
+        case speed
+        case elevation
+    }
+
+    var moment: Moment {
+        Moment(
+            title: title ?? "",
+            note: note ?? "",
+            coordinate: Coordinate(latitude: latitude ?? 0, longitude: longitude ?? 0),
+            routeIndex: index,
+            speedKmh: speed,
+            elevationMeters: elevation,
+            symbol: note?.isEmpty == false ? "note.text" : "mappin.circle.fill"
+        )
+    }
 }
 
 private struct SupabaseSkills: Decodable {
@@ -185,5 +248,55 @@ private struct SupabaseSkills: Decodable {
     var flowScore: Int? {
         guard let values = scores?.values.filter({ $0.isFinite }), !values.isEmpty else { return nil }
         return Int((values.reduce(0, +) / Double(values.count)).rounded())
+    }
+}
+
+private struct SupabaseRideMomentRow: Decodable {
+    let moments: [SupabaseMoment]?
+}
+
+private struct RideMomentsUpdatePayload: Encodable {
+    let moments: [SupabaseMomentPayload]
+}
+
+private struct SupabaseMomentPayload: Encodable {
+    let index: Int
+    let latitude: Double
+    let longitude: Double
+    let speed: Double?
+    let elevation: Double?
+    let title: String
+    let note: String
+
+    enum CodingKeys: String, CodingKey {
+        case index = "idx"
+        case latitude = "lat"
+        case longitude = "lng"
+        case speed
+        case elevation
+        case title
+        case note
+    }
+
+    init(moment: Moment, fallbackIndex: Int) {
+        index = moment.routeIndex ?? fallbackIndex
+        latitude = moment.coordinate.latitude
+        longitude = moment.coordinate.longitude
+        speed = moment.speedKmh
+        elevation = moment.elevationMeters
+        title = moment.title
+        note = moment.note
+    }
+
+    var moment: Moment {
+        Moment(
+            title: title,
+            note: note,
+            coordinate: Coordinate(latitude: latitude, longitude: longitude),
+            routeIndex: index,
+            speedKmh: speed,
+            elevationMeters: elevation,
+            symbol: note.isEmpty ? "mappin.circle.fill" : "note.text"
+        )
     }
 }
