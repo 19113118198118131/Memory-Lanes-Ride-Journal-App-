@@ -26,7 +26,15 @@ struct RootView: View {
 }
 
 private struct MainTabShell: View {
+    private enum MainTab: Hashable {
+        case ride
+        case routes
+        case journal
+        case stats
+    }
+
     @ObservedObject var authStore: AuthStore
+    @State private var selectedTab: MainTab = .ride
     @State private var ridePath = NavigationPath()
     @State private var routesPath = NavigationPath()
     @State private var journalPath = NavigationPath()
@@ -35,6 +43,7 @@ private struct MainTabShell: View {
     @State private var showingImporter = false
     @State private var refreshTrigger = UUID()
     @State private var recorderRoute: PlannedRoute?
+    @State private var toast: Toast?
 
     private var rideService: RideServing {
         RideService(accessToken: { await authStore.validAccessToken() })
@@ -48,7 +57,7 @@ private struct MainTabShell: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack(path: $ridePath) {
                 DashboardView(
                     viewModel: DashboardViewModel(rideService: rideService),
@@ -76,6 +85,7 @@ private struct MainTabShell: View {
                 }
             }
             .tabItem { Label("Ride", systemImage: "location.north.line.fill") }
+            .tag(MainTab.ride)
 
             NavigationStack(path: $routesPath) {
                 RoutesView(
@@ -104,6 +114,7 @@ private struct MainTabShell: View {
                 }
             }
             .tabItem { Label("Routes", systemImage: "map") }
+            .tag(MainTab.routes)
 
             NavigationStack(path: $journalPath) {
                 JournalView(
@@ -118,6 +129,7 @@ private struct MainTabShell: View {
                 }
             }
             .tabItem { Label("Journal", systemImage: "book") }
+            .tag(MainTab.journal)
 
             NavigationStack(path: $statsPath) {
                 StatsView(
@@ -130,20 +142,37 @@ private struct MainTabShell: View {
                 }
             }
             .tabItem { Label("Stats", systemImage: "chart.bar") }
+            .tag(MainTab.stats)
         }
+        .mlToast($toast)
         .fullScreenCover(isPresented: $showingRecorder) {
             if let session = authStore.session {
-                RecordingView(session: session, plannedRoute: recorderRoute) { _ in
-                    refreshTrigger = UUID()
+                RecordingView(session: session, plannedRoute: recorderRoute) { ride in
+                    presentSavedRide(ride, message: "Ride saved to journal")
                 }
             }
         }
         .sheet(isPresented: $showingImporter) {
             if let session = authStore.session {
-                GPXImportView(session: session) { _ in
-                    refreshTrigger = UUID()
+                GPXImportView(session: session) { ride in
+                    presentSavedRide(ride, message: "GPX saved to journal")
                 }
             }
+        }
+    }
+
+    private func presentSavedRide(_ ride: Ride, message: String) {
+        refreshTrigger = UUID()
+        selectedTab = .ride
+        ridePath = NavigationPath()
+        routesPath = NavigationPath()
+        journalPath = NavigationPath()
+        statsPath = NavigationPath()
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            ridePath.append(ride)
+            toast = .success(message)
         }
     }
 }
