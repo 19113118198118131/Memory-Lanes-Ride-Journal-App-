@@ -20,4 +20,9 @@ struct ActivityView: UIViewControllerRepresentable {
 struct ShareableImage: Identifiable {
     let id = UUID()
     let image: UIImage
+    let text: String
+
+    var items: [Any] {
+        [image, text]
+    }
 }

@@ -50,7 +50,7 @@ struct RideDetailView: View {
         .task { await viewModel.load() }
         .onDisappear { viewModel.pausePlayback() }
         .sheet(item: $shareItem) { item in
-            ActivityView(items: [item.image])
+            ActivityView(items: item.items)
                 .presentationDetents([.medium, .large])
         }
         .sheet(item: $momentEditor) { context in
@@ -491,7 +491,10 @@ struct RideDetailView: View {
             defer { isRendering = false }
             if let image = ShareCardRenderer.image(for: viewModel.ride) {
                 Haptics.success()
-                shareItem = ShareableImage(image: image)
+                shareItem = ShareableImage(
+                    image: image,
+                    text: ShareCardRenderer.summaryText(for: viewModel.ride)
+                )
             } else {
                 Haptics.error()
             }

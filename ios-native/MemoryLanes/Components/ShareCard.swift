@@ -90,6 +90,21 @@ enum ShareCardRenderer {
         renderer.scale = scale
         return renderer.uiImage
     }
+
+    static func summaryText(for ride: Ride) -> String {
+        var lines = [
+            ride.title,
+            "\(ride.distanceFormatted) km · \(ride.durationFormatted) · \(ride.elevationFormatted) m ascent"
+        ]
+        if let location = ride.locationName {
+            lines.append(location)
+        }
+        if let flow = ride.flowScore {
+            lines.append("Flow score \(flow)")
+        }
+        lines.append("Shared from Memory Lanes")
+        return lines.joined(separator: "\n")
+    }
 }
 
 // MARK: - Previews
