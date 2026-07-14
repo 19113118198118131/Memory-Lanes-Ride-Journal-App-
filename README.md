@@ -75,3 +75,5 @@ Cache-busting: all HTML pages reference CSS/JS with `?v=N` query strings. Bump `
 ## Roadmap ideas
 
 Password reset flow, reverse-geocoded ride locations, weather caching, trend-aware coaching refinements, and a proper tile-source upgrade (MapTiler/Stadia) if traffic grows.
+
+The native roadmap now also includes safety-gated Limit Point Analysis: pre-ride study of geometry that may restrict sight distance, followed by replay-linked post-ride reflection. Fixed-clearance estimates remain research-only, and live audio is explicitly deferred until reality validation, human-factors testing, and legal review pass. See `docs/limit-point-analysis-feature-plan.md`.

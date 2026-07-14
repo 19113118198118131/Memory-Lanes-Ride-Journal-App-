@@ -457,6 +457,40 @@ Explicit exclusions:
 
 Detailed delivery and calibration plan: `docs/rider-craft-feature-plan.md`.
 
+### 4.17 Limit Point Analysis
+
+Limit Point Analysis is a safety-critical route-study feature that estimates where road geometry may restrict forward visibility. Its primary surface is the pre-ride planned-route map, followed by replay-linked post-ride reflection. Live audio is a separately gated research candidate and is not part of the initial commitment.
+
+Functional requirements:
+
+- Compute versioned sight-distance, stopping-distance, and estimated-margin scenarios from route geometry and explicit assumptions.
+- Preserve model version, geometry source, obstruction source, confidence, and limitations with every assessment.
+- Analyse planned routes before riding without presenting a recommended speed.
+- Show neutral study/restriction states rather than safe/clear states or performance colours.
+- Link post-ride assessments to corner replay evidence.
+- Return unavailable when geometry or obstruction evidence is insufficient.
+- Keep all fixed-obstruction-clearance output developer-only until reality validation passes.
+
+Acceptance criteria:
+
+- Formula, boundary, and monotonicity tests prove that speed and reaction time cannot improve estimated margin.
+- Radius noise, obstruction-clearance sensitivity, route simplification, false positives, and false negatives are documented against reviewed real roads.
+- The rider-facing UI never describes positive margin as headroom, permission, safety, or a speed target.
+- Missing alerts or unmarked bends never imply safety.
+- Legal and safety review approves the claims before rider-facing release.
+- Pre-ride and post-ride features remain fully useful with live audio disabled.
+
+Explicit exclusions before independent approval:
+
+- No lane-position score from consumer phone GPS.
+- No green safe state, recommended corner speed, badge, streak, leaderboard, or sight-margin score.
+- No fixed five-metre obstruction assumption in rider-facing UI.
+- No free-ride live prediction.
+- No visual live warning.
+- No live audio warning until the dedicated release gates pass.
+
+Detailed research, delivery, and safety plan: `docs/limit-point-analysis-feature-plan.md`.
+
 ## 5. Core Data Model
 
 ### 5.1 User Profile
@@ -712,6 +746,25 @@ Deliverables:
 - Start ride from planned route.
 - Planned vs actual overlay.
 - Route match score.
+
+### Phase 4B: Limit Point Route Study
+
+Goal: add trustworthy pre-ride geometry study and replay-linked post-ride reflection without implying that the app can certify a bend as safe.
+
+Deliverables:
+
+- Pure Swift research model and calibration harness.
+- Reality validation against reviewed roads and high-resolution geometry.
+- Confidence-aware pre-ride study overlay after validation passes.
+- Replay-linked post-ride evidence after pre-ride validation.
+- Map/terrain-derived obstruction estimates as a later versioned model.
+
+Release gates:
+
+- Fixed-obstruction results remain developer-only.
+- Representative false-positive and false-negative review passes.
+- Safety, human-factors, and legal review approve rider-facing claims.
+- Live audio remains a separate, final research candidate and does not block this phase.
 
 ### Phase 5: Sharing, Export, and Polish
 
