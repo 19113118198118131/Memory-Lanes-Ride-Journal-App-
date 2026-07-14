@@ -15,6 +15,7 @@ struct RideDetailView: View {
     @State private var momentEditor: MomentEditorContext?
     @State private var showingCalibrationReview = false
     @State private var isRendering = false
+    @State private var mapFocusRequest = 0
     @Environment(\.dismiss) private var dismiss
 
     private let heroHeight: CGFloat = 340
@@ -25,22 +26,30 @@ struct RideDetailView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            ScrollView {
-                VStack(spacing: 0) {
-                    heroMap
-                        .frame(height: heroHeight)
+            ScrollViewReader { scrollProxy in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        heroMap
+                            .frame(height: heroHeight)
+                            .id("ride-detail-map")
 
-                    content
-                        .background(
-                            Color.mlBackground
-                                .clipShape(.rect(topLeadingRadius: 28, topTrailingRadius: 28))
-                        )
-                        .offset(y: -28)
-                        .padding(.bottom, -28)
+                        content
+                            .background(
+                                Color.mlBackground
+                                    .clipShape(.rect(topLeadingRadius: 28, topTrailingRadius: 28))
+                            )
+                            .offset(y: -28)
+                            .padding(.bottom, -28)
+                    }
+                }
+                .scrollIndicators(.hidden)
+                .ignoresSafeArea(edges: .top)
+                .onChange(of: mapFocusRequest) { _, _ in
+                    withAnimation(Motion.springSnappy) {
+                        scrollProxy.scrollTo("ride-detail-map", anchor: .top)
+                    }
                 }
             }
-            .scrollIndicators(.hidden)
-            .ignoresSafeArea(edges: .top)
 
             // Sibling of the ScrollView so it respects the top safe area while
             // the map stays full-bleed underneath it.
@@ -191,7 +200,8 @@ struct RideDetailView: View {
             MLSegmentedControl(
                 items: RideDetailViewModel.Section.allCases,
                 title: { $0.rawValue },
-                selection: $viewModel.section
+                selection: $viewModel.section,
+                compact: true
             )
 
             sectionContent
@@ -414,8 +424,7 @@ struct RideDetailView: View {
                 if RiderCraftFeature.isResearchPreviewEnabled,
                    let riderCraft = detail.riderCraft {
                     RiderCraftRideView(analysis: riderCraft) { index in
-                        viewModel.scrubPlayback(to: index)
-                        viewModel.section = .overview
+                        focusReplayOnMap(index)
                     }
                 }
 
@@ -423,8 +432,7 @@ struct RideDetailView: View {
                    let limitPointAnalysis = detail.limitPointAnalysis,
                    !limitPointAnalysis.corners.isEmpty {
                     LimitPointRideView(analysis: limitPointAnalysis) { index in
-                        viewModel.scrubPlayback(to: index)
-                        viewModel.section = .overview
+                        focusReplayOnMap(index)
                     }
                 }
 
@@ -443,8 +451,7 @@ struct RideDetailView: View {
                         ForEach(detail.corners) { ticket in
                             CornerTicketCard(ticket: ticket) {
                                 guard let index = ticket.replayIndex else { return }
-                                viewModel.scrubPlayback(to: index)
-                                viewModel.section = .overview
+                                focusReplayOnMap(index)
                             }
                         }
                     }
@@ -453,6 +460,12 @@ struct RideDetailView: View {
         case .failed(let message):
             inlineError(message)
         }
+    }
+
+    private func focusReplayOnMap(_ index: Int) {
+        viewModel.scrubPlayback(to: index)
+        viewModel.section = .overview
+        mapFocusRequest += 1
     }
 
     private var calibrationReviewCard: some View {

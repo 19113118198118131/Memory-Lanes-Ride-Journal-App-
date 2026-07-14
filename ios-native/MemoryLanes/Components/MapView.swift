@@ -53,6 +53,14 @@ struct MLMapView: View {
         guard let replayIndex, route.indices.contains(replayIndex) else { return nil }
         return route[replayIndex].clCoordinate
     }
+    private var replayCameraRegion: MKCoordinateRegion? {
+        guard let replayCoordinate else { return nil }
+        return RouteGeometry.replayRegion(
+            centeredOn: replayCoordinate,
+            route: route,
+            replayIndex: replayIndex
+        )
+    }
     private var completedCoordinates: [CLLocationCoordinate2D] {
         if completedRoute.count > 1 {
             return completedRoute.clCoordinates
@@ -92,8 +100,8 @@ struct MLMapView: View {
             }
         }
         .onAppear {
-            if let replayCoordinate {
-                cameraPosition = .region(RouteGeometry.replayRegion(centeredOn: replayCoordinate))
+            if let replayCameraRegion {
+                cameraPosition = .region(replayCameraRegion)
             } else {
                 cameraPosition = .region(RouteGeometry.region(for: framingRoute))
             }
@@ -101,7 +109,13 @@ struct MLMapView: View {
         .onChange(of: replayCoordinate) { _, coordinate in
             guard let coordinate else { return }
             withAnimation(Motion.springSnappy) {
-                cameraPosition = .region(RouteGeometry.replayRegion(centeredOn: coordinate))
+                cameraPosition = .region(
+                    RouteGeometry.replayRegion(
+                        centeredOn: coordinate,
+                        route: route,
+                        replayIndex: replayIndex
+                    )
+                )
             }
         }
         .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
@@ -139,7 +153,11 @@ struct MLMapView: View {
 
 enum RouteGeometry {
     /// A region that frames the whole route with a little breathing room.
-    static func region(for coordinates: [Coordinate], paddingFactor: Double = 1.4) -> MKCoordinateRegion {
+    static func region(
+        for coordinates: [Coordinate],
+        paddingFactor: Double = 1.4,
+        minimumSpan: Double = 0.005
+    ) -> MKCoordinateRegion {
         guard let first = coordinates.first else {
             return MKCoordinateRegion(
                 center: .init(latitude: 37.0, longitude: -121.5),
@@ -157,17 +175,52 @@ enum RouteGeometry {
             longitude: (minLon + maxLon) / 2
         )
         let span = MKCoordinateSpan(
-            latitudeDelta: max((maxLat - minLat) * paddingFactor, 0.005),
-            longitudeDelta: max((maxLon - minLon) * paddingFactor, 0.005)
+            latitudeDelta: max((maxLat - minLat) * paddingFactor, minimumSpan),
+            longitudeDelta: max((maxLon - minLon) * paddingFactor, minimumSpan)
         )
         return MKCoordinateRegion(center: center, span: span)
     }
 
-    static func replayRegion(centeredOn coordinate: Coordinate) -> MKCoordinateRegion {
-        MKCoordinateRegion(
-            center: coordinate.clCoordinate,
-            span: MKCoordinateSpan(latitudeDelta: 0.012, longitudeDelta: 0.012)
+    static func replayRegion(
+        centeredOn coordinate: Coordinate,
+        route: [Coordinate],
+        replayIndex: Int?
+    ) -> MKCoordinateRegion {
+        guard let replayIndex, route.indices.contains(replayIndex) else {
+            return MKCoordinateRegion(
+                center: coordinate.clCoordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
+            )
+        }
+
+        let targetDistance = 90.0
+        var lower = replayIndex
+        var upper = replayIndex
+        var approachDistance = 0.0
+        var exitDistance = 0.0
+
+        while lower > 0, approachDistance < targetDistance {
+            approachDistance += distanceMeters(route[lower], route[lower - 1])
+            lower -= 1
+        }
+        while upper < route.count - 1, exitDistance < targetDistance {
+            exitDistance += distanceMeters(route[upper], route[upper + 1])
+            upper += 1
+        }
+
+        return region(
+            for: Array(route[lower...upper]),
+            paddingFactor: 1.65,
+            minimumSpan: 0.0018
         )
+    }
+
+    private static func distanceMeters(_ first: Coordinate, _ second: Coordinate) -> Double {
+        let latitudeScale = 111_320.0
+        let longitudeScale = latitudeScale * cos(first.latitude * .pi / 180)
+        let north = (second.latitude - first.latitude) * latitudeScale
+        let east = (second.longitude - first.longitude) * longitudeScale
+        return hypot(north, east)
     }
 }
 

@@ -11,6 +11,7 @@ struct MLSegmentedControl<Item: Hashable>: View {
     let items: [Item]
     let title: (Item) -> String
     @Binding var selection: Item
+    var compact = false
     @Namespace private var namespace
 
     var body: some View {
@@ -22,12 +23,14 @@ struct MLSegmentedControl<Item: Hashable>: View {
                     withAnimation(Motion.spring) { selection = item }
                 } label: {
                     Text(title(item))
-                        .font(MLFont.callout)
+                        .font(compact ? MLFont.caption.weight(.semibold) : MLFont.callout)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                        .minimumScaleFactor(compact ? 0.88 : 0.7)
                         .foregroundStyle(isSelected ? Color.mlOnAccent : Color.mlTextSecondary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, Spacing.xs)
+                        .frame(height: compact ? Layout.minTouchTarget : nil)
+                        .padding(.vertical, compact ? 0 : Spacing.xs)
+                        .padding(.horizontal, compact ? 2 : 0)
                         .background {
                             if isSelected {
                                 Capsule()
@@ -35,7 +38,7 @@ struct MLSegmentedControl<Item: Hashable>: View {
                                     .matchedGeometryEffect(id: "seg", in: namespace)
                             }
                         }
-                        .mlHitTarget()
+                        .modifier(SegmentedHitTarget(enabled: !compact))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(title(item))
@@ -45,6 +48,19 @@ struct MLSegmentedControl<Item: Hashable>: View {
         .padding(4)
         .background(Color.mlSurface, in: Capsule())
         .overlay(Capsule().stroke(Color.mlHairline, lineWidth: Layout.hairline))
+    }
+}
+
+private struct SegmentedHitTarget: ViewModifier {
+    let enabled: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content.mlHitTarget()
+        } else {
+            content.contentShape(Rectangle())
+        }
     }
 }
 
