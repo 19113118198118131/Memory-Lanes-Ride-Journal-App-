@@ -316,13 +316,7 @@ private struct SupabaseRideRow: Decodable {
     }
 
     private var parsedDate: Date {
-        guard let rideDate else { return Date() }
-        if let date = ISO8601DateFormatter().date(from: rideDate) { return date }
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: rideDate) ?? Date()
+        SupabaseDate.parse(rideDate) ?? Date()
     }
 
     private var cleanTitle: String {
@@ -436,13 +430,7 @@ private struct SupabaseLinkedPlannedRouteRow: Decodable {
     }
 
     private var parsedCreatedAt: Date {
-        guard let createdAt else { return Date() }
-        if let date = ISO8601DateFormatter().date(from: createdAt) { return date }
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: createdAt) ?? Date()
+        SupabaseDate.parse(createdAt) ?? Date()
     }
 
     private var cleanTitle: String {

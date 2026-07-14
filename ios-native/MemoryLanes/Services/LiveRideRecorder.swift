@@ -24,6 +24,16 @@ final class LiveRideRecorder: NSObject, ObservableObject {
     private var lastTick = Date()
     private var lastAcceptedLocation: CLLocation?
     private var timer: Timer?
+    /// True only between the rider tapping Start and permission being granted,
+    /// so an authorization callback never auto-starts a ride on its own.
+    private var pendingStart = false
+    /// Point count at the last on-disk snapshot, so the draft is persisted every
+    /// so often rather than re-serialised on every single GPS fix.
+    private var lastPersistedPointCount = 0
+    /// Monotonic write sequence so out-of-order background writes/removes can't
+    /// resurrect a stale or discarded draft.
+    private var draftSequence = 0
+    private lazy var draftPersister = DraftPersister(url: draftURL)
 
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
@@ -72,6 +82,9 @@ final class LiveRideRecorder: NSObject, ObservableObject {
         lastErrorMessage = nil
         switch authorization {
         case .notDetermined:
+            // Remember that a start was requested so the authorization callback
+            // knows this permission grant should actually begin recording.
+            pendingStart = true
             manager.requestAlwaysAuthorization()
         case .authorizedAlways, .authorizedWhenInUse:
             beginRecording()
@@ -90,7 +103,7 @@ final class LiveRideRecorder: NSObject, ObservableObject {
         currentSpeedMetersPerSecond = 0
         manager.stopUpdatingLocation()
         stopTimer()
-        persistDraft()
+        persistDraft(force: true)
     }
 
     func resume() {
@@ -99,10 +112,11 @@ final class LiveRideRecorder: NSObject, ObservableObject {
         lastTick = Date()
         manager.startUpdatingLocation()
         startTimer()
-        persistDraft()
+        persistDraft(force: true)
     }
 
     func discard() {
+        pendingStart = false
         stopLocationSession()
         points = []
         elapsed = 0
@@ -145,10 +159,11 @@ final class LiveRideRecorder: NSObject, ObservableObject {
             elevationGainMeters = 0
             currentSpeedMetersPerSecond = 0
             lastAcceptedLocation = nil
+            lastPersistedPointCount = 0
         }
         status = .recording
         lastTick = Date()
-        persistDraft()
+        persistDraft(force: true)
         manager.startUpdatingLocation()
         startTimer()
     }
@@ -175,7 +190,7 @@ final class LiveRideRecorder: NSObject, ObservableObject {
         let now = Date()
         elapsed += now.timeIntervalSince(lastTick)
         lastTick = now
-        persistDraft(throttled: true)
+        persistDraft()
     }
 
     private func accept(location: CLLocation) {
@@ -216,9 +231,15 @@ final class LiveRideRecorder: NSObject, ObservableObject {
         return directory
     }
 
-    private func persistDraft(throttled: Bool = false) {
+    private func persistDraft(force: Bool = false) {
         guard status == .recording || status == .paused else { return }
-        if throttled, Int(elapsed) % 5 != 0 { return }
+        // Snapshot every ~10 points (or on demand for state changes), not on
+        // every GPS fix — and hand the encode + write to a background actor so
+        // it never blocks the main thread, even on a multi-hour ride.
+        if !force && points.count - lastPersistedPointCount < 10 { return }
+        lastPersistedPointCount = points.count
+        draftSequence += 1
+        let sequence = draftSequence
         let draft = RecordingDraft(
             status: status,
             startedAt: startedAt,
@@ -227,12 +248,8 @@ final class LiveRideRecorder: NSObject, ObservableObject {
             elevationGainMeters: elevationGainMeters,
             points: points
         )
-        do {
-            let data = try JSONEncoder.recordingEncoder.encode(draft)
-            try data.write(to: draftURL, options: [.atomic])
-        } catch {
-            lastErrorMessage = "Couldn’t save the active ride draft."
-        }
+        let persister = draftPersister
+        Task { await persister.write(draft, sequence: sequence) }
     }
 
     private func restoreInterruptedDraftIfNeeded() {
@@ -246,13 +263,20 @@ final class LiveRideRecorder: NSObject, ObservableObject {
         elevationGainMeters = draft.elevationGainMeters
         startedAt = draft.startedAt
         lastAcceptedLocation = draft.points.last?.clLocation
+        lastPersistedPointCount = draft.points.count
         currentSpeedMetersPerSecond = 0
         status = .paused
         lastErrorMessage = "Recovered an unfinished ride. Resume it or finish when ready."
     }
 
     private func removeDraft() {
-        try? fileManager.removeItem(at: draftURL)
+        lastPersistedPointCount = 0
+        draftSequence += 1
+        let sequence = draftSequence
+        let persister = draftPersister
+        // Routed through the same actor as writes so a late in-flight write
+        // can't recreate the draft file after it's been removed.
+        Task { await persister.remove(sequence: sequence) }
     }
 
     private func writeCompletedGPX(_ result: RecordedRideResult) {
@@ -270,8 +294,25 @@ final class LiveRideRecorder: NSObject, ObservableObject {
 extension LiveRideRecorder: @preconcurrency CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorization = manager.authorizationStatus
-        if authorization == .authorizedAlways || authorization == .authorizedWhenInUse {
-            beginRecording()
+        // This callback also fires when the delegate is first set and whenever
+        // the rider returns from Settings, so we only begin recording when a
+        // start was explicitly requested and is still waiting on permission.
+        switch authorization {
+        case .authorizedAlways, .authorizedWhenInUse:
+            if pendingStart {
+                pendingStart = false
+                beginRecording()
+            }
+        case .denied, .restricted:
+            if pendingStart {
+                pendingStart = false
+                status = .permissionDenied
+                lastErrorMessage = "Allow location access in Settings to record a ride."
+            }
+        case .notDetermined:
+            break
+        @unknown default:
+            break
         }
     }
 
@@ -304,13 +345,39 @@ struct RecordedRideResult: Sendable {
     let gpxText: String
 }
 
-private struct RecordingDraft: Codable {
+private struct RecordingDraft: Codable, Sendable {
     let status: RecordingStatus
     let startedAt: Date?
     let elapsed: TimeInterval
     let distanceMeters: Double
     let elevationGainMeters: Double
     let points: [RecordingPoint]
+}
+
+// MARK: - DraftPersister
+//
+// Serialises the crash-recovery draft's disk I/O off the main thread. Writes and
+// removes are ordered by a monotonic sequence so a slow, older write can never
+// land after a newer write — or resurrect a draft that was already removed.
+
+private actor DraftPersister {
+    private let url: URL
+    private var lastSequence = 0
+
+    init(url: URL) { self.url = url }
+
+    func write(_ draft: RecordingDraft, sequence: Int) {
+        guard sequence > lastSequence else { return }
+        lastSequence = sequence
+        guard let data = try? JSONEncoder.recordingEncoder.encode(draft) else { return }
+        try? data.write(to: url, options: [.atomic])
+    }
+
+    func remove(sequence: Int) {
+        guard sequence > lastSequence else { return }
+        lastSequence = sequence
+        try? FileManager.default.removeItem(at: url)
+    }
 }
 
 private enum GPXWriter {

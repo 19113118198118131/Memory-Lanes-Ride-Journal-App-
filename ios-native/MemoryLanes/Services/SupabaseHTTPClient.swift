@@ -162,7 +162,19 @@ private struct SupabaseErrorPayload: Decodable {
 extension JSONDecoder {
     static var supabase: JSONDecoder {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        // Supabase timestamps carry fractional seconds, which `.iso8601` can't
+        // parse. Route Date decoding through the shared, tolerant parser.
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+            guard let date = SupabaseDate.parse(raw) else {
+                throw DecodingError.dataCorruptedError(
+                    in: container,
+                    debugDescription: "Unrecognised Supabase date: \(raw)"
+                )
+            }
+            return date
+        }
         return decoder
     }
 }
