@@ -16,8 +16,44 @@ struct RideDetail: Identifiable, Sendable {
     var moments: [Moment]
     var weather: Weather?
     var coachScore: Int?
+    var coachScores: [RideCoachScore]
     /// The coaching debrief — one plain-English takeaway.
     var debrief: String?
+}
+
+struct RideCoachScore: Identifiable, Hashable, Sendable {
+    enum Kind: String, CaseIterable, Sendable {
+        case cornerEntry
+        case exitDrive
+        case brakingFeel
+        case throttleFeel
+        case consistency
+
+        var title: String {
+            switch self {
+            case .cornerEntry: "Corner Entry"
+            case .exitDrive: "Exit Drive"
+            case .brakingFeel: "Braking Feel"
+            case .throttleFeel: "Throttle Feel"
+            case .consistency: "Consistency"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .cornerEntry: "arrow.turn.down.right"
+            case .exitDrive: "arrow.up.forward"
+            case .brakingFeel: "hand.raised.fill"
+            case .throttleFeel: "gauge.with.dots.needle.67percent"
+            case .consistency: "repeat"
+            }
+        }
+    }
+
+    var id: Kind { kind }
+    let kind: Kind
+    let value: Int
+    let caption: String
 }
 
 struct ReplayPoint: Identifiable, Hashable, Sendable {

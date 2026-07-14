@@ -172,6 +172,13 @@ enum SampleData {
         moments: moments,
         weather: weather,
         coachScore: 87,
+        coachScores: [
+            .init(kind: .cornerEntry, value: 91, caption: "Braking is mostly finished before turn-in."),
+            .init(kind: .exitDrive, value: 84, caption: "Good drive once the bike is picked up."),
+            .init(kind: .brakingFeel, value: 88, caption: "Brake pressure looks progressive."),
+            .init(kind: .throttleFeel, value: 82, caption: "Throttle traces are clean with a few small pulses."),
+            .init(kind: .consistency, value: 89, caption: "Similar bends are ridden with repeatable rhythm.")
+        ],
         debrief: "Your smoothest ride this month. Corner exits were consistently strong — the one thing to practise next time is releasing the brakes a touch earlier into fast right-handers."
     )
 }

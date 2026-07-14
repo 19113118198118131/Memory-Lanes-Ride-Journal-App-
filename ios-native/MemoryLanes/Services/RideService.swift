@@ -44,6 +44,7 @@ struct PreviewRideService: RideServing {
             moments: SampleData.heroDetail.moments,
             weather: SampleData.heroDetail.weather,
             coachScore: SampleData.heroDetail.coachScore,
+            coachScores: SampleData.heroDetail.coachScores,
             debrief: SampleData.heroDetail.debrief
         )
     }
@@ -91,7 +92,7 @@ struct RideService: RideServing {
         guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
         let storedMoments = try await fetchStoredMoments(for: ride.id, accessToken: token)
         guard let gpxPath = ride.gpxPath else {
-            return RideDetail(id: ride.id, routePreview: [], replayPoints: [], elevation: [], corners: [], moments: storedMoments, weather: nil, coachScore: nil, debrief: "This ride does not have an attached GPX file yet.")
+            return RideDetail(id: ride.id, routePreview: [], replayPoints: [], elevation: [], corners: [], moments: storedMoments, weather: nil, coachScore: nil, coachScores: [], debrief: "This ride does not have an attached GPX file yet.")
         }
         let data = try await client.download(
             path: "storage/v1/object/gpx-files/\(gpxPath)",
@@ -108,6 +109,7 @@ struct RideService: RideServing {
             moments: storedMoments,
             weather: nil,
             coachScore: coach.score,
+            coachScores: coach.scores,
             debrief: coach.debrief
         )
     }

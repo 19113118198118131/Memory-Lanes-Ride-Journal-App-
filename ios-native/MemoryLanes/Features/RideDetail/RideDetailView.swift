@@ -172,6 +172,9 @@ struct RideDetailView: View {
             if let debrief = viewModel.detail?.debrief {
                 debriefCard(debrief)
             }
+            if let scores = viewModel.detail?.coachScores, !scores.isEmpty {
+                coachScoreGrid(scores)
+            }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.md),
                                 GridItem(.flexible(), spacing: Spacing.md)],
                       spacing: Spacing.md) {
@@ -187,6 +190,19 @@ struct RideDetailView: View {
                 ElevationChart(samples: detail.elevation)
             case .failed(let message):
                 inlineError(message)
+            }
+        }
+    }
+
+    private func coachScoreGrid(_ scores: [RideCoachScore]) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            SectionHeader(title: "Ride Coach")
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.md),
+                                GridItem(.flexible(), spacing: Spacing.md)],
+                      spacing: Spacing.md) {
+                ForEach(scores) { score in
+                    CoachScoreCard(score: score)
+                }
             }
         }
     }
@@ -432,6 +448,58 @@ private struct MomentEditorContext: Identifiable {
         self.id = moment?.id ?? UUID()
         self.moment = moment
         self.defaultRouteIndex = defaultRouteIndex
+    }
+}
+
+private struct CoachScoreCard: View {
+    let score: RideCoachScore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: score.kind.symbol)
+                    .font(MLFont.caption)
+                    .foregroundStyle(tint)
+                Text(score.kind.title).mlKicker()
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                Text("\(score.value)")
+                    .font(MLFont.displaySmall)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text("/100")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+            }
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.mlSurfaceElevated)
+                    Capsule()
+                        .fill(tint)
+                        .frame(width: proxy.size.width * CGFloat(score.value) / 100)
+                }
+            }
+            .frame(height: 7)
+
+            Text(score.caption)
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        )
+    }
+
+    private var tint: Color {
+        if score.value >= 75 { return .mlSuccess }
+        if score.value >= 50 { return .mlWarning }
+        return .mlDanger
     }
 }
 

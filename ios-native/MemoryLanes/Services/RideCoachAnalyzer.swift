@@ -2,6 +2,7 @@ import Foundation
 
 struct RideCoachAnalysis: Sendable {
     var score: Int?
+    var scores: [RideCoachScore]
     var corners: [CornerTicket]
     var debrief: String?
 }
@@ -13,6 +14,7 @@ struct RideCoachAnalyzer {
         guard points.count >= minimumPointCount else {
             return RideCoachAnalysis(
                 score: nil,
+                scores: [],
                 corners: [],
                 debrief: "Not enough GPS points for Ride Coach yet. A one-second GPX recording gives the best feedback."
             )
@@ -22,6 +24,7 @@ struct RideCoachAnalyzer {
         guard projected.durationSeconds > 30, projected.totalDistanceMeters > 300 else {
             return RideCoachAnalysis(
                 score: nil,
+                scores: [],
                 corners: [],
                 debrief: "This ride is too short for useful technique feedback."
             )
@@ -48,9 +51,17 @@ struct RideCoachAnalyzer {
         let consistency = consistencyScore(cornerEvents)
         let scores = [entryScore, exitScore, brakingSmoothness, throttleSmoothness, consistency].compactMap { $0 }
         let score = scores.isEmpty ? nil : Int((scores.reduce(0, +) / Double(scores.count)).rounded())
+        let coachScores = buildScores(
+            entryScore: entryScore,
+            exitScore: exitScore,
+            brakingSmoothness: brakingSmoothness,
+            throttleSmoothness: throttleSmoothness,
+            consistency: consistency
+        )
 
         return RideCoachAnalysis(
             score: score,
+            scores: coachScores,
             corners: cornerEvents.map(\.ticket),
             debrief: buildDebrief(score: score, corners: cornerEvents, brakingSmoothness: brakingSmoothness, throttleSmoothness: throttleSmoothness)
         )
@@ -168,6 +179,53 @@ struct RideCoachAnalyzer {
         guard samples.count >= 4 else { return nil }
         let changes = zip(samples, samples.dropFirst()).map { abs($1 - $0) }
         return clamp(100 - standardDeviation(changes) * 55, 0, 100)
+    }
+
+    private func buildScores(
+        entryScore: Double?,
+        exitScore: Double?,
+        brakingSmoothness: Double?,
+        throttleSmoothness: Double?,
+        consistency: Double?
+    ) -> [RideCoachScore] {
+        [
+            makeScore(kind: .cornerEntry, value: entryScore),
+            makeScore(kind: .exitDrive, value: exitScore),
+            makeScore(kind: .brakingFeel, value: brakingSmoothness),
+            makeScore(kind: .throttleFeel, value: throttleSmoothness),
+            makeScore(kind: .consistency, value: consistency)
+        ].compactMap { $0 }
+    }
+
+    private func makeScore(kind: RideCoachScore.Kind, value: Double?) -> RideCoachScore? {
+        guard let value, value.isFinite else { return nil }
+        let rounded = Int(value.rounded())
+        return RideCoachScore(kind: kind, value: rounded, caption: caption(for: kind, value: rounded))
+    }
+
+    private func caption(for kind: RideCoachScore.Kind, value: Int) -> String {
+        switch kind {
+        case .cornerEntry:
+            if value >= 75 { return "Braking is mostly done before turn-in, so entries look settled." }
+            if value >= 50 { return "Most entries are tidy, with a few corners still carrying brake pressure." }
+            return "Braking often runs deep into corners. Focus on arriving settled before turn-in."
+        case .exitDrive:
+            if value >= 75 { return "Good progressive drive once the bike is picked up." }
+            if value >= 50 { return "Exit drive is usable, but some corners stay flat after the apex." }
+            return "Exits are quiet. Look up, pick the bike up, then roll on earlier and smoother."
+        case .brakingFeel:
+            if value >= 75 { return "Brake pressure looks progressive and controlled." }
+            if value >= 50 { return "Braking is mostly smooth, with the occasional sharper input." }
+            return "Braking looks abrupt. Practise squeezing the lever rather than grabbing it."
+        case .throttleFeel:
+            if value >= 75 { return "Throttle inputs look clean and progressive." }
+            if value >= 50 { return "Throttle work is decent, with a few pulses on corner exits." }
+            return "Throttle traces are jumpy. Aim for one smooth roll-on as the corner opens."
+        case .consistency:
+            if value >= 75 { return "Similar corners are getting repeatable treatment." }
+            if value >= 50 { return "There is some rhythm, but similar corners vary ride to ride." }
+            return "Similar corners are ridden quite differently. Pick one approach and repeat it."
+        }
     }
 
     private func buildDebrief(score: Int?, corners: [CornerEvent], brakingSmoothness: Double?, throttleSmoothness: Double?) -> String {
