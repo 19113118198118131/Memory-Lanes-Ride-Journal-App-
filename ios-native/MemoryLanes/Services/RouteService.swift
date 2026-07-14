@@ -3,6 +3,8 @@ import Foundation
 @MainActor
 protocol RouteServing {
     func fetchRoutes() async throws -> [PlannedRoute]
+    func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute
+    func deleteRoute(_ route: PlannedRoute) async throws
 }
 
 struct PreviewRouteService: RouteServing {
@@ -14,6 +16,20 @@ struct PreviewRouteService: RouteServing {
         try await Task.sleep(for: delay)
         if let failure { throw failure }
         return routes
+    }
+
+    func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute {
+        try await Task.sleep(for: .milliseconds(250))
+        if let failure { throw failure }
+        var updated = route
+        updated.isPublic = isPublic
+        updated.shareToken = isPublic ? (updated.shareToken ?? UUID()) : updated.shareToken
+        return updated
+    }
+
+    func deleteRoute(_ route: PlannedRoute) async throws {
+        try await Task.sleep(for: .milliseconds(250))
+        if let failure { throw failure }
     }
 }
 
@@ -32,6 +48,31 @@ struct RouteService: RouteServing {
             accessToken: token
         )
         return rows.map(\.plannedRoute)
+    }
+
+    func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute {
+        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        let payload = RouteShareUpdatePayload(isPublic: isPublic)
+        let rows: [SupabasePlannedRouteRow] = try await client.patch(
+            path: "rest/v1/planned_routes",
+            queryItems: [
+                URLQueryItem(name: "id", value: "eq.\(route.id.uuidString)"),
+                URLQueryItem(name: "select", value: "id,title,distance_km,elevation_m,waypoints,route,created_at,is_public,share_token")
+            ],
+            body: payload,
+            accessToken: token,
+            prefer: "return=representation"
+        )
+        return rows.first?.plannedRoute ?? route
+    }
+
+    func deleteRoute(_ route: PlannedRoute) async throws {
+        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        try await client.delete(
+            path: "rest/v1/planned_routes",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(route.id.uuidString)")],
+            accessToken: token
+        )
     }
 }
 
@@ -96,6 +137,14 @@ private struct SupabasePlannedRouteRow: Decodable {
     private var cleanTitle: String {
         guard let title, !title.isEmpty else { return "Untitled Route" }
         return title
+    }
+}
+
+private struct RouteShareUpdatePayload: Encodable {
+    let isPublic: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case isPublic = "is_public"
     }
 }
 

@@ -255,7 +255,28 @@ struct RoutesView: View {
 }
 
 struct PlannedRouteDetailView: View {
-    let route: PlannedRoute
+    @Environment(\.dismiss) private var dismiss
+    @State private var route: PlannedRoute
+    @State private var sharePayload: RouteSharePayload?
+    @State private var isWorking = false
+    @State private var errorMessage: String?
+    @State private var showingDeleteConfirmation = false
+
+    let routeService: any RouteServing
+    let onChanged: () -> Void
+    let onDeleted: () -> Void
+
+    init(
+        route: PlannedRoute,
+        routeService: any RouteServing,
+        onChanged: @escaping () -> Void = {},
+        onDeleted: @escaping () -> Void = {}
+    ) {
+        _route = State(initialValue: route)
+        self.routeService = routeService
+        self.onChanged = onChanged
+        self.onDeleted = onDeleted
+    }
 
     var body: some View {
         ScrollView {
@@ -288,6 +309,16 @@ struct PlannedRouteDetailView: View {
                         .stroke(Color.mlHairline, lineWidth: Layout.hairline)
                 )
 
+                actionPanel
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlDanger)
+                        .padding(Spacing.md)
+                        .background(Color.mlDanger.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                }
+
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     SectionHeader(title: "Waypoints")
                     ForEach(Array(route.waypoints.enumerated()), id: \.offset) { index, waypoint in
@@ -318,6 +349,132 @@ struct PlannedRouteDetailView: View {
         .background(Color.mlBackground)
         .navigationTitle("Route")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $sharePayload) { payload in
+            ActivityView(items: payload.items)
+                .presentationDetents([.medium, .large])
+        }
+        .confirmationDialog(
+            "Delete this route?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Route", role: .destructive) {
+                Task { await deleteRoute() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes the saved route from your account.")
+        }
+    }
+
+    private var actionPanel: some View {
+        VStack(spacing: Spacing.md) {
+            PrimaryButton(title: route.isPublic ? "Share Invite" : "Create Invite", systemImage: "square.and.arrow.up", isLoading: isWorking) {
+                Task { await shareInvite() }
+            }
+
+            HStack(spacing: Spacing.md) {
+                SecondaryButton(title: "Export GPX", systemImage: "square.and.arrow.down") {
+                    exportGPX()
+                }
+                SecondaryButton(title: route.isPublic ? "Stop Sharing" : "Private", systemImage: route.isPublic ? "eye.slash" : "lock") {
+                    Task { await stopSharing() }
+                }
+                .disabled(!route.isPublic || isWorking)
+            }
+
+            Button(role: .destructive) {
+                showingDeleteConfirmation = true
+            } label: {
+                Label("Delete Route", systemImage: "trash")
+                    .font(MLFont.headline)
+                    .foregroundStyle(Color.mlDanger)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        Capsule().stroke(Color.mlDanger.opacity(0.4), lineWidth: Layout.hairline)
+                    )
+            }
+            .buttonStyle(MLPressableButtonStyle())
+            .disabled(isWorking)
+        }
+    }
+
+    private func shareInvite() async {
+        isWorking = true
+        errorMessage = nil
+        do {
+            if !route.isPublic || route.shareToken == nil {
+                route = try await routeService.setSharing(true, for: route)
+                onChanged()
+            }
+            guard let url = route.inviteURL else {
+                throw RouteActionError.missingInviteLink
+            }
+            Haptics.success()
+            sharePayload = RouteSharePayload(items: [url])
+        } catch {
+            Haptics.error()
+            errorMessage = error.localizedDescription
+        }
+        isWorking = false
+    }
+
+    private func stopSharing() async {
+        guard route.isPublic else { return }
+        isWorking = true
+        errorMessage = nil
+        do {
+            route = try await routeService.setSharing(false, for: route)
+            Haptics.success()
+            onChanged()
+        } catch {
+            Haptics.error()
+            errorMessage = error.localizedDescription
+        }
+        isWorking = false
+    }
+
+    private func deleteRoute() async {
+        isWorking = true
+        errorMessage = nil
+        do {
+            try await routeService.deleteRoute(route)
+            Haptics.success()
+            onDeleted()
+            dismiss()
+        } catch {
+            Haptics.error()
+            errorMessage = error.localizedDescription
+        }
+        isWorking = false
+    }
+
+    private func exportGPX() {
+        do {
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(route.gpxFileName)
+            try route.gpxText.write(to: url, atomically: true, encoding: .utf8)
+            sharePayload = RouteSharePayload(items: [url])
+        } catch {
+            Haptics.error()
+            errorMessage = "Could not prepare the GPX export."
+        }
+    }
+}
+
+private struct RouteSharePayload: Identifiable {
+    let id = UUID()
+    let items: [Any]
+}
+
+private enum RouteActionError: LocalizedError {
+    case missingInviteLink
+
+    var errorDescription: String? {
+        switch self {
+        case .missingInviteLink:
+            return "The route could not create an invite link."
+        }
     }
 }
 

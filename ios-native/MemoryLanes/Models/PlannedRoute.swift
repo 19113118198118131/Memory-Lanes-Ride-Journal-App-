@@ -36,4 +36,47 @@ struct PlannedRoute: Identifiable, Hashable, Sendable {
         let waypointText = "\(waypoints.count) waypoint\(waypoints.count == 1 ? "" : "s")"
         return "\(waypointText) · \(isPublic ? "Shared" : "Private") · \(date)"
     }
+
+    var inviteURL: URL? {
+        guard let shareToken else { return nil }
+        return URL(string: "https://memory-lanes-ride-journal-app.vercel.app/route.html?share=\(shareToken.uuidString)")
+    }
+
+    var gpxFileName: String {
+        let clean = title
+            .lowercased()
+            .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return "\(clean.isEmpty ? "planned-route" : clean).gpx"
+    }
+
+    var gpxText: String {
+        let points = route.map { coordinate in
+            "    <rtept lat=\"\(coordinate.latitude)\" lon=\"\(coordinate.longitude)\"></rtept>"
+        }
+        .joined(separator: "\n")
+
+        return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx version="1.1" creator="Memory Lanes" xmlns="http://www.topografix.com/GPX/1/1">
+          <metadata>
+            <name>\(title.xmlEscaped)</name>
+          </metadata>
+          <rte>
+            <name>\(title.xmlEscaped)</name>
+        \(points)
+          </rte>
+        </gpx>
+        """
+    }
+}
+
+private extension String {
+    var xmlEscaped: String {
+        replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+    }
 }

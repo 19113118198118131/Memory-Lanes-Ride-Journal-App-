@@ -39,6 +39,10 @@ private struct MainTabShell: View {
         RideService(accessToken: { authStore.accessToken })
     }
 
+    private var routeService: RouteServing {
+        RouteService(accessToken: { authStore.accessToken })
+    }
+
     var body: some View {
         TabView {
             NavigationStack(path: $ridePath) {
@@ -69,13 +73,23 @@ private struct MainTabShell: View {
             NavigationStack(path: $routesPath) {
                 RoutesView(
                     viewModel: RoutesViewModel(
-                        routeService: RouteService(accessToken: { authStore.accessToken })
+                        routeService: routeService
                     ),
                     refreshTrigger: refreshTrigger,
                     onSelectRoute: { routesPath.append($0) }
                 )
                 .navigationDestination(for: PlannedRoute.self) { route in
-                    PlannedRouteDetailView(route: route)
+                    PlannedRouteDetailView(
+                        route: route,
+                        routeService: routeService,
+                        onChanged: { refreshTrigger = UUID() },
+                        onDeleted: {
+                            refreshTrigger = UUID()
+                            if !routesPath.isEmpty {
+                                routesPath.removeLast()
+                            }
+                        }
+                    )
                 }
             }
             .tabItem { Label("Routes", systemImage: "map") }

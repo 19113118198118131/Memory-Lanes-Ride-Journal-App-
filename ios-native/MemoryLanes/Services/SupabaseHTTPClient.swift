@@ -49,6 +49,36 @@ struct SupabaseHTTPClient {
         try await sendWithoutDecoding(request)
     }
 
+    func patch<Body: Encodable, Response: Decodable>(
+        path: String,
+        queryItems: [URLQueryItem] = [],
+        body: Body,
+        accessToken: String? = nil,
+        prefer: String? = nil
+    ) async throws -> Response {
+        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
+        components?.queryItems = queryItems.isEmpty ? nil : queryItems
+        guard let url = components?.url else { throw SupabaseHTTPError.invalidURL }
+        var request = request(url: url, method: "PATCH", accessToken: accessToken)
+        if let prefer {
+            request.setValue(prefer, forHTTPHeaderField: "Prefer")
+        }
+        request.httpBody = try JSONEncoder.supabase.encode(body)
+        return try await send(request)
+    }
+
+    func delete(
+        path: String,
+        queryItems: [URLQueryItem] = [],
+        accessToken: String? = nil
+    ) async throws {
+        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
+        components?.queryItems = queryItems.isEmpty ? nil : queryItems
+        guard let url = components?.url else { throw SupabaseHTTPError.invalidURL }
+        let request = request(url: url, method: "DELETE", accessToken: accessToken)
+        try await sendWithoutDecoding(request)
+    }
+
     func upload(
         path: String,
         data: Data,
