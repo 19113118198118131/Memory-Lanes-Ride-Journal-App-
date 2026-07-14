@@ -32,6 +32,7 @@ final class RideDetailViewModel {
     var isExportingGPX = false
     var shareErrorMessage: String?
     var playbackIndex = 0
+    var playbackElapsedSeconds: TimeInterval = 0
     var isPlaying = false
     var playbackSpeed: Double = 1
 
@@ -77,13 +78,28 @@ final class RideDetailViewModel {
     }
 
     var currentReplayCoordinate: Coordinate? {
-        currentReplayPoint?.coordinate
+        guard let points = detail?.replayPoints, !points.isEmpty else { return nil }
+        let currentIndex = min(playbackIndex, points.count - 1)
+        let current = points[currentIndex]
+        guard currentIndex + 1 < points.count else { return current.coordinate }
+        let next = points[currentIndex + 1]
+        let interval = next.elapsedSeconds - current.elapsedSeconds
+        guard interval > 0 else { return current.coordinate }
+        let progress = min(max((playbackElapsedSeconds - current.elapsedSeconds) / interval, 0), 1)
+        return Coordinate(
+            latitude: current.coordinate.latitude + (next.coordinate.latitude - current.coordinate.latitude) * progress,
+            longitude: current.coordinate.longitude + (next.coordinate.longitude - current.coordinate.longitude) * progress
+        )
     }
 
     var completedReplayRoute: [Coordinate] {
         guard let points = detail?.replayPoints, !points.isEmpty else { return [] }
         let endIndex = min(playbackIndex, points.count - 1)
-        return points.prefix(endIndex + 1).map(\.coordinate)
+        var completed = points.prefix(endIndex + 1).map(\.coordinate)
+        if let currentReplayCoordinate, completed.last != currentReplayCoordinate {
+            completed.append(currentReplayCoordinate)
+        }
+        return completed
     }
 
     var mapReplayIndex: Int? {
@@ -91,18 +107,15 @@ final class RideDetailViewModel {
     }
 
     var playbackProgressText: String {
-        guard let point = currentReplayPoint else { return "00:00" }
-        return point.elapsedFormatted
+        formatElapsed(playbackElapsedSeconds)
     }
 
     var playbackDistanceText: String {
-        guard let point = currentReplayPoint else { return "0.0 km" }
-        return String(format: "%.1f km", point.distanceKm)
+        String(format: "%.1f km", interpolatedReplayValue(\.distanceKm))
     }
 
     var playbackSpeedText: String {
-        guard let point = currentReplayPoint else { return "0 km/h" }
-        return "\(Int(point.speedKmh.rounded())) km/h"
+        "\(Int(interpolatedReplayValue(\.speedKmh).rounded())) km/h"
     }
 
     var flowScoreText: String {
@@ -127,6 +140,9 @@ final class RideDetailViewModel {
             let detail = try await rideService.fetchDetail(for: ride)
             state = .loaded(detail)
             playbackIndex = min(playbackIndex, max(detail.replayPoints.count - 1, 0))
+            playbackElapsedSeconds = detail.replayPoints.indices.contains(playbackIndex)
+                ? detail.replayPoints[playbackIndex].elapsedSeconds
+                : 0
         } catch is CancellationError {
         } catch {
             state = .failed(error.localizedDescription)
@@ -160,16 +176,24 @@ final class RideDetailViewModel {
         guard let count = detail?.replayPoints.count, count > 1 else { return }
         playbackTask?.cancel()
         isPlaying = true
-        if playbackIndex >= count - 1 { playbackIndex = 0 }
+        if playbackIndex >= count - 1 {
+            setPlaybackTime(0)
+        }
         playbackTask = Task { @MainActor in
+            var previousTick = Date()
             while !Task.isCancelled, isPlaying {
-                try? await Task.sleep(for: .milliseconds(Int(650 / max(playbackSpeed, 0.5))))
+                try? await Task.sleep(for: .milliseconds(100))
                 guard !Task.isCancelled else { return }
-                if playbackIndex >= count - 1 {
+                let now = Date()
+                let tickDuration = min(max(now.timeIntervalSince(previousTick), 0), 0.25)
+                previousTick = now
+                let endTime = detail?.replayPoints.last?.elapsedSeconds ?? 0
+                let nextTime = min(playbackElapsedSeconds + tickDuration * playbackSpeed, endTime)
+                setPlaybackTime(nextTime)
+                if nextTime >= endTime {
                     pausePlayback()
                     return
                 }
-                playbackIndex += 1
             }
         }
     }
@@ -177,9 +201,55 @@ final class RideDetailViewModel {
     private func setPlaybackIndex(_ index: Int) {
         guard let count = detail?.replayPoints.count, count > 0 else {
             playbackIndex = 0
+            playbackElapsedSeconds = 0
             return
         }
         playbackIndex = min(max(index, 0), count - 1)
+        playbackElapsedSeconds = detail?.replayPoints[playbackIndex].elapsedSeconds ?? 0
+    }
+
+    private func setPlaybackTime(_ elapsed: TimeInterval) {
+        guard let points = detail?.replayPoints, !points.isEmpty else {
+            playbackIndex = 0
+            playbackElapsedSeconds = 0
+            return
+        }
+        let endTime = points.last?.elapsedSeconds ?? 0
+        playbackElapsedSeconds = min(max(elapsed, 0), endTime)
+
+        var lower = 0
+        var upper = points.count
+        while lower < upper {
+            let middle = (lower + upper) / 2
+            if points[middle].elapsedSeconds <= playbackElapsedSeconds {
+                lower = middle + 1
+            } else {
+                upper = middle
+            }
+        }
+        playbackIndex = min(max(lower - 1, 0), points.count - 1)
+    }
+
+    private func interpolatedReplayValue(_ keyPath: KeyPath<ReplayPoint, Double>) -> Double {
+        guard let points = detail?.replayPoints, !points.isEmpty else { return 0 }
+        let currentIndex = min(playbackIndex, points.count - 1)
+        let current = points[currentIndex]
+        guard currentIndex + 1 < points.count else { return current[keyPath: keyPath] }
+        let next = points[currentIndex + 1]
+        let interval = next.elapsedSeconds - current.elapsedSeconds
+        guard interval > 0 else { return current[keyPath: keyPath] }
+        let progress = min(max((playbackElapsedSeconds - current.elapsedSeconds) / interval, 0), 1)
+        return current[keyPath: keyPath] + (next[keyPath: keyPath] - current[keyPath: keyPath]) * progress
+    }
+
+    private func formatElapsed(_ seconds: TimeInterval) -> String {
+        let total = Int(max(seconds, 0))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
+            : String(format: "%02d:%02d", minutes, seconds)
     }
 
     func saveMoment(

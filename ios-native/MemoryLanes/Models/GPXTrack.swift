@@ -29,15 +29,25 @@ extension GPXTrack {
         let firstTimestamp = points.first?.timestamp ?? Date()
 
         for (index, point) in points.enumerated() {
+            var segmentDistance: Double = 0
+            var derivedSpeedMetersPerSecond: Double = 0
             if let previous {
                 let from = previous.clLocation
                 let to = point.clLocation
-                distance += to.distance(from: from)
+                segmentDistance = to.distance(from: from)
+                distance += segmentDistance
                 let elevationDelta = point.elevationMeters - previous.elevationMeters
                 if elevationDelta > 1.5 {
                     gain += elevationDelta
                 }
+                let timeDelta = point.timestamp.timeIntervalSince(previous.timestamp)
+                if timeDelta > 0 {
+                    derivedSpeedMetersPerSecond = segmentDistance / timeDelta
+                }
             }
+            let replaySpeed = point.speedMetersPerSecond > 0
+                ? point.speedMetersPerSecond
+                : derivedSpeedMetersPerSecond
             samples.append(ElevationSample(distanceKm: distance / 1000, elevationM: point.elevationMeters))
             replay.append(
                 ReplayPoint(
@@ -46,7 +56,7 @@ extension GPXTrack {
                     elapsedSeconds: max(0, point.timestamp.timeIntervalSince(firstTimestamp)),
                     distanceKm: distance / 1000,
                     elevationMeters: point.elevationMeters,
-                    speedKmh: point.speedMetersPerSecond * 3.6
+                    speedKmh: replaySpeed * 3.6
                 )
             )
             previous = point

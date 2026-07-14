@@ -96,7 +96,7 @@ struct MLMapView: View {
         }
         .onChange(of: replayCoordinate) { _, coordinate in
             guard let coordinate else { return }
-            withAnimation(.easeInOut(duration: 0.35)) {
+            withAnimation(.linear(duration: 0.12)) {
                 cameraPosition = .region(RouteGeometry.replayRegion(centeredOn: coordinate))
             }
         }

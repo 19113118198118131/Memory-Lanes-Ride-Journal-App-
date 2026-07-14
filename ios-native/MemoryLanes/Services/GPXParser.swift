@@ -36,6 +36,8 @@ private final class GPXParserDelegate: NSObject, XMLParserDelegate {
     private var currentTime: Date?
     private var currentElement = ""
     private var buffer = ""
+    private var lastPointTimestamp: Date?
+    private let fallbackStartTime = Date()
 
     private(set) var points: [RecordingPoint] = []
 
@@ -68,6 +70,7 @@ private final class GPXParserDelegate: NSObject, XMLParserDelegate {
 
     private func appendCurrentPoint() {
         guard let latitude = currentLatitude, let longitude = currentLongitude else { return }
+        let timestamp = currentTime ?? lastPointTimestamp?.addingTimeInterval(1) ?? fallbackStartTime
         let location = CLLocation(
             coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
             altitude: currentElevation ?? 0,
@@ -75,9 +78,10 @@ private final class GPXParserDelegate: NSObject, XMLParserDelegate {
             verticalAccuracy: 0,
             course: 0,
             speed: 0,
-            timestamp: currentTime ?? Date()
+            timestamp: timestamp
         )
         points.append(RecordingPoint(location: location))
+        lastPointTimestamp = timestamp
     }
 }
 

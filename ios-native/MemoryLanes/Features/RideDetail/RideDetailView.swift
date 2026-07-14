@@ -96,28 +96,80 @@ struct RideDetailView: View {
     @ViewBuilder
     private var heroMap: some View {
         let route = viewModel.routeForMomentPinning
-        if route.count > 1 {
-            MLMapView(
-                route: route,
-                fadeColor: .mlBackground,
-                replayIndex: viewModel.mapReplayIndex,
-                replayCoordinate: viewModel.currentReplayCoordinate,
-                completedRoute: viewModel.completedReplayRoute,
-                guideRoute: viewModel.plannedGuideRoute
-            )
-        } else {
-            ZStack {
-                Color.mlSurfaceElevated
-                VStack(spacing: Spacing.xs) {
-                    Image(systemName: "map")
-                        .font(MLFont.display)
-                        .foregroundStyle(Color.mlTextTertiary)
-                    Text("Route unavailable")
-                        .font(MLFont.callout)
-                        .foregroundStyle(Color.mlTextSecondary)
+        ZStack(alignment: .bottom) {
+            if route.count > 1 {
+                MLMapView(
+                    route: route,
+                    fadeColor: .mlBackground,
+                    replayIndex: viewModel.mapReplayIndex,
+                    replayCoordinate: viewModel.currentReplayCoordinate,
+                    completedRoute: viewModel.completedReplayRoute,
+                    guideRoute: viewModel.plannedGuideRoute
+                )
+            } else {
+                ZStack {
+                    Color.mlSurfaceElevated
+                    VStack(spacing: Spacing.xs) {
+                        Image(systemName: "map")
+                            .font(MLFont.display)
+                            .foregroundStyle(Color.mlTextTertiary)
+                        Text("Route unavailable")
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
                 }
             }
+
+            if viewModel.canReplay {
+                heroReplayControls
+                    .padding(.horizontal, Spacing.screenH)
+                    .padding(.bottom, Spacing.xl)
+            }
         }
+    }
+
+    private var heroReplayControls: some View {
+        HStack(spacing: Spacing.sm) {
+            Button {
+                Haptics.selection()
+                viewModel.togglePlayback()
+            } label: {
+                Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlOnAccent)
+                    .frame(width: 38, height: 38)
+                    .background(Color.mlAccent, in: Circle())
+            }
+            .buttonStyle(MLPressableButtonStyle())
+            .accessibilityLabel(viewModel.isPlaying ? "Pause replay" : "Play replay")
+
+            Slider(
+                value: Binding(
+                    get: { Double(viewModel.playbackIndex) },
+                    set: { viewModel.scrubPlayback(to: Int($0.rounded())) }
+                ),
+                in: 0...Double(maxReplayIndex),
+                step: 1
+            )
+            .tint(.mlAccent)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(viewModel.playbackProgressText)
+                    .font(MLFont.monoSmall)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text(viewModel.playbackSpeedText)
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+            }
+            .frame(minWidth: 58, alignment: .trailing)
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: Layout.hairline)
+        )
     }
 
     private var content: some View {
@@ -204,8 +256,16 @@ struct RideDetailView: View {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     ElevationChart(samples: detail.elevation)
                     if detail.replayPoints.count > 2 {
-                        SpeedChart(points: detail.replayPoints)
-                        AccelerationChart(points: detail.replayPoints)
+                        SpeedChart(
+                            points: detail.replayPoints,
+                            playbackPoint: viewModel.currentReplayPoint,
+                            onScrub: { viewModel.scrubPlayback(to: $0) }
+                        )
+                        AccelerationChart(
+                            points: detail.replayPoints,
+                            playbackIndex: viewModel.playbackIndex,
+                            onScrub: { viewModel.scrubPlayback(to: $0) }
+                        )
                     }
                 }
             case .failed(let message):
