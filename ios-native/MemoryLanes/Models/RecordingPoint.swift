@@ -12,9 +12,11 @@ struct RecordingPoint: Codable, Hashable, Sendable {
     let timestamp: Date
     let elevationMeters: Double
     let speedMetersPerSecond: Double
+    let speedAccuracyMetersPerSecond: Double?
     let horizontalAccuracyMeters: Double
     let verticalAccuracyMeters: Double
     let courseDegrees: Double
+    let courseAccuracyDegrees: Double?
 
     init(location: CLLocation) {
         latitude = location.coordinate.latitude
@@ -22,9 +24,11 @@ struct RecordingPoint: Codable, Hashable, Sendable {
         timestamp = location.timestamp
         elevationMeters = location.altitude
         speedMetersPerSecond = max(0, location.speed)
+        speedAccuracyMetersPerSecond = location.speedAccuracy >= 0 ? location.speedAccuracy : nil
         horizontalAccuracyMeters = location.horizontalAccuracy
         verticalAccuracyMeters = location.verticalAccuracy
         courseDegrees = location.course
+        courseAccuracyDegrees = location.courseAccuracy >= 0 ? location.courseAccuracy : nil
     }
 
     var coordinate: Coordinate {

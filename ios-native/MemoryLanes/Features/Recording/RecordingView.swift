@@ -9,6 +9,7 @@ import UIKit
 struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let session: AuthSession
     let plannedRoute: PlannedRoute?
     let accessToken: @Sendable () async -> String?
@@ -19,6 +20,8 @@ struct RecordingView: View {
     @State private var showingDiscardConfirmation = false
     @State private var finishedRide: RecordedRideResult?
     @State private var recoveredFinishedRide = false
+    @State private var cameraMode: LiveRideCameraMode = .headingUp
+    @State private var followsRideCamera = true
     private let routeFollowAnalyzer = RouteFollowAnalyzer()
 
     init(
@@ -94,29 +97,22 @@ struct RecordingView: View {
     }
 
     private var mapLayer: some View {
-        let currentCoordinate = recorder.points.last?.coordinate
+        let latestPoint = recorder.points.last
         return Group {
-            if recorder.routePreview.count > 1 {
-                MLMapView(
-                    route: recorder.routePreview,
-                    fadeColor: .mlBackground,
-                    replayCoordinate: currentCoordinate,
-                    completedRoute: recorder.routePreview,
-                    guideRoute: plannedRoute?.route ?? []
+            if latestPoint != nil || (plannedRoute?.route.count ?? 0) > 1 {
+                LiveRideMapView(
+                    recordedRoute: recorder.routePreview,
+                    guideRoute: plannedRoute?.route ?? [],
+                    latestPoint: latestPoint,
+                    cameraMode: cameraMode,
+                    reduceMotion: reduceMotion,
+                    followsCamera: $followsRideCamera
                 )
-            } else if let plannedRoute, plannedRoute.route.count > 1 {
-                MLMapView(
-                    route: [],
-                    fadeColor: .mlBackground,
-                    replayCoordinate: currentCoordinate,
-                    guideRoute: plannedRoute.route
-                )
-            } else if let currentCoordinate {
-                MLMapView(
-                    route: [],
-                    fadeColor: .mlBackground,
-                    replayCoordinate: currentCoordinate
-                )
+                .overlay(alignment: .bottom) {
+                    LinearGradient.mlMapFade(.mlBackground)
+                        .frame(height: 120)
+                        .allowsHitTesting(false)
+                }
             } else {
                 MLMapView(route: SampleData.ridgeRoute, fadeColor: .mlBackground)
                     .overlay(Color.black.opacity(0.42))
@@ -125,6 +121,48 @@ struct RecordingView: View {
         .overlay(alignment: .top) {
             recorderHeader
         }
+        .overlay(alignment: .trailing) {
+            if latestPoint != nil {
+                cameraControls
+                    .padding(.trailing, Spacing.screenH)
+                    .offset(y: usesCompactHeightLayout ? -Spacing.lg : -Spacing.xxl)
+            }
+        }
+    }
+
+    private var cameraControls: some View {
+        VStack(spacing: Spacing.sm) {
+            mapControlButton(
+                symbol: cameraMode.symbol,
+                label: cameraMode == .headingUp ? "Switch to north-up map" : "Switch to heading-up map"
+            ) {
+                Haptics.selection()
+                cameraMode = cameraMode == .headingUp ? .northUp : .headingUp
+                followsRideCamera = true
+            }
+
+            if !followsRideCamera {
+                mapControlButton(symbol: "location.fill", label: "Recenter on ride") {
+                    Haptics.selection()
+                    followsRideCamera = true
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .animation(reduceMotion ? nil : Motion.springSnappy, value: followsRideCamera)
+    }
+
+    private func mapControlButton(symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(MLFont.headline)
+                .foregroundStyle(Color.mlTextPrimary)
+                .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().stroke(Color.mlTextPrimary.opacity(0.12), lineWidth: Layout.hairline))
+        }
+        .buttonStyle(MLPressableButtonStyle())
+        .accessibilityLabel(label)
     }
 
     private var recorderHeader: some View {
