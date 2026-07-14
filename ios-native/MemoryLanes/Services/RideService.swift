@@ -61,6 +61,7 @@ struct PreviewRideService: RideServing {
 struct RideService: RideServing {
     var accessToken: () -> String?
     private var client = SupabaseHTTPClient()
+    private var weatherService = OpenMeteoWeatherService()
 
     init(accessToken: @escaping () -> String?) {
         self.accessToken = accessToken
@@ -101,6 +102,12 @@ struct RideService: RideServing {
         let track = try GPXParser().parse(data: data)
         let pastCorners = (try? await fetchPastCoachCorners(excluding: ride.id, accessToken: token)) ?? []
         let coach = RideCoachAnalyzer().analyze(points: track.points, pastCorners: pastCorners)
+        let weather: Weather?
+        if let start = track.points.first {
+            weather = try? await weatherService.fetchWeather(at: start.coordinate, rideDate: track.startedAt)
+        } else {
+            weather = nil
+        }
         if let summary = coach.storageSummary {
             try? await saveCoachSummary(summary, for: ride.id, accessToken: token)
         }
@@ -111,7 +118,7 @@ struct RideService: RideServing {
             elevation: track.elevationSamples,
             corners: coach.corners,
             moments: storedMoments,
-            weather: nil,
+            weather: weather,
             coachScore: coach.score,
             coachScores: coach.scores,
             debrief: coach.debrief

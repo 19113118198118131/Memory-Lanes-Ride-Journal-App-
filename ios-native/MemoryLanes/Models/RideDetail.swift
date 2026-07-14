@@ -217,7 +217,12 @@ struct Weather: Sendable {
     var condition: String
     var windKph: Double
     var symbol: String   // SF Symbol for the condition
+    var precipitationMm: Double? = nil
 
     var temperatureFormatted: String { String(format: "%.0f°", temperatureC) }
     var windFormatted: String { String(format: "%.0f km/h", windKph) }
+    var precipitationFormatted: String? {
+        guard let precipitationMm, precipitationMm >= 0.2 else { return nil }
+        return String(format: "%.1f mm", precipitationMm)
+    }
 }

@@ -76,6 +76,11 @@ struct WeatherStrip: View {
                 Label(weather.windFormatted, systemImage: "wind")
                     .font(MLFont.callout)
                     .foregroundStyle(Color.mlTextSecondary)
+                if let precipitation = weather.precipitationFormatted {
+                    Label(precipitation, systemImage: "drop.fill")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
                 Text("At ride time").mlKicker()
             }
         }
