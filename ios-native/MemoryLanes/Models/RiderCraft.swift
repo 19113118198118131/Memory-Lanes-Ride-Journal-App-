@@ -438,4 +438,6 @@ struct RiderCraftProgress: Sendable {
         guard let currentRate, let comparisonRate else { return nil }
         return currentRate - comparisonRate
     }
+
+    var hasTrendLine: Bool { trend.count >= 3 }
 }

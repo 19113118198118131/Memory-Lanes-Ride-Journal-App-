@@ -44,7 +44,7 @@ struct StatsView: View {
             Text("Every ride adds up")
                 .font(MLFont.displayXL)
                 .foregroundStyle(Color.mlTextPrimary)
-            Text("Distance, elevation, riding time, personal bests, and everywhere you have ridden.")
+            Text("Distance, riding time, standout rides, and everywhere you have ridden.")
                 .font(MLFont.body)
                 .foregroundStyle(Color.mlTextSecondary)
         }
@@ -100,8 +100,26 @@ struct StatsView: View {
         LazyVGrid(columns: metricColumns, spacing: Spacing.md) {
             StatCard(label: "Rides", value: "\(viewModel.rides.count)", systemImage: "helmet")
             StatCard(label: "Distance", value: String(format: "%.0f", viewModel.totalDistanceKm), unit: "km", systemImage: "road.lanes")
-            StatCard(label: "Elevation", value: String(format: "%.0f", viewModel.totalElevationM), unit: "m", systemImage: "mountain.2.fill")
+            biggestClimbCard
             StatCard(label: "Time Riding", value: formattedDuration(viewModel.totalDuration), systemImage: "clock.fill")
+        }
+    }
+
+    @ViewBuilder
+    private var biggestClimbCard: some View {
+        if let ride = viewModel.highestRide {
+            Button {
+                Haptics.selection()
+                onSelectRide(ride)
+            } label: {
+                StatCard(
+                    label: "Biggest Climb",
+                    value: ride.elevationFormatted,
+                    unit: "m",
+                    systemImage: "mountain.2.fill"
+                )
+            }
+            .buttonStyle(MLPressableButtonStyle(scale: 0.98))
         }
     }
 
@@ -151,11 +169,9 @@ struct StatsView: View {
             if let ride = viewModel.longestRide {
                 bestRow(label: "Longest Ride", value: "\(ride.distanceFormatted) km", ride: ride, symbol: "arrow.up.right.circle.fill")
             }
-            if let ride = viewModel.highestRide {
-                bestRow(label: "Biggest Climb", value: "\(ride.elevationFormatted) m", ride: ride, symbol: "mountain.2.fill")
-            }
-            if let ride = viewModel.fastestAverageRide {
-                bestRow(label: "Best Avg Speed", value: String(format: "%.1f km/h", viewModel.averageSpeedKmh(ride)), ride: ride, symbol: "speedometer")
+            if let ride = viewModel.mostCornersRide,
+               let corners = ride.riderCraftSummary?.cornerCount {
+                bestRow(label: "Most Corners", value: "\(corners)", ride: ride, symbol: "road.lanes.curved.right")
             }
             if let ride = viewModel.longestDurationRide {
                 bestRow(label: "Longest Time Out", value: formattedDuration(ride.durationSeconds), ride: ride, symbol: "clock.fill")

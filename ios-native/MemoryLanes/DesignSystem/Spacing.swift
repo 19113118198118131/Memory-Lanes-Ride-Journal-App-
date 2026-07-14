@@ -49,6 +49,8 @@ enum Layout {
     static let hairline: CGFloat = 1
     /// Maximum width of controls docked beside content on a compact-height screen.
     static let compactPanelMaxWidth: CGFloat = 360
+    /// Speed-first live recorder instrument in landscape.
+    static let liveCockpitMaxWidth: CGFloat = 300
 }
 
 extension View {

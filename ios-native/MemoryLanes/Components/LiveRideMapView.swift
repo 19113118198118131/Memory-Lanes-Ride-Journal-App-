@@ -68,7 +68,7 @@ struct LiveRideMapView: UIViewRepresentable {
             let configuration = MKStandardMapConfiguration(elevationStyle: .realistic)
             configuration.pointOfInterestFilter = .excludingAll
             configuration.showsTraffic = false
-            configuration.emphasisStyle = .muted
+            configuration.emphasisStyle = .default
             mapView.preferredConfiguration = configuration
         }
 
@@ -100,14 +100,14 @@ struct LiveRideMapView: UIViewRepresentable {
             mapView.removeOverlays(renderedOverlays)
             renderedOverlays.removeAll(keepingCapacity: true)
 
-            if guide.count > 1 {
-                let overlay = MKPolyline(coordinates: guide.clCoordinates, count: guide.count)
-                overlay.title = OverlayKind.guide.rawValue
-                renderedOverlays.append(overlay)
-            }
             if recorded.count > 1 {
                 let overlay = MKPolyline(coordinates: recorded.clCoordinates, count: recorded.count)
                 overlay.title = OverlayKind.recorded.rawValue
+                renderedOverlays.append(overlay)
+            }
+            if guide.count > 1 {
+                let overlay = MKPolyline(coordinates: guide.clCoordinates, count: guide.count)
+                overlay.title = OverlayKind.guide.rawValue
                 renderedOverlays.append(overlay)
             }
             mapView.addOverlays(renderedOverlays, level: .aboveRoads)
@@ -157,12 +157,11 @@ struct LiveRideMapView: UIViewRepresentable {
             renderer.lineCap = .round
             renderer.lineJoin = .round
             if polyline.title == OverlayKind.guide.rawValue {
-                renderer.strokeColor = UIColor(Color.mlInfo).withAlphaComponent(0.82)
-                renderer.lineWidth = 5
-                renderer.lineDashPattern = [10, 8]
+                renderer.strokeColor = UIColor(Color.mlInfo)
+                renderer.lineWidth = 7
             } else {
-                renderer.strokeColor = UIColor(Color.mlAccent)
-                renderer.lineWidth = 6
+                renderer.strokeColor = UIColor(Color.mlAccent).withAlphaComponent(0.68)
+                renderer.lineWidth = 4
             }
             return renderer
         }

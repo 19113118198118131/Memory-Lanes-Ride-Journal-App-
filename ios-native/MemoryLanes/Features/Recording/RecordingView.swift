@@ -39,10 +39,20 @@ struct RecordingView: View {
     var body: some View {
         ZStack(alignment: controlPanelAlignment) {
             mapLayer
+                .ignoresSafeArea()
             controlPanel
         }
+        .overlay(alignment: .top) {
+            recorderHeader
+        }
+        .overlay(alignment: .topTrailing) {
+            if recorder.points.last != nil {
+                cameraControls
+                    .padding(.top, usesCompactHeightLayout ? Spacing.xxl + Spacing.sm : Spacing.xxl * 2)
+                    .padding(.trailing, Spacing.screenH)
+            }
+        }
         .background(Color.mlBackground)
-        .ignoresSafeArea(edges: .top)
         .task {
             if let recovered = await recorder.prepareForPresentation() {
                 recoveredFinishedRide = true
@@ -108,24 +118,9 @@ struct RecordingView: View {
                     reduceMotion: reduceMotion,
                     followsCamera: $followsRideCamera
                 )
-                .overlay(alignment: .bottom) {
-                    LinearGradient.mlMapFade(.mlBackground)
-                        .frame(height: 120)
-                        .allowsHitTesting(false)
-                }
             } else {
                 MLMapView(route: SampleData.ridgeRoute, fadeColor: .mlBackground)
                     .overlay(Color.black.opacity(0.42))
-            }
-        }
-        .overlay(alignment: .top) {
-            recorderHeader
-        }
-        .overlay(alignment: .trailing) {
-            if latestPoint != nil {
-                cameraControls
-                    .padding(.trailing, Spacing.screenH)
-                    .offset(y: usesCompactHeightLayout ? -Spacing.lg : -Spacing.xxl)
             }
         }
     }
@@ -168,12 +163,12 @@ struct RecordingView: View {
     private var recorderHeader: some View {
         VStack(spacing: Spacing.sm) {
             topBar
-            if !usesCompactHeightLayout {
+            if !usesCompactHeightLayout, recorder.lastErrorMessage != nil {
                 gpsPill
             }
         }
         .padding(.horizontal, Spacing.screenH)
-        .padding(.top, usesCompactHeightLayout ? Spacing.sm : Spacing.xxl + Spacing.xs)
+        .padding(.top, Spacing.sm)
     }
 
     private var topBar: some View {
@@ -193,29 +188,30 @@ struct RecordingView: View {
 
             Spacer()
 
-            Text(usesCompactHeightLayout ? "\(statusTitle) · \(recorder.pointCount) pts" : statusTitle)
-                .font(MLFont.callout)
-                .foregroundStyle(statusColor)
-                .lineLimit(1)
-                .padding(.horizontal, Spacing.md)
-                .frame(height: Spacing.xl + Spacing.xxs)
-                .background(.ultraThinMaterial, in: Capsule())
+            HStack(spacing: Spacing.xs) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: Spacing.xs, height: Spacing.xs)
+                Text(statusTitle)
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlTextPrimary)
+            }
+            .lineLimit(1)
+            .padding(.horizontal, Spacing.md)
+            .frame(height: Spacing.xl + Spacing.xxs)
+            .background(.ultraThinMaterial, in: Capsule())
         }
     }
 
     private var gpsPill: some View {
         HStack(spacing: Spacing.xs) {
-            Circle()
-                .fill(statusColor)
-                .frame(width: 8, height: 8)
-            Text(recorder.lastErrorMessage ?? recorder.permissionSummary)
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Color.mlWarning)
+            Text(recorder.lastErrorMessage ?? "Location needs attention")
                 .font(MLFont.caption)
                 .foregroundStyle(Color.mlTextPrimary)
                 .lineLimit(1)
             Spacer()
-            Text("\(recorder.pointCount) pts")
-                .font(MLFont.monoSmall)
-                .foregroundStyle(Color.mlTextSecondary)
         }
         .padding(.horizontal, Spacing.md)
         .frame(height: 40)
@@ -229,11 +225,15 @@ struct RecordingView: View {
             }
 
             rideHUD
-            actionButtons
+            if showsRideActions {
+                actionButtons
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(reduceMotion ? nil : Motion.spring, value: showsRideActions)
         .padding(.horizontal, Spacing.screenH)
         .padding(.bottom, Spacing.sm)
-        .frame(maxWidth: usesCompactHeightLayout ? Layout.compactPanelMaxWidth : .infinity)
+        .frame(maxWidth: usesCompactHeightLayout ? Layout.liveCockpitMaxWidth : .infinity)
     }
 
     private var usesCompactHeightLayout: Bool {
@@ -244,48 +244,40 @@ struct RecordingView: View {
         usesCompactHeightLayout ? .bottomTrailing : .bottom
     }
 
+    private var showsRideActions: Bool {
+        LiveRideCockpitPolicy.showsActions(
+            status: recorder.status,
+            speedMetersPerSecond: recorder.currentSpeedMetersPerSecond
+        )
+    }
+
     private var rideHUD: some View {
-        VStack(spacing: Spacing.sm) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(plannedRoute == nil ? "Live ride" : "Following route").mlKicker()
-                    if let plannedRoute {
-                        Text(plannedRoute.title)
-                            .font(MLFont.caption)
-                            .foregroundStyle(Color.mlTextSecondary)
-                            .lineLimit(1)
-                    }
+        HStack(alignment: .center, spacing: Spacing.lg) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text("Speed").mlKicker()
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
+                    Text(speedText(recorder.currentSpeedMetersPerSecond))
+                        .font(MLFont.displayXL)
+                        .foregroundStyle(Color.mlTextPrimary)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                    Text("km/h")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
                 }
+            }
 
-                Spacer(minLength: Spacing.sm)
+            Spacer(minLength: Spacing.sm)
 
-                Text(formattedDuration(recorder.elapsed))
-                    .font(MLFont.displayXL)
+            VStack(alignment: .trailing, spacing: Spacing.xs) {
+                Label(formattedDuration(recorder.elapsed), systemImage: "clock")
+                    .font(MLFont.mono)
                     .foregroundStyle(Color.mlTextPrimary)
                     .monospacedDigit()
                     .contentTransition(.numericText())
-                    .minimumScaleFactor(0.8)
-            }
-
-            Divider()
-                .overlay(Color.mlHairline)
-
-            HStack(spacing: 0) {
-                compactMetric(
-                    label: "Distance",
-                    value: String(format: "%.2f", recorder.distanceKm),
-                    unit: "km"
-                )
-                compactMetric(
-                    label: "Speed",
-                    value: speedText(recorder.currentSpeedMetersPerSecond),
-                    unit: "km/h"
-                )
-                compactMetric(
-                    label: "Climb",
-                    value: String(format: "%.0f", recorder.elevationGainMeters),
-                    unit: "m"
-                )
+                Label(String(format: "%.2f km", recorder.distanceKm), systemImage: "road.lanes")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
             }
         }
         .padding(Spacing.md)
@@ -295,6 +287,8 @@ struct RecordingView: View {
                 .stroke(Color.mlTextPrimary.opacity(0.12), lineWidth: Layout.hairline)
         )
         .shadow(color: .black.opacity(0.24), radius: Spacing.md, y: Spacing.xs)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Current speed \(speedText(recorder.currentSpeedMetersPerSecond)) kilometres per hour, elapsed \(formattedDuration(recorder.elapsed)), distance \(String(format: "%.2f", recorder.distanceKm)) kilometres")
     }
 
     private var followSnapshot: RouteFollowSnapshot? {
@@ -351,26 +345,6 @@ struct RecordingView: View {
         case .permissionDenied: .mlDanger
         case .finished: .mlSuccess
         }
-    }
-
-    private func compactMetric(label: String, value: String, unit: String) -> some View {
-        VStack(spacing: Spacing.xxs) {
-            Text(label).mlKicker()
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
-                Text(value)
-                    .font(MLFont.displaySmall)
-                    .foregroundStyle(Color.mlTextPrimary)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                Text(unit)
-                    .font(MLFont.caption)
-                    .foregroundStyle(Color.mlTextSecondary)
-            }
-            .lineLimit(1)
-            .minimumScaleFactor(0.72)
-        }
-        .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .combine)
     }
 
     private func compactRouteGuidance(_ snapshot: RouteFollowSnapshot) -> some View {
@@ -432,6 +406,12 @@ struct RecordingView: View {
             return String(format: "%d:%02d:%02d", hours, minutes, secs)
         }
         return String(format: "%02d:%02d", minutes, secs)
+    }
+}
+
+enum LiveRideCockpitPolicy {
+    static func showsActions(status: RecordingStatus, speedMetersPerSecond: Double) -> Bool {
+        status != .recording || speedMetersPerSecond * 3.6 < 8
     }
 }
 

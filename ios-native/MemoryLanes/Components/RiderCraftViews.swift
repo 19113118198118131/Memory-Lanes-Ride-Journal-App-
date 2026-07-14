@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 
 struct RiderCraftRideView: View {
@@ -288,17 +289,11 @@ struct RiderCraftProgressView: View {
                 }
             }
 
-            HStack(alignment: .bottom, spacing: Spacing.xs) {
-                let maximum = max(progress.trend.map(\.rate).max() ?? 1, 0.1)
-                ForEach(Array(progress.trend.enumerated()), id: \.element.id) { index, point in
-                    Capsule()
-                        .fill(index == progress.trend.count - 1 ? Color.mlAccent : Color.mlTextTertiary.opacity(0.45))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: max(8, CGFloat(point.rate / maximum) * 72))
-                        .accessibilityLabel("\(point.date.formatted(date: .abbreviated, time: .omitted)): \(String(format: "%.2f", point.rate)) detections per corner")
-                }
+            if progress.hasTrendLine {
+                trendChart
+            } else {
+                sparseTrend
             }
-            .frame(height: 78, alignment: .bottom)
 
             Text("Lower means fewer of the four supported GPS patterns. One ride is never a verdict.")
                 .font(MLFont.caption)
@@ -307,6 +302,78 @@ struct RiderCraftProgressView: View {
         .padding(Spacing.md)
         .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.card).stroke(Color.mlHairline, lineWidth: Layout.hairline))
+    }
+
+    private var sparseTrend: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Label("Building your baseline", systemImage: "chart.line.uptrend.xyaxis")
+                .font(MLFont.callout)
+                .foregroundStyle(Color.mlAccent)
+
+            ForEach(Array(progress.trend.enumerated()), id: \.element.id) { index, point in
+                HStack(spacing: Spacing.md) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text(index == progress.trend.count - 1 ? "Latest analysed ride" : "Previous analysed ride")
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text(point.date.formatted(date: .abbreviated, time: .omitted))
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Spacer()
+                    Text(String(format: "%.2f", point.rate))
+                        .font(MLFont.mono)
+                        .foregroundStyle(index == progress.trend.count - 1 ? Color.mlAccent : Color.mlTextPrimary)
+                    Text("/ corner")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                }
+                .frame(minHeight: Layout.minTouchTarget)
+
+                if index < progress.trend.count - 1 {
+                    Divider().overlay(Color.mlHairline)
+                }
+            }
+
+            Text("\(progress.trend.count) of 3 analysed rides needed for a useful trend line.")
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextTertiary)
+        }
+    }
+
+    private var trendChart: some View {
+        let maximum = max(progress.trend.map(\.rate).max() ?? 1, 0.1)
+        return Chart(progress.trend) { point in
+            LineMark(
+                x: .value("Ride", point.date),
+                y: .value("Detections per corner", point.rate)
+            )
+            .foregroundStyle(Color.mlAccent)
+            .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+            .interpolationMethod(.catmullRom)
+
+            PointMark(
+                x: .value("Ride", point.date),
+                y: .value("Detections per corner", point.rate)
+            )
+            .foregroundStyle(Color.mlAccent)
+            .symbolSize(42)
+        }
+        .chartYScale(domain: 0...(maximum * 1.15))
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 3)) { value in
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    .foregroundStyle(Color.mlTextTertiary)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
+                AxisGridLine().foregroundStyle(Color.mlHairline)
+                AxisValueLabel().foregroundStyle(Color.mlTextTertiary)
+            }
+        }
+        .frame(height: 132)
+        .accessibilityLabel("Rider Craft detections per corner across \(progress.trend.count) analysed rides")
     }
 
     private func focusCard(_ focus: RiderCraftFocus) -> some View {

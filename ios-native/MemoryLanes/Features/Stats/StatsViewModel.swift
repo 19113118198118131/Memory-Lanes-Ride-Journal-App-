@@ -28,10 +28,6 @@ final class StatsViewModel {
         rides.reduce(0) { $0 + $1.distanceMeters } / 1000
     }
 
-    var totalElevationM: Double {
-        rides.reduce(0) { $0 + $1.elevationGainMeters }
-    }
-
     var totalDuration: TimeInterval {
         rides.reduce(0) { $0 + $1.durationSeconds }
     }
@@ -60,10 +56,12 @@ final class StatsViewModel {
         rides.max { $0.durationSeconds < $1.durationSeconds }
     }
 
-    var fastestAverageRide: Ride? {
+    var mostCornersRide: Ride? {
         rides
-            .filter { $0.durationSeconds > 0 && $0.distanceMeters >= 5_000 }
-            .max { averageSpeedKmh($0) < averageSpeedKmh($1) }
+            .filter { $0.riderCraftSummary?.cornerCount != nil }
+            .max {
+                ($0.riderCraftSummary?.cornerCount ?? 0) < ($1.riderCraftSummary?.cornerCount ?? 0)
+            }
     }
 
     var monthlyBars: [StatsMonthBar] {
@@ -95,11 +93,6 @@ final class StatsViewModel {
 
     var routePreviews: [[Coordinate]] {
         rides.map(\.routePreview).filter { $0.count > 1 }
-    }
-
-    func averageSpeedKmh(_ ride: Ride) -> Double {
-        guard ride.durationSeconds > 0 else { return 0 }
-        return (ride.distanceMeters / 1000) / (ride.durationSeconds / 3600)
     }
 
     func load() async {

@@ -33,6 +33,18 @@ final class RiderCraftProgressAnalyzerTests: XCTestCase {
         XCTAssertEqual(progress.comparisonRate ?? -1, 0.3, accuracy: 0.001)
         XCTAssertEqual(progress.focus?.kind, .exitDrive)
         XCTAssertEqual(progress.trend.count, 2)
+        XCTAssertFalse(progress.hasTrendLine)
+    }
+
+    func testTrendLineWaitsForThreeAnalysedRides() {
+        let rides = (0..<3).map { day in
+            ride(daysAgo: day, events: [.flatExit], scores: ["exitDrive": 60])
+        }
+
+        let progress = RiderCraftProgressAnalyzer().analyze(rides: rides)
+
+        XCTAssertEqual(progress.trend.count, 3)
+        XCTAssertTrue(progress.hasTrendLine)
     }
 
     func testBadgesNeverRewardSpeedDistanceOrFrequency() {

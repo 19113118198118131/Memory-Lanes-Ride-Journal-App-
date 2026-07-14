@@ -50,6 +50,12 @@ struct LiveRideCameraControllerTests {
         #expect(result.animationDuration == 0)
     }
 
+    @Test func destructiveRideActionsReturnOnlyAtLowSpeed() {
+        #expect(!LiveRideCockpitPolicy.showsActions(status: .recording, speedMetersPerSecond: 10))
+        #expect(LiveRideCockpitPolicy.showsActions(status: .recording, speedMetersPerSecond: 1))
+        #expect(LiveRideCockpitPolicy.showsActions(status: .paused, speedMetersPerSecond: 10))
+    }
+
     @Test func demoRideReplayKeepsCameraMotionBounded() throws {
         let testFile = URL(fileURLWithPath: #filePath)
         let repository = testFile
