@@ -12,6 +12,7 @@ final class RoutesViewModel {
     }
 
     private(set) var state: LoadState = .loading
+    private(set) var isSavingRoute = false
     private let routeService: RouteServing
 
     init(routeService: RouteServing) {
@@ -36,5 +37,16 @@ final class RoutesViewModel {
         } catch {
             state = .failed(error.localizedDescription)
         }
+    }
+
+    func createRoute(_ draft: PlannedRouteDraft) async throws -> PlannedRoute {
+        isSavingRoute = true
+        defer { isSavingRoute = false }
+
+        let route = try await routeService.createRoute(draft)
+        var updatedRoutes = routes
+        updatedRoutes.insert(route, at: 0)
+        state = .loaded(updatedRoutes)
+        return route
     }
 }

@@ -3,6 +3,7 @@ import Foundation
 @MainActor
 protocol RouteServing {
     func fetchRoutes() async throws -> [PlannedRoute]
+    func createRoute(_ draft: PlannedRouteDraft) async throws -> PlannedRoute
     func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute
     func deleteRoute(_ route: PlannedRoute) async throws
 }
@@ -16,6 +17,22 @@ struct PreviewRouteService: RouteServing {
         try await Task.sleep(for: delay)
         if let failure { throw failure }
         return routes
+    }
+
+    func createRoute(_ draft: PlannedRouteDraft) async throws -> PlannedRoute {
+        try await Task.sleep(for: .milliseconds(250))
+        if let failure { throw failure }
+        return PlannedRoute(
+            id: UUID(),
+            title: draft.title,
+            distanceKm: draft.distanceKm,
+            elevationM: draft.elevationM,
+            waypoints: draft.waypoints,
+            route: draft.route,
+            createdAt: Date(),
+            isPublic: false,
+            shareToken: nil
+        )
     }
 
     func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute {
@@ -36,6 +53,7 @@ struct PreviewRouteService: RouteServing {
 struct RouteService: RouteServing {
     var client = SupabaseHTTPClient()
     var accessToken: () -> String?
+    var userID: () -> UUID?
 
     func fetchRoutes() async throws -> [PlannedRoute] {
         guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
@@ -48,6 +66,20 @@ struct RouteService: RouteServing {
             accessToken: token
         )
         return rows.map(\.plannedRoute)
+    }
+
+    func createRoute(_ draft: PlannedRouteDraft) async throws -> PlannedRoute {
+        guard let token = accessToken(), let userID = userID() else { throw RideServiceError.notAuthenticated }
+        let payload = PlannedRouteInsertPayload(userID: userID, draft: draft)
+        let rows: [SupabasePlannedRouteRow] = try await client.post(
+            path: "rest/v1/planned_routes",
+            queryItems: [URLQueryItem(name: "select", value: "id,title,distance_km,elevation_m,waypoints,route,created_at,is_public,share_token")],
+            body: payload,
+            accessToken: token,
+            prefer: "return=representation"
+        )
+        guard let route = rows.first?.plannedRoute else { throw RouteServiceError.missingInsertedRoute }
+        return route
     }
 
     func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute {
@@ -78,12 +110,42 @@ struct RouteService: RouteServing {
 
 enum RouteServiceError: LocalizedError {
     case notImplemented
+    case missingInsertedRoute
 
     var errorDescription: String? {
         switch self {
         case .notImplemented:
             return "Route syncing is not connected yet."
+        case .missingInsertedRoute:
+            return "The route was saved, but Supabase did not return it."
         }
+    }
+}
+
+private struct PlannedRouteInsertPayload: Encodable {
+    let userID: UUID
+    let title: String
+    let distanceKm: Double?
+    let elevationM: Double?
+    let waypoints: [WaypointInsertPayload]
+    let route: [RouteCoordinateInsertPayload]
+
+    init(userID: UUID, draft: PlannedRouteDraft) {
+        self.userID = userID
+        title = draft.title
+        distanceKm = draft.distanceKm
+        elevationM = draft.elevationM
+        waypoints = draft.waypoints.map(WaypointInsertPayload.init(coordinate:))
+        route = draft.route.map(RouteCoordinateInsertPayload.init(coordinate:))
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case userID = "user_id"
+        case title
+        case distanceKm = "distance_km"
+        case elevationM = "elevation_m"
+        case waypoints
+        case route
     }
 }
 
@@ -157,6 +219,16 @@ private struct WaypointPayload: Decodable {
     }
 }
 
+private struct WaypointInsertPayload: Encodable {
+    let lat: Double
+    let lng: Double
+
+    init(coordinate: Coordinate) {
+        lat = coordinate.latitude
+        lng = coordinate.longitude
+    }
+}
+
 private struct RouteCoordinatePayload: Decodable {
     let coordinate: Coordinate
 
@@ -165,5 +237,15 @@ private struct RouteCoordinatePayload: Decodable {
         let latitude = try container.decode(Double.self)
         let longitude = try container.decode(Double.self)
         coordinate = Coordinate(latitude: latitude, longitude: longitude)
+    }
+}
+
+private struct RouteCoordinateInsertPayload: Encodable {
+    let coordinate: Coordinate
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode(coordinate.latitude)
+        try container.encode(coordinate.longitude)
     }
 }

@@ -41,7 +41,10 @@ private struct MainTabShell: View {
     }
 
     private var routeService: RouteServing {
-        RouteService(accessToken: { authStore.accessToken })
+        RouteService(
+            accessToken: { authStore.accessToken },
+            userID: { authStore.session?.userID }
+        )
     }
 
     var body: some View {

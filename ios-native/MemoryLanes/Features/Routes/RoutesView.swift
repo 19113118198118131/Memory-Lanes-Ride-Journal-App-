@@ -10,6 +10,7 @@ struct RoutesView: View {
     @State private var selectedMood = RouteMood.flowing
     @State private var selectedTime = RouteTime.ninety
     @State private var showCandidates = false
+    @State private var routeSaveError: String?
     let refreshTrigger: UUID
     let onSelectRoute: (PlannedRoute) -> Void
 
@@ -32,6 +33,14 @@ struct RoutesView: View {
 
                 if showCandidates {
                     candidates
+                }
+
+                if let routeSaveError {
+                    Text(routeSaveError)
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlDanger)
+                        .padding(Spacing.md)
+                        .background(Color.mlDanger.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                 }
 
                 SectionHeader(title: "Saved Routes")
@@ -225,8 +234,9 @@ struct RoutesView: View {
             ])
 
             SecondaryButton(title: "Use This Route", systemImage: "checkmark.circle.fill") {
-                Haptics.success()
+                Task { await saveCandidate(route) }
             }
+            .disabled(viewModel.isSavingRoute)
         }
         .padding(Spacing.md)
         .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -251,6 +261,22 @@ struct RoutesView: View {
         }
         .frame(height: 150)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+
+    private func saveCandidate(_ candidate: RouteCandidate) async {
+        guard !viewModel.isSavingRoute else { return }
+        routeSaveError = nil
+        do {
+            let route = try await viewModel.createRoute(candidate.draft)
+            Haptics.success()
+            withAnimation(Motion.spring) {
+                showCandidates = false
+            }
+            onSelectRoute(route)
+        } catch {
+            Haptics.error()
+            routeSaveError = error.localizedDescription
+        }
     }
 }
 
@@ -519,16 +545,40 @@ private enum RouteTime: String, CaseIterable, Identifiable {
 private struct RouteCandidate: Identifiable {
     let id = UUID()
     let title: String
-    let distance: String
+    let distanceKm: Double
     let time: String
-    let elevation: String
+    let elevationM: Double
     let summary: String
     let preview: [Coordinate]
 
+    var distance: String {
+        String(format: "%.1f", distanceKm)
+    }
+
+    var elevation: String {
+        String(format: "%.0f", elevationM)
+    }
+
+    var draft: PlannedRouteDraft {
+        PlannedRouteDraft(
+            title: title,
+            distanceKm: distanceKm,
+            elevationM: elevationM,
+            waypoints: waypoints,
+            route: preview
+        )
+    }
+
+    private var waypoints: [Coordinate] {
+        guard let first = preview.first, let last = preview.last else { return [] }
+        guard preview.count > 2 else { return [first, last] }
+        return [first, preview[preview.count / 2], last]
+    }
+
     static func candidates(mood: RouteMood, time: RouteTime) -> [RouteCandidate] {
         [
-            .init(title: "\(mood.title) Option 1", distance: time == .fortyFive ? "32.0" : "84.3", time: time.title, elevation: "760", summary: "Best match · smooth corners, low traffic", preview: SampleData.ridgeRoute),
-            .init(title: "\(mood.title) Option 2", distance: time == .halfDay ? "146.8" : "69.5", time: time.title, elevation: "1,120", summary: "More elevation · quieter roads", preview: SampleData.ridgeRoute.reversed())
+            .init(title: "\(mood.title) Option 1", distanceKm: time == .fortyFive ? 32.0 : 84.3, time: time.title, elevationM: 760, summary: "Best match · smooth corners, low traffic", preview: SampleData.ridgeRoute),
+            .init(title: "\(mood.title) Option 2", distanceKm: time == .halfDay ? 146.8 : 69.5, time: time.title, elevationM: 1120, summary: "More elevation · quieter roads", preview: SampleData.ridgeRoute.reversed())
         ]
     }
 }

@@ -71,6 +71,14 @@ struct PlannedRoute: Identifiable, Hashable, Sendable {
     }
 }
 
+struct PlannedRouteDraft: Hashable, Sendable {
+    var title: String
+    var distanceKm: Double?
+    var elevationM: Double?
+    var waypoints: [Coordinate]
+    var route: [Coordinate]
+}
+
 private extension String {
     var xmlEscaped: String {
         replacingOccurrences(of: "&", with: "&amp;")
