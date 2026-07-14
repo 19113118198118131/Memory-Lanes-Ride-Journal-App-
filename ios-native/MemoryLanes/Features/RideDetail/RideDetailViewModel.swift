@@ -76,6 +76,16 @@ final class RideDetailViewModel {
         return points[min(playbackIndex, points.count - 1)]
     }
 
+    var currentReplayCoordinate: Coordinate? {
+        currentReplayPoint?.coordinate
+    }
+
+    var completedReplayRoute: [Coordinate] {
+        guard let points = detail?.replayPoints, !points.isEmpty else { return [] }
+        let endIndex = min(playbackIndex, points.count - 1)
+        return points.prefix(endIndex + 1).map(\.coordinate)
+    }
+
     var mapReplayIndex: Int? {
         canReplay ? min(playbackIndex, max(routeForMomentPinning.count - 1, 0)) : nil
     }

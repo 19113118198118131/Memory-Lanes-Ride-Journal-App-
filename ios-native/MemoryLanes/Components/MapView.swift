@@ -36,31 +36,40 @@ struct MLMapView: View {
     let route: [Coordinate]
     var fadeColor: Color = .mlBackground
     var replayIndex: Int? = nil
+    var replayCoordinate: Coordinate? = nil
+    var completedRoute: [Coordinate] = []
     var guideRoute: [Coordinate] = []
+    @State private var cameraPosition: MapCameraPosition = .automatic
 
     private var coordinates: [CLLocationCoordinate2D] { route.clCoordinates }
     private var guideCoordinates: [CLLocationCoordinate2D] { guideRoute.clCoordinates }
     private var framingRoute: [Coordinate] {
         route.isEmpty ? guideRoute : route + guideRoute
     }
-    private var replayCoordinate: CLLocationCoordinate2D? {
+    private var replayMapCoordinate: CLLocationCoordinate2D? {
+        if let replayCoordinate {
+            return replayCoordinate.clCoordinate
+        }
         guard let replayIndex, route.indices.contains(replayIndex) else { return nil }
         return route[replayIndex].clCoordinate
     }
     private var completedCoordinates: [CLLocationCoordinate2D] {
+        if completedRoute.count > 1 {
+            return completedRoute.clCoordinates
+        }
         guard let replayIndex, replayIndex > 0 else { return [] }
         return Array(route.prefix(min(replayIndex + 1, route.count))).clCoordinates
     }
 
     var body: some View {
-        Map(initialPosition: .region(RouteGeometry.region(for: framingRoute))) {
+        Map(position: $cameraPosition) {
             if guideCoordinates.count > 1 {
                 MapPolyline(coordinates: guideCoordinates)
                     .stroke(Color.mlInfo.opacity(0.78), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round, dash: [9, 8]))
             }
             if coordinates.count > 1 {
                 MapPolyline(coordinates: coordinates)
-                    .stroke(Color.mlAccent.opacity(replayIndex == nil ? 1 : 0.32), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                    .stroke(Color.mlAccent.opacity(replayMapCoordinate == nil ? 1 : 0.32), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
             }
             if completedCoordinates.count > 1 {
                 MapPolyline(coordinates: completedCoordinates)
@@ -76,10 +85,19 @@ struct MLMapView: View {
                     endpointDot(fill: Color.mlSurfaceElevated, ring: Color.mlAccent)
                 }
             }
-            if let replayCoordinate {
-                Annotation("Replay position", coordinate: replayCoordinate) {
+            if let replayMapCoordinate {
+                Annotation("Replay position", coordinate: replayMapCoordinate) {
                     replayDot
                 }
+            }
+        }
+        .onAppear {
+            cameraPosition = .region(RouteGeometry.region(for: framingRoute))
+        }
+        .onChange(of: replayCoordinate) { _, coordinate in
+            guard let coordinate else { return }
+            withAnimation(.easeInOut(duration: 0.35)) {
+                cameraPosition = .region(RouteGeometry.replayRegion(centeredOn: coordinate))
             }
         }
         .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
@@ -139,6 +157,13 @@ enum RouteGeometry {
             longitudeDelta: max((maxLon - minLon) * paddingFactor, 0.005)
         )
         return MKCoordinateRegion(center: center, span: span)
+    }
+
+    static func replayRegion(centeredOn coordinate: Coordinate) -> MKCoordinateRegion {
+        MKCoordinateRegion(
+            center: coordinate.clCoordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.012, longitudeDelta: 0.012)
+        )
     }
 }
 

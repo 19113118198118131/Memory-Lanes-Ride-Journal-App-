@@ -101,6 +101,8 @@ struct RideDetailView: View {
                 route: route,
                 fadeColor: .mlBackground,
                 replayIndex: viewModel.mapReplayIndex,
+                replayCoordinate: viewModel.currentReplayCoordinate,
+                completedRoute: viewModel.completedReplayRoute,
                 guideRoute: viewModel.plannedGuideRoute
             )
         } else {
