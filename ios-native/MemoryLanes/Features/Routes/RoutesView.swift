@@ -2,16 +2,26 @@ import SwiftUI
 
 // MARK: - RoutesView
 //
-// Native version of the route-planning home: saved routes, a goal-first setup
-// card, and generated route candidates. The route engine will replace the local
-// sample data later; the interaction shape is here now.
+// Native route-planning home. Saved routes now come from Supabase; generated
+// candidates remain local previews until the planner engine is ported.
 
 struct RoutesView: View {
+    @State private var viewModel: RoutesViewModel
     @State private var selectedMood = RouteMood.flowing
     @State private var selectedTime = RouteTime.ninety
     @State private var showCandidates = false
+    let refreshTrigger: UUID
+    let onSelectRoute: (PlannedRoute) -> Void
 
-    private let savedRoutes = PlannedRoute.sample
+    init(
+        viewModel: RoutesViewModel,
+        refreshTrigger: UUID = UUID(),
+        onSelectRoute: @escaping (PlannedRoute) -> Void = { _ in }
+    ) {
+        _viewModel = State(initialValue: viewModel)
+        self.refreshTrigger = refreshTrigger
+        self.onSelectRoute = onSelectRoute
+    }
 
     var body: some View {
         ScrollView {
@@ -25,11 +35,7 @@ struct RoutesView: View {
                 }
 
                 SectionHeader(title: "Saved Routes")
-                LazyVStack(spacing: Spacing.md) {
-                    ForEach(savedRoutes) { route in
-                        plannedRouteCard(route)
-                    }
-                }
+                savedRoutesContent
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
@@ -37,6 +43,8 @@ struct RoutesView: View {
         .background(Color.mlBackground)
         .navigationTitle("Routes")
         .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await viewModel.refresh() }
+        .task(id: refreshTrigger) { await viewModel.load() }
     }
 
     private var header: some View {
@@ -45,7 +53,7 @@ struct RoutesView: View {
             Text("Plan the next good road")
                 .font(MLFont.displayXL)
                 .foregroundStyle(Color.mlTextPrimary)
-            Text("Pick a mood and time window. Memory Lanes will suggest loops that fit the way you want to ride.")
+            Text("Pick a mood and time window, or open one of your saved planned routes.")
                 .font(MLFont.body)
                 .foregroundStyle(Color.mlTextSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -58,8 +66,8 @@ struct RoutesView: View {
                 Haptics.impact(.medium)
                 withAnimation(Motion.spring) { showCandidates = true }
             }
-            SecondaryButton(title: "Just Ride", systemImage: "location.north.line.fill") {
-                Haptics.selection()
+            SecondaryButton(title: "Refresh", systemImage: "arrow.clockwise") {
+                Task { await viewModel.refresh() }
             }
         }
     }
@@ -104,18 +112,97 @@ struct RoutesView: View {
                 Haptics.selection()
             }
 
-            ForEach(PlannedRoute.candidates(mood: selectedMood, time: selectedTime)) { route in
-                plannedRouteCard(route, isCandidate: true)
+            ForEach(RouteCandidate.candidates(mood: selectedMood, time: selectedTime)) { route in
+                candidateCard(route)
             }
         }
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
-    private func plannedRouteCard(_ route: PlannedRoute, isCandidate: Bool = false) -> some View {
+    @ViewBuilder
+    private var savedRoutesContent: some View {
+        switch viewModel.state {
+        case .loading:
+            VStack(spacing: Spacing.md) {
+                SkeletonBar(height: 260, radius: Radius.card).mlShimmer()
+                SkeletonBar(height: 260, radius: Radius.card).mlShimmer()
+            }
+        case .loaded(let routes):
+            LazyVStack(spacing: Spacing.md) {
+                ForEach(routes) { route in
+                    plannedRouteCard(route)
+                }
+            }
+        case .empty:
+            EmptyState(
+                systemImage: "map",
+                title: "No saved routes yet",
+                message: "Plan a route in Memory Lanes and it will appear here."
+            )
+        case .failed(let message):
+            EmptyState(
+                systemImage: "wifi.exclamationmark",
+                title: "Couldn’t load routes",
+                message: message,
+                actionTitle: "Try Again"
+            ) {
+                Task { await viewModel.load() }
+            }
+        }
+    }
+
+    private func plannedRouteCard(_ route: PlannedRoute) -> some View {
+        Button {
+            Haptics.selection()
+            onSelectRoute(route)
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                routeMap(route.route)
+
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        HStack(spacing: Spacing.xs) {
+                            Text(route.title)
+                                .font(MLFont.title2)
+                                .foregroundStyle(Color.mlTextPrimary)
+                                .lineLimit(2)
+                            if route.isPublic {
+                                Text("Shared")
+                                    .font(MLFont.caption)
+                                    .foregroundStyle(Color.mlOnAccent)
+                                    .padding(.horizontal, Spacing.xs)
+                                    .frame(height: 24)
+                                    .background(Color.mlAccent, in: Capsule())
+                            }
+                        }
+                        Text(route.summary)
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(Color.mlAccent)
+                }
+
+                SegmentedMetric(items: [
+                    .init(value: route.distanceText, unit: "km", label: "Distance"),
+                    .init(value: route.estimatedTimeText, unit: "", label: "Time"),
+                    .init(value: route.elevationText, unit: "m", label: "Ascent")
+                ])
+            }
+            .padding(Spacing.md)
+            .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+            )
+        }
+        .buttonStyle(MLPressableButtonStyle())
+    }
+
+    private func candidateCard(_ route: RouteCandidate) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            RouteThumbnail(route: route.preview)
-                .frame(height: 150)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            routeMap(route.preview)
 
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -127,7 +214,7 @@ struct RoutesView: View {
                         .foregroundStyle(Color.mlTextSecondary)
                 }
                 Spacer()
-                Image(systemName: isCandidate ? "sparkles" : "chevron.right")
+                Image(systemName: "sparkles")
                     .foregroundStyle(Color.mlAccent)
             }
 
@@ -137,10 +224,8 @@ struct RoutesView: View {
                 .init(value: route.elevation, unit: "m", label: "Ascent")
             ])
 
-            if isCandidate {
-                SecondaryButton(title: "Use This Route", systemImage: "checkmark.circle.fill") {
-                    Haptics.success()
-                }
+            SecondaryButton(title: "Use This Route", systemImage: "checkmark.circle.fill") {
+                Haptics.success()
             }
         }
         .padding(Spacing.md)
@@ -149,6 +234,90 @@ struct RoutesView: View {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(Color.mlHairline, lineWidth: Layout.hairline)
         )
+    }
+
+    private func routeMap(_ route: [Coordinate]) -> some View {
+        Group {
+            if route.count > 1 {
+                RouteThumbnail(route: route)
+            } else {
+                ZStack {
+                    Color.mlSurfaceElevated
+                    Image(systemName: "map")
+                        .font(MLFont.displaySmall)
+                        .foregroundStyle(Color.mlTextTertiary)
+                }
+            }
+        }
+        .frame(height: 150)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+}
+
+struct PlannedRouteDetailView: View {
+    let route: PlannedRoute
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                if route.route.count > 1 {
+                    MLMapView(route: route.route, fadeColor: .mlBackground)
+                        .frame(height: 320)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                }
+
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(route.isPublic ? "Shared route" : "Saved route").mlKicker()
+                    Text(route.title)
+                        .font(MLFont.displayXL)
+                        .foregroundStyle(Color.mlTextPrimary)
+                    Text(route.summary)
+                        .font(MLFont.body)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
+
+                SegmentedMetric(items: [
+                    .init(value: route.distanceText, unit: "km", label: "Distance"),
+                    .init(value: route.estimatedTimeText, unit: "", label: "Est. Time"),
+                    .init(value: route.elevationText, unit: "m", label: "Ascent")
+                ])
+                .padding(.horizontal, Spacing.md)
+                .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                        .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+                )
+
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    SectionHeader(title: "Waypoints")
+                    ForEach(Array(route.waypoints.enumerated()), id: \.offset) { index, waypoint in
+                        HStack(spacing: Spacing.md) {
+                            Text("\(index + 1)")
+                                .font(MLFont.monoSmall)
+                                .foregroundStyle(Color.mlOnAccent)
+                                .frame(width: 30, height: 30)
+                                .background(Color.mlAccent, in: Circle())
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(index == 0 ? "Start" : "Waypoint")
+                                    .font(MLFont.callout)
+                                    .foregroundStyle(Color.mlTextPrimary)
+                                Text(String(format: "%.5f, %.5f", waypoint.latitude, waypoint.longitude))
+                                    .font(MLFont.caption)
+                                    .foregroundStyle(Color.mlTextSecondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(Spacing.md)
+                        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    }
+                }
+            }
+            .padding(.vertical, Spacing.md)
+            .mlScreenPadding()
+        }
+        .background(Color.mlBackground)
+        .navigationTitle("Route")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -181,7 +350,7 @@ private enum RouteTime: String, CaseIterable, Identifiable {
     }
 }
 
-private struct PlannedRoute: Identifiable {
+private struct RouteCandidate: Identifiable {
     let id = UUID()
     let title: String
     let distance: String
@@ -190,12 +359,7 @@ private struct PlannedRoute: Identifiable {
     let summary: String
     let preview: [Coordinate]
 
-    static let sample: [PlannedRoute] = [
-        .init(title: "Ridge Coffee Loop", distance: "72.4", time: "1h 55m", elevation: "890", summary: "Loop · 8 waypoints · saved yesterday", preview: SampleData.ridgeRoute),
-        .init(title: "Coast Range Sweepers", distance: "118.0", time: "3h 10m", elevation: "1,420", summary: "Scenic · avoids motorways", preview: SampleData.ridgeRoute.reversed())
-    ]
-
-    static func candidates(mood: RouteMood, time: RouteTime) -> [PlannedRoute] {
+    static func candidates(mood: RouteMood, time: RouteTime) -> [RouteCandidate] {
         [
             .init(title: "\(mood.title) Option 1", distance: time == .fortyFive ? "32.0" : "84.3", time: time.title, elevation: "760", summary: "Best match · smooth corners, low traffic", preview: SampleData.ridgeRoute),
             .init(title: "\(mood.title) Option 2", distance: time == .halfDay ? "146.8" : "69.5", time: time.title, elevation: "1,120", summary: "More elevation · quieter roads", preview: SampleData.ridgeRoute.reversed())
@@ -238,6 +402,8 @@ private struct FlowLayout<Content: View>: View {
 }
 
 #Preview {
-    NavigationStack { RoutesView() }
-        .preferredColorScheme(.dark)
+    NavigationStack {
+        RoutesView(viewModel: RoutesViewModel(routeService: PreviewRouteService()))
+    }
+    .preferredColorScheme(.dark)
 }

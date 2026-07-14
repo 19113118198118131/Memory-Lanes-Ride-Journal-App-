@@ -57,6 +57,31 @@ enum SampleData {
         )
     ]
 
+    static let plannedRoutes: [PlannedRoute] = [
+        .init(
+            id: UUID(),
+            title: "Ridge Coffee Loop",
+            distanceKm: 72.4,
+            elevationM: 890,
+            waypoints: [ridgeRoute[0], ridgeRoute[3], ridgeRoute[6], ridgeRoute[0]],
+            route: ridgeRoute,
+            createdAt: Date().addingTimeInterval(-86_400),
+            isPublic: false,
+            shareToken: nil
+        ),
+        .init(
+            id: UUID(),
+            title: "Coast Range Sweepers",
+            distanceKm: 118.0,
+            elevationM: 1420,
+            waypoints: [ridgeRoute[0], ridgeRoute[2], ridgeRoute[8]],
+            route: ridgeRoute.reversed(),
+            createdAt: Date().addingTimeInterval(-86_400 * 5),
+            isPublic: true,
+            shareToken: UUID()
+        )
+    ]
+
     /// A synthetic elevation profile (metres) for chart previews.
     static let elevationSamples: [ElevationSample] = (0..<120).map { i in
         let d = Double(i) / 120

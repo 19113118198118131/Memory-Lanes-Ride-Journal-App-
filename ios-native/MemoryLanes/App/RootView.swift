@@ -28,6 +28,7 @@ struct RootView: View {
 private struct MainTabShell: View {
     @ObservedObject var authStore: AuthStore
     @State private var ridePath = NavigationPath()
+    @State private var routesPath = NavigationPath()
     @State private var journalPath = NavigationPath()
     @State private var statsPath = NavigationPath()
     @State private var showingRecorder = false
@@ -65,8 +66,17 @@ private struct MainTabShell: View {
             }
             .tabItem { Label("Ride", systemImage: "location.north.line.fill") }
 
-            NavigationStack {
-                RoutesView()
+            NavigationStack(path: $routesPath) {
+                RoutesView(
+                    viewModel: RoutesViewModel(
+                        routeService: RouteService(accessToken: { authStore.accessToken })
+                    ),
+                    refreshTrigger: refreshTrigger,
+                    onSelectRoute: { routesPath.append($0) }
+                )
+                .navigationDestination(for: PlannedRoute.self) { route in
+                    PlannedRouteDetailView(route: route)
+                }
             }
             .tabItem { Label("Routes", systemImage: "map") }
 
