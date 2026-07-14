@@ -199,6 +199,7 @@ struct RideService: RideServing {
             coachScore: coach.score,
             coachScores: coach.scores,
             analytics: coach.analytics,
+            riderCraft: coach.riderCraft,
             coachTrend: coach.trend,
             feedback: metadata.feedback,
             plannedRoute: plannedRoute,

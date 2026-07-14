@@ -28,10 +28,43 @@ struct RiderCraftEvent: Identifiable, Hashable, Sendable {
 
 struct RiderCraftCalibrationSample: Hashable, Sendable {
     let cornerIndex: Int
+    let replayIndex: Int
     let drive: Double
     let apexPosition: Double
     let brakeDepth: Double
     let brakeAfterTurnInProgress: Double?
+}
+
+struct RiderCraftCalibrationReviewTarget: Identifiable, Hashable, Sendable {
+    let id: String
+    let candidateKind: RiderCraftEvent.Kind?
+    let cornerIndex: Int
+    let replayIndex: Int
+    let measuredValue: Double?
+    let threshold: Double?
+
+    var isControl: Bool { candidateKind == nil }
+}
+
+struct RiderCraftCalibrationReview: Identifiable, Codable, Equatable, Sendable {
+    enum Decision: String, Codable, CaseIterable, Sendable {
+        case match
+        case mismatch
+        case unsure
+    }
+
+    let rideID: UUID
+    let thresholdVersion: Int
+    let targetID: String
+    let candidateKind: RiderCraftEvent.Kind?
+    let cornerIndex: Int
+    let replayIndex: Int
+    let measuredValue: Double?
+    let threshold: Double?
+    let decision: Decision
+    let reviewedAt: Date
+
+    var id: String { "\(rideID.uuidString)-v\(thresholdVersion)-\(targetID)" }
 }
 
 struct RiderCraftAnalysis: Sendable {
@@ -55,6 +88,36 @@ struct RiderCraftAnalysis: Sendable {
 
     var categoryCounts: [RiderCraftEvent.Kind: Int] {
         Dictionary(grouping: events, by: \.kind).mapValues(\.count)
+    }
+
+    var calibrationReviewTargets: [RiderCraftCalibrationReviewTarget] {
+        let candidateTargets = events.map { event in
+            RiderCraftCalibrationReviewTarget(
+                id: event.id,
+                candidateKind: event.kind,
+                cornerIndex: event.cornerIndex,
+                replayIndex: event.replayIndex,
+                measuredValue: event.measuredValue,
+                threshold: event.threshold
+            )
+        }
+        let candidateCorners = Set(events.map(\.cornerIndex))
+        let controls = calibrationSamples
+            .filter { !candidateCorners.contains($0.cornerIndex) }
+            .map { sample in
+                RiderCraftCalibrationReviewTarget(
+                    id: "control-\(sample.cornerIndex)-\(sample.replayIndex)",
+                    candidateKind: nil,
+                    cornerIndex: sample.cornerIndex,
+                    replayIndex: sample.replayIndex,
+                    measuredValue: nil,
+                    threshold: nil
+                )
+            }
+        return (candidateTargets + controls).sorted {
+            if $0.replayIndex == $1.replayIndex { return $0.id < $1.id }
+            return $0.replayIndex < $1.replayIndex
+        }
     }
 
     var calibrationDebriefLine: String? {

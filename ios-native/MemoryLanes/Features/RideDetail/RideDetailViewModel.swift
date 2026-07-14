@@ -38,16 +38,25 @@ final class RideDetailViewModel {
     var playbackElapsedSeconds: TimeInterval = 0
     var isPlaying = false
     var playbackSpeed: Double = 1
+    private(set) var calibrationReviews: [String: RiderCraftCalibrationReview] = [:]
+    var calibrationReviewErrorMessage: String?
+    var isExportingCalibrationReviews = false
 
     @ObservationIgnored private var playbackTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackSaveTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackSaveID = UUID()
 
     private let rideService: RideServing
+    private let calibrationReviewStore: any RiderCraftCalibrationReviewStoring
 
-    init(ride: Ride, rideService: RideServing) {
+    init(
+        ride: Ride,
+        rideService: RideServing,
+        calibrationReviewStore: any RiderCraftCalibrationReviewStoring = RiderCraftCalibrationReviewStore.shared
+    ) {
         self.ride = ride
         self.rideService = rideService
+        self.calibrationReviewStore = calibrationReviewStore
     }
 
     var detail: RideDetail? {
@@ -75,6 +84,14 @@ final class RideDetailViewModel {
 
     var canReplay: Bool {
         (detail?.replayPoints.count ?? 0) > 1
+    }
+
+    var calibrationReviewTargets: [RiderCraftCalibrationReviewTarget] {
+        detail?.riderCraft?.calibrationReviewTargets ?? []
+    }
+
+    var calibrationReviewedCount: Int {
+        calibrationReviewTargets.filter { calibrationReviews[$0.id] != nil }.count
     }
 
     var currentReplayPoint: ReplayPoint? {
@@ -148,6 +165,7 @@ final class RideDetailViewModel {
             playbackElapsedSeconds = detail.replayPoints.indices.contains(playbackIndex)
                 ? detail.replayPoints[playbackIndex].elapsedSeconds
                 : 0
+            await loadCalibrationReviews(for: detail.riderCraft)
         } catch is CancellationError {
         } catch {
             state = .failed(error.localizedDescription)
@@ -207,6 +225,54 @@ final class RideDetailViewModel {
     func scrubPlayback(to index: Int) {
         pausePlayback()
         setPlaybackIndex(index)
+    }
+
+    func focusCalibrationTarget(_ target: RiderCraftCalibrationReviewTarget) {
+        scrubPlayback(to: target.replayIndex)
+    }
+
+    func calibrationDecision(for target: RiderCraftCalibrationReviewTarget) -> RiderCraftCalibrationReview.Decision? {
+        calibrationReviews[target.id]?.decision
+    }
+
+    func saveCalibrationDecision(
+        _ decision: RiderCraftCalibrationReview.Decision,
+        for target: RiderCraftCalibrationReviewTarget
+    ) async -> Bool {
+        guard let analysis = detail?.riderCraft else { return false }
+        let review = RiderCraftCalibrationReview(
+            rideID: ride.id,
+            thresholdVersion: analysis.thresholdVersion,
+            targetID: target.id,
+            candidateKind: target.candidateKind,
+            cornerIndex: target.cornerIndex,
+            replayIndex: target.replayIndex,
+            measuredValue: target.measuredValue,
+            threshold: target.threshold,
+            decision: decision,
+            reviewedAt: Date()
+        )
+        do {
+            try await calibrationReviewStore.save(review)
+            calibrationReviews[target.id] = review
+            calibrationReviewErrorMessage = nil
+            return true
+        } catch {
+            calibrationReviewErrorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func exportCalibrationReviews() async throws -> URL {
+        isExportingCalibrationReviews = true
+        calibrationReviewErrorMessage = nil
+        defer { isExportingCalibrationReviews = false }
+        do {
+            return try await calibrationReviewStore.makeExportFile()
+        } catch {
+            calibrationReviewErrorMessage = error.localizedDescription
+            throw error
+        }
     }
 
     private func startPlayback() {
@@ -277,6 +343,24 @@ final class RideDetailViewModel {
         guard interval > 0 else { return current[keyPath: keyPath] }
         let progress = min(max((playbackElapsedSeconds - current.elapsedSeconds) / interval, 0), 1)
         return current[keyPath: keyPath] + (next[keyPath: keyPath] - current[keyPath: keyPath]) * progress
+    }
+
+    private func loadCalibrationReviews(for analysis: RiderCraftAnalysis?) async {
+        guard let analysis else {
+            calibrationReviews = [:]
+            return
+        }
+        do {
+            let reviews = try await calibrationReviewStore.reviews(
+                for: ride.id,
+                thresholdVersion: analysis.thresholdVersion
+            )
+            calibrationReviews = Dictionary(uniqueKeysWithValues: reviews.map { ($0.targetID, $0) })
+            calibrationReviewErrorMessage = nil
+        } catch {
+            calibrationReviews = [:]
+            calibrationReviewErrorMessage = error.localizedDescription
+        }
     }
 
     private func formatElapsed(_ seconds: TimeInterval) -> String {

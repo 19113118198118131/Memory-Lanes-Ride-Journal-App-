@@ -63,11 +63,12 @@ Audit result: **not approved for public rollout**. The existing production gate 
 
 ## Next Review
 
-1. Add a calibration-only replay surface that opens each event at its stored replay index.
-2. Manually label a balanced sample of event and non-event corners for the three plausible detectors.
-3. Replace or remove early-apex before any Rider Craft UI is enabled.
-4. Re-run the report with versioned candidate thresholds and add regression fixtures for confirmed false positives.
-5. Repeat with additional riders, road types, GPS qualities, and weather before changing `calibrated` to true.
+The development build now includes a calibration-only review surface that opens each candidate and unflagged control corner at its stored replay index. Decisions are stored locally by ride and threshold version and can be exported as versioned JSON. They do not change coaching, upload to Supabase, or enable production UI.
+
+1. Manually label a balanced sample of candidate and control corners for the three plausible detectors.
+2. Replace or remove early-apex before any Rider Craft UI is enabled.
+3. Re-run the report with versioned candidate thresholds and add regression fixtures for confirmed false positives and misses.
+4. Repeat with additional riders, road types, GPS qualities, and weather before changing `calibrated` to true.
 
 ## Reproducing The Aggregate Report
 

@@ -39,6 +39,7 @@ struct RiderCraftAnalyzer: Sendable {
             samples.append(
                 RiderCraftCalibrationSample(
                     cornerIndex: corner.cornerIndex,
+                    replayIndex: corner.apexIndex,
                     drive: corner.drive,
                     apexPosition: corner.apexPosition,
                     brakeDepth: corner.brakeDepth,

@@ -140,11 +140,14 @@ Completed in native SwiftUI:
 - Versioned storage inside the existing `skills.craft` payload with `calibrated: false`.
 - Positive, negative, insufficient-data, debrief, replay-link, and storage fixtures.
 - A rollout gate that keeps calibration copy out of production UI.
+- A development-only replay review surface for candidate and unflagged control corners.
+- Local, versioned calibration labels with JSON export; review data does not alter rider coaching or Supabase records.
 
 Still required before Phase 1 can surface publicly:
 
 - Expand beyond the first nine-ride, same-rider calibration batch to varied riders, roads, devices, and weather.
-- Review false positives by replaying the linked corners.
+- Label a balanced sample of candidate and control corners using the replay review surface.
+- Turn confirmed false positives and misses into versioned detector regression fixtures.
 - Replace or remove the early-apex proxy; threshold sensitivity remained too noisy for production.
 - Review a zero-drive flat-exit candidate against replay evidence.
 - Resolve the failed Phase 1 perverse-incentive audit recorded in `rider-craft-phase1-calibration.md`.

@@ -13,6 +13,7 @@ struct RideDetailView: View {
     @State private var viewModel: RideDetailViewModel
     @State private var activityPayload: ActivityPayload?
     @State private var momentEditor: MomentEditorContext?
+    @State private var showingCalibrationReview = false
     @State private var isRendering = false
     @Environment(\.dismiss) private var dismiss
 
@@ -88,6 +89,11 @@ struct RideDetailView: View {
             )
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showingCalibrationReview) {
+            RiderCraftCalibrationReviewView(viewModel: viewModel)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -404,17 +410,25 @@ struct RideDetailView: View {
                 SkeletonBar(height: 150, radius: Radius.card).mlShimmer()
             }
         case .loaded(let detail):
-            if detail.corners.isEmpty {
-                EmptyState(systemImage: "point.topleft.down.to.point.bottomright.curvepath",
-                           title: "No corners analysed",
-                           message: "This ride didn’t have enough cornering data to build tickets.")
-            } else {
-                LazyVStack(spacing: Spacing.md) {
-                    ForEach(detail.corners) { ticket in
-                        CornerTicketCard(ticket: ticket) {
-                            guard let index = ticket.replayIndex else { return }
-                            viewModel.scrubPlayback(to: index)
-                            viewModel.section = .overview
+            VStack(spacing: Spacing.md) {
+                #if DEBUG
+                if !viewModel.calibrationReviewTargets.isEmpty {
+                    calibrationReviewCard
+                }
+                #endif
+
+                if detail.corners.isEmpty {
+                    EmptyState(systemImage: "point.topleft.down.to.point.bottomright.curvepath",
+                               title: "No corners analysed",
+                               message: "This ride didn’t have enough cornering data to build tickets.")
+                } else {
+                    LazyVStack(spacing: Spacing.md) {
+                        ForEach(detail.corners) { ticket in
+                            CornerTicketCard(ticket: ticket) {
+                                guard let index = ticket.replayIndex else { return }
+                                viewModel.scrubPlayback(to: index)
+                                viewModel.section = .overview
+                            }
                         }
                     }
                 }
@@ -422,6 +436,45 @@ struct RideDetailView: View {
         case .failed(let message):
             inlineError(message)
         }
+    }
+
+    private var calibrationReviewCard: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("Development only").mlKicker()
+                    Text("Rider Craft calibration")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                }
+                Spacer()
+                Text("\(viewModel.calibrationReviewedCount) / \(viewModel.calibrationReviewTargets.count)")
+                    .font(MLFont.monoSmall)
+                    .foregroundStyle(Color.mlInfo)
+            }
+
+            Text("Replay detector candidates and unflagged controls, then export the labels for threshold review.")
+                .font(MLFont.callout)
+                .foregroundStyle(Color.mlTextSecondary)
+
+            Button {
+                showingCalibrationReview = true
+            } label: {
+                Label("Open Calibration Review", systemImage: "scope")
+                    .font(MLFont.bodyEmphasised)
+                    .foregroundStyle(Color.mlOnAccent)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(Color.mlAccent, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+            }
+            .buttonStyle(MLPressableButtonStyle())
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.mlInfo.opacity(0.45), lineWidth: Layout.hairline)
+        )
     }
 
     private func routeMatchCard(route: PlannedRoute, match: RouteMatchSummary) -> some View {
