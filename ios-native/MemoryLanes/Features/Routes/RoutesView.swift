@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 // MARK: - RoutesView
 //
@@ -634,7 +635,7 @@ private struct RouteEditSheet: View {
                     Text("Edit Route")
                         .font(MLFont.display)
                         .foregroundStyle(Color.mlTextPrimary)
-                    Text("Rename the route, reorder stops, or add a midpoint stop. Saving rebuilds the route line used by GPX export and ride recording.")
+                    Text("Rename the route, tap the map to add stops, or reorder the waypoint list. Saving rebuilds the route line used by GPX export and ride recording.")
                         .font(MLFont.body)
                         .foregroundStyle(Color.mlTextSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -655,7 +656,9 @@ private struct RouteEditSheet: View {
                         .disabled(isSaving)
                 }
 
-                RouteThumbnail(route: previewRoute)
+                EditableRouteMap(route: previewRoute, waypoints: waypoints) { coordinate in
+                    addWaypoint(at: coordinate)
+                }
                     .frame(height: 170)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
 
@@ -674,7 +677,7 @@ private struct RouteEditSheet: View {
                         }
                         .buttonStyle(MLPressableButtonStyle())
                         .disabled(isSaving || waypoints.count < 2)
-                        .accessibilityLabel("Add waypoint")
+                        .accessibilityLabel("Add midpoint waypoint")
                     }
 
                     ForEach(Array(waypoints.enumerated()), id: \.offset) { index, waypoint in
@@ -774,8 +777,12 @@ private struct RouteEditSheet: View {
             latitude: (first.latitude + last.latitude) / 2,
             longitude: (first.longitude + last.longitude) / 2
         )
+        addWaypoint(at: middle)
+    }
+
+    private func addWaypoint(at coordinate: Coordinate) {
         let insertionIndex = max(waypoints.count - 1, 1)
-        waypoints.insert(middle, at: insertionIndex)
+        waypoints.insert(coordinate, at: insertionIndex)
     }
 
     private func moveWaypoint(from index: Int, offset: Int) {
@@ -797,6 +804,59 @@ private extension PlannedRoute {
         }
         guard let first = route.first, let last = route.last else { return waypoints }
         return [first, last]
+    }
+}
+
+private struct EditableRouteMap: View {
+    let route: [Coordinate]
+    let waypoints: [Coordinate]
+    let onAddWaypoint: (Coordinate) -> Void
+
+    private var routeCoordinates: [CLLocationCoordinate2D] {
+        route.clCoordinates
+    }
+
+    var body: some View {
+        MapReader { proxy in
+            Map(initialPosition: .region(RouteGeometry.region(for: route.isEmpty ? waypoints : route))) {
+                if routeCoordinates.count > 1 {
+                    MapPolyline(coordinates: routeCoordinates)
+                        .stroke(Color.mlAccent, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                }
+
+                ForEach(Array(waypoints.enumerated()), id: \.offset) { index, waypoint in
+                    Annotation(waypointLabel(index), coordinate: waypoint.clCoordinate) {
+                        Text("\(index + 1)")
+                            .font(MLFont.monoSmall)
+                            .foregroundStyle(Color.mlOnAccent)
+                            .frame(width: 28, height: 28)
+                            .background(Color.mlAccent, in: Circle())
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                            .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
+                    }
+                }
+            }
+            .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
+            .overlay(alignment: .bottomLeading) {
+                Label("Tap map to add stop", systemImage: "hand.tap.fill")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .padding(.horizontal, Spacing.sm)
+                    .frame(height: 32)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(Spacing.sm)
+            }
+            .onTapGesture(coordinateSpace: .local) { point in
+                guard let coordinate = proxy.convert(point, from: .local) else { return }
+                onAddWaypoint(Coordinate(latitude: coordinate.latitude, longitude: coordinate.longitude))
+            }
+        }
+    }
+
+    private func waypointLabel(_ index: Int) -> String {
+        if index == 0 { return "Start" }
+        if index == waypoints.count - 1 { return "Finish" }
+        return "Stop \(index)"
     }
 }
 
