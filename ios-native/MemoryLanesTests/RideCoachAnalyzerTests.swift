@@ -58,9 +58,13 @@ final class RideCoachAnalyzerTests: XCTestCase {
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let composition = try XCTUnwrap(object["comp"] as? [String: Any])
         let corners = try XCTUnwrap(object["corners"] as? [[String: Any]])
+        let craft = try XCTUnwrap(object["craft"] as? [String: Any])
 
         XCTAssertFalse(composition.isEmpty)
         XCTAssertNotNil(corners.first?["ld"])
+        XCTAssertEqual(craft["version"] as? Int, RiderCraftThresholds.current.version)
+        XCTAssertEqual(craft["calibrated"] as? Bool, false)
+        XCTAssertNotNil(craft["events"])
     }
 
     private func makeStraightTrack(speeds: [Double]) -> [RecordingPoint] {

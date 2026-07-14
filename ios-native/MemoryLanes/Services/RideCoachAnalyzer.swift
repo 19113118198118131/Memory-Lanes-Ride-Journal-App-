@@ -5,9 +5,17 @@ struct RideCoachAnalysis: Sendable {
     var scores: [RideCoachScore]
     var corners: [CornerTicket]
     var analytics: RideAnalytics
+    var riderCraft: RiderCraftAnalysis
     var storageSummary: RideCoachStorageSummary?
     var debrief: String?
     var trend: String?
+}
+
+struct RiderCraftRollout: Sendable {
+    let surfacesCalibrationDebrief: Bool
+
+    static let production = RiderCraftRollout(surfacesCalibrationDebrief: false)
+    static let calibration = RiderCraftRollout(surfacesCalibrationDebrief: true)
 }
 
 struct RideCoachStorageSummary: Encodable, Sendable {
@@ -16,6 +24,7 @@ struct RideCoachStorageSummary: Encodable, Sendable {
     let scores: [String: Double]
     let composition: [String: Int]
     let corners: [RideCoachCornerSummary]
+    let riderCraft: RiderCraftStorageSummary?
     let note: String?
 
     enum CodingKeys: String, CodingKey {
@@ -24,6 +33,7 @@ struct RideCoachStorageSummary: Encodable, Sendable {
         case scores
         case composition = "comp"
         case corners
+        case riderCraft = "craft"
         case note
     }
 }
@@ -49,7 +59,12 @@ struct RideCoachCornerSummary: Codable, Sendable {
 }
 
 private extension RideCoachStorageSummary {
-    init(scores: [RideCoachScore], corners: [CornerEvent], composition: [RideCompositionSlice]) {
+    init(
+        scores: [RideCoachScore],
+        corners: [CornerEvent],
+        composition: [RideCompositionSlice],
+        riderCraft: RiderCraftAnalysis
+    ) {
         self.version = 1
         self.analysedAt = Date()
         self.scores = Dictionary(uniqueKeysWithValues: scores.map { ($0.kind.storageKey, Double($0.value)) })
@@ -58,6 +73,7 @@ private extension RideCoachStorageSummary {
             .sorted { $0.maxSignal > $1.maxSignal }
             .prefix(40)
             .map(RideCoachCornerSummary.init(event:))
+        self.riderCraft = RiderCraftStorageSummary(analysis: riderCraft)
         self.note = nil
     }
 
@@ -68,6 +84,7 @@ private extension RideCoachStorageSummary {
             scores: [:],
             composition: [:],
             corners: [],
+            riderCraft: nil,
             note: note
         )
     }
@@ -87,6 +104,11 @@ private extension RideCoachCornerSummary {
 
 struct RideCoachAnalyzer {
     private let minimumPointCount = 20
+    private let riderCraftRollout: RiderCraftRollout
+
+    init(riderCraftRollout: RiderCraftRollout = .production) {
+        self.riderCraftRollout = riderCraftRollout
+    }
 
     func analyze(
         points: [RecordingPoint],
@@ -99,6 +121,7 @@ struct RideCoachAnalyzer {
                 scores: [],
                 corners: [],
                 analytics: .empty,
+                riderCraft: .unavailable("Not enough GPS points"),
                 storageSummary: .insufficient("Not enough GPS points"),
                 debrief: "Not enough GPS points for Ride Coach yet. A one-second GPX recording gives the best feedback.",
                 trend: nil
@@ -112,6 +135,7 @@ struct RideCoachAnalyzer {
                 scores: [],
                 corners: [],
                 analytics: .empty,
+                riderCraft: .unavailable("Ride too short"),
                 storageSummary: .insufficient("Ride too short"),
                 debrief: "This ride is too short for useful technique feedback.",
                 trend: nil
@@ -146,6 +170,10 @@ struct RideCoachAnalyzer {
             jerk: jerk,
             speeds: speeds,
             projected: projected
+        )
+        let riderCraft = RiderCraftAnalyzer().analyze(
+            corners: cornerEvents.map(\.riderCraftSignal),
+            brakingZones: brakingZones
         )
         let brakingSmoothness = zoneSmoothnessScore(brakingZones)
         let throttleSmoothness = zoneSmoothnessScore(driveZones)
@@ -190,8 +218,14 @@ struct RideCoachAnalyzer {
                 event.ticket(repeatNote: repeatNote(for: event, pastCorners: pastCorners))
             },
             analytics: analytics,
-            storageSummary: RideCoachStorageSummary(scores: coachScores, corners: cornerEvents, composition: composition),
-            debrief: buildDebrief(scores: coachScores),
+            riderCraft: riderCraft,
+            storageSummary: RideCoachStorageSummary(
+                scores: coachScores,
+                corners: cornerEvents,
+                composition: composition,
+                riderCraft: riderCraft
+            ),
+            debrief: debrief(scores: coachScores, riderCraft: riderCraft),
             trend: buildTrendLine(scores: coachScores, recentScores: recentScores)
         )
     }
@@ -603,6 +637,14 @@ struct RideCoachAnalyzer {
         return "\(strength), but \(weakness). Next ride, focus on \(focus)."
     }
 
+    private func debrief(scores: [RideCoachScore], riderCraft: RiderCraftAnalysis) -> String? {
+        let coachDebrief = buildDebrief(scores: scores)
+        guard riderCraftRollout.surfacesCalibrationDebrief,
+              let craftLine = riderCraft.calibrationDebriefLine else { return coachDebrief }
+        guard let coachDebrief else { return craftLine }
+        return "\(coachDebrief) \(craftLine)"
+    }
+
     private func buildTrendLine(scores: [RideCoachScore], recentScores: [String: Double]) -> String? {
         guard !scores.isEmpty, !recentScores.isEmpty else { return nil }
         let changes = scores.compactMap { score -> (RideCoachScore, Double)? in
@@ -656,6 +698,18 @@ private struct CornerEvent: Sendable {
     let leanDegrees: Double
 
     var maxSignal: Double { maxLateralG }
+
+    var riderCraftSignal: RiderCraftCornerSignal {
+        RiderCraftCornerSignal(
+            cornerIndex: rank,
+            startIndex: start,
+            apexIndex: apex,
+            endIndex: end,
+            drive: drive,
+            apexPosition: apexPosition,
+            brakeDepth: brakeDepth
+        )
+    }
 
     var analyticsPoint: CornerAnalyticsPoint {
         CornerAnalyticsPoint(

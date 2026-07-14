@@ -1,6 +1,6 @@
 # Rider Craft: Safety-First Skill Progression
 
-Status: Planned
+Status: Phase 1 implemented; real-ride calibration pending
 Owner surface: Native SwiftUI app
 Depends on: Ride Coach analytics, corner replay, weather, persisted skill history
 
@@ -129,3 +129,22 @@ A Rider Craft phase is done only when it satisfies the app-wide definition of do
 ## First Development Slice
 
 Build Phase 1 only: four detectors, event models with replay indices, synthetic tests, calibration fixtures, and one honest Ride Coach debrief line. Do not begin the focus system, badges, or Craft page until the detector review passes.
+
+## Implementation Status
+
+Completed in native SwiftUI:
+
+- Versioned thresholds and four deterministic detectors.
+- Replay-linked event evidence with measured values and thresholds.
+- Honest insufficient-corner state; the event rate requires at least three detected corners.
+- Versioned storage inside the existing `skills.craft` payload with `calibrated: false`.
+- Positive, negative, insufficient-data, debrief, replay-link, and storage fixtures.
+- A rollout gate that keeps calibration copy out of production UI.
+
+Still required before Phase 1 can surface publicly:
+
+- Run the detector output across a representative batch of real rides.
+- Review false positives by replaying the linked corners.
+- Revisit the flat-exit and early-apex thresholds using that evidence.
+- Record and pass the Phase 1 perverse-incentive audit.
+- Change the stored calibration status only through a versioned threshold release.
