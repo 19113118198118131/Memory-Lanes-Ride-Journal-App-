@@ -24,7 +24,7 @@ struct RideCoachStorageSummary: Encodable, Sendable {
     }
 }
 
-struct RideCoachCornerSummary: Encodable, Sendable {
+struct RideCoachCornerSummary: Codable, Sendable {
     let latitude: Double
     let longitude: Double
     let headingDegrees: Int
@@ -79,7 +79,7 @@ private extension RideCoachCornerSummary {
 struct RideCoachAnalyzer {
     private let minimumPointCount = 20
 
-    func analyze(points: [RecordingPoint]) -> RideCoachAnalysis {
+    func analyze(points: [RecordingPoint], pastCorners: [RideCoachCornerSummary] = []) -> RideCoachAnalysis {
         guard points.count >= minimumPointCount else {
             return RideCoachAnalysis(
                 score: nil,
@@ -133,7 +133,9 @@ struct RideCoachAnalyzer {
         return RideCoachAnalysis(
             score: score,
             scores: coachScores,
-            corners: cornerEvents.map(\.ticket),
+            corners: cornerEvents.map { event in
+                event.ticket(repeatNote: repeatNote(for: event, pastCorners: pastCorners))
+            },
             storageSummary: RideCoachStorageSummary(scores: coachScores, corners: cornerEvents),
             debrief: buildDebrief(score: score, corners: cornerEvents, brakingSmoothness: brakingSmoothness, throttleSmoothness: throttleSmoothness)
         )
@@ -324,6 +326,23 @@ struct RideCoachAnalyzer {
         }
         return "\(grade) ride: route and speed traces were clean enough for a first coach score. A denser GPX log will sharpen corner feedback."
     }
+
+    private func repeatNote(for event: CornerEvent, pastCorners: [RideCoachCornerSummary]) -> String? {
+        let matches = pastCorners.filter { past in
+            haversineMeters(
+                event.apexCoordinate.latitude,
+                event.apexCoordinate.longitude,
+                past.latitude,
+                past.longitude
+            ) < 35 && headingDifference(event.apexHeadingDegrees, past.headingDegrees) < 60
+        }
+        guard !matches.isEmpty else { return nil }
+
+        let bestPast = matches.map(\.apexKmh).max() ?? 0
+        let current = Int(event.apexKmh.rounded())
+        let comparison = current > bestPast ? "new best" : "best \(bestPast) km/h"
+        return "Ridden \(matches.count + 1)x · apex today \(current) km/h, \(comparison)"
+    }
 }
 
 private struct CornerEvent: Sendable {
@@ -345,7 +364,7 @@ private struct CornerEvent: Sendable {
 
     var maxSignal: Double { sweepDegrees / max(radiusMeters, 1) }
 
-    var ticket: CornerTicket {
+    func ticket(repeatNote: String? = nil) -> CornerTicket {
         CornerTicket(
             index: rank,
             shape: shape,
@@ -353,7 +372,8 @@ private struct CornerEvent: Sendable {
             apexSpeed: Int(apexKmh.rounded()),
             exitSpeed: Int(exitKmh.rounded()),
             verdict: verdict,
-            tip: tip
+            tip: tip,
+            repeatNote: repeatNote
         )
     }
 
@@ -504,6 +524,22 @@ private func signedHeadingDelta(heading: [Double], start: Int, end: Int) -> Doub
         delta += normalizedAngle(heading[index] - heading[index - 1])
     }
     return delta
+}
+
+private func haversineMeters(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
+    let earthRadius = 6_371_000.0
+    let dLat = (lat2 - lat1) * .pi / 180
+    let dLon = (lon2 - lon1) * .pi / 180
+    let startLat = lat1 * .pi / 180
+    let endLat = lat2 * .pi / 180
+    let a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(startLat) * cos(endLat) * sin(dLon / 2) * sin(dLon / 2)
+    return 2 * earthRadius * asin(sqrt(a))
+}
+
+private func headingDifference(_ lhs: Int, _ rhs: Int) -> Int {
+    let diff = abs(lhs - rhs) % 360
+    return diff > 180 ? 360 - diff : diff
 }
 
 private func headingDegrees(_ heading: Double) -> Int {

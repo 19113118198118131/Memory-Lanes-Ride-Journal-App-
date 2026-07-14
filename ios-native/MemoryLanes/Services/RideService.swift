@@ -99,7 +99,8 @@ struct RideService: RideServing {
             accessToken: token
         )
         let track = try GPXParser().parse(data: data)
-        let coach = RideCoachAnalyzer().analyze(points: track.points)
+        let pastCorners = (try? await fetchPastCoachCorners(excluding: ride.id, accessToken: token)) ?? []
+        let coach = RideCoachAnalyzer().analyze(points: track.points, pastCorners: pastCorners)
         if let summary = coach.storageSummary {
             try? await saveCoachSummary(summary, for: ride.id, accessToken: token)
         }
@@ -159,6 +160,20 @@ struct RideService: RideServing {
             body: RideSkillsUpdatePayload(skills: summary),
             accessToken: accessToken
         )
+    }
+
+    private func fetchPastCoachCorners(excluding rideID: UUID, accessToken: String) async throws -> [RideCoachCornerSummary] {
+        let rows: [SupabaseRideSkillsRow] = try await client.get(
+            path: "rest/v1/ride_logs",
+            queryItems: [
+                URLQueryItem(name: "select", value: "id,skills"),
+                URLQueryItem(name: "id", value: "neq.\(rideID.uuidString)"),
+                URLQueryItem(name: "skills", value: "not.is.null"),
+                URLQueryItem(name: "limit", value: "150")
+            ],
+            accessToken: accessToken
+        )
+        return rows.flatMap { $0.skills?.corners ?? [] }
     }
 }
 
@@ -263,6 +278,7 @@ private struct SupabaseMoment: Decodable {
 
 private struct SupabaseSkills: Decodable {
     let scores: [String: Double]?
+    let corners: [RideCoachCornerSummary]?
 
     var flowScore: Int? {
         guard let values = scores?.values.filter({ $0.isFinite }), !values.isEmpty else { return nil }
@@ -272,6 +288,11 @@ private struct SupabaseSkills: Decodable {
 
 private struct SupabaseRideMomentRow: Decodable {
     let moments: [SupabaseMoment]?
+}
+
+private struct SupabaseRideSkillsRow: Decodable {
+    let id: UUID
+    let skills: SupabaseSkills?
 }
 
 private struct RideMomentsUpdatePayload: Encodable {
