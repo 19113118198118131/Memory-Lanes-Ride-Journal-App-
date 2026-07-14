@@ -6,9 +6,15 @@ import Foundation
 // not a concrete backend. `RideService` will wrap Supabase; `PreviewRideService`
 // feeds sample data to previews and tests. Both are injected, never global.
 
-@MainActor
-protocol RideServing {
+// The protocol is `Sendable` and NOT `@MainActor`: its methods do network I/O,
+// GPX parsing, and ride-coach analysis, all of which must run *off* the main
+// actor. Conforming types are value types with Sendable state, so a `@MainActor`
+// ViewModel can hold one and `await` it, hopping the heavy work off-main.
+protocol RideServing: Sendable {
     func fetchRides() async throws -> [Ride]
+    /// A decimated route polyline for a single ride's list thumbnail, loaded
+    /// lazily per row so the list never blocks on downloading every ride's GPX.
+    func routePreview(for ride: Ride) async throws -> [Coordinate]
     /// Full analysis for one ride, loaded when the rider opens it.
     func fetchDetail(for ride: Ride) async throws -> RideDetail
     func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment]
@@ -29,6 +35,12 @@ struct PreviewRideService: RideServing {
         try await Task.sleep(for: delay)
         if let failure { throw failure }
         return rides
+    }
+
+    func routePreview(for ride: Ride) async throws -> [Coordinate] {
+        try await Task.sleep(for: .milliseconds(200))
+        if let failure { throw failure }
+        return ride.routePreview.isEmpty ? SampleData.ridgeRoute : ride.routePreview
     }
 
     func fetchDetail(for ride: Ride) async throws -> RideDetail {
@@ -71,16 +83,16 @@ struct PreviewRideService: RideServing {
 // MARK: - Live implementation
 
 struct RideService: RideServing {
-    var accessToken: () -> String?
-    private var client = SupabaseHTTPClient()
-    private var weatherService = OpenMeteoWeatherService()
+    let accessToken: @Sendable () async -> String?
+    private let client = SupabaseHTTPClient()
+    private let weatherService = OpenMeteoWeatherService()
 
-    init(accessToken: @escaping () -> String?) {
+    init(accessToken: @escaping @Sendable () async -> String?) {
         self.accessToken = accessToken
     }
 
     func fetchRides() async throws -> [Ride] {
-        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let rows: [SupabaseRideRow] = try await client.get(
             path: "rest/v1/ride_logs",
             queryItems: [
@@ -89,20 +101,21 @@ struct RideService: RideServing {
             ],
             accessToken: token
         )
-        var hydrated: [Ride] = []
-        for row in rows {
-            var ride = row.ride
-            if let gpxPath = row.gpxPath,
-               let track = try? await downloadTrack(path: gpxPath, accessToken: token) {
-                ride.routePreview = track.routePreview
-            }
-            hydrated.append(ride)
-        }
-        return hydrated
+        // Return the list immediately. Route thumbnails are hydrated lazily,
+        // per row (see `routePreview(for:)`), so opening the dashboard never
+        // waits on downloading and parsing every ride's GPX file up front.
+        return rows.map(\.ride)
+    }
+
+    func routePreview(for ride: Ride) async throws -> [Coordinate] {
+        guard let gpxPath = ride.gpxPath else { return [] }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        let track = try await downloadTrack(path: gpxPath, accessToken: token)
+        return track.routePreview
     }
 
     func fetchDetail(for ride: Ride) async throws -> RideDetail {
-        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let storedMoments = try await fetchStoredMoments(for: ride.id, accessToken: token)
         guard let gpxPath = ride.gpxPath else {
             return RideDetail(id: ride.id, routePreview: [], replayPoints: [], elevation: [], corners: [], moments: storedMoments, weather: nil, coachScore: nil, coachScores: [], debrief: "This ride does not have an attached GPX file yet.")
@@ -149,7 +162,7 @@ struct RideService: RideServing {
     }
 
     func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment] {
-        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let payload = RideMomentsUpdatePayload(moments: moments.enumerated().map { offset, moment in
             SupabaseMomentPayload(moment: moment, fallbackIndex: offset)
         })
@@ -163,7 +176,7 @@ struct RideService: RideServing {
     }
 
     func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride {
-        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let payload = RideShareUpdatePayload(isPublic: isPublic)
         let rows: [SupabaseRideRow] = try await client.patch(
             path: "rest/v1/ride_logs",

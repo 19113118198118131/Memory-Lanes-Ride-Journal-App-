@@ -21,6 +21,7 @@ final class DashboardViewModel {
 
     /// Injected so the screen is testable and the network layer is swappable.
     private let rideService: RideServing
+    private var hydrationTask: Task<Void, Never>?
 
     init(rideService: RideServing) {
         self.rideService = rideService
@@ -58,9 +59,20 @@ final class DashboardViewModel {
 
     func load() async {
         state = .loading
+        await fetchAndHydrate()
+    }
+
+    func refresh() async {
+        // Same path as load, but doesn't flash the skeleton if we already
+        // have content — the pull-to-refresh spinner covers the wait.
+        await fetchAndHydrate()
+    }
+
+    private func fetchAndHydrate() async {
         do {
             let rides = try await rideService.fetchRides()
             state = rides.isEmpty ? .empty : .loaded(rides)
+            startPreviewHydration()
         } catch is CancellationError {
             // View disappeared mid-load; leave state as-is.
         } catch {
@@ -68,15 +80,24 @@ final class DashboardViewModel {
         }
     }
 
-    func refresh() async {
-        // Same path as load, but doesn't flash the skeleton if we already
-        // have content — the pull-to-refresh spinner covers the wait.
-        do {
-            let rides = try await rideService.fetchRides()
-            state = rides.isEmpty ? .empty : .loaded(rides)
-        } catch is CancellationError {
-        } catch {
-            state = .failed(error.localizedDescription)
+    /// Loads route thumbnails in the background so the list renders instantly
+    /// and fills in as each preview arrives. Not awaited by `refresh()`, so
+    /// pull-to-refresh completes as soon as the list itself is ready.
+    private func startPreviewHydration() {
+        guard case .loaded(let rides) = state else { return }
+        let service = rideService
+        hydrationTask?.cancel()
+        hydrationTask = Task { [weak self] in
+            await RidePreviewHydration.run(for: rides, using: service) { id, preview in
+                self?.applyPreview(preview, to: id)
+            }
         }
+    }
+
+    private func applyPreview(_ preview: [Coordinate], to id: UUID) {
+        guard case .loaded(var rides) = state,
+              let index = rides.firstIndex(where: { $0.id == id }) else { return }
+        rides[index].routePreview = preview
+        state = .loaded(rides)
     }
 }

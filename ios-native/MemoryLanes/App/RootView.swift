@@ -37,7 +37,7 @@ private struct MainTabShell: View {
     @State private var recorderRoute: PlannedRoute?
 
     private var rideService: RideServing {
-        RideService(accessToken: { authStore.accessToken })
+        RideService(accessToken: { await authStore.validAccessToken() })
     }
 
     private var routeService: RouteServing {

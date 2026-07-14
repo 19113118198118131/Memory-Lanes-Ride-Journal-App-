@@ -13,6 +13,7 @@ final class StatsViewModel {
 
     private(set) var state: LoadState = .loading
     private let rideService: RideServing
+    private var hydrationTask: Task<Void, Never>?
 
     init(rideService: RideServing) {
         self.rideService = rideService
@@ -106,10 +107,31 @@ final class StatsViewModel {
         do {
             let rides = try await rideService.fetchRides()
             state = rides.isEmpty ? .empty : .loaded(rides)
+            startPreviewHydration()
         } catch is CancellationError {
         } catch {
             state = .failed(error.localizedDescription)
         }
+    }
+
+    /// Route previews power the "everywhere you've ridden" map, hydrated in the
+    /// background so the totals and charts render without waiting on GPX.
+    private func startPreviewHydration() {
+        guard case .loaded(let rides) = state else { return }
+        let service = rideService
+        hydrationTask?.cancel()
+        hydrationTask = Task { [weak self] in
+            await RidePreviewHydration.run(for: rides, using: service) { id, preview in
+                self?.applyPreview(preview, to: id)
+            }
+        }
+    }
+
+    private func applyPreview(_ preview: [Coordinate], to id: UUID) {
+        guard case .loaded(var rides) = state,
+              let index = rides.firstIndex(where: { $0.id == id }) else { return }
+        rides[index].routePreview = preview
+        state = .loaded(rides)
     }
 }
 
