@@ -178,6 +178,10 @@ struct RideService: RideServing {
         } else {
             weather = nil
         }
+        let limitPointAnalysis = LimitPointAnalyzer().analyze(
+            replayPoints: track.replayPoints,
+            wet: (weather?.precipitationMm ?? 0) >= 0.2
+        )
         if let summary = coach.storageSummary {
             try? await saveCoachSummary(summary, for: ride.id, accessToken: token)
         }
@@ -200,6 +204,7 @@ struct RideService: RideServing {
             coachScores: coach.scores,
             analytics: coach.analytics,
             riderCraft: coach.riderCraft,
+            limitPointAnalysis: limitPointAnalysis,
             coachTrend: coach.trend,
             feedback: metadata.feedback,
             plannedRoute: plannedRoute,
@@ -444,6 +449,8 @@ private struct SupabaseRideRow: Decodable {
             durationSeconds: (durationMin ?? 0) * 60,
             elevationGainMeters: elevationM ?? 0,
             flowScore: skills?.flowScore,
+            coachScores: skills?.scores ?? [:],
+            riderCraftSummary: skills?.riderCraft,
             locationName: nil,
             source: gpxPath == nil ? .live : .gpx,
             routePreview: [],
@@ -499,6 +506,13 @@ private struct SupabaseMoment: Decodable {
 private struct SupabaseSkills: Decodable {
     let scores: [String: Double]?
     let corners: [RideCoachCornerSummary]?
+    let riderCraft: RiderCraftStorageSummary?
+
+    enum CodingKeys: String, CodingKey {
+        case scores
+        case corners
+        case riderCraft = "craft"
+    }
 
     var flowScore: Int? {
         guard let values = scores?.values.filter({ $0.isFinite }), !values.isEmpty else { return nil }

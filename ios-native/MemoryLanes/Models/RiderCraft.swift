@@ -1,5 +1,13 @@
 import Foundation
 
+enum RiderCraftFeature {
+    #if DEBUG
+    static let isResearchPreviewEnabled = true
+    #else
+    static let isResearchPreviewEnabled = false
+    #endif
+}
+
 struct RiderCraftEvent: Identifiable, Hashable, Sendable {
     enum Kind: String, CaseIterable, Codable, Sendable {
         case brakeAfterTurnIn
@@ -380,4 +388,54 @@ struct RiderCraftThresholds: Sendable {
         earlyApexPosition: 0.35,
         deepBrakingDepth: 0.60
     )
+}
+
+struct RiderCraftFocus: Sendable {
+    let kind: RideCoachScore.Kind
+    let title: String
+    let evidence: String
+    let drill: String
+    let target: String
+}
+
+struct RiderCraftTrendPoint: Identifiable, Sendable {
+    let rideID: UUID
+    let date: Date
+    let rate: Double
+
+    var id: UUID { rideID }
+}
+
+struct RiderCraftBadge: Identifiable, Sendable {
+    enum Kind: String, Sendable {
+        case settledEntry
+        case smoothHands
+        case repeatable
+        case lateApexHabit
+        case wetDiscipline
+    }
+
+    let kind: Kind
+    let title: String
+    let detail: String
+    let symbol: String
+    let isEarned: Bool
+
+    var id: Kind { kind }
+}
+
+struct RiderCraftProgress: Sendable {
+    let eligibleRideCount: Int
+    let currentRate: Double?
+    let comparisonRate: Double?
+    let trend: [RiderCraftTrendPoint]
+    let focus: RiderCraftFocus?
+    let badges: [RiderCraftBadge]
+    let totalCorners: Int
+    let totalEvents: Int
+
+    var rateDelta: Double? {
+        guard let currentRate, let comparisonRate else { return nil }
+        return currentRate - comparisonRate
+    }
 }

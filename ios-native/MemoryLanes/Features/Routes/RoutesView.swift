@@ -555,6 +555,10 @@ struct PlannedRouteDetailView: View {
                         .stroke(Color.mlHairline, lineWidth: Layout.hairline)
                 )
 
+                if LimitPointFeature.isResearchPreviewEnabled, route.route.count > 6 {
+                    LimitPointPlannerView(route: route.route)
+                }
+
                 actionPanel
 
                 if let errorMessage {

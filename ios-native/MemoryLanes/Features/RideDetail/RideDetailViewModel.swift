@@ -13,7 +13,7 @@ final class RideDetailViewModel {
     enum Section: String, CaseIterable, Hashable {
         case overview = "Ride"
         case analytics = "Analytics"
-        case corners = "Corners"
+        case corners = "Craft"
         case moments = "Journal"
         case weather = "Weather"
     }

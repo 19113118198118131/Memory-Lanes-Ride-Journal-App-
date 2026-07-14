@@ -85,8 +85,8 @@ struct RiderCraftAnalyzer: Sendable {
     }
 }
 
-struct RiderCraftStorageSummary: Encodable, Sendable {
-    struct StoredEvent: Encodable, Sendable {
+struct RiderCraftStorageSummary: Codable, Sendable {
+    struct StoredEvent: Codable, Sendable {
         let kind: String
         let cornerIndex: Int
         let replayIndex: Int
@@ -102,6 +102,12 @@ struct RiderCraftStorageSummary: Encodable, Sendable {
     let counts: [String: Int]
     let events: [StoredEvent]
     let unavailableReason: String?
+
+    var categoryCounts: [RiderCraftEvent.Kind: Int] {
+        Dictionary(uniqueKeysWithValues: RiderCraftEvent.Kind.allCases.map {
+            ($0, counts[$0.rawValue, default: 0])
+        })
+    }
 
     init(analysis: RiderCraftAnalysis) {
         version = analysis.thresholdVersion

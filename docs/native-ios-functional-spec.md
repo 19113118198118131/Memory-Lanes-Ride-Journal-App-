@@ -489,6 +489,12 @@ Explicit exclusions before independent approval:
 - No visual live warning.
 - No live audio warning until the dedicated release gates pass.
 
+Current implementation note:
+
+- The deterministic model, planned-route preview, recorded-speed review, map overlay, and replay links are implemented for Debug research builds.
+- `LimitPointFeature.isResearchPreviewEnabled` hides every Limit Point rider surface in Release builds while the fixed-obstruction model remains unvalidated.
+- Live audio and map-derived obstruction modelling are intentionally not implemented yet.
+
 Detailed research, delivery, and safety plan: `docs/limit-point-analysis-feature-plan.md`.
 
 ## 5. Core Data Model

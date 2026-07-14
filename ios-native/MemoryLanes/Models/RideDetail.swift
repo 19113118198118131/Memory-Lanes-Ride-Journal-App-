@@ -19,6 +19,7 @@ struct RideDetail: Identifiable, Sendable {
     var coachScores: [RideCoachScore]
     var analytics: RideAnalytics? = nil
     var riderCraft: RiderCraftAnalysis? = nil
+    var limitPointAnalysis: LimitPointAnalysis? = nil
     var coachTrend: String? = nil
     var feedback: RideFeedback? = nil
     var plannedRoute: PlannedRoute? = nil

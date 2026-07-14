@@ -36,6 +36,10 @@ final class StatsViewModel {
         rides.reduce(0) { $0 + $1.durationSeconds }
     }
 
+    var riderCraftProgress: RiderCraftProgress {
+        RiderCraftProgressAnalyzer().analyze(rides: rides)
+    }
+
     var bestFlowRide: Ride? {
         rides.compactMap { ride in
             ride.flowScore.map { (ride, $0) }

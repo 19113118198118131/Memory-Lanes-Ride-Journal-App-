@@ -411,6 +411,23 @@ struct RideDetailView: View {
             }
         case .loaded(let detail):
             VStack(spacing: Spacing.md) {
+                if RiderCraftFeature.isResearchPreviewEnabled,
+                   let riderCraft = detail.riderCraft {
+                    RiderCraftRideView(analysis: riderCraft) { index in
+                        viewModel.scrubPlayback(to: index)
+                        viewModel.section = .overview
+                    }
+                }
+
+                if LimitPointFeature.isResearchPreviewEnabled,
+                   let limitPointAnalysis = detail.limitPointAnalysis,
+                   !limitPointAnalysis.corners.isEmpty {
+                    LimitPointRideView(analysis: limitPointAnalysis) { index in
+                        viewModel.scrubPlayback(to: index)
+                        viewModel.section = .overview
+                    }
+                }
+
                 #if DEBUG
                 if !viewModel.calibrationReviewTargets.isEmpty {
                     calibrationReviewCard

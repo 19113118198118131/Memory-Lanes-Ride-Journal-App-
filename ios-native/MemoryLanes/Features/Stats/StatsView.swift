@@ -56,6 +56,9 @@ struct StatsView: View {
             loadingContent
         case .loaded:
             totals
+            if RiderCraftFeature.isResearchPreviewEnabled {
+                RiderCraftProgressView(progress: viewModel.riderCraftProgress)
+            }
             monthlyCard
             personalBests
             riddenMap

@@ -1,6 +1,6 @@
 # Rider Craft: Safety-First Skill Progression
 
-Status: Phase 1 implemented; first real-ride calibration batch complete, rollout still gated
+Status: Full research preview implemented in Debug; production rollout remains calibration-gated
 Owner surface: Native SwiftUI app
 Depends on: Ride Coach analytics, corner replay, weather, persisted skill history
 
@@ -152,3 +152,15 @@ Still required before Phase 1 can surface publicly:
 - Review a zero-drive flat-exit candidate against replay evidence.
 - Resolve the failed Phase 1 perverse-incentive audit recorded in `rider-craft-phase1-calibration.md`.
 - Change the stored calibration status only through a versioned threshold release.
+
+## Research Preview Status
+
+The native Debug build now includes the end-to-end Rider Craft research experience:
+
+- Four deterministic, replay-linked detector categories persisted in `skills.craft`.
+- Per-ride evidence, category counts, and survival reactions per corner.
+- A personal-only recent trend and one calm practice focus.
+- Safety-positive badge infrastructure with unvalidated badges kept locked.
+- Existing calibration review controls and regression tests.
+
+`RiderCraftFeature.isResearchPreviewEnabled` is enabled only for Debug builds. Release builds keep the Rider Craft headline, trend, focus, and badges hidden until the calibration and perverse-incentive gates above pass. Ride recording, saving, replay, and Ride Coach remain independent of this gate.

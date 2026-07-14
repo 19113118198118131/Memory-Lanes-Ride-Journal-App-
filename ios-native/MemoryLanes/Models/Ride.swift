@@ -18,6 +18,9 @@ struct Ride: Identifiable, Hashable, Sendable {
     var elevationGainMeters: Double
     /// Ride Coach flow score, 0–100, if analysed.
     var flowScore: Int?
+    /// Persisted technique axes and safety-first Rider Craft detector summary.
+    var coachScores: [String: Double]
+    var riderCraftSummary: RiderCraftStorageSummary?
     /// Where the ride was recorded, for the card label.
     var locationName: String?
     /// Source of the track.
@@ -40,6 +43,8 @@ struct Ride: Identifiable, Hashable, Sendable {
         durationSeconds: TimeInterval,
         elevationGainMeters: Double,
         flowScore: Int? = nil,
+        coachScores: [String: Double] = [:],
+        riderCraftSummary: RiderCraftStorageSummary? = nil,
         locationName: String? = nil,
         source: RideSource = .gpx,
         routePreview: [Coordinate] = [],
@@ -55,6 +60,8 @@ struct Ride: Identifiable, Hashable, Sendable {
         self.durationSeconds = durationSeconds
         self.elevationGainMeters = elevationGainMeters
         self.flowScore = flowScore
+        self.coachScores = coachScores
+        self.riderCraftSummary = riderCraftSummary
         self.locationName = locationName
         self.source = source
         self.routePreview = routePreview

@@ -1,6 +1,6 @@
 # Limit Point Analysis: Development Plan
 
-Status: Accepted into roadmap; research and validation only
+Status: Phase 0 model and Debug research preview implemented; reality validation remains required
 Owner surfaces: Native route planner, planned-route detail, ride replay
 Depends on: high-resolution route geometry, corner detection, weather scenarios, replay evidence, versioned analysis storage
 
@@ -188,3 +188,23 @@ SwiftUI receives immutable assessment values. Network, map parsing, geometry pro
 ## Current Decision
 
 Add Limit Point Analysis to the native roadmap immediately. Begin only with Phase 0 after the current Rider Craft calibration replay work. Do not schedule live audio, patent claims, or rider-facing absolute stopping-distance claims until the evidence and legal gates above are satisfied.
+
+## Research Preview Status
+
+The native Debug build now includes:
+
+- Pure Swift sight-distance, stopping-distance, and margin calculations.
+- Sustained-bend geometry detection with deterministic formula and route fixtures.
+- A planned-route study map with selectable legal reference-speed scenarios.
+- A post-ride review using recorded entry speed and replay-linked bend evidence.
+- Dry and conservative wet stopping scenarios, with limitations shown beside the result.
+
+The preview deliberately uses the fixed five-metre obstruction assumption from Phase 0 and is therefore gated by `LimitPointFeature.isResearchPreviewEnabled`. It is visible in Debug builds for controlled evaluation and hidden in Release builds. It is not a production safety system.
+
+Still required before production rollout:
+
+- Structured reality validation on reviewed roads and higher-resolution geometry.
+- Documented false-positive and false-negative performance.
+- A versioned map/terrain obstruction provider with confidence and staleness handling.
+- Safety, human-factors, and legal review of every rider-facing claim.
+- Live audio remains unbuilt and unapproved; it is not required for the pre-ride and post-ride product.
