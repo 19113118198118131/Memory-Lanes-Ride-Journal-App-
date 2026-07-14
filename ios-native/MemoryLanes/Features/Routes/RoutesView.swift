@@ -2,14 +2,16 @@ import SwiftUI
 
 // MARK: - RoutesView
 //
-// Native route-planning home. Saved routes now come from Supabase; generated
-// candidates remain local previews until the planner engine is ported.
+// Native route-planning home. Saved routes come from Supabase; generated
+// candidates are built locally from the chosen start, mood, and time window.
 
 struct RoutesView: View {
     @State private var viewModel: RoutesViewModel
+    @StateObject private var startLocation = RouteStartLocationProvider()
     @State private var selectedMood = RouteMood.flowing
     @State private var selectedTime = RouteTime.ninety
     @State private var showCandidates = false
+    @State private var routeCandidates: [RouteCandidate] = []
     @State private var routeSaveError: String?
     let refreshTrigger: UUID
     let onSelectRoute: (PlannedRoute) -> Void
@@ -73,7 +75,7 @@ struct RoutesView: View {
         HStack(spacing: Spacing.md) {
             PrimaryButton(title: "Plan Route", systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill") {
                 Haptics.impact(.medium)
-                withAnimation(Motion.spring) { showCandidates = true }
+                generateCandidates()
             }
             SecondaryButton(title: "Refresh", systemImage: "arrow.clockwise") {
                 Task { await viewModel.refresh() }
@@ -84,6 +86,46 @@ struct RoutesView: View {
     private var setupCard: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             SectionHeader(title: "Route setup")
+
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("Start").mlKicker()
+                HStack(spacing: Spacing.md) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text(startLocation.coordinate == nil ? "Sample start" : "Current location")
+                            .font(MLFont.headline)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text(startLocation.summary)
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    Button {
+                        startLocation.useCurrentLocation()
+                    } label: {
+                        if startLocation.isLocating {
+                            ProgressView()
+                                .tint(.mlAccent)
+                        } else {
+                            Image(systemName: "location.fill")
+                                .font(MLFont.headline)
+                                .foregroundStyle(Color.mlAccent)
+                        }
+                    }
+                    .frame(width: 44, height: 44)
+                    .background(Color.mlSurfaceElevated, in: Circle())
+                    .buttonStyle(MLPressableButtonStyle())
+                    .accessibilityLabel("Use current location")
+                }
+                .padding(Spacing.md)
+                .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+
+                if let errorMessage = startLocation.errorMessage {
+                    Text(errorMessage)
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlDanger)
+                }
+            }
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text("Mood").mlKicker()
@@ -119,9 +161,10 @@ struct RoutesView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             SectionHeader(title: "Route Candidates", actionTitle: "Regenerate") {
                 Haptics.selection()
+                generateCandidates()
             }
 
-            ForEach(RouteCandidate.candidates(mood: selectedMood, time: selectedTime)) { route in
+            ForEach(routeCandidates) { route in
                 candidateCard(route)
             }
         }
@@ -277,6 +320,22 @@ struct RoutesView: View {
             Haptics.error()
             routeSaveError = error.localizedDescription
         }
+    }
+
+    private func generateCandidates() {
+        routeSaveError = nil
+        routeCandidates = RouteCandidate.candidates(
+            mood: selectedMood,
+            time: selectedTime,
+            start: startLocation.coordinate ?? Self.sampleStart
+        )
+        withAnimation(Motion.spring) {
+            showCandidates = true
+        }
+    }
+
+    private static var sampleStart: Coordinate {
+        SampleData.ridgeRoute.first ?? Coordinate(latitude: -36.8485, longitude: 174.7633)
     }
 }
 
@@ -527,6 +586,33 @@ private enum RouteMood: String, CaseIterable, Identifiable {
         case .relaxed: "leaf.fill"
         }
     }
+
+    var averageSpeedKmH: Double {
+        switch self {
+        case .flowing: 62
+        case .twisty: 48
+        case .scenic: 54
+        case .relaxed: 44
+        }
+    }
+
+    var elevationMetersPerKm: Double {
+        switch self {
+        case .flowing: 7
+        case .twisty: 14
+        case .scenic: 12
+        case .relaxed: 5
+        }
+    }
+
+    var bearingBias: Double {
+        switch self {
+        case .flowing: 18
+        case .twisty: 47
+        case .scenic: 82
+        case .relaxed: 124
+        }
+    }
 }
 
 private enum RouteTime: String, CaseIterable, Identifiable {
@@ -538,6 +624,15 @@ private enum RouteTime: String, CaseIterable, Identifiable {
         case .ninety: "1.5 hr"
         case .threeHours: "3 hr"
         case .halfDay: "Half day"
+        }
+    }
+
+    var hours: Double {
+        switch self {
+        case .fortyFive: 0.75
+        case .ninety: 1.5
+        case .threeHours: 3
+        case .halfDay: 4.5
         }
     }
 }
@@ -575,11 +670,129 @@ private struct RouteCandidate: Identifiable {
         return [first, preview[preview.count / 2], last]
     }
 
-    static func candidates(mood: RouteMood, time: RouteTime) -> [RouteCandidate] {
-        [
-            .init(title: "\(mood.title) Option 1", distanceKm: time == .fortyFive ? 32.0 : 84.3, time: time.title, elevationM: 760, summary: "Best match · smooth corners, low traffic", preview: SampleData.ridgeRoute),
-            .init(title: "\(mood.title) Option 2", distanceKm: time == .halfDay ? 146.8 : 69.5, time: time.title, elevationM: 1120, summary: "More elevation · quieter roads", preview: SampleData.ridgeRoute.reversed())
+    static func candidates(mood: RouteMood, time: RouteTime, start: Coordinate) -> [RouteCandidate] {
+        let targetDistance = mood.averageSpeedKmH * time.hours
+        return [
+            makeCandidate(
+                title: "\(mood.title) Loop",
+                mood: mood,
+                time: time,
+                start: start,
+                targetDistanceKm: targetDistance,
+                bearingOffset: mood.bearingBias,
+                summary: "Balanced loop · generated from your route setup"
+            ),
+            makeCandidate(
+                title: "\(mood.title) Alternate",
+                mood: mood,
+                time: time,
+                start: start,
+                targetDistanceKm: targetDistance * 0.86,
+                bearingOffset: mood.bearingBias + 96,
+                summary: "Shorter option · different roads home"
+            )
         ]
+    }
+
+    private static func makeCandidate(
+        title: String,
+        mood: RouteMood,
+        time: RouteTime,
+        start: Coordinate,
+        targetDistanceKm: Double,
+        bearingOffset: Double,
+        summary: String
+    ) -> RouteCandidate {
+        let anchors = routeAnchors(start: start, distanceKm: targetDistanceKm, bearingOffset: bearingOffset)
+        let route = densifiedRoute(anchors)
+        let distanceKm = route.totalDistanceKm
+        return RouteCandidate(
+            title: title,
+            distanceKm: distanceKm,
+            time: time.title,
+            elevationM: distanceKm * mood.elevationMetersPerKm,
+            summary: summary,
+            preview: route
+        )
+    }
+
+    private static func routeAnchors(start: Coordinate, distanceKm: Double, bearingOffset: Double) -> [Coordinate] {
+        let leg = max(distanceKm / 5.2, 1.8)
+        let first = start.projected(distanceKm: leg, bearingDegrees: bearingOffset)
+        let second = first.projected(distanceKm: leg * 0.82, bearingDegrees: bearingOffset + 68)
+        let third = second.projected(distanceKm: leg * 1.05, bearingDegrees: bearingOffset + 152)
+        let fourth = third.projected(distanceKm: leg * 0.76, bearingDegrees: bearingOffset + 232)
+        return [start, first, second, third, fourth, start]
+    }
+
+    private static func densifiedRoute(_ anchors: [Coordinate]) -> [Coordinate] {
+        guard anchors.count > 1 else { return anchors }
+        var route: [Coordinate] = []
+        for index in anchors.indices.dropLast() {
+            let from = anchors[index]
+            let to = anchors[index + 1]
+            let steps = 16
+            for step in 0..<steps {
+                let progress = Double(step) / Double(steps)
+                route.append(from.interpolated(to: to, progress: progress))
+            }
+        }
+        if let last = anchors.last {
+            route.append(last)
+        }
+        return route
+    }
+}
+
+private extension Coordinate {
+    func projected(distanceKm: Double, bearingDegrees: Double) -> Coordinate {
+        let earthRadiusKm = 6371.0
+        let angularDistance = distanceKm / earthRadiusKm
+        let bearing = bearingDegrees * .pi / 180
+        let startLat = latitude * .pi / 180
+        let startLon = longitude * .pi / 180
+
+        let endLat = asin(
+            sin(startLat) * cos(angularDistance) +
+            cos(startLat) * sin(angularDistance) * cos(bearing)
+        )
+        let endLon = startLon + atan2(
+            sin(bearing) * sin(angularDistance) * cos(startLat),
+            cos(angularDistance) - sin(startLat) * sin(endLat)
+        )
+
+        return Coordinate(
+            latitude: endLat * 180 / .pi,
+            longitude: endLon * 180 / .pi
+        )
+    }
+
+    func interpolated(to other: Coordinate, progress: Double) -> Coordinate {
+        Coordinate(
+            latitude: latitude + (other.latitude - latitude) * progress,
+            longitude: longitude + (other.longitude - longitude) * progress
+        )
+    }
+
+    func distanceKm(to other: Coordinate) -> Double {
+        let earthRadiusKm = 6371.0
+        let dLat = (other.latitude - latitude) * .pi / 180
+        let dLon = (other.longitude - longitude) * .pi / 180
+        let startLat = latitude * .pi / 180
+        let endLat = other.latitude * .pi / 180
+        let a = sin(dLat / 2) * sin(dLat / 2) +
+            sin(dLon / 2) * sin(dLon / 2) * cos(startLat) * cos(endLat)
+        let c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return earthRadiusKm * c
+    }
+}
+
+private extension Array where Element == Coordinate {
+    var totalDistanceKm: Double {
+        guard count > 1 else { return 0 }
+        return zip(self, dropFirst()).reduce(0) { total, pair in
+            total + pair.0.distanceKm(to: pair.1)
+        }
     }
 }
 
