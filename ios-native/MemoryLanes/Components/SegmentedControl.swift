@@ -23,6 +23,8 @@ struct MLSegmentedControl<Item: Hashable>: View {
                 } label: {
                     Text(title(item))
                         .font(MLFont.callout)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                         .foregroundStyle(isSelected ? Color.mlOnAccent : Color.mlTextSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Spacing.xs)

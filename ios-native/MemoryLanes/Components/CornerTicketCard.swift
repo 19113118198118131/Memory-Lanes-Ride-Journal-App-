@@ -8,11 +8,13 @@ import SwiftUI
 
 struct CornerTicketCard: View {
     let ticket: CornerTicket
+    var onReplay: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             header
             speedProgression
+            metadata
             Text(ticket.tip)
                 .font(MLFont.body)
                 .foregroundStyle(Color.mlTextSecondary)
@@ -49,7 +51,45 @@ struct CornerTicketCard: View {
                     .mlCaption()
             }
             Spacer()
+            if let onReplay {
+                Button {
+                    Haptics.selection()
+                    onReplay()
+                } label: {
+                    Image(systemName: "play.fill")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .accessibilityLabel("Replay corner \(ticket.index)")
+            }
             VerdictChip(verdict: ticket.verdict)
+        }
+    }
+
+    @ViewBuilder
+    private var metadata: some View {
+        let values: [(String, String)] = [
+            ticket.radiusMeters.map { ("Radius", "~\($0) m") },
+            ticket.sweepDegrees.map { ("Sweep", "\($0) degrees") },
+            ticket.leanDegrees.map { ("Lean", "~\($0) degrees") },
+            ticket.lateralG.map { ("Lateral", String(format: "%.2f g", $0)) }
+        ].compactMap { $0 }
+
+        if !values.isEmpty {
+            HStack(spacing: Spacing.xs) {
+                ForEach(values, id: \.0) { item in
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text(item.1)
+                            .font(MLFont.monoSmall)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text(item.0).mlKicker()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.vertical, Spacing.xxs)
         }
     }
 

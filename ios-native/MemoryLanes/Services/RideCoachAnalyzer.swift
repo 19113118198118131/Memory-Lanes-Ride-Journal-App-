@@ -4,14 +4,17 @@ struct RideCoachAnalysis: Sendable {
     var score: Int?
     var scores: [RideCoachScore]
     var corners: [CornerTicket]
+    var analytics: RideAnalytics
     var storageSummary: RideCoachStorageSummary?
     var debrief: String?
+    var trend: String?
 }
 
 struct RideCoachStorageSummary: Encodable, Sendable {
     let version: Int
     let analysedAt: Date
     let scores: [String: Double]
+    let composition: [String: Int]
     let corners: [RideCoachCornerSummary]
     let note: String?
 
@@ -19,6 +22,7 @@ struct RideCoachStorageSummary: Encodable, Sendable {
         case version = "v"
         case analysedAt = "at"
         case scores
+        case composition = "comp"
         case corners
         case note
     }
@@ -31,6 +35,7 @@ struct RideCoachCornerSummary: Codable, Sendable {
     let apexKmh: Int
     let radiusMeters: Int
     let sweepDegrees: Int
+    let leanDegrees: Int?
 
     enum CodingKeys: String, CodingKey {
         case latitude = "la"
@@ -39,14 +44,16 @@ struct RideCoachCornerSummary: Codable, Sendable {
         case apexKmh = "ak"
         case radiusMeters = "r"
         case sweepDegrees = "sw"
+        case leanDegrees = "ld"
     }
 }
 
 private extension RideCoachStorageSummary {
-    init(scores: [RideCoachScore], corners: [CornerEvent]) {
+    init(scores: [RideCoachScore], corners: [CornerEvent], composition: [RideCompositionSlice]) {
         self.version = 1
         self.analysedAt = Date()
         self.scores = Dictionary(uniqueKeysWithValues: scores.map { ($0.kind.storageKey, Double($0.value)) })
+        self.composition = Dictionary(uniqueKeysWithValues: composition.map { ($0.kind.rawValue.lowercased(), Int($0.seconds.rounded())) })
         self.corners = corners
             .sorted { $0.maxSignal > $1.maxSignal }
             .prefix(40)
@@ -59,6 +66,7 @@ private extension RideCoachStorageSummary {
             version: 1,
             analysedAt: Date(),
             scores: [:],
+            composition: [:],
             corners: [],
             note: note
         )
@@ -73,20 +81,27 @@ private extension RideCoachCornerSummary {
         apexKmh = Int(event.apexKmh.rounded())
         radiusMeters = Int(event.radiusMeters.rounded())
         sweepDegrees = Int(event.sweepDegrees.rounded())
+        leanDegrees = Int(event.leanDegrees.rounded())
     }
 }
 
 struct RideCoachAnalyzer {
     private let minimumPointCount = 20
 
-    func analyze(points: [RecordingPoint], pastCorners: [RideCoachCornerSummary] = []) -> RideCoachAnalysis {
+    func analyze(
+        points: [RecordingPoint],
+        pastCorners: [RideCoachCornerSummary] = [],
+        recentScores: [String: Double] = [:]
+    ) -> RideCoachAnalysis {
         guard points.count >= minimumPointCount else {
             return RideCoachAnalysis(
                 score: nil,
                 scores: [],
                 corners: [],
+                analytics: .empty,
                 storageSummary: .insufficient("Not enough GPS points"),
-                debrief: "Not enough GPS points for Ride Coach yet. A one-second GPX recording gives the best feedback."
+                debrief: "Not enough GPS points for Ride Coach yet. A one-second GPX recording gives the best feedback.",
+                trend: nil
             )
         }
 
@@ -96,13 +111,16 @@ struct RideCoachAnalyzer {
                 score: nil,
                 scores: [],
                 corners: [],
+                analytics: .empty,
                 storageSummary: .insufficient("Ride too short"),
-                debrief: "This ride is too short for useful technique feedback."
+                debrief: "This ride is too short for useful technique feedback.",
+                trend: nil
             )
         }
 
         let speeds = movingAverage(projected.speedMetersPerSecond, window: 5)
         let acceleration = movingAverage(projected.longitudinalAcceleration(from: speeds), window: 3)
+        let jerk = projected.jerk(from: acceleration)
         let heading = projected.headingRadians
         let lateralLoad = movingAverage(projected.lateralAcceleration(from: speeds), window: 3)
 
@@ -115,8 +133,22 @@ struct RideCoachAnalyzer {
             lateralLoad: lateralLoad
         )
 
-        let brakingSmoothness = smoothnessScore(acceleration.filter { $0 < -0.9 })
-        let throttleSmoothness = smoothnessScore(acceleration.filter { $0 > 0.7 })
+        let brakingZones = inputZones(
+            kind: .braking,
+            acceleration: acceleration,
+            jerk: jerk,
+            speeds: speeds,
+            projected: projected
+        )
+        let driveZones = inputZones(
+            kind: .drive,
+            acceleration: acceleration,
+            jerk: jerk,
+            speeds: speeds,
+            projected: projected
+        )
+        let brakingSmoothness = zoneSmoothnessScore(brakingZones)
+        let throttleSmoothness = zoneSmoothnessScore(driveZones)
         let entryScore = cornerEntryScore(cornerEvents)
         let exitScore = exitDriveScore(cornerEvents)
         let consistency = consistencyScore(cornerEvents)
@@ -129,15 +161,38 @@ struct RideCoachAnalyzer {
             throttleSmoothness: throttleSmoothness,
             consistency: consistency
         )
+        let composition = rideComposition(
+            projected: projected,
+            speeds: speeds,
+            lateralLoad: lateralLoad,
+            brakingZones: brakingZones,
+            driveZones: driveZones
+        )
+        var analytics = RideAnalytics(
+            acceleration: accelerationSeries(projected: projected, acceleration: acceleration),
+            brakingZones: brakingZones,
+            driveZones: driveZones,
+            gripUsage: gripUsageSeries(projected: projected, acceleration: acceleration, lateralLoad: lateralLoad),
+            cornerPoints: cornerEvents.map(\.analyticsPoint),
+            composition: composition,
+            insights: []
+        )
+        analytics.insights = buildInsights(
+            analytics: analytics,
+            points: points,
+            scores: coachScores
+        )
 
         return RideCoachAnalysis(
             score: score,
             scores: coachScores,
-            corners: cornerEvents.map { event in
+            corners: cornerEvents.prefix(10).map { event in
                 event.ticket(repeatNote: repeatNote(for: event, pastCorners: pastCorners))
             },
-            storageSummary: RideCoachStorageSummary(scores: coachScores, corners: cornerEvents),
-            debrief: buildDebrief(score: score, corners: cornerEvents, brakingSmoothness: brakingSmoothness, throttleSmoothness: throttleSmoothness)
+            analytics: analytics,
+            storageSummary: RideCoachStorageSummary(scores: coachScores, corners: cornerEvents, composition: composition),
+            debrief: buildDebrief(scores: coachScores),
+            trend: buildTrendLine(scores: coachScores, recentScores: recentScores)
         )
     }
 
@@ -152,10 +207,12 @@ struct RideCoachAnalyzer {
         var ranges: [(Int, Int)] = []
         var start: Int?
         var gap = 0
-        let allowedGap = 3
+        let allowedGap = max(2, Int((3 / projected.medianSampleInterval).rounded()))
 
         for index in lateralLoad.indices {
-            let inCorner = lateralLoad[index] >= 1.25 && speeds[index] >= 4
+            let inCorner = lateralLoad[index] >= 1.3 &&
+                projected.radiusMeters[index] <= 700 &&
+                speeds[index] >= 4
             if inCorner {
                 start = start ?? index
                 gap = 0
@@ -176,7 +233,8 @@ struct RideCoachAnalyzer {
         for range in ranges {
             let start = range.0
             let end = range.1
-            guard end - start >= 2 else { continue }
+            let minimumSamples = max(2, Int((2 / projected.medianSampleInterval).rounded()))
+            guard end - start >= minimumSamples else { continue }
 
             let sweep = headingSweep(heading: heading, start: start, end: end)
             guard sweep >= 25, sweep <= 400 else { continue }
@@ -195,6 +253,7 @@ struct RideCoachAnalyzer {
             let brakeDepth = brakeDepth(start: start, apex: apex, acceleration: acceleration)
             let drive = mean(Array(acceleration[apex...end]))
             let apexPosition = Double(apex - start) / Double(max(1, end - start))
+            let maxLateralAcceleration = lateralLoad[start...end].max() ?? 0
             let event = CornerEvent(
                 start: start,
                 apex: apex,
@@ -209,12 +268,14 @@ struct RideCoachAnalyzer {
                 brakeDepth: brakeDepth,
                 drive: drive,
                 apexPosition: apexPosition,
-                headingDelta: signedHeadingDelta(heading: heading, start: start, end: end)
+                headingDelta: signedHeadingDelta(heading: heading, start: start, end: end),
+                maxLateralG: maxLateralAcceleration / 9.81,
+                leanDegrees: atan(maxLateralAcceleration / 9.81) * 180 / .pi
             )
             events.append(event)
         }
 
-        return Array(events.sorted { $0.maxSignal > $1.maxSignal }.prefix(12)).enumerated().map { offset, event in
+        return events.sorted { $0.maxSignal > $1.maxSignal }.enumerated().map { offset, event in
             var copy = event
             copy.rank = offset + 1
             return copy
@@ -232,29 +293,227 @@ struct RideCoachAnalyzer {
     }
 
     private func cornerEntryScore(_ events: [CornerEvent]) -> Double? {
-        guard events.count >= 2 else { return nil }
+        guard events.count >= 3 else { return nil }
         let settled = events.filter { $0.brakeDepth <= 0.4 }.count
         return Double(settled) / Double(events.count) * 100
     }
 
     private func exitDriveScore(_ events: [CornerEvent]) -> Double? {
-        guard events.count >= 2 else { return nil }
+        guard events.count >= 3 else { return nil }
         let meanDrive = mean(events.map { max(0, $0.drive) })
         return clamp(meanDrive / 1.2, 0, 1) * 100
     }
 
     private func consistencyScore(_ events: [CornerEvent]) -> Double? {
         guard events.count >= 3 else { return nil }
-        let apexSpeeds = events.map(\.apexKmh)
-        let avg = mean(apexSpeeds)
-        guard avg > 0 else { return nil }
-        return clamp(100 - (standardDeviation(apexSpeeds) / avg) * 260, 0, 100)
+        let buckets = [
+            events.filter { $0.radiusMeters < 60 },
+            events.filter { $0.radiusMeters >= 60 && $0.radiusMeters < 180 },
+            events.filter { $0.radiusMeters >= 180 }
+        ]
+        let variation = buckets.compactMap { bucket -> Double? in
+            guard bucket.count >= 3 else { return nil }
+            let speeds = bucket.map(\.apexKmh)
+            let average = mean(speeds)
+            guard average > 0 else { return nil }
+            return standardDeviation(speeds) / average
+        }
+        guard !variation.isEmpty else { return nil }
+        return clamp(100 - mean(variation) * 320, 0, 100)
     }
 
-    private func smoothnessScore(_ samples: [Double]) -> Double? {
-        guard samples.count >= 4 else { return nil }
-        let changes = zip(samples, samples.dropFirst()).map { abs($1 - $0) }
-        return clamp(100 - standardDeviation(changes) * 55, 0, 100)
+    private func zoneSmoothnessScore(_ zones: [RideInputZone]) -> Double? {
+        guard zones.count >= 2 else { return nil }
+        return mean(zones.map(\.smoothness))
+    }
+
+    private func inputZones(
+        kind: RideInputZone.Kind,
+        acceleration: [Double],
+        jerk: [Double],
+        speeds: [Double],
+        projected: ProjectedTrack
+    ) -> [RideInputZone] {
+        var ranges: [(Int, Int)] = []
+        var start: Int?
+        let minimumSamples = max(2, Int((2 / projected.medianSampleInterval).rounded()))
+
+        for index in acceleration.indices {
+            let qualifies = speeds[index] > 3 && (kind == .braking
+                ? acceleration[index] <= -1.4
+                : acceleration[index] >= 1.2)
+            if qualifies {
+                start = start ?? index
+            } else if let zoneStart = start {
+                if index - zoneStart >= minimumSamples {
+                    ranges.append((zoneStart, index - 1))
+                }
+                start = nil
+            }
+        }
+        if let start, acceleration.count - start >= minimumSamples {
+            ranges.append((start, acceleration.count - 1))
+        }
+
+        return ranges.map { start, end in
+            let segment = Array(acceleration[start...end])
+            let jerkStart = min(start + 1, end)
+            let jerkSegment = Array(jerk[jerkStart...end])
+            let peak = kind == .braking ? (segment.min() ?? 0) : (segment.max() ?? 0)
+            return RideInputZone(
+                kind: kind,
+                startIndex: start,
+                endIndex: end,
+                startKm: projected.distanceMeters[start] / 1000,
+                endKm: projected.distanceMeters[end] / 1000,
+                peakAcceleration: peak,
+                smoothness: clamp(100 - standardDeviation(jerkSegment) * 55, 0, 100)
+            )
+        }
+    }
+
+    private func rideComposition(
+        projected: ProjectedTrack,
+        speeds: [Double],
+        lateralLoad: [Double],
+        brakingZones: [RideInputZone],
+        driveZones: [RideInputZone]
+    ) -> [RideCompositionSlice] {
+        var seconds = Dictionary(uniqueKeysWithValues: RideCompositionSlice.Kind.allCases.map { ($0, 0.0) })
+        var braking = Array(repeating: false, count: speeds.count)
+        var driving = Array(repeating: false, count: speeds.count)
+        for zone in brakingZones {
+            for index in zone.startIndex...zone.endIndex { braking[index] = true }
+        }
+        for zone in driveZones {
+            for index in zone.startIndex...zone.endIndex { driving[index] = true }
+        }
+
+        for index in speeds.indices.dropFirst() {
+            let dt = min(10, max(0, projected.elapsed[index] - projected.elapsed[index - 1]))
+            let kind: RideCompositionSlice.Kind
+            if speeds[index] < 1 {
+                kind = .stopped
+            } else if lateralLoad[index] >= 1.3 && projected.radiusMeters[index] <= 700 && speeds[index] >= 4 {
+                kind = .cornering
+            } else if braking[index] {
+                kind = .braking
+            } else if driving[index] {
+                kind = .driving
+            } else {
+                kind = .cruising
+            }
+            seconds[kind, default: 0] += dt
+        }
+        return RideCompositionSlice.Kind.allCases.map {
+            RideCompositionSlice(kind: $0, seconds: seconds[$0, default: 0])
+        }
+    }
+
+    private func accelerationSeries(
+        projected: ProjectedTrack,
+        acceleration: [Double]
+    ) -> [RideAccelerationSample] {
+        let stride = max(1, Int(ceil(Double(acceleration.count) / 1500)))
+        return Swift.stride(from: 0, to: acceleration.count, by: stride).map { index in
+            RideAccelerationSample(
+                index: index,
+                distanceKm: projected.distanceMeters[index] / 1000,
+                acceleration: acceleration[index]
+            )
+        }
+    }
+
+    private func gripUsageSeries(
+        projected: ProjectedTrack,
+        acceleration: [Double],
+        lateralLoad: [Double]
+    ) -> [GripUsagePoint] {
+        guard acceleration.count > 2 else { return [] }
+        let stride = max(1, Int(ceil(Double(acceleration.count) / 1500)))
+        return Swift.stride(from: 1, to: acceleration.count - 1, by: stride).compactMap { index in
+            guard projected.speedMetersPerSecond[index] >= 3 else { return nil }
+            let headingChange = normalizedAngle(
+                projected.headingRadians[index + 1] - projected.headingRadians[index - 1]
+            )
+            let sign = headingChange >= 0 ? 1.0 : -1.0
+            return GripUsagePoint(
+                index: index,
+                lateralG: sign * lateralLoad[index] / 9.81,
+                longitudinalG: acceleration[index] / 9.81
+            )
+        }
+    }
+
+    private func buildInsights(
+        analytics: RideAnalytics,
+        points: [RecordingPoint],
+        scores: [RideCoachScore]
+    ) -> [RideAnalyticsInsight] {
+        let total = analytics.composition.map(\.seconds).reduce(0, +)
+        func percentage(_ kind: RideCompositionSlice.Kind) -> Int {
+            guard total > 0 else { return 0 }
+            let value = analytics.composition.first(where: { $0.kind == kind })?.seconds ?? 0
+            return Int((100 * value / total).rounded())
+        }
+
+        let combined = analytics.gripUsage.filter { abs($0.lateralG) > 0.12 && abs($0.longitudinalG) > 0.12 }.count
+        let combinedPercent = analytics.gripUsage.isEmpty ? 0 : Int((100 * Double(combined) / Double(analytics.gripUsage.count)).rounded())
+        let corneringGrip = analytics.gripUsage.filter { abs($0.lateralG) > 0.15 }
+        let trailBraking = corneringGrip.filter { $0.longitudinalG < -0.12 }.count
+        let trailPercent = corneringGrip.isEmpty ? 0 : Int((100 * Double(trailBraking) / Double(corneringGrip.count)).rounded())
+        let signature = combinedPercent < 8 ? "a careful, upright rider" : combinedPercent < 18 ? "a composed road rider" : "an experienced, flowing rider"
+        let trailText = trailPercent < 6 ? "almost no trail braking" : trailPercent < 20 ? "some trail braking (about \(trailPercent)%)" : "frequent trail braking (about \(trailPercent)%)"
+
+        let lateralValues = analytics.cornerPoints.map(\.lateralG).sorted()
+        let medianG = percentile(lateralValues, 0.5)
+        let spreadG = percentile(lateralValues, 0.9) - percentile(lateralValues, 0.1)
+        let pace = medianG < 0.28 ? "an easy, unhurried pace" : medianG < 0.42 ? "a moderate, purposeful pace" : medianG < 0.55 ? "a committed pace" : "a hard, determined pace"
+        let reserve = medianG < 0.42 ? "with grip still in reserve" : "using a fair share of the estimated grip envelope"
+
+        var climb = 0.0
+        var descent = 0.0
+        for (previous, current) in zip(points, points.dropFirst()) {
+            let delta = current.elevationMeters - previous.elevationMeters
+            if delta > 0 {
+                climb += delta
+            } else {
+                descent -= delta
+            }
+        }
+
+        let scoreMap = Dictionary(uniqueKeysWithValues: scores.map { ($0.kind, Double($0.value)) })
+        let smoothValues = [scoreMap[.brakingFeel], scoreMap[.throttleFeel]].compactMap { $0 }
+        let smoothAverage = smoothValues.isEmpty ? nil : mean(smoothValues)
+        let smoothText = smoothAverage.map { value in
+            value >= 80 ? "very smooth" : value >= 60 ? "smooth" : value >= 40 ? "a little uneven" : "busy"
+        } ?? "not fully scored"
+        let hardBrakingCount = analytics.brakingZones.filter { $0.peakAcceleration < -3.5 }.count
+
+        return [
+            RideAnalyticsInsight(
+                kind: .grip,
+                summary: "This ride has the fingerprint of \(signature).",
+                detail: "You spent \(percentage(.cornering))% of moving time cornering and \(percentage(.cruising))% flowing between bends, with \(trailText). GPS-derived grip usage is approximate."
+            ),
+            RideAnalyticsInsight(
+                kind: .corners,
+                summary: analytics.cornerPoints.isEmpty
+                    ? "Not enough significant corners for a corner profile."
+                    : "You held \(pace) through the detected bends, around \(String(format: "%.2f", medianG)) g.",
+                detail: "Across \(analytics.cornerPoints.count) detected corners, the lateral-load spread was \(String(format: "%.2f", spreadG)) g, \(reserve)."
+            ),
+            RideAnalyticsInsight(
+                kind: .elevation,
+                summary: "The road climbed \(Int(climb.rounded())) m and descended \(Int(descent.rounded())) m.",
+                detail: "Elevation comes from the GPX stream and may include normal GPS altitude noise. Read it as the shape of the ride, not survey-grade height."
+            ),
+            RideAnalyticsInsight(
+                kind: .inputs,
+                summary: "\(analytics.brakingZones.count) braking zones, \(hardBrakingCount == 0 ? "none" : "\(hardBrakingCount)") firm; inputs were \(smoothText).",
+                detail: "Ride Coach found \(analytics.driveZones.count) clear drive zones. Smoothness rewards progressive changes in braking and acceleration, never outright speed."
+            )
+        ]
     }
 
     private func buildScores(
@@ -282,49 +541,81 @@ struct RideCoachAnalyzer {
     private func caption(for kind: RideCoachScore.Kind, value: Int) -> String {
         switch kind {
         case .cornerEntry:
-            if value >= 75 { return "Braking is mostly done before turn-in, so entries look settled." }
-            if value >= 50 { return "Most entries are tidy, with a few corners still carrying brake pressure." }
-            return "Braking often runs deep into corners. Focus on arriving settled before turn-in."
+            if value >= 80 { return "Braking is done before turn-in. The bike arrives settled." }
+            if value >= 60 { return "Entries are mostly tidy. A few corners still carry braking in." }
+            return "Braking often runs deep into corners. This is the clearest thing to work on."
         case .exitDrive:
-            if value >= 75 { return "Good progressive drive once the bike is picked up." }
-            if value >= 50 { return "Exit drive is usable, but some corners stay flat after the apex." }
-            return "Exits are quiet. Look up, pick the bike up, then roll on earlier and smoother."
+            if value >= 80 { return "Strong, progressive throttle off the apex." }
+            if value >= 60 { return "Decent drive out, with room for smoother corner exits." }
+            return "Exits are flat. Pick the bike up, then roll the throttle on progressively."
         case .brakingFeel:
-            if value >= 75 { return "Brake pressure looks progressive and controlled." }
-            if value >= 50 { return "Braking is mostly smooth, with the occasional sharper input." }
-            return "Braking looks abrupt. Practise squeezing the lever rather than grabbing it."
+            if value >= 80 { return "Progressive on the lever. Smooth, controlled stops." }
+            if value >= 60 { return "Mostly smooth braking with the occasional grab." }
+            return "Braking is abrupt. Squeeze rather than snatch."
         case .throttleFeel:
-            if value >= 75 { return "Throttle inputs look clean and progressive." }
-            if value >= 50 { return "Throttle work is decent, with a few pulses on corner exits." }
-            return "Throttle traces are jumpy. Aim for one smooth roll-on as the corner opens."
+            if value >= 80 { return "Clean, progressive acceleration." }
+            if value >= 60 { return "Throttle work is decent, sometimes jumpy." }
+            return "Acceleration comes in bursts. Smooth it out."
         case .consistency:
-            if value >= 75 { return "Similar corners are getting repeatable treatment." }
-            if value >= 50 { return "There is some rhythm, but similar corners vary ride to ride." }
-            return "Similar corners are ridden quite differently. Pick one approach and repeat it."
+            if value >= 80 { return "Similar corners get near-identical treatment. Repeatable is skilled." }
+            if value >= 60 { return "Corner speeds vary between similar bends." }
+            return "Similar corners are ridden quite differently. Aim for repeatability."
         }
     }
 
-    private func buildDebrief(score: Int?, corners: [CornerEvent], brakingSmoothness: Double?, throttleSmoothness: Double?) -> String {
-        guard let score else {
-            return corners.isEmpty
-                ? "Ride Coach did not find enough cornering or braking data for technique feedback."
-                : "Ride Coach found a few corners, but not enough repeatable events for a score yet."
+    private func buildDebrief(scores: [RideCoachScore]) -> String? {
+        guard scores.count >= 2,
+              let strongest = scores.max(by: { $0.value < $1.value }),
+              let weakest = scores.min(by: { $0.value < $1.value }) else { return nil }
+
+        if strongest.value - weakest.value < 12 {
+            return "A balanced ride across the board. Next ride, keep building on this consistency."
         }
 
-        let grade = score >= 85 ? "Silky smooth" : score >= 70 ? "Composed" : score >= 55 ? "Finding the rhythm" : "Plenty to gain"
-        if let focusCorner = corners.first(where: { $0.brakeDepth > 0.55 }) {
-            return "\(grade) ride: strongest takeaway is to finish braking a touch earlier before turn-in. Corner \(focusCorner.rank) carried braking deepest into the bend."
+        let strength: String
+        switch strongest.kind {
+        case .cornerEntry: strength = "Entries were settled, with braking done before turn-in"
+        case .exitDrive: strength = "Drive off the corners was strong"
+        case .brakingFeel: strength = "Braking was progressive and controlled"
+        case .throttleFeel: strength = "Throttle work was clean"
+        case .consistency: strength = "Similar corners got near-identical treatment"
         }
-        if let throttleSmoothness, throttleSmoothness < 55 {
-            return "\(grade) ride: the line looks usable, but throttle inputs were a little jumpy. Next ride, roll on earlier and smoother once the exit opens."
+
+        let weakness: String
+        let focus: String
+        switch weakest.kind {
+        case .cornerEntry:
+            weakness = "braking often ran into the corners"
+            focus = "finishing your braking before turn-in, so the bike arrives settled"
+        case .exitDrive:
+            weakness = "exits were flatter than they could be"
+            focus = "picking the bike up earlier, then rolling the throttle on progressively"
+        case .brakingFeel:
+            weakness = "braking was on the abrupt side"
+            focus = "squeezing the brake progressively rather than snatching it"
+        case .throttleFeel:
+            weakness = "throttle inputs were a little jumpy"
+            focus = "smoother, earlier throttle once the corner opens up"
+        case .consistency:
+            weakness = "similar corners were ridden quite differently"
+            focus = "treating similar corners the same way, ride after ride"
         }
-        if let brakingSmoothness, brakingSmoothness < 55 {
-            return "\(grade) ride: the biggest gain is smoother brake pressure. Think squeeze, settle, turn."
+        return "\(strength), but \(weakness). Next ride, focus on \(focus)."
+    }
+
+    private func buildTrendLine(scores: [RideCoachScore], recentScores: [String: Double]) -> String? {
+        guard !scores.isEmpty, !recentScores.isEmpty else { return nil }
+        let changes = scores.compactMap { score -> (RideCoachScore, Double)? in
+            guard let previous = recentScores[score.kind.storageKey] else { return nil }
+            return (score, Double(score.value) - previous)
         }
-        if corners.count >= 3 {
-            return "\(grade) ride: entries were mostly settled and the main corners had repeatable rhythm. Next ride, keep the same calm setup and look for cleaner exits."
+        guard let strongestChange = changes.max(by: { abs($0.1) < abs($1.1) }) else { return nil }
+        let points = Int(abs(strongestChange.1).rounded())
+        guard points >= 6 else { return "Right in line with your recent rides." }
+        if strongestChange.1 > 0 {
+            return "\(strongestChange.0.kind.title) is up \(points) points on your recent rides. Nice work."
         }
-        return "\(grade) ride: route and speed traces were clean enough for a first coach score. A denser GPX log will sharpen corner feedback."
+        return "\(strongestChange.0.kind.title) is \(points) points below your recent rides. One off day proves nothing; keep an eye on it."
     }
 
     private func repeatNote(for event: CornerEvent, pastCorners: [RideCoachCornerSummary]) -> String? {
@@ -361,8 +652,21 @@ private struct CornerEvent: Sendable {
     let drive: Double
     let apexPosition: Double
     let headingDelta: Double
+    let maxLateralG: Double
+    let leanDegrees: Double
 
-    var maxSignal: Double { sweepDegrees / max(radiusMeters, 1) }
+    var maxSignal: Double { maxLateralG }
+
+    var analyticsPoint: CornerAnalyticsPoint {
+        CornerAnalyticsPoint(
+            replayIndex: apex,
+            radiusMeters: radiusMeters,
+            apexKmh: apexKmh,
+            lateralG: maxLateralG,
+            leanDegrees: leanDegrees,
+            sweepDegrees: sweepDegrees
+        )
+    }
 
     func ticket(repeatNote: String? = nil) -> CornerTicket {
         CornerTicket(
@@ -373,7 +677,12 @@ private struct CornerEvent: Sendable {
             exitSpeed: Int(exitKmh.rounded()),
             verdict: verdict,
             tip: tip,
-            repeatNote: repeatNote
+            repeatNote: repeatNote,
+            replayIndex: apex,
+            radiusMeters: Int(radiusMeters.rounded()),
+            sweepDegrees: Int(sweepDegrees.rounded()),
+            leanDegrees: Int(leanDegrees.rounded()),
+            lateralG: maxLateralG
         )
     }
 
@@ -413,8 +722,11 @@ private struct ProjectedTrack {
     let points: [RecordingPoint]
     let xy: [(x: Double, y: Double)]
     let elapsed: [TimeInterval]
+    let distanceMeters: [Double]
     let speedMetersPerSecond: [Double]
     let headingRadians: [Double]
+    let radiusMeters: [Double]
+    let medianSampleInterval: TimeInterval
     let totalDistanceMeters: Double
     let durationSeconds: TimeInterval
 
@@ -428,16 +740,19 @@ private struct ProjectedTrack {
         elapsed = points.map { max(0, $0.timestamp.timeIntervalSince(firstTime)) }
 
         var distance: Double = 0
+        var distances = Array(repeating: 0.0, count: points.count)
         var speed = Array(repeating: 0.0, count: points.count)
         for index in points.indices.dropFirst() {
             let delta = hypot(xy[index].x - xy[index - 1].x, xy[index].y - xy[index - 1].y)
             distance += delta
+            distances[index] = distance
             let dt = elapsed[index] - elapsed[index - 1]
             speed[index] = dt > 0 && dt < 60 ? delta / dt : speed[index - 1]
         }
         if speed.count > 1 {
             speed[0] = speed[1]
         }
+        distanceMeters = distances
         speedMetersPerSecond = speed
 
         var headings = Array(repeating: 0.0, count: points.count)
@@ -448,6 +763,23 @@ private struct ProjectedTrack {
             headings[0] = headings[1]
         }
         headingRadians = headings
+
+        var radii = Array(repeating: Double.infinity, count: points.count)
+        if points.count > 4 {
+            for index in 2..<(points.count - 2) where speed[index] >= 2 {
+                let radius = circumradius(xy[index - 2], xy[index], xy[index + 2])
+                if radius.isFinite {
+                    radii[index] = clamp(radius, 5, 100_000)
+                }
+            }
+        }
+        radiusMeters = radii
+
+        let intervals = zip(elapsed, elapsed.dropFirst())
+            .map { $1 - $0 }
+            .filter { $0 > 0 && $0 < 60 }
+            .sorted()
+        medianSampleInterval = intervals.isEmpty ? 1 : intervals[intervals.count / 2]
         totalDistanceMeters = distance
         durationSeconds = elapsed.last ?? 0
     }
@@ -466,7 +798,7 @@ private struct ProjectedTrack {
         guard points.count > 4 else { return Array(repeating: 0, count: points.count) }
         var output = Array(repeating: 0.0, count: points.count)
         for index in 2..<(points.count - 2) where speeds[index] >= 2 {
-            let radius = circumradius(xy[index - 2], xy[index], xy[index + 2])
+            let radius = radiusMeters[index]
             if radius.isFinite, radius >= 5 {
                 output[index] = speeds[index] * speeds[index] / min(radius, 100_000)
             }
@@ -476,14 +808,20 @@ private struct ProjectedTrack {
 
     func minimumRadius(start: Int, end: Int) -> Double {
         guard points.count > 4 else { return .infinity }
-        var minimum = Double.infinity
         let lower = max(2, start)
         let upper = min(points.count - 3, end)
-        guard lower <= upper else { return minimum }
-        for index in lower...upper {
-            minimum = min(minimum, circumradius(xy[index - 2], xy[index], xy[index + 2]))
+        guard lower <= upper else { return .infinity }
+        return radiusMeters[lower...upper].min() ?? .infinity
+    }
+
+    func jerk(from acceleration: [Double]) -> [Double] {
+        guard acceleration.count > 1 else { return Array(repeating: 0, count: acceleration.count) }
+        var output = Array(repeating: 0.0, count: acceleration.count)
+        for index in acceleration.indices.dropFirst() {
+            let dt = elapsed[index] - elapsed[index - 1]
+            output[index] = dt > 0 ? (acceleration[index] - acceleration[index - 1]) / dt : 0
         }
-        return minimum
+        return output
     }
 }
 
@@ -565,6 +903,15 @@ private func standardDeviation(_ values: [Double]) -> Double {
     guard values.count > 1 else { return 0 }
     let avg = mean(values)
     return sqrt(values.reduce(0) { $0 + pow($1 - avg, 2) } / Double(values.count - 1))
+}
+
+private func percentile(_ sortedValues: [Double], _ fraction: Double) -> Double {
+    guard !sortedValues.isEmpty else { return 0 }
+    let index = min(
+        sortedValues.count - 1,
+        max(0, Int((Double(sortedValues.count - 1) * fraction).rounded()))
+    )
+    return sortedValues[index]
 }
 
 private func clamp(_ value: Double, _ lower: Double, _ upper: Double) -> Double {

@@ -147,8 +147,12 @@ struct RideService: RideServing {
             accessToken: token
         )
         let track = try GPXParser().parse(data: data)
-        let pastCorners = (try? await fetchPastCoachCorners(excluding: ride.id, accessToken: token)) ?? []
-        let coach = RideCoachAnalyzer().analyze(points: track.points, pastCorners: pastCorners)
+        let history = (try? await fetchPastCoachHistory(excluding: ride.id, accessToken: token)) ?? .empty
+        let coach = RideCoachAnalyzer().analyze(
+            points: track.points,
+            pastCorners: history.corners,
+            recentScores: history.averageScores
+        )
         let plannedRoute: PlannedRoute?
         if let plannedRouteID = ride.plannedRouteID {
             plannedRoute = try? await fetchPlannedRoute(id: plannedRouteID, accessToken: token)
@@ -177,6 +181,8 @@ struct RideService: RideServing {
             weather: weather,
             coachScore: coach.score,
             coachScores: coach.scores,
+            analytics: coach.analytics,
+            coachTrend: coach.trend,
             plannedRoute: plannedRoute,
             routeMatch: routeMatch,
             debrief: coach.debrief
@@ -256,18 +262,30 @@ struct RideService: RideServing {
         )
     }
 
-    private func fetchPastCoachCorners(excluding rideID: UUID, accessToken: String) async throws -> [RideCoachCornerSummary] {
+    private func fetchPastCoachHistory(excluding rideID: UUID, accessToken: String) async throws -> RideCoachHistory {
         let rows: [SupabaseRideSkillsRow] = try await client.get(
             path: "rest/v1/ride_logs",
             queryItems: [
                 URLQueryItem(name: "select", value: "id,skills"),
                 URLQueryItem(name: "id", value: "neq.\(rideID.uuidString)"),
                 URLQueryItem(name: "skills", value: "not.is.null"),
-                URLQueryItem(name: "limit", value: "150")
+                URLQueryItem(name: "order", value: "ride_date.desc"),
+                URLQueryItem(name: "limit", value: "30")
             ],
             accessToken: accessToken
         )
-        return rows.flatMap { $0.skills?.corners ?? [] }
+        var scoreValues: [String: [Double]] = [:]
+        for row in rows {
+            for (key, value) in row.skills?.scores ?? [:] where value.isFinite {
+                scoreValues[key, default: []].append(value)
+            }
+        }
+        return RideCoachHistory(
+            corners: rows.flatMap { $0.skills?.corners ?? [] },
+            averageScores: scoreValues.mapValues { values in
+                values.reduce(0, +) / Double(values.count)
+            }
+        )
     }
 
     private func fetchPlannedRoute(id: UUID, accessToken: String) async throws -> PlannedRoute? {
@@ -282,6 +300,13 @@ struct RideService: RideServing {
         )
         return rows.first?.plannedRoute
     }
+}
+
+private struct RideCoachHistory {
+    let corners: [RideCoachCornerSummary]
+    let averageScores: [String: Double]
+
+    static let empty = RideCoachHistory(corners: [], averageScores: [:])
 }
 
 enum RideServiceError: LocalizedError {

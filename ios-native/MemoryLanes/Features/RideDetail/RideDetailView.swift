@@ -217,6 +217,7 @@ struct RideDetailView: View {
     private var sectionContent: some View {
         switch viewModel.section {
         case .overview: overviewSection
+        case .analytics: analyticsSection
         case .corners: cornersSection
         case .moments: momentsSection
         case .weather: weatherSection
@@ -229,7 +230,7 @@ struct RideDetailView: View {
                 replaySection
             }
             if let debrief = viewModel.detail?.debrief {
-                debriefCard(debrief)
+                debriefCard(debrief, trend: viewModel.detail?.coachTrend)
             }
             if viewModel.ride.isPublic {
                 publicShareCard
@@ -261,16 +262,37 @@ struct RideDetailView: View {
                             playbackPoint: viewModel.currentReplayPoint,
                             onScrub: { viewModel.scrubPlayback(to: $0) }
                         )
-                        AccelerationChart(
-                            points: detail.replayPoints,
-                            playbackIndex: viewModel.playbackIndex,
-                            onScrub: { viewModel.scrubPlayback(to: $0) }
-                        )
                     }
                 }
             case .failed(let message):
                 inlineError(message)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var analyticsSection: some View {
+        switch viewModel.state {
+        case .loading:
+            VStack(spacing: Spacing.md) {
+                SkeletonBar(height: 180, radius: Radius.card).mlShimmer()
+                SkeletonBar(height: 220, radius: Radius.card).mlShimmer()
+            }
+        case .loaded(let detail):
+            if let analytics = detail.analytics,
+               !analytics.acceleration.isEmpty || !analytics.cornerPoints.isEmpty {
+                RideAnalyticsView(analytics: analytics) { index in
+                    viewModel.scrubPlayback(to: index)
+                }
+            } else {
+                EmptyState(
+                    systemImage: "chart.xyaxis.line",
+                    title: "Analytics unavailable",
+                    message: "This ride needs a longer, time-stamped GPX track for reliable analysis."
+                )
+            }
+        case .failed(let message):
+            inlineError(message)
         }
     }
 
@@ -379,7 +401,13 @@ struct RideDetailView: View {
                            message: "This ride didn’t have enough cornering data to build tickets.")
             } else {
                 LazyVStack(spacing: Spacing.md) {
-                    ForEach(detail.corners) { CornerTicketCard(ticket: $0) }
+                    ForEach(detail.corners) { ticket in
+                        CornerTicketCard(ticket: ticket) {
+                            guard let index = ticket.replayIndex else { return }
+                            viewModel.scrubPlayback(to: index)
+                            viewModel.section = .overview
+                        }
+                    }
                 }
             }
         case .failed(let message):
@@ -534,7 +562,7 @@ struct RideDetailView: View {
         }
     }
 
-    private func debriefCard(_ text: String) -> some View {
+    private func debriefCard(_ text: String, trend: String?) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Label("Ride Coach", systemImage: "quote.bubble.fill")
                 .font(MLFont.headline)
@@ -543,6 +571,12 @@ struct RideDetailView: View {
                 .font(MLFont.body)
                 .foregroundStyle(Color.mlTextPrimary)
                 .fixedSize(horizontal: false, vertical: true)
+            if let trend {
+                Divider().overlay(Color.mlAccent.opacity(0.2))
+                Label(trend, systemImage: "chart.line.uptrend.xyaxis")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlInfo)
+            }
         }
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)

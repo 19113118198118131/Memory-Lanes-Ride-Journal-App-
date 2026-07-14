@@ -17,6 +17,8 @@ struct RideDetail: Identifiable, Sendable {
     var weather: Weather?
     var coachScore: Int?
     var coachScores: [RideCoachScore]
+    var analytics: RideAnalytics? = nil
+    var coachTrend: String? = nil
     var plannedRoute: PlannedRoute? = nil
     var routeMatch: RouteMatchSummary? = nil
     /// The coaching debrief — one plain-English takeaway.
@@ -111,6 +113,120 @@ struct ReplayPoint: Identifiable, Hashable, Sendable {
     }
 }
 
+// MARK: - Ride Analytics
+
+struct RideAnalytics: Sendable {
+    var acceleration: [RideAccelerationSample]
+    var brakingZones: [RideInputZone]
+    var driveZones: [RideInputZone]
+    var gripUsage: [GripUsagePoint]
+    var cornerPoints: [CornerAnalyticsPoint]
+    var composition: [RideCompositionSlice]
+    var insights: [RideAnalyticsInsight]
+
+    static let empty = RideAnalytics(
+        acceleration: [],
+        brakingZones: [],
+        driveZones: [],
+        gripUsage: [],
+        cornerPoints: [],
+        composition: [],
+        insights: []
+    )
+
+    var hardestBrakingG: Double? {
+        brakingZones.map { abs($0.peakAcceleration) / 9.81 }.max()
+    }
+
+    var brakingFeelText: String {
+        guard let average = averageSmoothness(in: brakingZones) else { return "Not enough data" }
+        if average >= 80 { return "Progressive" }
+        if average >= 60 { return "Mostly smooth" }
+        return "Needs smoothing"
+    }
+
+    private func averageSmoothness(in zones: [RideInputZone]) -> Double? {
+        guard !zones.isEmpty else { return nil }
+        return zones.map(\.smoothness).reduce(0, +) / Double(zones.count)
+    }
+}
+
+struct RideAccelerationSample: Identifiable, Hashable, Sendable {
+    let index: Int
+    let distanceKm: Double
+    let acceleration: Double
+
+    var id: Int { index }
+}
+
+struct RideInputZone: Identifiable, Hashable, Sendable {
+    enum Kind: String, Sendable {
+        case braking
+        case drive
+    }
+
+    let kind: Kind
+    let startIndex: Int
+    let endIndex: Int
+    let startKm: Double
+    let endKm: Double
+    let peakAcceleration: Double
+    let smoothness: Double
+
+    var id: String { "\(kind.rawValue)-\(startIndex)-\(endIndex)" }
+}
+
+struct GripUsagePoint: Identifiable, Hashable, Sendable {
+    let index: Int
+    /// Signed lateral acceleration in g: left negative, right positive.
+    let lateralG: Double
+    /// Longitudinal acceleration in g: braking negative, drive positive.
+    let longitudinalG: Double
+
+    var id: Int { index }
+}
+
+struct CornerAnalyticsPoint: Identifiable, Hashable, Sendable {
+    let replayIndex: Int
+    let radiusMeters: Double
+    let apexKmh: Double
+    let lateralG: Double
+    let leanDegrees: Double
+    let sweepDegrees: Double
+
+    var id: Int { replayIndex }
+}
+
+struct RideCompositionSlice: Identifiable, Hashable, Sendable {
+    enum Kind: String, CaseIterable, Sendable {
+        case cornering = "Cornering"
+        case braking = "Braking"
+        case driving = "Driving"
+        case cruising = "Cruising"
+        case stopped = "Stopped"
+    }
+
+    let kind: Kind
+    let seconds: TimeInterval
+
+    var id: Kind { kind }
+}
+
+struct RideAnalyticsInsight: Identifiable, Hashable, Sendable {
+    enum Kind: String, Sendable {
+        case grip
+        case corners
+        case elevation
+        case inputs
+    }
+
+    let kind: Kind
+    let summary: String
+    let detail: String
+
+    var id: Kind { kind }
+}
+
 // MARK: - ElevationSample
 //
 // One point on the elevation profile. Distance is the identity so Swift Charts
@@ -139,6 +255,11 @@ struct CornerTicket: Identifiable, Sendable {
     var tip: String
     /// e.g. "Ridden 4× · apex today 52 km/h, a new best" — nil for first visit.
     var repeatNote: String?
+    var replayIndex: Int?
+    var radiusMeters: Int?
+    var sweepDegrees: Int?
+    var leanDegrees: Int?
+    var lateralG: Double?
 
     enum Verdict: String, Sendable {
         case smooth = "Smooth"
@@ -166,7 +287,12 @@ struct CornerTicket: Identifiable, Sendable {
         exitSpeed: Int,
         verdict: Verdict,
         tip: String,
-        repeatNote: String? = nil
+        repeatNote: String? = nil,
+        replayIndex: Int? = nil,
+        radiusMeters: Int? = nil,
+        sweepDegrees: Int? = nil,
+        leanDegrees: Int? = nil,
+        lateralG: Double? = nil
     ) {
         self.id = id
         self.index = index
@@ -177,6 +303,11 @@ struct CornerTicket: Identifiable, Sendable {
         self.verdict = verdict
         self.tip = tip
         self.repeatNote = repeatNote
+        self.replayIndex = replayIndex
+        self.radiusMeters = radiusMeters
+        self.sweepDegrees = sweepDegrees
+        self.leanDegrees = leanDegrees
+        self.lateralG = lateralG
     }
 }
 
