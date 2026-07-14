@@ -9,7 +9,10 @@ struct AuthService {
             queryItems: [URLQueryItem(name: "grant_type", value: "password")],
             body: AuthRequest(email: email, password: password)
         )
-        return response.session
+        guard let session = response.session else {
+            throw AuthServiceError.missingSession
+        }
+        return session
     }
 
     func signUp(email: String, password: String) async throws -> AuthSession {
@@ -17,7 +20,10 @@ struct AuthService {
             path: "auth/v1/signup",
             body: AuthRequest(email: email, password: password)
         )
-        return response.session
+        guard let session = response.session else {
+            throw AuthServiceError.emailConfirmationRequired
+        }
+        return session
     }
 
     /// Exchange a refresh token for a fresh session. Supabase rotates the
@@ -29,7 +35,24 @@ struct AuthService {
             queryItems: [URLQueryItem(name: "grant_type", value: "refresh_token")],
             body: RefreshRequest(refreshToken: refreshToken)
         )
-        return response.session
+        guard let session = response.session else {
+            throw AuthServiceError.missingSession
+        }
+        return session
+    }
+}
+
+enum AuthServiceError: LocalizedError {
+    case emailConfirmationRequired
+    case missingSession
+
+    var errorDescription: String? {
+        switch self {
+        case .emailConfirmationRequired:
+            return "Check your email to confirm your account, then sign in."
+        case .missingSession:
+            return "Supabase did not return a valid session."
+        }
     }
 }
 
@@ -47,13 +70,14 @@ private struct RefreshRequest: Encodable {
 }
 
 private struct AuthResponse: Decodable {
-    let accessToken: String
-    let refreshToken: String
-    let expiresIn: TimeInterval
+    let accessToken: String?
+    let refreshToken: String?
+    let expiresIn: TimeInterval?
     let user: AuthUser
 
-    var session: AuthSession {
-        AuthSession(
+    var session: AuthSession? {
+        guard let accessToken, let refreshToken, let expiresIn else { return nil }
+        return AuthSession(
             accessToken: accessToken,
             refreshToken: refreshToken,
             expiresAt: Date().addingTimeInterval(expiresIn),

@@ -14,29 +14,29 @@ import Foundation
 enum SupabaseDate {
     static func parse(_ string: String?) -> Date? {
         guard let string, !string.isEmpty else { return nil }
-        return fractional.date(from: string)
-            ?? plain.date(from: string)
-            ?? dateOnly.date(from: string)
+        return fractionalFormatter().date(from: string)
+            ?? plainFormatter().date(from: string)
+            ?? dateOnlyFormatter().date(from: string)
     }
 
-    private static let fractional: ISO8601DateFormatter = {
+    private static func fractionalFormatter() -> ISO8601DateFormatter {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
-    }()
+    }
 
-    private static let plain: ISO8601DateFormatter = {
+    private static func plainFormatter() -> ISO8601DateFormatter {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter
-    }()
+    }
 
-    private static let dateOnly: DateFormatter = {
+    private static func dateOnlyFormatter() -> DateFormatter {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
-    }()
+    }
 }

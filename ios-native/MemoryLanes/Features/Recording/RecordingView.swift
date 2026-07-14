@@ -79,7 +79,7 @@ struct RecordingView: View {
                 gpsPill
             }
             .padding(.horizontal, Spacing.screenH)
-            .padding(.top, 58)
+            .padding(.top, Spacing.xxl + Spacing.xs)
         }
     }
 
