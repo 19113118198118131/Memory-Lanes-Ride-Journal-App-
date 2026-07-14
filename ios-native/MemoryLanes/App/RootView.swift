@@ -51,7 +51,7 @@ private struct MainTabShell: View {
 
     private var routeService: RouteServing {
         RouteService(
-            accessToken: { authStore.accessToken },
+            accessToken: { await authStore.validAccessToken() },
             userID: { authStore.session?.userID }
         )
     }
@@ -119,7 +119,7 @@ private struct MainTabShell: View {
             NavigationStack(path: $journalPath) {
                 JournalView(
                     viewModel: JournalViewModel(
-                        journalService: JournalService(accessToken: { authStore.accessToken })
+                        journalService: JournalService(accessToken: { await authStore.validAccessToken() })
                     ),
                     refreshTrigger: refreshTrigger,
                     onSelectRide: { journalPath.append($0) }
@@ -147,14 +147,21 @@ private struct MainTabShell: View {
         .mlToast($toast)
         .fullScreenCover(isPresented: $showingRecorder) {
             if let session = authStore.session {
-                RecordingView(session: session, plannedRoute: recorderRoute) { ride in
+                RecordingView(
+                    session: session,
+                    plannedRoute: recorderRoute,
+                    accessToken: { await authStore.validAccessToken() }
+                ) { ride in
                     presentSavedRide(ride, message: "Ride saved to journal")
                 }
             }
         }
         .sheet(isPresented: $showingImporter) {
             if let session = authStore.session {
-                GPXImportView(session: session) { ride in
+                GPXImportView(
+                    session: session,
+                    accessToken: { await authStore.validAccessToken() }
+                ) { ride in
                     presentSavedRide(ride, message: "GPX saved to journal")
                 }
             }

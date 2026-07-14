@@ -38,3 +38,16 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"   # iPhone
         SUPPORTS_MACCATALYST: NO
+
+  MemoryLanesTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: MemoryLanesTests
+    dependencies:
+      - target: MemoryLanes
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.memorylanes.native.tests
+        GENERATE_INFOPLIST_FILE: YES

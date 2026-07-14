@@ -7,19 +7,20 @@ struct RideImportService {
         title: String,
         gpxData: Data,
         track: GPXTrack,
-        session: AuthSession
+        userID: UUID,
+        accessToken: String
     ) async throws -> Ride {
-        let filePath = "\(session.userID.uuidString.lowercased())/\(Int(Date().timeIntervalSince1970 * 1000)).gpx"
+        let filePath = "\(userID.uuidString.lowercased())/\(Int(Date().timeIntervalSince1970 * 1000)).gpx"
         try await client.upload(
             path: "storage/v1/object/gpx-files/\(filePath)",
             data: gpxData,
             contentType: "application/gpx+xml",
-            accessToken: session.accessToken
+            accessToken: accessToken
         )
 
         let payload = RideInsertPayload(
             title: title,
-            userID: session.userID,
+            userID: userID,
             distanceKm: track.distanceMeters / 1000,
             durationMin: track.durationSeconds / 60,
             elevationM: track.elevationGainMeters,
@@ -33,13 +34,13 @@ struct RideImportService {
                 path: "rest/v1/ride_logs",
                 queryItems: [URLQueryItem(name: "select", value: "*")],
                 body: payload,
-                accessToken: session.accessToken,
+                accessToken: accessToken,
                 prefer: "return=representation"
             )
             guard let row = rows.first else { throw RideImportError.missingInsertedRide }
             return row.ride(routePreview: track.routePreview)
         } catch {
-            try? await deleteUploadedGPX(path: filePath, accessToken: session.accessToken)
+            try? await deleteUploadedGPX(path: filePath, accessToken: accessToken)
             throw error
         }
     }
@@ -48,20 +49,21 @@ struct RideImportService {
         title: String,
         result: RecordedRideResult,
         plannedRouteID: UUID? = nil,
-        session: AuthSession
+        userID: UUID,
+        accessToken: String
     ) async throws -> Ride {
         let gpxData = Data(result.gpxText.utf8)
-        let filePath = "\(session.userID.uuidString.lowercased())/recorded-\(Int(Date().timeIntervalSince1970 * 1000)).gpx"
+        let filePath = "\(userID.uuidString.lowercased())/recorded-\(Int(Date().timeIntervalSince1970 * 1000)).gpx"
         try await client.upload(
             path: "storage/v1/object/gpx-files/\(filePath)",
             data: gpxData,
             contentType: "application/gpx+xml",
-            accessToken: session.accessToken
+            accessToken: accessToken
         )
 
         let payload = RideInsertPayload(
             title: title,
-            userID: session.userID,
+            userID: userID,
             distanceKm: result.distanceMeters / 1000,
             durationMin: result.durationSeconds / 60,
             elevationM: result.elevationGainMeters,
@@ -75,13 +77,13 @@ struct RideImportService {
                 path: "rest/v1/ride_logs",
                 queryItems: [URLQueryItem(name: "select", value: "*")],
                 body: payload,
-                accessToken: session.accessToken,
+                accessToken: accessToken,
                 prefer: "return=representation"
             )
             guard let row = rows.first else { throw RideImportError.missingInsertedRide }
             return row.ride(routePreview: result.points.routePreview, source: .live)
         } catch {
-            try? await deleteUploadedGPX(path: filePath, accessToken: session.accessToken)
+            try? await deleteUploadedGPX(path: filePath, accessToken: accessToken)
             throw error
         }
     }
@@ -98,11 +100,14 @@ struct RideImportService {
 
 enum RideImportError: LocalizedError {
     case missingInsertedRide
+    case notAuthenticated
 
     var errorDescription: String? {
         switch self {
         case .missingInsertedRide:
             return "The ride was saved, but Supabase did not return it."
+        case .notAuthenticated:
+            return "Your session expired. Sign in again to save this ride; the local recording is still safe."
         }
     }
 }

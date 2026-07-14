@@ -19,10 +19,10 @@ struct PreviewJournalService: JournalServing {
 
 struct JournalService: JournalServing {
     var client = SupabaseHTTPClient()
-    var accessToken: () -> String?
+    var accessToken: @Sendable () async -> String?
 
     func fetchEntries() async throws -> [JournalEntry] {
-        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let rows: [JournalRideRow] = try await client.get(
             path: "rest/v1/ride_logs",
             queryItems: [

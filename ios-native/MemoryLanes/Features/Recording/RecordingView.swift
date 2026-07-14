@@ -10,6 +10,7 @@ struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
     let session: AuthSession
     let plannedRoute: PlannedRoute?
+    let accessToken: @Sendable () async -> String?
     let onSaved: (Ride) -> Void
 
     @StateObject private var recorder = LiveRideRecorder()
@@ -18,6 +19,18 @@ struct RecordingView: View {
     @State private var finishedRide: RecordedRideResult?
     @State private var recoveredFinishedRide = false
     private let routeFollowAnalyzer = RouteFollowAnalyzer()
+
+    init(
+        session: AuthSession,
+        plannedRoute: PlannedRoute?,
+        accessToken: @escaping @Sendable () async -> String?,
+        onSaved: @escaping (Ride) -> Void
+    ) {
+        self.session = session
+        self.plannedRoute = plannedRoute
+        self.accessToken = accessToken
+        self.onSaved = onSaved
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -65,6 +78,7 @@ struct RecordingView: View {
                 result: result,
                 session: session,
                 plannedRoute: plannedRoute,
+                accessToken: accessToken,
                 isRecovered: recoveredFinishedRide,
                 onSaved: { ride in
                     await recorder.markCompletedRideSaved(result)
@@ -375,6 +389,7 @@ private struct RecordingFinishedSheet: View {
     let result: RecordedRideResult
     let session: AuthSession
     let plannedRoute: PlannedRoute?
+    let accessToken: @Sendable () async -> String?
     let isRecovered: Bool
     let onSaved: (Ride) async -> Void
     let onDone: () -> Void
@@ -389,6 +404,7 @@ private struct RecordingFinishedSheet: View {
         result: RecordedRideResult,
         session: AuthSession,
         plannedRoute: PlannedRoute? = nil,
+        accessToken: @escaping @Sendable () async -> String?,
         isRecovered: Bool = false,
         onSaved: @escaping (Ride) async -> Void,
         onDone: @escaping () -> Void
@@ -396,6 +412,7 @@ private struct RecordingFinishedSheet: View {
         self.result = result
         self.session = session
         self.plannedRoute = plannedRoute
+        self.accessToken = accessToken
         self.isRecovered = isRecovered
         self.onSaved = onSaved
         self.onDone = onDone
@@ -480,11 +497,13 @@ private struct RecordingFinishedSheet: View {
         isSaving = true
         errorMessage = nil
         do {
+            guard let token = await accessToken() else { throw RideImportError.notAuthenticated }
             let saved = try await importService.saveRecordedRide(
                 title: cleanTitle,
                 result: result,
                 plannedRouteID: plannedRoute?.id,
-                session: session
+                userID: session.userID,
+                accessToken: token
             )
             Haptics.success()
             await onSaved(saved)
@@ -515,6 +534,7 @@ private struct RecordingFinishedSheet: View {
     RecordingView(
         session: AuthSession(accessToken: "", refreshToken: "", expiresAt: Date().addingTimeInterval(3600), userID: UUID(), email: "preview@example.com"),
         plannedRoute: nil,
+        accessToken: { "" },
         onSaved: { _ in }
     )
         .preferredColorScheme(.dark)

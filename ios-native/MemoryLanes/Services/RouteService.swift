@@ -65,11 +65,11 @@ struct PreviewRouteService: RouteServing {
 
 struct RouteService: RouteServing {
     var client = SupabaseHTTPClient()
-    var accessToken: () -> String?
+    var accessToken: @Sendable () async -> String?
     var userID: () -> UUID?
 
     func fetchRoutes() async throws -> [PlannedRoute] {
-        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let rows: [SupabasePlannedRouteRow] = try await client.get(
             path: "rest/v1/planned_routes",
             queryItems: [
@@ -82,7 +82,7 @@ struct RouteService: RouteServing {
     }
 
     func createRoute(_ draft: PlannedRouteDraft) async throws -> PlannedRoute {
-        guard let token = accessToken(), let userID = userID() else { throw RideServiceError.notAuthenticated }
+        guard let token = await accessToken(), let userID = userID() else { throw RideServiceError.notAuthenticated }
         let payload = PlannedRouteInsertPayload(userID: userID, draft: draft)
         let rows: [SupabasePlannedRouteRow] = try await client.post(
             path: "rest/v1/planned_routes",
@@ -96,7 +96,7 @@ struct RouteService: RouteServing {
     }
 
     func updateRoute(_ draft: PlannedRouteDraft, for route: PlannedRoute) async throws -> PlannedRoute {
-        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let payload = PlannedRouteUpdatePayload(draft: draft)
         let rows: [SupabasePlannedRouteRow] = try await client.patch(
             path: "rest/v1/planned_routes",
@@ -112,7 +112,7 @@ struct RouteService: RouteServing {
     }
 
     func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute {
-        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let payload = RouteShareUpdatePayload(isPublic: isPublic)
         let rows: [SupabasePlannedRouteRow] = try await client.patch(
             path: "rest/v1/planned_routes",
@@ -128,7 +128,7 @@ struct RouteService: RouteServing {
     }
 
     func deleteRoute(_ route: PlannedRoute) async throws {
-        guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         try await client.delete(
             path: "rest/v1/planned_routes",
             queryItems: [URLQueryItem(name: "id", value: "eq.\(route.id.uuidString)")],

@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct GPXImportView: View {
     @Environment(\.dismiss) private var dismiss
     let session: AuthSession
+    let accessToken: @Sendable () async -> String?
     let onSaved: (Ride) -> Void
 
     @State private var showingImporter = false
@@ -16,6 +17,16 @@ struct GPXImportView: View {
 
     private let parser = GPXParser()
     private let importService = RideImportService()
+
+    init(
+        session: AuthSession,
+        accessToken: @escaping @Sendable () async -> String?,
+        onSaved: @escaping (Ride) -> Void
+    ) {
+        self.session = session
+        self.accessToken = accessToken
+        self.onSaved = onSaved
+    }
 
     var body: some View {
         NavigationStack {
@@ -167,11 +178,13 @@ struct GPXImportView: View {
         isSaving = true
         errorMessage = nil
         do {
+            guard let token = await accessToken() else { throw RideImportError.notAuthenticated }
             let saved = try await importService.saveImportedRide(
                 title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                 gpxData: gpxData,
                 track: track,
-                session: session
+                userID: session.userID,
+                accessToken: token
             )
             Haptics.success()
             onSaved(saved)
@@ -212,6 +225,7 @@ private extension UTType {
 #Preview {
     GPXImportView(
         session: AuthSession(accessToken: "", refreshToken: "", expiresAt: Date().addingTimeInterval(3600), userID: UUID(), email: "preview@example.com"),
+        accessToken: { "" },
         onSaved: { _ in }
     )
     .preferredColorScheme(.dark)
