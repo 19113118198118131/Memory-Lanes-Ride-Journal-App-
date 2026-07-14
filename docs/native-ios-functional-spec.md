@@ -425,6 +425,38 @@ Build recommendation:
 
 - Keep AI as a later layer after analytics and coaching data are reliable.
 
+### 4.16 Rider Craft
+
+Rider Craft is a safety-first, post-ride skill-progression system built on the deterministic Ride Coach. Its governing rule is that no metric, target, badge, or interaction may be improved by riding faster, leaning further, or accepting more risk.
+
+Functional requirements:
+
+- Detect four GPS-supported survival-reaction proxies: braking after turn-in, flat exit, early apex, and braking deep into a corner.
+- Preserve the corner and replay index for every detected event.
+- Show survival reactions per corner as an error rate, not a score or grade.
+- Select one persistent practice focus rather than asking the rider to improve every axis at once.
+- Add safety-positive badges only after detector calibration.
+- Show personal trends without public comparison, streaks, or frequency pressure.
+- Teach road sense through unscored contextual cards where GPS cannot support a measurement.
+
+Acceptance criteria:
+
+- Detection is deterministic and covered by positive and negative fixtures.
+- Poor GPS quality or insufficient corners produces an unavailable state.
+- Thresholds are calibrated against a representative set of real rides before headline UI or badges ship.
+- Every event links to evidence in ride replay.
+- Advice is post-ride only and does not reward speed, lean angle, lateral load, ride frequency, or distance.
+- A written perverse-incentive audit passes before each phase ships.
+
+Explicit exclusions:
+
+- No throttle-chop count from 1 Hz GPS.
+- No speed, pace, lean-angle, or maximum-performance achievements.
+- No leaderboards, streaks, live gamification, or fabricated composite progression score.
+- No numeric Road Sense score.
+
+Detailed delivery and calibration plan: `docs/rider-craft-feature-plan.md`.
+
 ## 5. Core Data Model
 
 ### 5.1 User Profile
@@ -648,6 +680,25 @@ Deliverables:
 - Historical weather.
 - Moment pinning during and after rides.
 
+### Phase 3B: Rider Craft Calibration and Progression
+
+Goal: turn reliable Ride Coach evidence into safety-positive personal development without incentivising speed or risk.
+
+Deliverables:
+
+- Survival-reaction event models and four initial detectors.
+- Replay-linked evidence and a restrained debrief line.
+- Real-ride threshold calibration and detector fixtures.
+- One-skill-at-a-time focus system after calibration passes.
+- Safety-positive badges after focus-system validation.
+- Personal Craft trends and unscored road-sense education.
+
+Release gates:
+
+- Phase 1 detector calibration must pass before the metric becomes headline UI.
+- Each later phase requires a written perverse-incentive audit.
+- Live recording remains free of gamification and coaching prompts.
+
 ### Phase 4: Route Planning
 
 Goal: native route planning and follow-route ride mode.
@@ -700,6 +751,7 @@ A feature is done when:
 - It passes native iOS build.
 - It does not regress existing web/Capacitor files.
 - It is pushed to the active branch.
+- Any coaching or progression metric documents its evidence, data-quality limits, and safety incentive audit.
 
 ## 12. Immediate Next Build Recommendation
 
