@@ -444,9 +444,9 @@ struct PlannedRouteDetailView: View {
         }
         .sheet(isPresented: $showingEditSheet) {
             RouteEditSheet(route: route, isSaving: isWorking) { title in
-                await updateTitle(title)
+                await updateRoute(title)
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
         .confirmationDialog(
@@ -512,11 +512,11 @@ struct PlannedRouteDetailView: View {
         }
     }
 
-    private func updateTitle(_ title: String) async {
+    private func updateRoute(_ draft: PlannedRouteDraft) async {
         isWorking = true
         errorMessage = nil
         do {
-            route = try await routeService.updateRouteTitle(title, for: route)
+            route = try await routeService.updateRoute(draft, for: route)
             Haptics.success()
             onChanged()
             showingEditSheet = false
@@ -612,61 +612,150 @@ private struct RouteSharePayload: Identifiable {
 private struct RouteEditSheet: View {
     let route: PlannedRoute
     let isSaving: Bool
-    let onSave: (String) async -> Void
+    let onSave: (PlannedRouteDraft) async -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var title: String
+    @State private var waypoints: [Coordinate]
 
-    init(route: PlannedRoute, isSaving: Bool, onSave: @escaping (String) async -> Void) {
+    init(route: PlannedRoute, isSaving: Bool, onSave: @escaping (PlannedRouteDraft) async -> Void) {
         self.route = route
         self.isSaving = isSaving
         self.onSave = onSave
         _title = State(initialValue: route.title)
+        _waypoints = State(initialValue: route.editableWaypoints)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("Route details").mlKicker()
-                Text("Edit Route")
-                    .font(MLFont.display)
-                    .foregroundStyle(Color.mlTextPrimary)
-                Text("Rename this planned route. The route line, waypoints, GPX export, and invite link stay attached.")
-                    .font(MLFont.body)
-                    .foregroundStyle(Color.mlTextSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Route details").mlKicker()
+                    Text("Edit Route")
+                        .font(MLFont.display)
+                        .foregroundStyle(Color.mlTextPrimary)
+                    Text("Rename the route, reorder stops, or add a midpoint stop. Saving rebuilds the route line used by GPX export and ride recording.")
+                        .font(MLFont.body)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("Name").mlKicker()
-                TextField("Route name", text: $title)
-                    .font(MLFont.body)
-                    .foregroundStyle(Color.mlTextPrimary)
-                    .padding(.horizontal, Spacing.md)
-                    .frame(height: 52)
-                    .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
-                            .stroke(Color.mlHairline, lineWidth: Layout.hairline)
-                    )
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Name").mlKicker()
+                    TextField("Route name", text: $title)
+                        .font(MLFont.body)
+                        .foregroundStyle(Color.mlTextPrimary)
+                        .padding(.horizontal, Spacing.md)
+                        .frame(height: 52)
+                        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+                        )
+                        .disabled(isSaving)
+                }
+
+                RouteThumbnail(route: previewRoute)
+                    .frame(height: 170)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    HStack {
+                        SectionHeader(title: "Waypoints")
+                        Spacer()
+                        Button {
+                            addMidpoint()
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(MLFont.headline)
+                                .foregroundStyle(Color.mlAccent)
+                                .frame(width: 40, height: 40)
+                                .background(Color.mlSurfaceElevated, in: Circle())
+                        }
+                        .buttonStyle(MLPressableButtonStyle())
+                        .disabled(isSaving || waypoints.count < 2)
+                        .accessibilityLabel("Add waypoint")
+                    }
+
+                    ForEach(Array(waypoints.enumerated()), id: \.offset) { index, waypoint in
+                        waypointRow(index: index, waypoint: waypoint)
+                    }
+                }
+
+                HStack(spacing: Spacing.md) {
+                    SecondaryButton(title: "Cancel", systemImage: "xmark") {
+                        dismiss()
+                    }
                     .disabled(isSaving)
-            }
 
-            HStack(spacing: Spacing.md) {
-                SecondaryButton(title: "Cancel", systemImage: "xmark") {
-                    dismiss()
+                    PrimaryButton(title: "Save", systemImage: "checkmark", isLoading: isSaving) {
+                        Task { await onSave(editedDraft) }
+                    }
+                    .disabled(!canSave)
                 }
-                .disabled(isSaving)
-
-                PrimaryButton(title: "Save", systemImage: "checkmark", isLoading: isSaving) {
-                    Task { await onSave(cleanTitle) }
-                }
-                .disabled(!canSave)
             }
+            .padding(Spacing.lg)
         }
-        .padding(Spacing.lg)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.mlBackground)
+    }
+
+    private func waypointRow(index: Int, waypoint: Coordinate) -> some View {
+        HStack(spacing: Spacing.md) {
+            Text("\(index + 1)")
+                .font(MLFont.monoSmall)
+                .foregroundStyle(Color.mlOnAccent)
+                .frame(width: 30, height: 30)
+                .background(Color.mlAccent, in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(index == 0 ? "Start" : (index == waypoints.count - 1 ? "Finish" : "Stop"))
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text(String(format: "%.5f, %.5f", waypoint.latitude, waypoint.longitude))
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+            }
+
+            Spacer()
+
+            Button {
+                moveWaypoint(from: index, offset: -1)
+            } label: {
+                Image(systemName: "chevron.up")
+            }
+            .disabled(index == 0 || isSaving)
+
+            Button {
+                moveWaypoint(from: index, offset: 1)
+            } label: {
+                Image(systemName: "chevron.down")
+            }
+            .disabled(index == waypoints.count - 1 || isSaving)
+
+            Button(role: .destructive) {
+                removeWaypoint(at: index)
+            } label: {
+                Image(systemName: "trash")
+            }
+            .disabled(waypoints.count <= 2 || isSaving)
+        }
+        .font(MLFont.callout)
+        .foregroundStyle(Color.mlTextPrimary)
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+
+    private var previewRoute: [Coordinate] {
+        PlannedRouteDraft.routeLine(for: waypoints)
+    }
+
+    private var editedDraft: PlannedRouteDraft {
+        PlannedRouteDraft.edited(
+            title: cleanTitle,
+            waypoints: waypoints,
+            baseElevationM: route.elevationM
+        )
     }
 
     private var cleanTitle: String {
@@ -674,7 +763,40 @@ private struct RouteEditSheet: View {
     }
 
     private var canSave: Bool {
-        !cleanTitle.isEmpty && cleanTitle != route.title && !isSaving
+        !cleanTitle.isEmpty && waypoints.count >= 2 && !isSaving && (
+            cleanTitle != route.title || waypoints != route.editableWaypoints
+        )
+    }
+
+    private func addMidpoint() {
+        guard let first = waypoints.first, let last = waypoints.last else { return }
+        let middle = Coordinate(
+            latitude: (first.latitude + last.latitude) / 2,
+            longitude: (first.longitude + last.longitude) / 2
+        )
+        let insertionIndex = max(waypoints.count - 1, 1)
+        waypoints.insert(middle, at: insertionIndex)
+    }
+
+    private func moveWaypoint(from index: Int, offset: Int) {
+        let target = index + offset
+        guard waypoints.indices.contains(index), waypoints.indices.contains(target) else { return }
+        waypoints.swapAt(index, target)
+    }
+
+    private func removeWaypoint(at index: Int) {
+        guard waypoints.count > 2, waypoints.indices.contains(index) else { return }
+        waypoints.remove(at: index)
+    }
+}
+
+private extension PlannedRoute {
+    var editableWaypoints: [Coordinate] {
+        if waypoints.count >= 2 {
+            return waypoints
+        }
+        guard let first = route.first, let last = route.last else { return waypoints }
+        return [first, last]
     }
 }
 

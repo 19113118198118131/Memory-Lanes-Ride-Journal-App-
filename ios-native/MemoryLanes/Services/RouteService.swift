@@ -4,7 +4,7 @@ import Foundation
 protocol RouteServing {
     func fetchRoutes() async throws -> [PlannedRoute]
     func createRoute(_ draft: PlannedRouteDraft) async throws -> PlannedRoute
-    func updateRouteTitle(_ title: String, for route: PlannedRoute) async throws -> PlannedRoute
+    func updateRoute(_ draft: PlannedRouteDraft, for route: PlannedRoute) async throws -> PlannedRoute
     func setSharing(_ isPublic: Bool, for route: PlannedRoute) async throws -> PlannedRoute
     func deleteRoute(_ route: PlannedRoute) async throws
 }
@@ -36,11 +36,15 @@ struct PreviewRouteService: RouteServing {
         )
     }
 
-    func updateRouteTitle(_ title: String, for route: PlannedRoute) async throws -> PlannedRoute {
+    func updateRoute(_ draft: PlannedRouteDraft, for route: PlannedRoute) async throws -> PlannedRoute {
         try await Task.sleep(for: .milliseconds(250))
         if let failure { throw failure }
         var updated = route
-        updated.title = title
+        updated.title = draft.title
+        updated.distanceKm = draft.distanceKm
+        updated.elevationM = draft.elevationM
+        updated.waypoints = draft.waypoints
+        updated.route = draft.route
         return updated
     }
 
@@ -91,9 +95,9 @@ struct RouteService: RouteServing {
         return route
     }
 
-    func updateRouteTitle(_ title: String, for route: PlannedRoute) async throws -> PlannedRoute {
+    func updateRoute(_ draft: PlannedRouteDraft, for route: PlannedRoute) async throws -> PlannedRoute {
         guard let token = accessToken() else { throw RideServiceError.notAuthenticated }
-        let payload = RouteTitleUpdatePayload(title: title)
+        let payload = PlannedRouteUpdatePayload(draft: draft)
         let rows: [SupabasePlannedRouteRow] = try await client.patch(
             path: "rest/v1/planned_routes",
             queryItems: [
@@ -174,6 +178,30 @@ private struct PlannedRouteInsertPayload: Encodable {
     }
 }
 
+private struct PlannedRouteUpdatePayload: Encodable {
+    let title: String
+    let distanceKm: Double?
+    let elevationM: Double?
+    let waypoints: [WaypointInsertPayload]
+    let route: [RouteCoordinateInsertPayload]
+
+    init(draft: PlannedRouteDraft) {
+        title = draft.title
+        distanceKm = draft.distanceKm
+        elevationM = draft.elevationM
+        waypoints = draft.waypoints.map(WaypointInsertPayload.init(coordinate:))
+        route = draft.route.map(RouteCoordinateInsertPayload.init(coordinate:))
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case distanceKm = "distance_km"
+        case elevationM = "elevation_m"
+        case waypoints
+        case route
+    }
+}
+
 private struct SupabasePlannedRouteRow: Decodable {
     let id: UUID
     let title: String?
@@ -233,10 +261,6 @@ private struct RouteShareUpdatePayload: Encodable {
     enum CodingKeys: String, CodingKey {
         case isPublic = "is_public"
     }
-}
-
-private struct RouteTitleUpdatePayload: Encodable {
-    let title: String
 }
 
 private struct WaypointPayload: Decodable {
