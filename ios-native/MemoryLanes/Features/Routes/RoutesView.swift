@@ -14,6 +14,7 @@ struct RoutesView: View {
     @State private var showCandidates = false
     @State private var routeCandidates: [RouteCandidate] = []
     @State private var routeSaveError: String?
+    @State private var isGeneratingCandidates = false
     let refreshTrigger: UUID
     let onSelectRoute: (PlannedRoute) -> Void
 
@@ -74,10 +75,15 @@ struct RoutesView: View {
 
     private var actionRow: some View {
         HStack(spacing: Spacing.md) {
-            PrimaryButton(title: "Plan Route", systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill") {
+            PrimaryButton(
+                title: "Plan Route",
+                systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill",
+                isLoading: isGeneratingCandidates
+            ) {
                 Haptics.impact(.medium)
-                generateCandidates()
+                Task { await generateCandidates() }
             }
+            .disabled(isGeneratingCandidates)
             SecondaryButton(title: "Refresh", systemImage: "arrow.clockwise") {
                 Task { await viewModel.refresh() }
             }
@@ -92,7 +98,7 @@ struct RoutesView: View {
                 Text("Start").mlKicker()
                 HStack(spacing: Spacing.md) {
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Text(startLocation.coordinate == nil ? "Sample start" : "Current location")
+                        Text(startLocation.coordinate == nil ? "Choose a start" : "Current location")
                             .font(MLFont.headline)
                             .foregroundStyle(Color.mlTextPrimary)
                         Text(startLocation.summary)
@@ -162,7 +168,7 @@ struct RoutesView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             SectionHeader(title: "Route Candidates", actionTitle: "Regenerate") {
                 Haptics.selection()
-                generateCandidates()
+                Task { await generateCandidates() }
             }
 
             ForEach(routeCandidates) { route in
@@ -323,21 +329,34 @@ struct RoutesView: View {
         }
     }
 
-    private func generateCandidates() {
+    private func generateCandidates() async {
+        guard !isGeneratingCandidates else { return }
+        guard let start = startLocation.coordinate else {
+            Haptics.warning()
+            routeSaveError = "Use your current location before planning a road route."
+            return
+        }
+        isGeneratingCandidates = true
         routeSaveError = nil
-        routeCandidates = RouteCandidate.candidates(
-            mood: selectedMood,
-            time: selectedTime,
-            start: startLocation.coordinate ?? Self.sampleStart
-        )
-        withAnimation(Motion.spring) {
-            showCandidates = true
+        defer { isGeneratingCandidates = false }
+        do {
+            routeCandidates = try await RouteCandidate.candidates(
+                mood: selectedMood,
+                time: selectedTime,
+                start: start
+            )
+            Haptics.success()
+            withAnimation(Motion.spring) {
+                showCandidates = true
+            }
+        } catch {
+            Haptics.error()
+            routeCandidates = []
+            showCandidates = false
+            routeSaveError = error.localizedDescription
         }
     }
 
-    private static var sampleStart: Coordinate {
-        SampleData.ridgeRoute.first ?? Coordinate(latitude: -36.8485, longitude: 174.7633)
-    }
 }
 
 struct PlannedRouteDetailView: View {
@@ -944,6 +963,7 @@ private struct RouteCandidate: Identifiable {
     let elevationM: Double
     let summary: String
     let preview: [Coordinate]
+    let waypoints: [Coordinate]
 
     var distance: String {
         String(format: "%.1f", distanceKm)
@@ -963,56 +983,40 @@ private struct RouteCandidate: Identifiable {
         )
     }
 
-    private var waypoints: [Coordinate] {
-        guard let first = preview.first, let last = preview.last else { return [] }
-        guard preview.count > 2 else { return [first, last] }
-        return [first, preview[preview.count / 2], last]
-    }
-
-    static func candidates(mood: RouteMood, time: RouteTime, start: Coordinate) -> [RouteCandidate] {
+    static func candidates(mood: RouteMood, time: RouteTime, start: Coordinate) async throws -> [RouteCandidate] {
         let targetDistance = mood.averageSpeedKmH * time.hours
-        return [
-            makeCandidate(
-                title: "\(mood.title) Loop",
-                mood: mood,
-                time: time,
-                start: start,
-                targetDistanceKm: targetDistance,
-                bearingOffset: mood.bearingBias,
-                summary: "Balanced loop · generated from your route setup"
-            ),
-            makeCandidate(
-                title: "\(mood.title) Alternate",
-                mood: mood,
-                time: time,
-                start: start,
-                targetDistanceKm: targetDistance * 0.86,
-                bearingOffset: mood.bearingBias + 96,
-                summary: "Shorter option · different roads home"
-            )
+        let attempts = [
+            CandidateAttempt(title: "\(mood.title) Loop", distanceScale: 1, bearingOffset: mood.bearingBias, summary: "Balanced road loop · returns to your start"),
+            CandidateAttempt(title: "\(mood.title) Alternate", distanceScale: 0.86, bearingOffset: mood.bearingBias + 96, summary: "Shorter road option · different roads home"),
+            CandidateAttempt(title: "\(mood.title) North Loop", distanceScale: 0.92, bearingOffset: mood.bearingBias + 188, summary: "Road-routed loop · alternate direction"),
+            CandidateAttempt(title: "\(mood.title) South Loop", distanceScale: 0.78, bearingOffset: mood.bearingBias + 274, summary: "Compact road loop · returns to your start")
         ]
-    }
 
-    private static func makeCandidate(
-        title: String,
-        mood: RouteMood,
-        time: RouteTime,
-        start: Coordinate,
-        targetDistanceKm: Double,
-        bearingOffset: Double,
-        summary: String
-    ) -> RouteCandidate {
-        let anchors = routeAnchors(start: start, distanceKm: targetDistanceKm, bearingOffset: bearingOffset)
-        let route = densifiedRoute(anchors)
-        let distanceKm = route.totalDistanceKm
-        return RouteCandidate(
-            title: title,
-            distanceKm: distanceKm,
-            time: time.title,
-            elevationM: distanceKm * mood.elevationMetersPerKm,
-            summary: summary,
-            preview: route
-        )
+        var candidates: [RouteCandidate] = []
+        let planner = RoadRoutePlanner()
+        for attempt in attempts {
+            let anchors = routeAnchors(
+                start: start,
+                distanceKm: targetDistance * attempt.distanceScale,
+                bearingOffset: attempt.bearingOffset
+            )
+            guard let roadRoute = try? await planner.route(through: anchors) else { continue }
+            candidates.append(
+                RouteCandidate(
+                    title: attempt.title,
+                    distanceKm: roadRoute.distanceMeters / 1000,
+                    time: formattedDuration(roadRoute.expectedTravelTime),
+                    elevationM: (roadRoute.distanceMeters / 1000) * mood.elevationMetersPerKm,
+                    summary: attempt.summary,
+                    preview: roadRoute.coordinates.decimated(maxCount: 1_600),
+                    waypoints: anchors
+                )
+            )
+            if candidates.count == 2 { break }
+        }
+
+        guard !candidates.isEmpty else { throw RoadRoutePlannerError.noRoutes }
+        return candidates
     }
 
     private static func routeAnchors(start: Coordinate, distanceKm: Double, bearingOffset: Double) -> [Coordinate] {
@@ -1024,22 +1028,91 @@ private struct RouteCandidate: Identifiable {
         return [start, first, second, third, fourth, start]
     }
 
-    private static func densifiedRoute(_ anchors: [Coordinate]) -> [Coordinate] {
-        guard anchors.count > 1 else { return anchors }
-        var route: [Coordinate] = []
-        for index in anchors.indices.dropLast() {
-            let from = anchors[index]
-            let to = anchors[index + 1]
-            let steps = 16
-            for step in 0..<steps {
-                let progress = Double(step) / Double(steps)
-                route.append(from.interpolated(to: to, progress: progress))
+    private static func formattedDuration(_ seconds: TimeInterval) -> String {
+        let minutes = max(Int((seconds / 60).rounded()), 1)
+        return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
+    }
+}
+
+private struct CandidateAttempt {
+    let title: String
+    let distanceScale: Double
+    let bearingOffset: Double
+    let summary: String
+}
+
+private struct RoadRouteResult {
+    let coordinates: [Coordinate]
+    let distanceMeters: Double
+    let expectedTravelTime: TimeInterval
+}
+
+private struct RoadRoutePlanner {
+    func route(through waypoints: [Coordinate]) async throws -> RoadRouteResult {
+        guard waypoints.count > 1 else { throw RoadRoutePlannerError.noRoutes }
+        var coordinates: [Coordinate] = []
+        var distanceMeters: Double = 0
+        var expectedTravelTime: TimeInterval = 0
+
+        for index in waypoints.indices.dropLast() {
+            let request = MKDirections.Request()
+            request.source = mapItem(for: waypoints[index])
+            request.destination = mapItem(for: waypoints[index + 1])
+            request.transportType = .automobile
+            request.requestsAlternateRoutes = false
+
+            let response = try await MKDirections(request: request).calculate()
+            guard let leg = response.routes.first else { throw RoadRoutePlannerError.noRoutes }
+            let legCoordinates = leg.polyline.routeCoordinates
+            if coordinates.isEmpty {
+                coordinates.append(contentsOf: legCoordinates)
+            } else {
+                coordinates.append(contentsOf: legCoordinates.dropFirst())
             }
+            distanceMeters += leg.distance
+            expectedTravelTime += leg.expectedTravelTime
         }
-        if let last = anchors.last {
-            route.append(last)
+
+        guard coordinates.count > 1 else { throw RoadRoutePlannerError.noRoutes }
+        return RoadRouteResult(
+            coordinates: coordinates,
+            distanceMeters: distanceMeters,
+            expectedTravelTime: expectedTravelTime
+        )
+    }
+
+    private func mapItem(for coordinate: Coordinate) -> MKMapItem {
+        MKMapItem(placemark: MKPlacemark(coordinate: coordinate.clCoordinate))
+    }
+}
+
+private enum RoadRoutePlannerError: LocalizedError {
+    case noRoutes
+
+    var errorDescription: String? {
+        "No practical road loop was found from this start. Try a shorter time or another starting location."
+    }
+}
+
+private extension MKPolyline {
+    var routeCoordinates: [Coordinate] {
+        guard pointCount > 0 else { return [] }
+        var values = [CLLocationCoordinate2D](
+            repeating: CLLocationCoordinate2D(),
+            count: pointCount
+        )
+        getCoordinates(&values, range: NSRange(location: 0, length: pointCount))
+        return values.map { Coordinate(latitude: $0.latitude, longitude: $0.longitude) }
+    }
+}
+
+private extension Array where Element == Coordinate {
+    func decimated(maxCount: Int) -> [Coordinate] {
+        guard maxCount > 1, count > maxCount else { return self }
+        let interval = Double(count - 1) / Double(maxCount - 1)
+        return (0..<maxCount).map { index in
+            self[Int((Double(index) * interval).rounded())]
         }
-        return route
     }
 }
 

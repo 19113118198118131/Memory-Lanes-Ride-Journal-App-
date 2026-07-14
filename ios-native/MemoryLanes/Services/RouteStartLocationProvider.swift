@@ -20,7 +20,7 @@ final class RouteStartLocationProvider: NSObject, ObservableObject {
         if let coordinate {
             return String(format: "%.4f, %.4f", coordinate.latitude, coordinate.longitude)
         }
-        return "Use current location or the sample start"
+        return "Use current location to find nearby roads"
     }
 
     func useCurrentLocation() {
