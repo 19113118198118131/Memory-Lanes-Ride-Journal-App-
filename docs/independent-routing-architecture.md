@@ -59,10 +59,12 @@ Missing inputs remain missing. The UI labels geometry-only assessments as
 - [x] add a Supabase Storage catalog and pack-download contract
 - [x] verify size and SHA-256 before atomic pack activation
 - [x] expose rider-selected Offline Areas, updates and storage controls
-- [ ] build regional graph tiles from licensed OSM extracts in CI
-- [ ] sign and publish versioned manifests and packs to Supabase Storage
+- [x] build deterministic regional graph packs from licensed OSM extracts in CI
+- [x] sign and verify release manifests with an app-pinned Ed25519 key
+- [x] publish immutable packs before the catalog through Supabase Storage S3
+- [ ] configure production release secrets and publish the first Auckland pack
 - retain OSM attribution and ODbL notices
-- add data-quality and graph-version telemetry
+- [ ] add production graph-quality and version telemetry
 
 ### Phase 3: on-device routing
 

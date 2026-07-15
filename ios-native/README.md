@@ -31,12 +31,17 @@ testing:
   verified and atomically activated road-graph downloads, Wi-Fi controls,
   updates, storage management, cached catalog fallback and a coverage lookup
   seam for the embedded routing provider.
+- ✅ **Offline graph release pipeline** — deterministic motorcycle-access-aware
+  OSM compilation, one-way edges, turn restrictions, gzip graph archives,
+  SHA-256 pack integrity, Ed25519-signed catalogs and pack-first Supabase S3
+  publication with fixture coverage.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
   queue, storage controls, accessibility passes and release telemetry.
 
-The graph-pack client and stable v1 archive contract are now in place. Publishing
-the first signed OSM packs, connecting the embedded pathfinder, offline rerouting
-and turn-by-turn navigation remain the next routing milestones. See
+The graph-pack client, compiler and signed-release workflow are now in place.
+Configuring release secrets, publishing the first Auckland pack, connecting the
+embedded pathfinder, offline rerouting and turn-by-turn navigation remain the
+next routing milestones. See
 `../docs/independent-routing-architecture.md` and `../docs/offline-region-packs.md`.
 The latest static product-quality review is in `../docs/native-ui-ux-audit.md`.
 

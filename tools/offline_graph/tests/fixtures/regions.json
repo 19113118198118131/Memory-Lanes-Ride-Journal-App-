@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "regions": [
+    {
+      "id": "test-region",
+      "name": "Test Region",
+      "detail": "Fixture roads",
+      "bounds": {
+        "south": -37.0,
+        "west": 174.0,
+        "north": -36.0,
+        "east": 175.0
+      },
+      "version": 1,
+      "formatVersion": 1,
+      "encoding": "gzip-json",
+      "updatedAt": "2026-07-15T10:00:00Z"
+    }
+  ]
+}

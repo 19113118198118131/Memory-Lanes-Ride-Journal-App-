@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "name": "Geofabrik New Zealand extract",
+    "url": "https://download.geofabrik.de/australia-oceania/new-zealand-latest.osm.pbf"
+  },
+  "regions": [
+    {
+      "id": "nz-auckland-north",
+      "name": "Auckland North",
+      "detail": "North Shore, Hibiscus Coast, Kaipara and Matakana",
+      "bounds": {
+        "south": -36.95,
+        "west": 174.35,
+        "north": -36.15,
+        "east": 175.2
+      },
+      "version": 1,
+      "formatVersion": 1,
+      "encoding": "gzip-json",
+      "updatedAt": "2026-07-15T10:00:00Z"
+    }
+  ]
+}

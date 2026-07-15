@@ -7,7 +7,7 @@ struct OfflineRegionStoreTests {
     @Test func validPackIsVerifiedInstalledAndDiscoverableByCoverage() async throws {
         let harness = try Harness(packData: Data("connected-road-graph".utf8))
         let manifest = harness.manifest()
-        await harness.network.setManifest(try harness.encode(manifest))
+        await harness.network.setManifest(try harness.encodeSigned(manifest))
 
         let loaded = try await harness.store.catalog(forceRefresh: true)
         let phases = InstallPhaseProbe()
@@ -24,7 +24,7 @@ struct OfflineRegionStoreTests {
 
     @Test func checksumFailureCannotActivateCorruptPack() async throws {
         let harness = try Harness(packData: Data("corrupt".utf8), checksumOverride: String(repeating: "a", count: 64))
-        await harness.network.setManifest(try harness.encode(harness.manifest()))
+        await harness.network.setManifest(try harness.encodeSigned(harness.manifest()))
 
         do {
             _ = try await harness.store.install(harness.region, wifiOnly: false) { _ in }
@@ -39,7 +39,7 @@ struct OfflineRegionStoreTests {
 
     @Test func cachedCatalogKeepsAreaManagementAvailableOffline() async throws {
         let harness = try Harness(packData: Data("graph".utf8))
-        await harness.network.setManifest(try harness.encode(harness.manifest()))
+        await harness.network.setManifest(try harness.encodeSigned(harness.manifest()))
         _ = try await harness.store.catalog(forceRefresh: true)
         await harness.network.failManifestRequests()
 
@@ -55,6 +55,38 @@ struct OfflineRegionStoreTests {
         #expect(await harness.store.installedRegions().isEmpty)
         #expect(await harness.store.storageByteCount() == 0)
     }
+
+    @Test func tamperedManifestIsRejectedBeforeItCanBeCached() async throws {
+        let harness = try Harness(packData: Data("graph".utf8))
+        var envelope = try harness.signedEnvelope(harness.manifest())
+        envelope = SignedOfflineRegionManifestEnvelope(
+            schemaVersion: envelope.schemaVersion,
+            keyID: envelope.keyID,
+            payload: Data("tampered".utf8).base64EncodedString(),
+            signature: envelope.signature
+        )
+        await harness.network.setManifest(try harness.encode(envelope))
+
+        await #expect(throws: OfflineRegionError.invalidManifestSignature) {
+            _ = try await harness.store.catalog(forceRefresh: true)
+        }
+    }
+
+    @Test func unknownSigningKeyIsRejectedEvenWithAValidSignature() async throws {
+        let harness = try Harness(packData: Data("graph".utf8))
+        let envelope = try harness.signedEnvelope(harness.manifest())
+        let unknownKeyEnvelope = SignedOfflineRegionManifestEnvelope(
+            schemaVersion: envelope.schemaVersion,
+            keyID: "retired-key",
+            payload: envelope.payload,
+            signature: envelope.signature
+        )
+        await harness.network.setManifest(try harness.encode(unknownKeyEnvelope))
+
+        await #expect(throws: OfflineRegionError.invalidManifestSignature) {
+            _ = try await harness.store.catalog(forceRefresh: true)
+        }
+    }
 }
 
 private struct Harness {
@@ -63,6 +95,7 @@ private struct Harness {
     let region: OfflineRegionDescriptor
     let network: FakeOfflineRegionNetworkClient
     let store: OfflineRegionStore
+    private let signingPrivateKey: Curve25519.Signing.PrivateKey
 
     init(packData: Data, checksumOverride: String? = nil) throws {
         let rootURL = FileManager.default.temporaryDirectory
@@ -78,6 +111,7 @@ private struct Harness {
             bounds: OfflineRegionBounds(south: -36.9, west: 174.5, north: -36.2, east: 175.1),
             version: 1,
             formatVersion: 1,
+            encoding: .gzipJSON,
             byteCount: Int64(packData.count),
             sha256: checksumOverride ?? digest,
             downloadPath: "packs/nz-auckland-north-v1.mlgraph",
@@ -85,11 +119,14 @@ private struct Harness {
         )
         let network = FakeOfflineRegionNetworkClient(packData: packData)
         self.network = network
+        let signingPrivateKey = try Curve25519.Signing.PrivateKey(rawRepresentation: Data(repeating: 7, count: 32))
+        self.signingPrivateKey = signingPrivateKey
         self.store = OfflineRegionStore(
             rootURL: rootURL,
             manifestURL: URL(string: "https://example.com/manifest.json"),
             publicBucketURL: URL(string: "https://example.com/offline-regions"),
-            network: network
+            network: network,
+            trustedManifestKeys: ["test-key": signingPrivateKey.publicKey.rawRepresentation]
         )
     }
 
@@ -101,10 +138,26 @@ private struct Harness {
         )
     }
 
-    func encode(_ manifest: OfflineRegionManifest) throws -> Data {
+    func signedEnvelope(_ manifest: OfflineRegionManifest) throws -> SignedOfflineRegionManifestEnvelope {
+        let payload = try encode(manifest)
+        let signature = try signingPrivateKey.signature(for: payload)
+        return SignedOfflineRegionManifestEnvelope(
+            schemaVersion: 1,
+            keyID: "test-key",
+            payload: payload.base64EncodedString(),
+            signature: signature.base64EncodedString()
+        )
+    }
+
+    func encodeSigned(_ manifest: OfflineRegionManifest) throws -> Data {
+        try encode(signedEnvelope(manifest))
+    }
+
+    func encode<T: Encodable>(_ value: T) throws -> Data {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        return try encoder.encode(manifest)
+        encoder.outputFormatting = [.sortedKeys]
+        return try encoder.encode(value)
     }
 }
 

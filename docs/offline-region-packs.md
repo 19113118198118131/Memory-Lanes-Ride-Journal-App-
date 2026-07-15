@@ -22,11 +22,26 @@ offline-regions/
     nz-auckland-north-v1.mlgraph
 ```
 
-Run `supabase-offline-regions-setup.sql` once, then publish packs through the
-Supabase dashboard or trusted release infrastructure. The iOS client has no
-write policy.
+Run `supabase-offline-regions-setup.sql` once. The iOS client has no write
+policy; releases are published by `.github/workflows/offline-graph-release.yml`
+with server-only Supabase S3 credentials.
 
-## Manifest schema
+## Signed manifest schema
+
+`manifest.json` is an Ed25519-signed envelope. The iOS client pins the release
+public key, verifies the signature over the exact payload bytes, then decodes
+and validates the manifest. Unverified network or cached catalogs are rejected.
+
+```json
+{
+  "schemaVersion": 1,
+  "keyID": "release-2026-01",
+  "payload": "<base64 canonical manifest JSON>",
+  "signature": "<base64 Ed25519 signature>"
+}
+```
+
+The decoded payload is:
 
 ```json
 {
@@ -45,6 +60,7 @@ write policy.
       },
       "version": 1,
       "formatVersion": 1,
+      "encoding": "gzip-json",
       "byteCount": 48382910,
       "sha256": "<64-character lowercase SHA-256>",
       "downloadPath": "packs/nz-auckland-north-v1.mlgraph",
@@ -54,22 +70,47 @@ write policy.
 }
 ```
 
-The client rejects duplicate IDs, unsafe paths, unsupported versions, invalid
-bounds, size mismatches and checksum mismatches. Downloads are staged and only
-replace an installed pack after verification succeeds.
+The client rejects unknown signing keys, invalid signatures, duplicate IDs,
+unsafe paths, unsupported versions, invalid bounds, size mismatches and checksum
+mismatches. Downloads are staged and only replace an installed pack after
+verification succeeds.
 
 ## Graph format v1
 
-`.mlgraph` is a binary property-list encoding of `OfflineRoadGraphArchive`:
+`.mlgraph` is deterministic gzip-compressed canonical JSON matching
+`OfflineRoadGraphArchive`:
 
 - directed nodes and edges suitable for one-way and turn-aware expansion;
 - distance and expected travel time per edge;
-- road class, surface and optional road name;
+- OSM way ID, road class, surface, optional road name and posted maximum speed;
+- node-via and way-via prohibited or only-turn restrictions, retaining raw
+  conditional text for conservative runtime evaluation;
 - region bounds, generation timestamp and OSM attribution.
 
-The graph builder must enforce legal motorcycle access and preserve OSM turn
-restrictions before publication. The next phase adds spatial indexing and an
-embedded route provider over this stable archive contract.
+`tools/offline_graph/build_graph.py` excludes unsupported road classes,
+construction geometry, private access, motorcycle prohibitions and ferry paths;
+it preserves explicit motorcycle overrides, one-way direction and supported
+OSM turn restrictions. The next phase adds spatial indexing and an embedded
+route provider over this stable archive contract.
+
+## Release workflow
+
+The `offline-graph-release` GitHub Environment should require approval and hold:
+
+- `OFFLINE_MANIFEST_SIGNING_KEY`: base64 raw 32-byte Ed25519 private key;
+- `SUPABASE_S3_ACCESS_KEY_ID` and `SUPABASE_S3_SECRET_ACCESS_KEY`;
+- `SUPABASE_S3_ENDPOINT`: the direct project Storage S3 endpoint;
+- `SUPABASE_S3_REGION`: the Storage region.
+
+The private signing key and S3 credentials are server-only and must never enter
+the repository or iOS bundle. The workflow tests the compiler, downloads the
+configured OSM extract, creates a reference-complete regional extract, builds
+the pack, signs and verifies the catalog, retains a CI artifact, uploads the
+immutable pack, then publishes `manifest.json` last.
+
+Region definitions and version bumps live in
+`tools/offline_graph/regions.json`. A changed source or graph contract requires
+a new pack version; never overwrite a versioned pack with different bytes.
 
 ## Release safety
 
@@ -77,5 +118,5 @@ embedded route provider over this stable archive contract.
 - Publish immutable versioned pack names; update the manifest last.
 - Generate SHA-256 after the final pack bytes are written.
 - Retain at least one previous manifest and pack version for rollback.
-- Sign the manifest before broad production release; pack checksums currently
-  protect integrity once the trusted HTTPS manifest is retrieved.
+- Keep the prior signed manifest artifact so rollback only requires restoring
+  that manifest; immutable older packs remain available.

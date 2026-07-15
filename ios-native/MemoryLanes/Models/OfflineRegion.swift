@@ -42,6 +42,7 @@ struct OfflineRegionDescriptor: Codable, Hashable, Identifiable, Sendable {
     let bounds: OfflineRegionBounds
     let version: Int
     let formatVersion: Int
+    let encoding: OfflineRoadGraphEncoding
     let byteCount: Int64
     let sha256: String
     let downloadPath: String
@@ -52,10 +53,21 @@ struct OfflineRegionDescriptor: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
+enum OfflineRoadGraphEncoding: String, Codable, Sendable {
+    case gzipJSON = "gzip-json"
+}
+
 struct OfflineRegionManifest: Codable, Equatable, Sendable {
     let schemaVersion: Int
     let generatedAt: Date
     let regions: [OfflineRegionDescriptor]
+}
+
+struct SignedOfflineRegionManifestEnvelope: Codable, Equatable, Sendable {
+    let schemaVersion: Int
+    let keyID: String
+    let payload: String
+    let signature: String
 }
 
 struct InstalledOfflineRegion: Codable, Hashable, Identifiable, Sendable {

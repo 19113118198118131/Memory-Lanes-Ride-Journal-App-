@@ -5,3 +5,5 @@ ios/App/Pods/
 ios/App/build/
 DerivedData/
 .tools/
+offline-dist/
+offline-work/

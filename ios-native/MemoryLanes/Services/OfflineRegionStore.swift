@@ -53,6 +53,10 @@ actor OfflineRegionStore: OfflineRegionServing {
     static let supportedManifestVersion = 1
     static let supportedGraphFormatVersion = 1
 
+    static let productionManifestKeys: [String: Data] = [
+        "release-2026-01": Data(base64Encoded: "I+N3zbgFy2UamDV/zHMphfpTrTb5IhqvrpZNV6Re7Rk=") ?? Data()
+    ]
+
     private struct InstalledArchive: Codable {
         let schemaVersion: Int
         var regions: [InstalledOfflineRegion]
@@ -68,6 +72,7 @@ actor OfflineRegionStore: OfflineRegionServing {
     private let manifestURL: URL
     private let publicBucketURL: URL
     private let network: any OfflineRegionNetworkClient
+    private let trustedManifestKeys: [String: Data]
     private var installedCache: [InstalledOfflineRegion]?
 
     init(
@@ -75,7 +80,8 @@ actor OfflineRegionStore: OfflineRegionServing {
         rootURL: URL? = nil,
         manifestURL: URL? = nil,
         publicBucketURL: URL? = nil,
-        network: any OfflineRegionNetworkClient = URLSessionOfflineRegionNetworkClient()
+        network: any OfflineRegionNetworkClient = URLSessionOfflineRegionNetworkClient(),
+        trustedManifestKeys: [String: Data] = OfflineRegionStore.productionManifestKeys
     ) {
         self.fileManager = fileManager
         let applicationSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -89,6 +95,7 @@ actor OfflineRegionStore: OfflineRegionServing {
         self.publicBucketURL = bucketURL
         self.manifestURL = manifestURL ?? bucketURL.appendingPathComponent("manifest.json")
         self.network = network
+        self.trustedManifestKeys = trustedManifestKeys
     }
 
     func catalog(forceRefresh: Bool = false) async throws -> OfflineRegionManifest {
@@ -98,7 +105,7 @@ actor OfflineRegionStore: OfflineRegionServing {
             var request = URLRequest(url: manifestURL)
             request.cachePolicy = forceRefresh ? .reloadIgnoringLocalCacheData : .returnCacheDataElseLoad
             let data = try await network.data(for: request)
-            let manifest = try Self.decoder.decode(OfflineRegionManifest.self, from: data)
+            let manifest = try decodeVerifiedManifest(from: data)
             try validate(manifest)
             try createRootDirectory()
             try data.write(to: cachedManifestURL, options: .atomic)
@@ -218,6 +225,33 @@ actor OfflineRegionStore: OfflineRegionServing {
         try manifest.regions.forEach(validate)
     }
 
+    private func decodeVerifiedManifest(from data: Data) throws -> OfflineRegionManifest {
+        let envelope: SignedOfflineRegionManifestEnvelope
+        do {
+            envelope = try Self.decoder.decode(SignedOfflineRegionManifestEnvelope.self, from: data)
+        } catch {
+            throw OfflineRegionError.invalidManifestSignature
+        }
+        guard envelope.schemaVersion == 1,
+              let publicKeyData = trustedManifestKeys[envelope.keyID],
+              publicKeyData.count == 32,
+              let payload = Data(base64Encoded: envelope.payload),
+              let signature = Data(base64Encoded: envelope.signature),
+              let publicKey = try? Curve25519.Signing.PublicKey(rawRepresentation: publicKeyData),
+              publicKey.isValidSignature(signature, for: payload) else {
+            throw OfflineRegionError.invalidManifestSignature
+        }
+        do {
+            let manifest = try Self.decoder.decode(OfflineRegionManifest.self, from: payload)
+            try validate(manifest)
+            return manifest
+        } catch let error as OfflineRegionError {
+            throw error
+        } catch {
+            throw OfflineRegionError.invalidManifest
+        }
+    }
+
     private func validate(_ region: OfflineRegionDescriptor) throws {
         let isHexDigest = region.sha256.count == 64 && region.sha256.allSatisfy { $0.isHexDigit }
         guard !region.id.isEmpty,
@@ -225,6 +259,7 @@ actor OfflineRegionStore: OfflineRegionServing {
               region.bounds.isValid,
               region.version > 0,
               region.formatVersion == Self.supportedGraphFormatVersion,
+              region.encoding == .gzipJSON,
               region.byteCount > 0,
               isHexDigest else {
             throw OfflineRegionError.invalidManifest
@@ -243,8 +278,7 @@ actor OfflineRegionStore: OfflineRegionServing {
 
     private func loadCachedManifest() -> OfflineRegionManifest? {
         guard let data = try? Data(contentsOf: cachedManifestURL),
-              let manifest = try? Self.decoder.decode(OfflineRegionManifest.self, from: data),
-              (try? validate(manifest)) != nil else { return nil }
+              let manifest = try? decodeVerifiedManifest(from: data) else { return nil }
         return manifest
     }
 
@@ -318,6 +352,7 @@ enum OfflineRegionError: LocalizedError, Equatable {
     case server(status: Int)
     case unsupportedManifest
     case invalidManifest
+    case invalidManifestSignature
     case invalidDownloadPath
     case sizeMismatch(expected: Int64, actual: Int64)
     case checksumMismatch
@@ -335,6 +370,8 @@ enum OfflineRegionError: LocalizedError, Equatable {
             return "This offline-area catalog needs a newer version of Memory Lanes."
         case .invalidManifest, .invalidDownloadPath:
             return "The offline-area catalog did not pass validation."
+        case .invalidManifestSignature:
+            return "The offline-area catalog could not be verified and was not accepted."
         case .sizeMismatch:
             return "The road pack was incomplete and was not installed."
         case .checksumMismatch:
