@@ -14,17 +14,21 @@ struct RideDetailView: View {
     @State private var activityPayload: ActivityPayload?
     @State private var momentEditor: MomentEditorContext?
     @State private var showingCalibrationReview = false
+    @State private var showingRenameRide = false
     @State private var isRendering = false
     @State private var mapFocusRequest = 0
+    @State private var toast: Toast?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    let onRideChanged: (Ride) -> Void
 
     private var heroHeight: CGFloat { verticalSizeClass == .compact ? 240 : 340 }
 
-    init(viewModel: RideDetailViewModel) {
+    init(viewModel: RideDetailViewModel, onRideChanged: @escaping (Ride) -> Void = { _ in }) {
         _viewModel = State(initialValue: viewModel)
+        self.onRideChanged = onRideChanged
     }
 
     var body: some View {
@@ -107,6 +111,28 @@ struct RideDetailView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showingRenameRide) {
+            RideRenameSheet(
+                initialTitle: viewModel.ride.title,
+                isSaving: viewModel.isRenamingRide,
+                errorMessage: viewModel.renameErrorMessage,
+                onSave: { title in
+                    let renamed = await viewModel.renameRide(to: title)
+                    if renamed {
+                        Haptics.success()
+                        onRideChanged(viewModel.ride)
+                        toast = .success("Ride renamed")
+                        showingRenameRide = false
+                    } else {
+                        Haptics.error()
+                    }
+                }
+            )
+            .presentationDetents([.height(300)])
+            .presentationDragIndicator(.visible)
+            .interactiveDismissDisabled(viewModel.isRenamingRide)
+        }
+        .mlToast($toast)
     }
 
     // MARK: Scrolling content
@@ -222,9 +248,26 @@ struct RideDetailView: View {
                     Text("· \(location)").mlKicker()
                 }
             }
-            Text(viewModel.ride.title)
-                .font(MLFont.title)
-                .foregroundStyle(Color.mlTextPrimary)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                Text(viewModel.ride.title)
+                    .font(MLFont.title)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    Haptics.selection()
+                    showingRenameRide = true
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(width: 36, height: 36)
+                        .background(Color.mlAccent.opacity(0.12), in: Circle())
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .accessibilityLabel("Rename ride")
+                .help("Rename ride")
+            }
             Text(viewModel.ride.dateFormatted)
                 .mlCaption()
         }
@@ -766,6 +809,92 @@ struct RideDetailView: View {
     private func openMomentEditor(_ moment: Moment? = nil, defaultRouteIndex: Int? = nil) {
         let defaultIndex = defaultRouteIndex ?? viewModel.playbackIndex
         momentEditor = MomentEditorContext(moment: moment, defaultRouteIndex: moment?.routeIndex ?? defaultIndex)
+    }
+}
+
+private struct RideRenameSheet: View {
+    let initialTitle: String
+    let isSaving: Bool
+    let errorMessage: String?
+    let onSave: (String) async -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+    @FocusState private var isTitleFocused: Bool
+
+    init(
+        initialTitle: String,
+        isSaving: Bool,
+        errorMessage: String?,
+        onSave: @escaping (String) async -> Void
+    ) {
+        self.initialTitle = initialTitle
+        self.isSaving = isSaving
+        self.errorMessage = errorMessage
+        self.onSave = onSave
+        _title = State(initialValue: initialTitle)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Ride name").mlKicker()
+                    TextField("Sunday ride", text: $title)
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                        .textInputAutocapitalization(.words)
+                        .submitLabel(.done)
+                        .focused($isTitleFocused)
+                        .onSubmit { save() }
+                        .padding(Spacing.md)
+                        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                                .stroke(isTitleFocused ? Color.mlAccent : Color.mlHairline, lineWidth: Layout.hairline)
+                        )
+                    Text("\(title.trimmingCharacters(in: .whitespacesAndNewlines).count)/80")
+                        .font(MLFont.caption)
+                        .foregroundStyle(title.count > 80 ? Color.mlDanger : Color.mlTextTertiary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+
+                if let errorMessage {
+                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlDanger)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                PrimaryButton(title: "Save Name", systemImage: "checkmark", isLoading: isSaving) {
+                    save()
+                }
+                .disabled(!canSave || isSaving)
+            }
+            .padding(.vertical, Spacing.md)
+            .mlScreenPadding()
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(Color.mlBackground)
+            .navigationTitle("Rename Ride")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isSaving)
+                }
+            }
+        }
+        .task { isTitleFocused = true }
+    }
+
+    private var canSave: Bool {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !cleanTitle.isEmpty && cleanTitle.count <= 80 && cleanTitle != initialTitle
+    }
+
+    private func save() {
+        guard canSave, !isSaving else { return }
+        Task { await onSave(title) }
     }
 }
 

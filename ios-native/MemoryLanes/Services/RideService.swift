@@ -21,6 +21,7 @@ protocol RideServing: Sendable {
     func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment]
     func saveFeedback(_ feedback: RideFeedback, for ride: Ride) async throws -> RideFeedback
     func fetchRatedRideFeatures() async throws -> [RatedRideFeatures]
+    func renameRide(_ title: String, for ride: Ride) async throws -> Ride
     func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride
 }
 
@@ -101,6 +102,14 @@ struct PreviewRideService: RideServing {
     }
 
     func fetchRatedRideFeatures() async throws -> [RatedRideFeatures] { [] }
+
+    func renameRide(_ title: String, for ride: Ride) async throws -> Ride {
+        try await Task.sleep(for: .milliseconds(250))
+        if let failure { throw failure }
+        var updated = ride
+        updated.title = title
+        return updated
+    }
 
     func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride {
         try await Task.sleep(for: .milliseconds(250))
@@ -276,6 +285,23 @@ struct RideService: RideServing {
         return rows.compactMap(\.ratedFeatures)
     }
 
+    func renameRide(_ title: String, for ride: Ride) async throws -> Ride {
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        let rows: [SupabaseRideRow] = try await client.patch(
+            path: "rest/v1/ride_logs",
+            queryItems: [
+                URLQueryItem(name: "id", value: "eq.\(ride.id.uuidString)"),
+                URLQueryItem(name: "select", value: Self.rideSelectColumns)
+            ],
+            body: RideTitleUpdatePayload(title: title),
+            accessToken: token,
+            prefer: "return=representation"
+        )
+        guard var updated = rows.first?.ride else { throw RideServiceError.updateUnavailable }
+        updated.routePreview = ride.routePreview
+        return updated
+    }
+
     func setSharing(_ isPublic: Bool, for ride: Ride) async throws -> Ride {
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let payload = RideShareUpdatePayload(isPublic: isPublic)
@@ -429,6 +455,7 @@ enum RideServiceError: LocalizedError {
     case notAuthenticated
     case sharingUnavailable
     case gpxUnavailable
+    case updateUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -436,6 +463,7 @@ enum RideServiceError: LocalizedError {
         case .notAuthenticated: "Sign in to sync your rides."
         case .sharingUnavailable: "The ride was shared, but no public link was returned."
         case .gpxUnavailable: "This ride does not have an exportable GPX file."
+        case .updateUnavailable: "This ride could not be updated. Pull to refresh and try again."
         }
     }
 }
@@ -621,6 +649,10 @@ private struct RideShareUpdatePayload: Encodable {
     enum CodingKeys: String, CodingKey {
         case isPublic = "is_public"
     }
+}
+
+private struct RideTitleUpdatePayload: Encodable {
+    let title: String
 }
 
 private struct SupabaseLinkedPlannedRouteRow: Decodable {

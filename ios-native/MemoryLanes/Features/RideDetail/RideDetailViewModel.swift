@@ -39,6 +39,8 @@ final class RideDetailViewModel {
     var shareErrorMessage: String?
     var feedbackStatus: String?
     var isSavingFeedback = false
+    var isRenamingRide = false
+    var renameErrorMessage: String?
     var playbackIndex = 0
     var playbackElapsedSeconds: TimeInterval = 0
     var isPlaying = false
@@ -202,6 +204,35 @@ final class RideDetailViewModel {
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }
             await self?.persistFeedback(feedback, saveID: saveID)
+        }
+    }
+
+    func renameRide(to title: String) async -> Bool {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty else {
+            renameErrorMessage = "Enter a name for this ride."
+            return false
+        }
+        guard cleanTitle.count <= 80 else {
+            renameErrorMessage = "Keep the ride name to 80 characters or fewer."
+            return false
+        }
+        guard cleanTitle != ride.title else {
+            renameErrorMessage = nil
+            return true
+        }
+
+        isRenamingRide = true
+        renameErrorMessage = nil
+        defer { isRenamingRide = false }
+        do {
+            ride = try await rideService.renameRide(cleanTitle, for: ride)
+            return true
+        } catch is CancellationError {
+            return false
+        } catch {
+            renameErrorMessage = error.localizedDescription
+            return false
         }
     }
 

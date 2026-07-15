@@ -80,7 +80,10 @@ private struct MainTabShell: View {
                 )
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: Ride.self) { ride in
-                    RideDetailView(viewModel: RideDetailViewModel(ride: ride, rideService: rideService))
+                    RideDetailView(
+                        viewModel: RideDetailViewModel(ride: ride, rideService: rideService),
+                        onRideChanged: { _ in refreshTrigger = UUID() }
+                    )
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -156,7 +159,10 @@ private struct MainTabShell: View {
                     onSelectRide: { journalPath.append($0) }
                 )
                 .navigationDestination(for: Ride.self) { ride in
-                    RideDetailView(viewModel: RideDetailViewModel(ride: ride, rideService: rideService))
+                    RideDetailView(
+                        viewModel: RideDetailViewModel(ride: ride, rideService: rideService),
+                        onRideChanged: { _ in refreshTrigger = UUID() }
+                    )
                 }
             }
             .tabItem { Label("Journal", systemImage: "book") }
@@ -169,7 +175,10 @@ private struct MainTabShell: View {
                     onSelectRide: { statsPath.append($0) }
                 )
                 .navigationDestination(for: Ride.self) { ride in
-                    RideDetailView(viewModel: RideDetailViewModel(ride: ride, rideService: rideService))
+                    RideDetailView(
+                        viewModel: RideDetailViewModel(ride: ride, rideService: rideService),
+                        onRideChanged: { _ in refreshTrigger = UUID() }
+                    )
                 }
             }
             .tabItem { Label("Stats", systemImage: "chart.bar") }
