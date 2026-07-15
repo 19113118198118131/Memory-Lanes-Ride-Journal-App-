@@ -186,6 +186,37 @@ struct IndependentRoutePlannerTests {
         #expect(attempts > 15)
     }
 
+    @Test func disconnectedCoastalLegsCannotBeJoinedAcrossWater() {
+        let incomingShore = Coordinate(latitude: -36.80, longitude: 174.78)
+        let outgoingShore = Coordinate(latitude: -36.76, longitude: 174.88)
+
+        #expect(!RoadRouteGeometryValidator.canJoin(incomingShore, outgoingShore))
+    }
+
+    @Test func aLongSparseWaterCrossingIsNotPlausibleRoadGeometry() {
+        let source = Coordinate(latitude: -36.80, longitude: 174.78)
+        let destination = Coordinate(latitude: -36.72, longitude: 174.92)
+
+        #expect(!RoadRouteGeometryValidator.isPlausibleLeg(
+            [source, destination],
+            source: source,
+            destination: destination
+        ))
+    }
+
+    @Test func denseContinuousRoadGeometryRemainsValid() {
+        let source = Coordinate(latitude: -36.80, longitude: 174.78)
+        let middle = Coordinate(latitude: -36.795, longitude: 174.785)
+        let destination = Coordinate(latitude: -36.79, longitude: 174.79)
+
+        #expect(RoadRouteGeometryValidator.isPlausibleLeg(
+            [source, middle, destination],
+            source: source,
+            destination: destination
+        ))
+        #expect(RoadRouteGeometryValidator.canJoin(destination, destination))
+    }
+
     private func request(distanceKm: Double) -> RoutePlanRequest {
         RoutePlanRequest(
             mood: .twisty,

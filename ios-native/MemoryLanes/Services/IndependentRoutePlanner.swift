@@ -182,7 +182,8 @@ struct IndependentRoutePlanner: Sendable {
 
         for anchorIndex in 0..<attempt.anchorCount {
             try Task.checkCancellation()
-            let baseBearing = attempt.initialBearing + Double(anchorIndex) * turnStep
+            let baseBearing = attempt.initialBearing
+                + Double(anchorIndex) * turnStep * attempt.turnDirection
             var validated: Coordinate?
 
             for retry in 0..<Self.anchorRetryLimit {
@@ -250,6 +251,7 @@ struct IndependentRoutePlanner: Sendable {
                 anchorCount: generator.integer(in: 3...6),
                 distanceScale: scale,
                 initialBearing: normalizedBearing(initialBearing),
+                turnDirection: generator.next().isMultiple(of: 2) ? 1 : -1,
                 anchorSeed: generator.next(),
                 titleSuffix: suffixes[index % suffixes.count]
             )
@@ -324,6 +326,7 @@ private struct CandidateAttempt: Sendable {
     let anchorCount: Int
     let distanceScale: Double
     let initialBearing: Double
+    let turnDirection: Double
     let anchorSeed: UInt64
     let titleSuffix: String
 }

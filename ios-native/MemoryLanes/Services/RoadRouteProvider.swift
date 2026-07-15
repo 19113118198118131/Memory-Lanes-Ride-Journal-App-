@@ -38,7 +38,7 @@ struct MapKitRoadRouteProvider: RoadRouteProviding {
             request.source = mapItem(for: waypoints[index])
             request.destination = mapItem(for: waypoints[index + 1])
             request.transportType = .automobile
-            request.requestsAlternateRoutes = false
+            request.requestsAlternateRoutes = true
 
             let response: MKDirections.Response
             do {
@@ -48,8 +48,21 @@ struct MapKitRoadRouteProvider: RoadRouteProviding {
             } catch {
                 throw error
             }
-            guard let leg = response.routes.first else { throw IndependentRoutePlanningError.noRoutes }
+            guard let leg = response.routes.first(where: { route in
+                !Self.containsFerry(route) && RoadRouteGeometryValidator.isPlausibleLeg(
+                    route.polyline.memoryLanesCoordinates,
+                    source: waypoints[index],
+                    destination: waypoints[index + 1]
+                )
+            }) else {
+                throw IndependentRoutePlanningError.noRoutes
+            }
             let legCoordinates = leg.polyline.memoryLanesCoordinates
+            if let previousEnd = coordinates.last,
+               let nextStart = legCoordinates.first,
+               !RoadRouteGeometryValidator.canJoin(previousEnd, nextStart) {
+                throw IndependentRoutePlanningError.noRoutes
+            }
             coordinates.append(contentsOf: coordinates.isEmpty ? legCoordinates : Array(legCoordinates.dropFirst()))
             distanceMeters += leg.distance
             expectedTravelTime += leg.expectedTravelTime
@@ -66,6 +79,50 @@ struct MapKitRoadRouteProvider: RoadRouteProviding {
 
     private func mapItem(for coordinate: Coordinate) -> MKMapItem {
         MKMapItem(placemark: MKPlacemark(coordinate: coordinate.clCoordinate))
+    }
+
+    private static func containsFerry(_ route: MKRoute) -> Bool {
+        let notices = route.advisoryNotices
+        let stepText = route.steps.flatMap { step in
+            [step.instructions, step.notice ?? ""]
+        }
+        return (notices + stepText).contains { value in
+            value.localizedCaseInsensitiveContains("ferry")
+        } || route.steps.contains { $0.transportType == .transit }
+    }
+}
+
+struct RoadRouteGeometryValidator {
+    private static let maximumAnchorSnapMeters = 5_000.0
+    private static let maximumJoinGapMeters = 750.0
+    private static let maximumPolylineGapMeters = 5_000.0
+
+    static func isPlausibleLeg(
+        _ coordinates: [Coordinate],
+        source: Coordinate,
+        destination: Coordinate
+    ) -> Bool {
+        guard coordinates.count > 1,
+              let first = coordinates.first,
+              let last = coordinates.last,
+              distanceMeters(first, source) <= maximumAnchorSnapMeters,
+              distanceMeters(last, destination) <= maximumAnchorSnapMeters else {
+            return false
+        }
+        return zip(coordinates, coordinates.dropFirst()).allSatisfy {
+            distanceMeters($0.0, $0.1) <= maximumPolylineGapMeters
+        }
+    }
+
+    static func canJoin(_ first: Coordinate, _ second: Coordinate) -> Bool {
+        distanceMeters(first, second) <= maximumJoinGapMeters
+    }
+
+    private static func distanceMeters(_ first: Coordinate, _ second: Coordinate) -> Double {
+        CLLocation(
+            latitude: first.latitude,
+            longitude: first.longitude
+        ).distance(from: CLLocation(latitude: second.latitude, longitude: second.longitude))
     }
 }
 
