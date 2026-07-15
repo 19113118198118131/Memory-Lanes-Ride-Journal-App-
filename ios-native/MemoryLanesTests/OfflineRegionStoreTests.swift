@@ -111,7 +111,7 @@ private struct Harness {
             bounds: OfflineRegionBounds(south: -36.9, west: 174.5, north: -36.2, east: 175.1),
             version: 1,
             formatVersion: 1,
-            encoding: .gzipJSON,
+            encoding: .zlibJSON,
             byteCount: Int64(packData.count),
             sha256: checksumOverride ?? digest,
             downloadPath: "packs/nz-auckland-north-v1.mlgraph",

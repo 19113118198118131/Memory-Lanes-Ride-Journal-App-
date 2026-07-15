@@ -4,11 +4,10 @@
 from __future__ import annotations
 
 import argparse
-import gzip
 import json
 import math
 import os
-import tempfile
+import zlib
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
@@ -78,7 +77,7 @@ def load_region(path: Path, region_id: str) -> dict:
     if len(matches) != 1:
         raise ValueError(f"Expected exactly one region named {region_id!r}")
     region = matches[0]
-    if region.get("formatVersion") != 1 or region.get("encoding") != "gzip-json":
+    if region.get("formatVersion") != 1 or region.get("encoding") != "zlib-json":
         raise ValueError("Region does not use the supported graph format")
     return region
 
@@ -287,12 +286,8 @@ def compile_graph(input_path: Path, region: dict, generated_at: str) -> dict:
     }
 
 
-def deterministic_gzip(payload: bytes) -> bytes:
-    with tempfile.SpooledTemporaryFile() as buffer:
-        with gzip.GzipFile(fileobj=buffer, mode="wb", filename="", compresslevel=9, mtime=0) as archive:
-            archive.write(payload)
-        buffer.seek(0)
-        return buffer.read()
+def deterministic_zlib(payload: bytes) -> bytes:
+    return zlib.compress(payload, level=9)
 
 
 def atomic_write(path: Path, payload: bytes) -> None:
@@ -307,7 +302,7 @@ def main() -> None:
     region = load_region(arguments.regions, arguments.region_id)
     graph = compile_graph(arguments.input, region, arguments.generated_at)
     payload = json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
-    atomic_write(arguments.output, deterministic_gzip(payload))
+    atomic_write(arguments.output, deterministic_zlib(payload))
     print(
         json.dumps(
             {

@@ -259,7 +259,7 @@ actor OfflineRegionStore: OfflineRegionServing {
               region.bounds.isValid,
               region.version > 0,
               region.formatVersion == Self.supportedGraphFormatVersion,
-              region.encoding == .gzipJSON,
+              region.encoding == .zlibJSON,
               region.byteCount > 0,
               isHexDigest else {
             throw OfflineRegionError.invalidManifest

@@ -19,7 +19,7 @@ struct IndependentRoutePlanner: Sendable {
     private let randomSeed: UInt64?
 
     init(
-        roadProvider: any RoadRouteProviding = MapKitRoadRouteProvider(),
+        roadProvider: any RoadRouteProviding = OfflineFirstRoadRouteProvider(),
         characterAnalyzer: RouteCharacterAnalyzer = RouteCharacterAnalyzer(),
         randomSeed: UInt64? = nil
     ) {

@@ -70,9 +70,14 @@ Missing inputs remain missing. The UI labels geometry-only assessments as
 
 - [x] download only rider-selected regions
 - [x] verify pack checksums before activation
-- support offline pathfinding and rerouting
-- populate enriched road context
-- keep the provider replaceable while validating the embedded engine
+- [x] load and spatially index activated graph packs off the main actor
+- [x] snap route points to downloaded roads and run turn-aware A* locally
+- [x] enforce one-way, node-via and way-via turn restrictions
+- [x] populate road-class and surface context for proprietary route scoring
+- [x] prefer the embedded provider and fall back to MapKit outside local coverage
+- [ ] route seamlessly across adjacent installed packs
+- [ ] support offline in-ride rerouting
+- [ ] validate performance and graph quality against a production Auckland pack
 
 ### Phase 4: learning-to-rank
 

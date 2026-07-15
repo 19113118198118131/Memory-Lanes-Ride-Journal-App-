@@ -198,7 +198,7 @@ struct RoadRouteGeometryValidator {
 struct RoadRoutePlanner: Sendable {
     private let provider: any RoadRouteProviding
 
-    init(provider: any RoadRouteProviding = MapKitRoadRouteProvider()) {
+    init(provider: any RoadRouteProviding = OfflineFirstRoadRouteProvider()) {
         self.provider = provider
     }
 

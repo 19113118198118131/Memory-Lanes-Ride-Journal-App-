@@ -54,7 +54,7 @@ struct OfflineRegionDescriptor: Codable, Hashable, Identifiable, Sendable {
 }
 
 enum OfflineRoadGraphEncoding: String, Codable, Sendable {
-    case gzipJSON = "gzip-json"
+    case zlibJSON = "zlib-json"
 }
 
 struct OfflineRegionManifest: Codable, Equatable, Sendable {

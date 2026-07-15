@@ -13,7 +13,7 @@
       },
       "version": 1,
       "formatVersion": 1,
-      "encoding": "gzip-json",
+      "encoding": "zlib-json",
       "updatedAt": "2026-07-15T10:00:00Z"
     }
   ]

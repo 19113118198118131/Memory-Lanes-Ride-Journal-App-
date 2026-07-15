@@ -60,7 +60,7 @@ The decoded payload is:
       },
       "version": 1,
       "formatVersion": 1,
-      "encoding": "gzip-json",
+      "encoding": "zlib-json",
       "byteCount": 48382910,
       "sha256": "<64-character lowercase SHA-256>",
       "downloadPath": "packs/nz-auckland-north-v1.mlgraph",
@@ -77,7 +77,7 @@ verification succeeds.
 
 ## Graph format v1
 
-`.mlgraph` is deterministic gzip-compressed canonical JSON matching
+`.mlgraph` is deterministic zlib-compressed canonical JSON matching
 `OfflineRoadGraphArchive`:
 
 - directed nodes and edges suitable for one-way and turn-aware expansion;
@@ -90,8 +90,20 @@ verification succeeds.
 `tools/offline_graph/build_graph.py` excludes unsupported road classes,
 construction geometry, private access, motorcycle prohibitions and ferry paths;
 it preserves explicit motorcycle overrides, one-way direction and supported
-OSM turn restrictions. The next phase adds spatial indexing and an embedded
-route provider over this stable archive contract.
+OSM turn restrictions.
+
+The native app inflates and validates an activated pack off the main actor,
+builds a coarse spatial index, snaps planning points to nearby graph nodes and
+runs a turn-aware A* search optimized for expected travel time. The search
+enforces directed edges plus node-via and way-via prohibited/only restrictions.
+Conditional restriction text is retained but conservatively treated as active
+until the runtime can evaluate its schedule or vehicle expression.
+
+Route planning uses a downloaded graph only when every waypoint is covered by
+the same installed pack. Missing coverage, failed snapping, disconnected roads
+or invalid packs fall back to the replaceable MapKit provider. Cross-pack
+routing, offline in-ride rerouting and production-pack performance validation
+remain later milestones.
 
 ## Release workflow
 

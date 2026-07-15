@@ -1,9 +1,9 @@
-import gzip
 import importlib.util
 import json
 import sys
 import tempfile
 import unittest
+import zlib
 from pathlib import Path
 
 
@@ -32,7 +32,7 @@ class BuildGraphTests(unittest.TestCase):
             "bounds": {"south": -37.0, "west": 174.0, "north": -36.0, "east": 175.0},
             "version": 1,
             "formatVersion": 1,
-            "encoding": "gzip-json",
+            "encoding": "zlib-json",
             "updatedAt": "2026-07-15T10:00:00Z",
         }
         self.fixture = Path(__file__).parent / "fixtures" / "sample.osm"
@@ -58,14 +58,14 @@ class BuildGraphTests(unittest.TestCase):
         self.assertEqual(coast_road["maximumSpeedKPH"], 80.0)
         self.assertEqual(coast_road["surface"], "asphalt")
 
-    def test_gzip_output_is_deterministic_and_round_trips(self):
+    def test_zlib_output_is_deterministic_and_round_trips(self):
         graph = build_graph.compile_graph(self.fixture, self.region, "2026-07-15T10:00:00Z")
         payload = json.dumps(graph, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        first = build_graph.deterministic_gzip(payload)
-        second = build_graph.deterministic_gzip(payload)
+        first = build_graph.deterministic_zlib(payload)
+        second = build_graph.deterministic_zlib(payload)
 
         self.assertEqual(first, second)
-        self.assertEqual(json.loads(gzip.decompress(first)), graph)
+        self.assertEqual(json.loads(zlib.decompress(first)), graph)
 
     def test_manifest_uses_pack_bytes_and_digest(self):
         with tempfile.TemporaryDirectory() as directory_name:
