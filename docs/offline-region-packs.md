@@ -117,18 +117,30 @@ The `offline-graph-release` GitHub Environment should require approval and hold:
 The private signing key and S3 credentials are server-only and must never enter
 the repository or iOS bundle. The workflow tests the compiler, downloads the
 configured OSM extract, creates a reference-complete regional extract, builds
-the pack, signs and verifies the catalog, retains a CI artifact, uploads the
-immutable pack, then publishes `manifest.json` last.
+the pack, audits it, signs and verifies the catalog, retains CI artifacts,
+uploads the immutable pack, then publishes `manifest.json` last.
+
+The release-blocking audit validates archive metadata, nodes, directed edges
+and turn-restriction references. It measures compression, parse/index time,
+peak memory, road-class mix, surface coverage and weakly connected components.
+Each region also defines named road probes and directed route pairs. Auckland's
+first release must snap and route in both directions between representative
+mainland locations around Albany, Orewa, Warkworth, Matakana, Helensville and
+Kumeu. The JSON quality report is retained even when the release is rejected.
 
 Region definitions and version bumps live in
 `tools/offline_graph/regions.json`. A changed source or graph contract requires
 a new pack version; never overwrite a versioned pack with different bytes.
+The workflow can be started manually from the default branch or from an
+intentional `offline-graph-nz-auckland-north-v*` release tag. Ordinary branch
+pushes never publish packs.
 
 ## Release safety
 
 - Keep OSM attribution visible in Offline Areas and route results.
 - Publish immutable versioned pack names; update the manifest last.
 - Generate SHA-256 after the final pack bytes are written.
+- Treat a failed graph audit as a blocked release; inspect its retained report.
 - Retain at least one previous manifest and pack version for rollback.
 - Keep the prior signed manifest artifact so rollback only requires restoring
   that manifest; immutable older packs remain available.

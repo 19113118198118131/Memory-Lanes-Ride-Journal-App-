@@ -14,7 +14,32 @@
       "version": 1,
       "formatVersion": 1,
       "encoding": "zlib-json",
-      "updatedAt": "2026-07-15T10:00:00Z"
+      "updatedAt": "2026-07-15T10:00:00Z",
+      "quality": {
+        "minimumNodes": 5,
+        "minimumEdges": 7,
+        "minimumTurnRestrictions": 2,
+        "minimumLargestWeakComponentRatio": 1.0,
+        "maximumProbeSnapDistanceMeters": 50,
+        "maximumProbeExpandedNodes": 50,
+        "probes": [
+          {
+            "id": "start",
+            "name": "Start",
+            "latitude": -36.8000,
+            "longitude": 174.7000
+          },
+          {
+            "id": "end",
+            "name": "End",
+            "latitude": -36.7960,
+            "longitude": 174.7040
+          }
+        ],
+        "routePairs": [
+          { "from": "end", "to": "start" }
+        ]
+      }
     }
   ]
 }

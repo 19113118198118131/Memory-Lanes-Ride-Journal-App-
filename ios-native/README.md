@@ -34,7 +34,9 @@ testing:
 - ✅ **Offline graph release pipeline** — deterministic motorcycle-access-aware
   OSM compilation, one-way edges, turn restrictions, zlib graph archives,
   SHA-256 pack integrity, Ed25519-signed catalogs and pack-first Supabase S3
-  publication with fixture coverage.
+  publication with fixture coverage. Releases are blocked on graph integrity,
+  component health and representative two-way Auckland route probes, with a
+  retained performance and quality report.
 - ✅ **Embedded offline routing** — validated zlib graph loading, cached spatial
   indexing, nearest-road snapping, turn-aware A*, one-way and turn-restriction
   enforcement, road/surface scoring context and automatic MapKit fallback when

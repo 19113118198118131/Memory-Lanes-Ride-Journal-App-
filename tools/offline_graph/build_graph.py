@@ -154,7 +154,11 @@ def edge(
     }
 
 
-def relation_restriction(element: ET.Element, retained_way_ids: set[int]) -> dict | None:
+def relation_restriction(
+    element: ET.Element,
+    retained_way_ids: set[int],
+    retained_node_ids: set[int],
+) -> dict | None:
     values = tags(element)
     source_tag = values.get("restriction:motorcycle") or values.get("restriction")
     conditional = values.get("restriction:motorcycle:conditional") or values.get("restriction:conditional")
@@ -192,6 +196,8 @@ def relation_restriction(element: ET.Element, retained_way_ids: set[int]) -> dic
     if not from_way or not to_way or (not via_node and not via_ways):
         return None
     if any(way_id not in retained_way_ids for way_id in [from_way, to_way, *via_ways]):
+        return None
+    if via_node and via_node not in retained_node_ids:
         return None
     return {
         "fromWayID": from_way,
@@ -250,7 +256,7 @@ def compile_graph(input_path: Path, region: dict, generated_at: str) -> dict:
                 if way_edges:
                     retained_way_ids.add(int(element.attrib["id"]))
         elif element.tag == "relation":
-            restriction = relation_restriction(element, retained_way_ids)
+            restriction = relation_restriction(element, retained_way_ids, used_node_ids)
             if restriction:
                 restrictions.append(restriction)
         if element.tag in {"node", "way", "relation"}:

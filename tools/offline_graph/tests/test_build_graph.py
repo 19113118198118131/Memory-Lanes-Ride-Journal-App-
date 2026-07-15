@@ -21,21 +21,22 @@ def load_module(name: str, file_name: str):
 
 build_graph = load_module("build_graph", "build_graph.py")
 create_manifest = load_module("create_manifest", "create_manifest.py")
+audit_graph = load_module("audit_graph", "audit_graph.py")
 
 
 class BuildGraphTests(unittest.TestCase):
     def setUp(self):
-        self.region = {
-            "id": "test-region",
-            "name": "Test Region",
-            "detail": "Fixture roads",
-            "bounds": {"south": -37.0, "west": 174.0, "north": -36.0, "east": 175.0},
-            "version": 1,
-            "formatVersion": 1,
-            "encoding": "zlib-json",
-            "updatedAt": "2026-07-15T10:00:00Z",
-        }
-        self.fixture = Path(__file__).parent / "fixtures" / "sample.osm"
+        fixture_directory = Path(__file__).parent / "fixtures"
+        self.fixture = fixture_directory / "sample.osm"
+        self.regions_fixture = fixture_directory / "regions.json"
+        configuration = json.loads(self.regions_fixture.read_text(encoding="utf-8"))
+        self.region = configuration["regions"][0]
+
+    def write_graph(self, directory: Path, graph: dict) -> Path:
+        payload = json.dumps(graph, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        path = directory / "test-region-v1.mlgraph"
+        path.write_bytes(build_graph.deterministic_zlib(payload))
+        return path
 
     def test_compiler_preserves_legal_direction_and_restrictions(self):
         graph = build_graph.compile_graph(self.fixture, self.region, "2026-07-15T10:00:00Z")
@@ -83,8 +84,40 @@ class BuildGraphTests(unittest.TestCase):
             self.assertEqual(create_manifest.digest(pack), "4862f447f2c7f272fa2f4aaf89dadb3b1ac09105bd5864f8d1a0c9452bb0a226")
 
     def test_checked_in_region_configuration_matches_fixture(self):
-        configured = build_graph.load_region(Path(__file__).parent / "fixtures" / "regions.json", "test-region")
+        configured = build_graph.load_region(self.regions_fixture, "test-region")
         self.assertEqual(configured, self.region)
+
+    def test_graph_audit_measures_connectivity_and_route_probes(self):
+        graph = build_graph.compile_graph(self.fixture, self.region, "2026-07-15T10:00:00Z")
+        with tempfile.TemporaryDirectory() as directory_name:
+            pack = self.write_graph(Path(directory_name), graph)
+            report = audit_graph.audit(pack, self.region)
+
+        self.assertEqual(report["result"], "passed")
+        self.assertEqual(report["graph"]["nodes"], 5)
+        self.assertEqual(report["graph"]["largestWeakComponentRatio"], 1.0)
+        self.assertEqual([(route["from"], route["to"]) for route in report["routes"]], [("end", "start")])
+        self.assertGreater(report["routes"][0]["distanceMeters"], 0)
+
+    def test_graph_audit_rejects_fragmented_release(self):
+        graph = build_graph.compile_graph(self.fixture, self.region, "2026-07-15T10:00:00Z")
+        graph["edges"] = [edge for edge in graph["edges"] if edge["wayID"] != 104]
+        replacements = []
+        for way_id, source, destination in [(900, 1, 2), (901, 2, 1)]:
+            replacement = dict(graph["edges"][0])
+            replacement.update({"wayID": way_id, "sourceNodeID": source, "destinationNodeID": destination})
+            replacements.append(replacement)
+        graph["edges"].extend(replacements)
+        way_restriction = next(
+            restriction
+            for restriction in graph["turnRestrictions"]
+            if restriction["sourceTag"] == "only_straight_on"
+        )
+        way_restriction["toWayID"] = 900
+        with tempfile.TemporaryDirectory() as directory_name:
+            pack = self.write_graph(Path(directory_name), graph)
+            with self.assertRaisesRegex(audit_graph.GraphAuditError, "Largest weak component"):
+                audit_graph.audit(pack, self.region)
 
 
 if __name__ == "__main__":

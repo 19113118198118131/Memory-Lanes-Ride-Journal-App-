@@ -18,7 +18,67 @@
       "version": 1,
       "formatVersion": 1,
       "encoding": "zlib-json",
-      "updatedAt": "2026-07-15T10:00:00Z"
+      "updatedAt": "2026-07-15T10:00:00Z",
+      "quality": {
+        "minimumNodes": 25000,
+        "minimumEdges": 50000,
+        "minimumTurnRestrictions": 1,
+        "minimumLargestWeakComponentRatio": 0.85,
+        "maximumProbeSnapDistanceMeters": 2500,
+        "maximumProbeExpandedNodes": 500000,
+        "probes": [
+          {
+            "id": "albany",
+            "name": "Albany",
+            "latitude": -36.7283,
+            "longitude": 174.6962
+          },
+          {
+            "id": "orewa",
+            "name": "Orewa",
+            "latitude": -36.5860,
+            "longitude": 174.6928
+          },
+          {
+            "id": "warkworth",
+            "name": "Warkworth",
+            "latitude": -36.3977,
+            "longitude": 174.6634
+          },
+          {
+            "id": "matakana",
+            "name": "Matakana",
+            "latitude": -36.3524,
+            "longitude": 174.7159
+          },
+          {
+            "id": "helensville",
+            "name": "Helensville",
+            "latitude": -36.6768,
+            "longitude": 174.4494
+          },
+          {
+            "id": "kumeu",
+            "name": "Kumeu",
+            "latitude": -36.7710,
+            "longitude": 174.5508
+          }
+        ],
+        "routePairs": [
+          { "from": "albany", "to": "orewa" },
+          { "from": "orewa", "to": "albany" },
+          { "from": "orewa", "to": "warkworth" },
+          { "from": "warkworth", "to": "orewa" },
+          { "from": "warkworth", "to": "matakana" },
+          { "from": "matakana", "to": "warkworth" },
+          { "from": "warkworth", "to": "helensville" },
+          { "from": "helensville", "to": "warkworth" },
+          { "from": "helensville", "to": "kumeu" },
+          { "from": "kumeu", "to": "helensville" },
+          { "from": "kumeu", "to": "albany" },
+          { "from": "albany", "to": "kumeu" }
+        ]
+      }
     }
   ]
 }
