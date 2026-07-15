@@ -1,0 +1,92 @@
+name: Offline graph release
+
+on:
+  workflow_dispatch:
+    inputs:
+      region_id:
+        description: Region configuration ID
+        required: true
+        default: nz-auckland-north
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offline-graph-release
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: offline-graph-release
+    env:
+      REGION_ID: ${{ inputs.region_id }}
+      REGIONS_FILE: tools/offline_graph/regions.json
+      PUBLIC_KEY: I+N3zbgFy2UamDV/zHMphfpTrTb5IhqvrpZNV6Re7Rk=
+      KEY_ID: release-2026-01
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install deterministic graph tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes osmium-tool awscli
+
+      - name: Test graph compiler
+        run: python3 -m unittest discover -s tools/offline_graph/tests -v
+
+      - name: Resolve release configuration
+        run: |
+          echo "BBOX=$(python3 tools/offline_graph/region_value.py --regions "$REGIONS_FILE" --region-id "$REGION_ID" --value bbox)" >> "$GITHUB_ENV"
+          echo "VERSION=$(python3 tools/offline_graph/region_value.py --regions "$REGIONS_FILE" --region-id "$REGION_ID" --value version)" >> "$GITHUB_ENV"
+          echo "GENERATED_AT=$(python3 tools/offline_graph/region_value.py --regions "$REGIONS_FILE" --region-id "$REGION_ID" --value updated-at)" >> "$GITHUB_ENV"
+          echo "SOURCE_URL=$(python3 tools/offline_graph/region_value.py --regions "$REGIONS_FILE" --region-id "$REGION_ID" --value source-url)" >> "$GITHUB_ENV"
+
+      - name: Download OSM source extract
+        run: |
+          mkdir -p offline-work offline-dist/packs
+          curl --fail --location --retry 3 --output offline-work/source.osm.pbf "$SOURCE_URL"
+
+      - name: Extract reference-complete regional roads
+        run: |
+          osmium extract --bbox "$BBOX" --strategy complete_ways --set-bounds --output offline-work/region.osm.pbf offline-work/source.osm.pbf
+          osmium tags-filter --output offline-work/roads.osm.pbf offline-work/region.osm.pbf w/highway r/type=restriction
+          osmium cat --output-format osm --output offline-work/roads.osm offline-work/roads.osm.pbf
+
+      - name: Compile road graph
+        run: |
+          python3 tools/offline_graph/build_graph.py \
+            --input offline-work/roads.osm \
+            --regions "$REGIONS_FILE" \
+            --region-id "$REGION_ID" \
+            --generated-at "$GENERATED_AT" \
+            --output "offline-dist/packs/${REGION_ID}-v${VERSION}.mlgraph"
+
+      - name: Build and sign release manifest
+        env:
+          OFFLINE_MANIFEST_SIGNING_KEY: ${{ secrets.OFFLINE_MANIFEST_SIGNING_KEY }}
+        run: |
+          python3 tools/offline_graph/create_manifest.py --regions "$REGIONS_FILE" --packs offline-dist/packs --generated-at "$GENERATED_AT" --output offline-dist/manifest-payload.json
+          python3 tools/offline_graph/sign_manifest.py --payload offline-dist/manifest-payload.json --output offline-dist/manifest.json --key-id "$KEY_ID" --expected-public-key "$PUBLIC_KEY"
+          python3 tools/offline_graph/verify_release.py --manifest offline-dist/manifest.json --public-key "$PUBLIC_KEY"
+
+      - name: Retain release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-graph-${{ inputs.region_id }}-${{ github.run_number }}
+          path: offline-dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish pack, then catalog
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.SUPABASE_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.SUPABASE_S3_REGION }}
+          SUPABASE_S3_ENDPOINT: ${{ secrets.SUPABASE_S3_ENDPOINT }}
+        run: |
+          aws s3 cp "offline-dist/packs/${REGION_ID}-v${VERSION}.mlgraph" "s3://offline-regions/packs/${REGION_ID}-v${VERSION}.mlgraph" --endpoint-url "$SUPABASE_S3_ENDPOINT" --content-type application/octet-stream
+          aws s3 cp offline-dist/manifest.json s3://offline-regions/manifest.json --endpoint-url "$SUPABASE_S3_ENDPOINT" --content-type application/json
