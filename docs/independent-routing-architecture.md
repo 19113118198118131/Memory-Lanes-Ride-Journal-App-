@@ -55,15 +55,19 @@ Missing inputs remain missing. The UI labels geometry-only assessments as
 
 ### Phase 2: OSM graph-pack pipeline
 
-- build regional graph tiles from licensed OSM extracts in CI
-- publish signed, versioned manifests and packs to Supabase Storage
+- [x] define a stable, versioned on-device graph archive contract
+- [x] add a Supabase Storage catalog and pack-download contract
+- [x] verify size and SHA-256 before atomic pack activation
+- [x] expose rider-selected Offline Areas, updates and storage controls
+- [ ] build regional graph tiles from licensed OSM extracts in CI
+- [ ] sign and publish versioned manifests and packs to Supabase Storage
 - retain OSM attribution and ODbL notices
 - add data-quality and graph-version telemetry
 
 ### Phase 3: on-device routing
 
-- download only rider-selected regions
-- verify pack checksums before activation
+- [x] download only rider-selected regions
+- [x] verify pack checksums before activation
 - support offline pathfinding and rerouting
 - populate enriched road context
 - keep the provider replaceable while validating the embedded engine

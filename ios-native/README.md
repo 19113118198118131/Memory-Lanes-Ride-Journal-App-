@@ -27,11 +27,17 @@ testing:
   retries failed coastal anchors and fresh geometry in bounded rounds, reuses
   validated road legs, stays below Apple Maps request throttling, and offers
   cancellable loading plus nearby retry/reset recovery when no loop is found.
+- ✅ **Offline Areas foundation** — rider-selected map regions in Account,
+  verified and atomically activated road-graph downloads, Wi-Fi controls,
+  updates, storage management, cached catalog fallback and a coverage lookup
+  seam for the embedded routing provider.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
   queue, storage controls, accessibility passes and release telemetry.
 
-Phase 2 OSM graph packs, on-device offline pathfinding and turn-by-turn navigation
-remain intentionally out of scope. See `../docs/independent-routing-architecture.md`.
+The graph-pack client and stable v1 archive contract are now in place. Publishing
+the first signed OSM packs, connecting the embedded pathfinder, offline rerouting
+and turn-by-turn navigation remain the next routing milestones. See
+`../docs/independent-routing-architecture.md` and `../docs/offline-region-packs.md`.
 The latest static product-quality review is in `../docs/native-ui-ux-audit.md`.
 
 ## Requirements

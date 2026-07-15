@@ -169,6 +169,18 @@ struct AccountView: View {
                 symbol: "iphone",
                 status: nil
             )
+            rowDivider
+            NavigationLink {
+                OfflineAreasView()
+            } label: {
+                accountRow(
+                    title: "Offline Areas",
+                    detail: "Download roads for local planning and navigation",
+                    symbol: "arrow.down.map",
+                    trailingSymbol: "chevron.right"
+                )
+            }
+            .buttonStyle(MLPressableButtonStyle())
         }
     }
 
