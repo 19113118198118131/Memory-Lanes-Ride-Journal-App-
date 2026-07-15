@@ -313,13 +313,18 @@ def audit(graph_path: Path, region: dict) -> dict:
         destination_id = pair.get("to")
         if source_id not in snapped_probes or destination_id not in snapped_probes:
             raise GraphAuditError("Route pair references an unknown quality probe")
-        result = route_probe(
-            snapped_probes[source_id],
-            snapped_probes[destination_id],
-            coordinates,
-            adjacency,
-            maximum_expanded_nodes,
-        )
+        try:
+            result = route_probe(
+                snapped_probes[source_id],
+                snapped_probes[destination_id],
+                coordinates,
+                adjacency,
+                maximum_expanded_nodes,
+            )
+        except GraphAuditError as error:
+            raise GraphAuditError(
+                f"Route probe {source_id} -> {destination_id} failed: {error}"
+            ) from error
         result.update({"from": source_id, "to": destination_id})
         route_report.append(result)
     routing_seconds = time.perf_counter() - routing_started

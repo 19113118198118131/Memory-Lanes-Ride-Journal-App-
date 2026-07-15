@@ -119,6 +119,15 @@ class BuildGraphTests(unittest.TestCase):
             with self.assertRaisesRegex(audit_graph.GraphAuditError, "Largest weak component"):
                 audit_graph.audit(pack, self.region)
 
+    def test_graph_audit_names_a_failed_route_probe(self):
+        graph = build_graph.compile_graph(self.fixture, self.region, "2026-07-15T10:00:00Z")
+        region = json.loads(json.dumps(self.region))
+        region["quality"]["routePairs"] = [{"from": "start", "to": "end"}]
+        with tempfile.TemporaryDirectory() as directory_name:
+            pack = self.write_graph(Path(directory_name), graph)
+            with self.assertRaisesRegex(audit_graph.GraphAuditError, "start -> end failed"):
+                audit_graph.audit(pack, region)
+
 
 if __name__ == "__main__":
     unittest.main()
