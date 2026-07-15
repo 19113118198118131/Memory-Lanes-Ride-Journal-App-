@@ -11,6 +11,7 @@ import Foundation
 // actor. Conforming types are value types with Sendable state, so a `@MainActor`
 // ViewModel can hold one and `await` it, hopping the heavy work off-main.
 protocol RideServing: Sendable {
+    func cachedRides() async -> [Ride]
     func fetchRides() async throws -> [Ride]
     /// A decimated route polyline for a single ride's list thumbnail, loaded
     /// lazily per row so the list never blocks on downloading every ride's GPX.
@@ -34,6 +35,8 @@ struct PreviewRideService: RideServing {
     var delay: Duration = .milliseconds(600)
     var rides: [Ride] = SampleData.rides
     var failure: RideServiceError? = nil
+
+    func cachedRides() async -> [Ride] { rides }
 
     func fetchRides() async throws -> [Ride] {
         try await Task.sleep(for: delay)
@@ -124,12 +127,28 @@ struct PreviewRideService: RideServing {
 // MARK: - Live implementation
 
 struct RideService: RideServing {
+    // Bump whenever a change makes persisted replay/analytics output obsolete.
+    private static let analysisCacheVersion = 1
+
     let accessToken: @Sendable () async -> String?
+    let userID: UUID?
     private let client = SupabaseHTTPClient()
     private let weatherService = OpenMeteoWeatherService()
+    private let localStore: any RideLocalStoring
 
-    init(accessToken: @escaping @Sendable () async -> String?) {
+    init(
+        accessToken: @escaping @Sendable () async -> String?,
+        userID: UUID?,
+        localStore: any RideLocalStoring = RideLocalStore.shared
+    ) {
         self.accessToken = accessToken
+        self.userID = userID
+        self.localStore = localStore
+    }
+
+    func cachedRides() async -> [Ride] {
+        guard let userID else { return [] }
+        return await localStore.rides(for: userID)
     }
 
     func fetchRides() async throws -> [Ride] {
@@ -145,19 +164,32 @@ struct RideService: RideServing {
         // Return the list immediately. Route thumbnails are hydrated lazily,
         // per row (see `routePreview(for:)`), so opening the dashboard never
         // waits on downloading and parsing every ride's GPX file up front.
-        return rows.map(\.ride)
+        let remoteRides = rows.map(\.ride)
+        guard let userID else { return remoteRides }
+        return (try? await localStore.replaceRides(remoteRides, for: userID)) ?? remoteRides
     }
 
     func routePreview(for ride: Ride) async throws -> [Coordinate] {
-        guard let gpxPath = ride.gpxPath else { return [] }
-        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
-        let track = try await downloadTrack(path: gpxPath, accessToken: token)
+        guard ride.gpxPath != nil else { return [] }
+        let track = try await loadTrack(for: ride, accessToken: await accessToken())
         return track.routePreview
     }
 
     func fetchDetail(for ride: Ride) async throws -> RideDetail {
+        if let userID,
+           let cached = await localStore.detail(
+               for: ride,
+               userID: userID,
+               analysisVersion: Self.analysisCacheVersion
+           ) {
+            if let token = await accessToken() {
+                refreshCachedMetadata(for: ride, detail: cached, accessToken: token, userID: userID)
+            }
+            return cached
+        }
+
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
-        guard let gpxPath = ride.gpxPath else {
+        guard ride.gpxPath != nil else {
             let metadata = try await fetchStoredMetadata(for: ride.id, accessToken: token)
             return RideDetail(id: ride.id, routePreview: [], replayPoints: [], elevation: [], corners: [], moments: metadata.moments, weather: nil, coachScore: nil, coachScores: [], feedback: metadata.feedback, debrief: "This ride does not have an attached GPX file yet.")
         }
@@ -165,20 +197,16 @@ struct RideService: RideServing {
         // These requests are independent. Starting them together removes
         // several full network round trips from the long-ride loading path.
         async let metadataRequest = fetchStoredMetadata(for: ride.id, accessToken: token)
-        async let dataRequest = client.download(
-            path: "storage/v1/object/gpx-files/\(gpxPath)",
-            accessToken: token
-        )
+        async let trackRequest = loadTrack(for: ride, accessToken: token)
         async let historyRequest = fetchPastCoachHistoryOrEmpty(excluding: ride.id, accessToken: token)
         async let plannedRouteRequest = fetchLinkedPlannedRoute(id: ride.plannedRouteID, accessToken: token)
 
-        let (metadata, data, history, plannedRoute) = try await (
+        let (metadata, track, history, plannedRoute) = try await (
             metadataRequest,
-            dataRequest,
+            trackRequest,
             historyRequest,
             plannedRouteRequest
         )
-        let track = try GPXParser().parse(data: data)
 
         // Weather can travel over the network while the deterministic local
         // analysis works through the track.
@@ -212,7 +240,7 @@ struct RideService: RideServing {
             rideID: ride.id,
             accessToken: token
         )
-        return RideDetail(
+        let detail = RideDetail(
             id: ride.id,
             routePreview: track.routePreview,
             replayPoints: track.replayPoints,
@@ -231,15 +259,32 @@ struct RideService: RideServing {
             routeMatch: routeMatch,
             debrief: coach.debrief
         )
+        if let userID {
+            try? await localStore.storeDetail(
+                detail,
+                for: ride,
+                userID: userID,
+                analysisVersion: Self.analysisCacheVersion
+            )
+        }
+        return detail
     }
 
     func gpxData(for ride: Ride) async throws -> Data {
         guard let gpxPath = ride.gpxPath else { throw RideServiceError.gpxUnavailable }
+        if let userID,
+           let cached = await localStore.gpxData(for: ride, userID: userID) {
+            return cached
+        }
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
-        return try await client.download(
+        let data = try await client.download(
             path: "storage/v1/object/gpx-files/\(gpxPath)",
             accessToken: token
         )
+        if let userID {
+            try? await localStore.storeGPX(data, for: ride, userID: userID)
+        }
+        return data
     }
 
     func saveMoments(_ moments: [Moment], for ride: Ride) async throws -> [Moment] {
@@ -253,7 +298,9 @@ struct RideService: RideServing {
             body: payload,
             accessToken: token
         )
-        return payload.moments.map(\.moment)
+        let saved = payload.moments.map(\.moment)
+        await updateCachedDetail(for: ride) { $0.moments = saved }
+        return saved
     }
 
     func saveFeedback(_ feedback: RideFeedback, for ride: Ride) async throws -> RideFeedback {
@@ -266,6 +313,7 @@ struct RideService: RideServing {
             body: RideFeedbackUpdatePayload(feedback: saved),
             accessToken: token
         )
+        await updateCachedDetail(for: ride) { $0.feedback = saved }
         return saved
     }
 
@@ -299,6 +347,9 @@ struct RideService: RideServing {
         )
         guard var updated = rows.first?.ride else { throw RideServiceError.updateUnavailable }
         updated.routePreview = ride.routePreview
+        if let userID {
+            try? await localStore.upsert(updated, gpxData: nil, for: userID)
+        }
         return updated
     }
 
@@ -317,17 +368,49 @@ struct RideService: RideServing {
         )
         var updated = rows.first?.ride ?? ride
         updated.routePreview = ride.routePreview
+        if let userID {
+            try? await localStore.upsert(updated, gpxData: nil, for: userID)
+        }
         return updated
     }
 
     private static let rideSelectColumns = "id,title,distance_km,duration_min,elevation_m,ride_date,gpx_path,moments,is_public,share_token,skills,planned_route_id"
 
-    private func downloadTrack(path: String, accessToken: String) async throws -> GPXTrack {
-        let data = try await client.download(
-            path: "storage/v1/object/gpx-files/\(path)",
-            accessToken: accessToken
-        )
-        return try GPXParser().parse(data: data)
+    private func loadTrack(for ride: Ride, accessToken: String?) async throws -> GPXTrack {
+        if let userID,
+           let cachedTrack = await localStore.parsedTrack(for: ride, userID: userID) {
+            if ride.routePreview.count <= 1 {
+                var cachedRide = ride
+                cachedRide.routePreview = cachedTrack.routePreview
+                try? await localStore.upsert(cachedRide, gpxData: nil, for: userID)
+            }
+            return cachedTrack
+        }
+
+        let data: Data
+        if let userID,
+           let cachedData = await localStore.gpxData(for: ride, userID: userID) {
+            data = cachedData
+        } else {
+            guard let gpxPath = ride.gpxPath else { throw RideServiceError.gpxUnavailable }
+            guard let accessToken else { throw RideServiceError.notAuthenticated }
+            data = try await client.download(
+                path: "storage/v1/object/gpx-files/\(gpxPath)",
+                accessToken: accessToken
+            )
+            if let userID {
+                try? await localStore.storeGPX(data, for: ride, userID: userID)
+            }
+        }
+
+        let track = try GPXParser().parse(data: data)
+        if let userID {
+            var cachedRide = ride
+            cachedRide.routePreview = track.routePreview
+            try? await localStore.upsert(cachedRide, gpxData: nil, for: userID)
+            try? await localStore.storeParsedTrack(track, for: ride, userID: userID)
+        }
+        return track
     }
 
     private func fetchStoredMetadata(for rideID: UUID, accessToken: String) async throws -> SupabaseRideMetadata {
@@ -427,6 +510,53 @@ struct RideService: RideServing {
             }
             try? await saveFeatureRecord(features, for: rideID, accessToken: accessToken)
         }
+    }
+
+    private func refreshCachedMetadata(
+        for ride: Ride,
+        detail: RideDetail,
+        accessToken: String,
+        userID: UUID
+    ) {
+        Task(priority: .utility) {
+            async let metadataRequest = try? fetchStoredMetadata(for: ride.id, accessToken: accessToken)
+            async let plannedRouteRequest = fetchLinkedPlannedRoute(id: ride.plannedRouteID, accessToken: accessToken)
+            let (metadata, plannedRoute) = await (metadataRequest, plannedRouteRequest)
+
+            var refreshed = detail
+            if let metadata {
+                refreshed.moments = metadata.moments
+                refreshed.feedback = metadata.feedback
+            }
+            if let plannedRoute {
+                refreshed.plannedRoute = plannedRoute
+            }
+            try? await localStore.storeDetail(
+                refreshed,
+                for: ride,
+                userID: userID,
+                analysisVersion: Self.analysisCacheVersion
+            )
+        }
+    }
+
+    private func updateCachedDetail(
+        for ride: Ride,
+        mutation: (inout RideDetail) -> Void
+    ) async {
+        guard let userID,
+              var detail = await localStore.detail(
+                  for: ride,
+                  userID: userID,
+                  analysisVersion: Self.analysisCacheVersion
+              ) else { return }
+        mutation(&detail)
+        try? await localStore.storeDetail(
+            detail,
+            for: ride,
+            userID: userID,
+            analysisVersion: Self.analysisCacheVersion
+        )
     }
 
     private func fetchPlannedRoute(id: UUID, accessToken: String) async throws -> PlannedRoute? {

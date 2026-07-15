@@ -14,13 +14,13 @@ struct LimitPointSample: Sendable {
     let replayIndex: Int
 }
 
-struct LimitPointCorner: Identifiable, Hashable, Sendable {
-    enum Direction: String, Sendable {
+struct LimitPointCorner: Codable, Identifiable, Hashable, Sendable {
+    enum Direction: String, Codable, Sendable {
         case left = "Left"
         case right = "Right"
     }
 
-    enum Severity: Int, Comparable, Sendable {
+    enum Severity: Int, Codable, Comparable, Sendable {
         case room
         case thin
         case beyondView
@@ -56,17 +56,17 @@ struct LimitPointCorner: Identifiable, Hashable, Sendable {
     var id: Int { apexIndex }
 }
 
-struct LimitPointAnalysis: Sendable {
-    enum GeometrySource: String, Sendable {
+struct LimitPointAnalysis: Codable, Sendable {
+    enum GeometrySource: String, Codable, Sendable {
         case plannedRoute = "Planned route polyline"
         case recordedTrack = "Recorded GPS track"
     }
 
-    enum ObstructionSource: String, Sendable {
+    enum ObstructionSource: String, Codable, Sendable {
         case fixedResearch = "Fixed research assumption"
     }
 
-    enum Confidence: String, Sendable {
+    enum Confidence: String, Codable, Sendable {
         case low = "Low confidence"
     }
 

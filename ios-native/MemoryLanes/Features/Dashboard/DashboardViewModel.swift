@@ -59,16 +59,21 @@ final class DashboardViewModel {
 
     func load() async {
         state = .loading
-        await fetchAndHydrate()
+        let cached = await rideService.cachedRides()
+        if !cached.isEmpty {
+            state = .loaded(cached)
+            startPreviewHydration()
+        }
+        await fetchAndHydrate(preserveCurrentOnFailure: !cached.isEmpty)
     }
 
     func refresh() async {
         // Same path as load, but doesn't flash the skeleton if we already
         // have content — the pull-to-refresh spinner covers the wait.
-        await fetchAndHydrate()
+        await fetchAndHydrate(preserveCurrentOnFailure: !rides.isEmpty)
     }
 
-    private func fetchAndHydrate() async {
+    private func fetchAndHydrate(preserveCurrentOnFailure: Bool) async {
         do {
             let rides = try await rideService.fetchRides()
             state = rides.isEmpty ? .empty : .loaded(rides)
@@ -76,7 +81,9 @@ final class DashboardViewModel {
         } catch is CancellationError {
             // View disappeared mid-load; leave state as-is.
         } catch {
-            state = .failed(error.localizedDescription)
+            if !preserveCurrentOnFailure {
+                state = .failed(error.localizedDescription)
+            }
         }
     }
 

@@ -47,7 +47,10 @@ private struct MainTabShell: View {
     @State private var toast: Toast?
 
     private var rideService: RideServing {
-        RideService(accessToken: { await authStore.validAccessToken() })
+        RideService(
+            accessToken: { await authStore.validAccessToken() },
+            userID: authStore.session?.userID
+        )
     }
 
     private var routeService: RouteServing {
@@ -153,7 +156,10 @@ private struct MainTabShell: View {
             NavigationStack(path: $journalPath) {
                 JournalView(
                     viewModel: JournalViewModel(
-                        journalService: JournalService(accessToken: { await authStore.validAccessToken() })
+                        journalService: JournalService(
+                            accessToken: { await authStore.validAccessToken() },
+                            userID: authStore.session?.userID
+                        )
                     ),
                     refreshTrigger: refreshTrigger,
                     onSelectRide: { journalPath.append($0) }

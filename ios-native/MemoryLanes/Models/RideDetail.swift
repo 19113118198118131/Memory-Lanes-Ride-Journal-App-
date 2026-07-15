@@ -7,7 +7,7 @@ import Foundation
 // corner tickets, moments, weather, and the elevation profile only come down
 // when a rider actually taps in.
 
-struct RideDetail: Identifiable, Sendable {
+struct RideDetail: Codable, Identifiable, Sendable {
     let id: UUID              // matches the parent Ride.id
     var routePreview: [Coordinate]
     var replayPoints: [ReplayPoint]
@@ -28,7 +28,7 @@ struct RideDetail: Identifiable, Sendable {
     var debrief: String?
 }
 
-struct RouteMatchSummary: Sendable {
+struct RouteMatchSummary: Codable, Sendable {
     let plannedDistanceKm: Double
     let actualDistanceKm: Double
     let distanceDeltaKm: Double
@@ -53,8 +53,8 @@ struct RouteMatchSummary: Sendable {
     }
 }
 
-struct RideCoachScore: Identifiable, Hashable, Sendable {
-    enum Kind: String, CaseIterable, Sendable {
+struct RideCoachScore: Codable, Identifiable, Hashable, Sendable {
+    enum Kind: String, CaseIterable, Codable, Sendable {
         case cornerEntry
         case exitDrive
         case brakingFeel
@@ -98,7 +98,7 @@ struct RideCoachScore: Identifiable, Hashable, Sendable {
     let caption: String
 }
 
-struct ReplayPoint: Identifiable, Hashable, Sendable {
+struct ReplayPoint: Codable, Identifiable, Hashable, Sendable {
     var id: Int { index }
     let index: Int
     let coordinate: Coordinate
@@ -118,7 +118,7 @@ struct ReplayPoint: Identifiable, Hashable, Sendable {
 
 // MARK: - Ride Analytics
 
-struct RideAnalytics: Sendable {
+struct RideAnalytics: Codable, Sendable {
     var acceleration: [RideAccelerationSample]
     var brakingZones: [RideInputZone]
     var driveZones: [RideInputZone]
@@ -154,7 +154,7 @@ struct RideAnalytics: Sendable {
     }
 }
 
-struct RideAccelerationSample: Identifiable, Hashable, Sendable {
+struct RideAccelerationSample: Codable, Identifiable, Hashable, Sendable {
     let index: Int
     let distanceKm: Double
     let acceleration: Double
@@ -162,8 +162,8 @@ struct RideAccelerationSample: Identifiable, Hashable, Sendable {
     var id: Int { index }
 }
 
-struct RideInputZone: Identifiable, Hashable, Sendable {
-    enum Kind: String, Sendable {
+struct RideInputZone: Codable, Identifiable, Hashable, Sendable {
+    enum Kind: String, Codable, Sendable {
         case braking
         case drive
     }
@@ -179,7 +179,7 @@ struct RideInputZone: Identifiable, Hashable, Sendable {
     var id: String { "\(kind.rawValue)-\(startIndex)-\(endIndex)" }
 }
 
-struct GripUsagePoint: Identifiable, Hashable, Sendable {
+struct GripUsagePoint: Codable, Identifiable, Hashable, Sendable {
     let index: Int
     /// Signed lateral acceleration in g: left negative, right positive.
     let lateralG: Double
@@ -189,7 +189,7 @@ struct GripUsagePoint: Identifiable, Hashable, Sendable {
     var id: Int { index }
 }
 
-struct CornerAnalyticsPoint: Identifiable, Hashable, Sendable {
+struct CornerAnalyticsPoint: Codable, Identifiable, Hashable, Sendable {
     let replayIndex: Int
     let radiusMeters: Double
     let apexKmh: Double
@@ -200,8 +200,8 @@ struct CornerAnalyticsPoint: Identifiable, Hashable, Sendable {
     var id: Int { replayIndex }
 }
 
-struct RideCompositionSlice: Identifiable, Hashable, Sendable {
-    enum Kind: String, CaseIterable, Sendable {
+struct RideCompositionSlice: Codable, Identifiable, Hashable, Sendable {
+    enum Kind: String, CaseIterable, Codable, Sendable {
         case cornering = "Cornering"
         case braking = "Braking"
         case driving = "Driving"
@@ -215,8 +215,8 @@ struct RideCompositionSlice: Identifiable, Hashable, Sendable {
     var id: Kind { kind }
 }
 
-struct RideAnalyticsInsight: Identifiable, Hashable, Sendable {
-    enum Kind: String, Sendable {
+struct RideAnalyticsInsight: Codable, Identifiable, Hashable, Sendable {
+    enum Kind: String, Codable, Sendable {
         case grip
         case corners
         case elevation
@@ -235,7 +235,7 @@ struct RideAnalyticsInsight: Identifiable, Hashable, Sendable {
 // One point on the elevation profile. Distance is the identity so Swift Charts
 // can plot and scrub it directly.
 
-struct ElevationSample: Identifiable, Hashable, Sendable {
+struct ElevationSample: Codable, Identifiable, Hashable, Sendable {
     var id: Double { distanceKm }
     let distanceKm: Double
     let elevationM: Double
@@ -247,7 +247,7 @@ struct ElevationSample: Identifiable, Hashable, Sendable {
 // coaching tip, and repeat-corner recognition. Scores reward smoothness and
 // technique, never speed or lean angle.
 
-struct CornerTicket: Identifiable, Sendable {
+struct CornerTicket: Codable, Identifiable, Sendable {
     let id: UUID
     var index: Int
     var shape: CornerShape
@@ -264,7 +264,7 @@ struct CornerTicket: Identifiable, Sendable {
     var leanDegrees: Int?
     var lateralG: Double?
 
-    enum Verdict: String, Sendable {
+    enum Verdict: String, Codable, Sendable {
         case smooth = "Smooth"
         case rushed = "Rushed entry"
         case early = "Early apex"
@@ -315,7 +315,7 @@ struct CornerTicket: Identifiable, Sendable {
 }
 
 /// Corner geometry, rendered as a glyph on the ticket.
-enum CornerShape: String, Sendable {
+enum CornerShape: String, Codable, Sendable {
     case leftHairpin = "Left hairpin"
     case rightHairpin = "Right hairpin"
     case leftSweeper = "Left sweeper"
@@ -338,7 +338,7 @@ enum CornerShape: String, Sendable {
 //
 // A pinned point on the ride with a note — the raw material of the journal.
 
-struct Moment: Identifiable, Sendable {
+struct Moment: Codable, Identifiable, Sendable {
     let id: UUID
     var title: String
     var note: String
@@ -373,7 +373,7 @@ struct Moment: Identifiable, Sendable {
 //
 // Historical weather at ride time (Open-Meteo in the web app).
 
-struct Weather: Sendable {
+struct Weather: Codable, Sendable {
     var temperatureC: Double
     var condition: String
     var windKph: Double

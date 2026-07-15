@@ -2,6 +2,7 @@ import Foundation
 
 @MainActor
 protocol JournalServing {
+    func cachedEntries() async -> [JournalEntry]
     func fetchEntries() async throws -> [JournalEntry]
 }
 
@@ -9,6 +10,8 @@ struct PreviewJournalService: JournalServing {
     var entries: [JournalEntry] = SampleData.journalEntries
     var failure: RideServiceError? = nil
     var delay: Duration = .milliseconds(300)
+
+    func cachedEntries() async -> [JournalEntry] { entries }
 
     func fetchEntries() async throws -> [JournalEntry] {
         try await Task.sleep(for: delay)
@@ -20,6 +23,18 @@ struct PreviewJournalService: JournalServing {
 struct JournalService: JournalServing {
     var client = SupabaseHTTPClient()
     var accessToken: @Sendable () async -> String?
+    var userID: UUID?
+    private var localStore: any RideLocalStoring = RideLocalStore.shared
+
+    init(accessToken: @escaping @Sendable () async -> String?, userID: UUID?) {
+        self.accessToken = accessToken
+        self.userID = userID
+    }
+
+    func cachedEntries() async -> [JournalEntry] {
+        guard let userID else { return [] }
+        return await localStore.journalEntries(for: userID)
+    }
 
     func fetchEntries() async throws -> [JournalEntry] {
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
@@ -32,11 +47,15 @@ struct JournalService: JournalServing {
             accessToken: token
         )
 
-        return rows.flatMap(\.journalEntries)
+        let entries = rows.flatMap(\.journalEntries)
             .sorted { lhs, rhs in
                 if lhs.rideDate != rhs.rideDate { return lhs.rideDate > rhs.rideDate }
                 return lhs.index > rhs.index
             }
+        if let userID {
+            try? await localStore.replaceJournalEntries(entries, for: userID)
+        }
+        return entries
     }
 }
 

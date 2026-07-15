@@ -2,6 +2,7 @@ import Foundation
 
 struct RideImportService {
     private var client = SupabaseHTTPClient()
+    private var localStore: any RideLocalStoring = RideLocalStore.shared
 
     func saveImportedRide(
         title: String,
@@ -38,7 +39,9 @@ struct RideImportService {
                 prefer: "return=representation"
             )
             guard let row = rows.first else { throw RideImportError.missingInsertedRide }
-            return row.ride(routePreview: track.routePreview)
+            let ride = row.ride(routePreview: track.routePreview)
+            try? await localStore.upsert(ride, gpxData: gpxData, for: userID)
+            return ride
         } catch {
             try? await deleteUploadedGPX(path: filePath, accessToken: accessToken)
             throw error
@@ -81,7 +84,9 @@ struct RideImportService {
                 prefer: "return=representation"
             )
             guard let row = rows.first else { throw RideImportError.missingInsertedRide }
-            return row.ride(routePreview: result.points.routePreview, source: .live)
+            let ride = row.ride(routePreview: result.points.routePreview, source: .live)
+            try? await localStore.upsert(ride, gpxData: gpxData, for: userID)
+            return ride
         } catch {
             try? await deleteUploadedGPX(path: filePath, accessToken: accessToken)
             throw error

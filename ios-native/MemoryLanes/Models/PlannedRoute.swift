@@ -1,6 +1,6 @@
 import Foundation
 
-struct PlannedRoute: Identifiable, Hashable, Sendable {
+struct PlannedRoute: Codable, Identifiable, Hashable, Sendable {
     let id: UUID
     var title: String
     var distanceKm: Double?

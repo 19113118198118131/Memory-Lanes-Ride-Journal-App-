@@ -1,6 +1,6 @@
 import Foundation
 
-struct JournalEntry: Identifiable, Hashable, Sendable {
+struct JournalEntry: Codable, Identifiable, Hashable, Sendable {
     let id: String
     var title: String
     var note: String

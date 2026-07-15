@@ -8,7 +8,7 @@ import CoreLocation
 // CoreLocation into the model layer. `Coordinate` is a plain `Sendable` value,
 // and we convert to `CLLocationCoordinate2D` only at the MapKit boundary.
 
-struct Coordinate: Hashable, Sendable {
+struct Coordinate: Codable, Hashable, Sendable {
     let latitude: Double
     let longitude: Double
 

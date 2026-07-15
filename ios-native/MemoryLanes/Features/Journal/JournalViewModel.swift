@@ -25,16 +25,26 @@ final class JournalViewModel {
 
     func load() async {
         state = .loading
-        await refresh()
+        let cached = await journalService.cachedEntries()
+        if !cached.isEmpty {
+            state = .loaded(cached)
+        }
+        await fetchEntries(preserveCurrentOnFailure: !cached.isEmpty)
     }
 
     func refresh() async {
+        await fetchEntries(preserveCurrentOnFailure: !entries.isEmpty)
+    }
+
+    private func fetchEntries(preserveCurrentOnFailure: Bool) async {
         do {
             let entries = try await journalService.fetchEntries()
             state = entries.isEmpty ? .empty : .loaded(entries)
         } catch is CancellationError {
         } catch {
-            state = .failed(error.localizedDescription)
+            if !preserveCurrentOnFailure {
+                state = .failed(error.localizedDescription)
+            }
         }
     }
 }

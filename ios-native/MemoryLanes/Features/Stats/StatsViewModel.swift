@@ -97,17 +97,28 @@ final class StatsViewModel {
 
     func load() async {
         state = .loading
-        await refresh()
+        let cached = await rideService.cachedRides()
+        if !cached.isEmpty {
+            state = .loaded(cached)
+            startPreviewHydration()
+        }
+        await fetchRides(preserveCurrentOnFailure: !cached.isEmpty)
     }
 
     func refresh() async {
+        await fetchRides(preserveCurrentOnFailure: !rides.isEmpty)
+    }
+
+    private func fetchRides(preserveCurrentOnFailure: Bool) async {
         do {
             let rides = try await rideService.fetchRides()
             state = rides.isEmpty ? .empty : .loaded(rides)
             startPreviewHydration()
         } catch is CancellationError {
         } catch {
-            state = .failed(error.localizedDescription)
+            if !preserveCurrentOnFailure {
+                state = .failed(error.localizedDescription)
+            }
         }
     }
 

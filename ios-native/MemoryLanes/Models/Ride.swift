@@ -6,7 +6,7 @@ import Foundation
 // parsing runs on a background actor). No UI, no persistence concerns here.
 
 /// A single recorded ride.
-struct Ride: Identifiable, Hashable, Sendable {
+struct Ride: Codable, Identifiable, Hashable, Sendable {
     let id: UUID
     var title: String
     var date: Date
@@ -76,7 +76,7 @@ struct Ride: Identifiable, Hashable, Sendable {
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
-enum RideSource: String, Sendable {
+enum RideSource: String, Codable, Sendable {
     case gpx = "GPX"
     case strava = "Strava"
     case live = "Live"

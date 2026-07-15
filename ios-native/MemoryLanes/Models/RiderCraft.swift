@@ -8,7 +8,7 @@ enum RiderCraftFeature {
     #endif
 }
 
-struct RiderCraftEvent: Identifiable, Hashable, Sendable {
+struct RiderCraftEvent: Codable, Identifiable, Hashable, Sendable {
     enum Kind: String, CaseIterable, Codable, Sendable {
         case brakeAfterTurnIn
         case flatExit
@@ -40,7 +40,7 @@ struct RiderCraftEvent: Identifiable, Hashable, Sendable {
     var id: String { "\(kind.rawValue)-\(cornerIndex)-\(replayIndex)" }
 }
 
-struct RiderCraftCalibrationSample: Hashable, Sendable {
+struct RiderCraftCalibrationSample: Codable, Hashable, Sendable {
     let cornerIndex: Int
     let replayIndex: Int
     let drive: Double
@@ -181,7 +181,7 @@ struct RiderCraftCalibrationReviewSummary: Codable, Equatable, Sendable {
     }
 }
 
-struct RiderCraftAnalysis: Sendable {
+struct RiderCraftAnalysis: Codable, Sendable {
     let thresholdVersion: Int
     let detectedCornerCount: Int
     let events: [RiderCraftEvent]
