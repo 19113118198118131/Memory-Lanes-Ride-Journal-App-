@@ -24,16 +24,19 @@ final class RoutesViewModel {
     private let routeService: RouteServing
     private let rideService: RideServing
     private let groupRideService: GroupRideServing?
+    private let planner: IndependentRoutePlanner
     private var recommender = RideRecommendationEngine(ratedRides: [])
 
     init(
         routeService: RouteServing,
         rideService: RideServing,
-        groupRideService: GroupRideServing? = nil
+        groupRideService: GroupRideServing? = nil,
+        planner: IndependentRoutePlanner = IndependentRoutePlanner()
     ) {
         self.routeService = routeService
         self.rideService = rideService
         self.groupRideService = groupRideService
+        self.planner = planner
     }
 
     var routes: [PlannedRoute] {
@@ -61,6 +64,16 @@ final class RoutesViewModel {
 
     func recommendation(for vector: RouteMatchVector) -> RouteRecommendation? {
         recommender.score(vector)
+    }
+
+    func generateCandidates(for request: RoutePlanRequest) async throws -> [RouteCandidate] {
+        try await planner.candidates(for: request)
+            .map { candidate in
+                var ranked = candidate
+                ranked.recommendation = recommendation(for: candidate.matchVector)
+                return ranked
+            }
+            .sorted { $0.rankingScore > $1.rankingScore }
     }
 
     private func refreshRecommendations() async {

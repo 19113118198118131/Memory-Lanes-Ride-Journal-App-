@@ -3,9 +3,59 @@ import MapKit
 
 protocol RoadRouteProviding: Sendable {
     func route(through waypoints: [Coordinate]) async throws -> RoadRoute
+    func validatedAnchor(_ coordinate: Coordinate, from origin: Coordinate) async throws -> Coordinate
+}
+
+extension RoadRouteProviding {
+    func validatedAnchor(_ coordinate: Coordinate, from _: Coordinate) async throws -> Coordinate {
+        coordinate
+    }
 }
 
 struct MapKitRoadRouteProvider: RoadRouteProviding {
+    func validatedAnchor(_ coordinate: Coordinate, from _: Coordinate) async throws -> Coordinate {
+        try Task.checkCancellation()
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = "street"
+        request.resultTypes = .address
+        request.region = MKCoordinateRegion(
+            center: coordinate.clCoordinate,
+            latitudinalMeters: 2_000,
+            longitudinalMeters: 2_000
+        )
+
+        let response: MKLocalSearch.Response
+        do {
+            response = try await MKLocalSearch(request: request).start()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw IndependentRoutePlanningError.noRoutes
+        }
+
+        let target = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        guard let nearest = response.mapItems.min(by: { lhs, rhs in
+            let lhsLocation = CLLocation(
+                latitude: lhs.placemark.coordinate.latitude,
+                longitude: lhs.placemark.coordinate.longitude
+            )
+            let rhsLocation = CLLocation(
+                latitude: rhs.placemark.coordinate.latitude,
+                longitude: rhs.placemark.coordinate.longitude
+            )
+            return lhsLocation.distance(from: target) < rhsLocation.distance(from: target)
+        }) else {
+            throw IndependentRoutePlanningError.noRoutes
+        }
+
+        let snapped = nearest.placemark.coordinate
+        let snappedLocation = CLLocation(latitude: snapped.latitude, longitude: snapped.longitude)
+        guard snappedLocation.distance(from: target) <= 2_000 else {
+            throw IndependentRoutePlanningError.noRoutes
+        }
+        return Coordinate(latitude: snapped.latitude, longitude: snapped.longitude)
+    }
+
     func route(through waypoints: [Coordinate]) async throws -> RoadRoute {
         guard waypoints.count > 1 else { throw IndependentRoutePlanningError.noRoutes }
         var coordinates: [Coordinate] = []

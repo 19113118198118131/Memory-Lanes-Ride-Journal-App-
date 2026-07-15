@@ -58,6 +58,99 @@ enum RouteTime: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+enum CompassDirection: String, CaseIterable, Identifiable, Sendable {
+    case north, northEast, east, southEast, south, southWest, west, northWest
+
+    var id: String { rawValue }
+
+    var shortTitle: String {
+        switch self {
+        case .north: "N"
+        case .northEast: "NE"
+        case .east: "E"
+        case .southEast: "SE"
+        case .south: "S"
+        case .southWest: "SW"
+        case .west: "W"
+        case .northWest: "NW"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .north: "North"
+        case .northEast: "North east"
+        case .east: "East"
+        case .southEast: "South east"
+        case .south: "South"
+        case .southWest: "South west"
+        case .west: "West"
+        case .northWest: "North west"
+        }
+    }
+
+    var bearingDegrees: Double {
+        switch self {
+        case .north: 0
+        case .northEast: 45
+        case .east: 90
+        case .southEast: 135
+        case .south: 180
+        case .southWest: 225
+        case .west: 270
+        case .northWest: 315
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .north: "arrow.up"
+        case .northEast: "arrow.up.right"
+        case .east: "arrow.right"
+        case .southEast: "arrow.down.right"
+        case .south: "arrow.down"
+        case .southWest: "arrow.down.left"
+        case .west: "arrow.left"
+        case .northWest: "arrow.up.left"
+        }
+    }
+}
+
+struct RoutePlanRequest: Sendable {
+    let mood: RouteMood
+    let time: RouteTime
+    let start: Coordinate
+    let targetDistanceKm: Double?
+    let direction: CompassDirection?
+
+    init(
+        mood: RouteMood,
+        time: RouteTime,
+        start: Coordinate,
+        targetDistanceKm: Double? = nil,
+        direction: CompassDirection? = nil
+    ) {
+        self.mood = mood
+        self.time = time
+        self.start = start
+        self.targetDistanceKm = targetDistanceKm
+        self.direction = direction
+    }
+
+    var effectiveTargetDistanceKm: Double {
+        targetDistanceKm ?? mood.averageSpeedKmH * time.hours
+    }
+
+    var targetDuration: TimeInterval {
+        time.hours * 60 * 60
+    }
+}
+
+enum RoutePlanningLimits {
+    static let distanceRange: ClosedRange<Double> = 15...300
+    static let distanceStep: Double = 5
+}
+
 struct RouteRoadContext: Equatable, Sendable {
     var scenicLandRatio: Double?
     var urbanRatio: Double?
@@ -113,6 +206,7 @@ struct RouteCandidate: Identifiable, Sendable {
     let id: UUID
     let title: String
     let distanceKm: Double
+    let durationSeconds: TimeInterval
     let time: String
     let elevationM: Double?
     let summary: String
@@ -125,6 +219,7 @@ struct RouteCandidate: Identifiable, Sendable {
         id: UUID = UUID(),
         title: String,
         distanceKm: Double,
+        durationSeconds: TimeInterval,
         time: String,
         elevationM: Double?,
         summary: String,
@@ -136,6 +231,7 @@ struct RouteCandidate: Identifiable, Sendable {
         self.id = id
         self.title = title
         self.distanceKm = distanceKm
+        self.durationSeconds = durationSeconds
         self.time = time
         self.elevationM = elevationM
         self.summary = summary
@@ -176,6 +272,6 @@ enum IndependentRoutePlanningError: LocalizedError {
     case noRoutes
 
     var errorDescription: String? {
-        "No practical road loop was found from this start. Try a shorter time or another starting location."
+        "No road loop matched this setup closely enough. Try another direction, adjust the distance, or choose a different start."
     }
 }

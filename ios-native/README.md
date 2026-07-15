@@ -6,19 +6,27 @@ repository root still contains the existing Capacitor web app during migration.
 
 ## Status
 
-Building in the order the brief mandates:
+The native app is functional end to end and is being hardened through real-road
+testing:
 
-- ✅ **Design system** — colour, typography, spacing, radius, motion, haptics
-  (`DesignSystem/`, documented in `DESIGN-SYSTEM.md`).
-- ✅ **Component library** — reusable components with `#Preview`s for every
-  state (`Components/`): the original 13 plus segmented control, corner ticket,
-  moment row, weather strip, and an exportable share card.
-- 🚧 **Screens** — Dashboard (ride list) and **Ride Detail** (hero map,
-  stats-over-map, interactive elevation chart, corners/moments/weather sections,
-  one-tap share) rebuilt from the library. Upload/Import, Analytics, Journal,
-  Planner next.
-- ⬜ **Services** — Supabase-backed `RideService` (protocol + stub in place),
-  GPX parser, Strava import.
+- ✅ **Identity and design system** — premium welcome/auth, rider account,
+  semantic colour/type/spacing, spring motion, haptics and reusable components.
+- ✅ **Ride library** — Supabase sync with an on-device local-first ride index,
+  GPX/parsed-track/detail caches, live background recording, recovery, import,
+  rename, journal, sharing and export.
+- ✅ **Ride intelligence** — replay map, elevation/speed/acceleration/grip
+  visualisations, Rider Craft calibration and progress, Ride Coach, corner
+  tickets, Limit Point research preview and explainable insights.
+- ✅ **Routes and groups** — saved routes, editing, GPX export, route following,
+  planned-vs-actual matching, group-ride lobbies and invitations.
+- ✅ **Independent routing Phase 1.5** — MapKit fallback behind a provider seam,
+  proprietary route-character scoring, randomized validated candidates,
+  time/distance intent tolerance, compass departure bias and geometric diversity.
+- 🚧 **Production hardening** — broader real-world route coverage, offline upload
+  queue, storage controls, accessibility passes and release telemetry.
+
+Phase 2 OSM graph packs, on-device offline pathfinding and turn-by-turn navigation
+remain intentionally out of scope. See `../docs/independent-routing-architecture.md`.
 
 ## Requirements
 

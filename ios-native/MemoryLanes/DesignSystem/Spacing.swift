@@ -55,6 +55,8 @@ enum Layout {
     static let welcomeBrandMarkMaxWidth: CGFloat = 320
     /// Rider identity mark on the account screen.
     static let accountAvatarSize: CGFloat = 72
+    /// Stable circular target in the route direction compass.
+    static let routeCompassButtonSize: CGFloat = 56
 }
 
 extension View {

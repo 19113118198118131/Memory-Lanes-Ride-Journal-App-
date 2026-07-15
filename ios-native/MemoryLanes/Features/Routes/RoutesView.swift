@@ -12,6 +12,8 @@ struct RoutesView: View {
     @StateObject private var startLocation = RouteStartLocationProvider()
     @State private var selectedMood = RouteMood.flowing
     @State private var selectedTime = RouteTime.ninety
+    @State private var targetDistanceKm: Double?
+    @State private var selectedDirection: CompassDirection?
     @State private var showCandidates = false
     @State private var routeCandidates: [RouteCandidate] = []
     @State private var routeSaveError: String?
@@ -36,13 +38,14 @@ struct RoutesView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.lg) {
                 header
-                actionRow
-                groupRidesSection
                 setupCard
+                actionRow
 
                 if showCandidates {
                     candidates
                 }
+
+                groupRidesSection
 
                 if let routeSaveError {
                     Text(routeSaveError)
@@ -63,6 +66,10 @@ struct RoutesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await viewModel.refreshAll() }
         .task(id: refreshTrigger) { await viewModel.load() }
+        .onChange(of: selectedMood) { _, _ in clearGeneratedCandidates() }
+        .onChange(of: selectedTime) { _, _ in clearGeneratedCandidates() }
+        .onChange(of: targetDistanceKm) { _, _ in clearGeneratedCandidates() }
+        .onChange(of: selectedDirection) { _, _ in clearGeneratedCandidates() }
     }
 
     private var header: some View {
@@ -256,6 +263,17 @@ struct RoutesView: View {
                     }
                 }
             }
+
+            Divider().overlay(Color.mlHairline)
+
+            RouteDistanceControl(
+                targetDistanceKm: $targetDistanceKm,
+                suggestedDistanceKm: selectedMood.averageSpeedKmH * selectedTime.hours
+            )
+
+            Divider().overlay(Color.mlHairline)
+
+            CompassDirectionPicker(selection: $selectedDirection)
         }
         .padding(Spacing.md)
         .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -263,6 +281,7 @@ struct RoutesView: View {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(Color.mlHairline, lineWidth: Layout.hairline)
         )
+        .disabled(isGeneratingCandidates)
     }
 
     private var candidates: some View {
@@ -495,18 +514,14 @@ struct RoutesView: View {
         routeSaveError = nil
         defer { isGeneratingCandidates = false }
         do {
-            let generated = try await IndependentRoutePlanner().candidates(
+            let generated = try await viewModel.generateCandidates(for: RoutePlanRequest(
                 mood: selectedMood,
                 time: selectedTime,
-                start: start
-            )
+                start: start,
+                targetDistanceKm: targetDistanceKm,
+                direction: selectedDirection
+            ))
             routeCandidates = generated
-                .map { candidate in
-                    var ranked = candidate
-                    ranked.recommendation = viewModel.recommendation(for: candidate.matchVector)
-                    return ranked
-                }
-                .sorted { $0.rankingScore > $1.rankingScore }
             Haptics.success()
             withAnimation(reduceMotion ? nil : Motion.spring) {
                 showCandidates = true
@@ -516,6 +531,14 @@ struct RoutesView: View {
             routeCandidates = []
             showCandidates = false
             routeSaveError = error.localizedDescription
+        }
+    }
+
+    private func clearGeneratedCandidates() {
+        guard showCandidates || !routeCandidates.isEmpty else { return }
+        withAnimation(reduceMotion ? nil : Motion.springSnappy) {
+            showCandidates = false
+            routeCandidates = []
         }
     }
 
