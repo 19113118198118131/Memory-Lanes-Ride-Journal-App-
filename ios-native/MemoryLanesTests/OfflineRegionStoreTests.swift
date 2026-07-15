@@ -18,7 +18,9 @@ struct OfflineRegionStoreTests {
         #expect(installed.id == harness.region.id)
         #expect(await harness.store.installedRegions().count == 1)
         #expect(await harness.store.storageByteCount() == Int64(harness.packData.count))
-        #expect(await harness.store.localGraphURL(containing: harness.region.bounds.center) != nil)
+        let graph = await harness.store.localGraph(containing: harness.region.bounds.center)
+        #expect(graph?.regionID == harness.region.id)
+        #expect(graph?.version == harness.region.version)
         #expect(await phases.values == [.downloading, .verifying, .activating])
     }
 
@@ -34,7 +36,7 @@ struct OfflineRegionStoreTests {
         }
 
         #expect(await harness.store.installedRegions().isEmpty)
-        #expect(await harness.store.localGraphURL(containing: harness.region.bounds.center) == nil)
+        #expect(await harness.store.localGraph(containing: harness.region.bounds.center) == nil)
     }
 
     @Test func cachedCatalogKeepsAreaManagementAvailableOffline() async throws {

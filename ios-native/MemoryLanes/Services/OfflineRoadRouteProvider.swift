@@ -4,70 +4,115 @@ struct OfflineRoadRouteProvider: RoadRouteProviding {
     private let regionStore: any OfflineRegionServing
     private let graphLoader: any OfflineRoadGraphLoading
     private let pathfinder: OfflineRoadPathfinder
+    private let telemetry: any OfflineRoutingTelemetryServing
     private let maximumSnapDistanceMeters: Double
 
     init(
         regionStore: any OfflineRegionServing = OfflineRegionStore.shared,
         graphLoader: any OfflineRoadGraphLoading = OfflineRoadGraphLoader.shared,
         pathfinder: OfflineRoadPathfinder = OfflineRoadPathfinder(),
+        telemetry: any OfflineRoutingTelemetryServing = OfflineRoutingTelemetryStore.shared,
         maximumSnapDistanceMeters: Double = 5_000
     ) {
         self.regionStore = regionStore
         self.graphLoader = graphLoader
         self.pathfinder = pathfinder
+        self.telemetry = telemetry
         self.maximumSnapDistanceMeters = maximumSnapDistanceMeters
     }
 
     func validatedAnchor(_ coordinate: Coordinate, from origin: Coordinate) async throws -> Coordinate {
-        let result = try await routeAndSnaps(through: [origin, coordinate])
+        let result = try await routeAndSnaps(
+            through: [origin, coordinate],
+            operation: .anchorValidation
+        )
         guard let destination = result.snaps.last else { throw OfflineRoadRoutingError.cannotSnap }
         return destination.coordinate
     }
 
     func route(through waypoints: [Coordinate]) async throws -> RoadRoute {
-        try await routeAndSnaps(through: waypoints).route
+        try await routeAndSnaps(through: waypoints, operation: .route).route
     }
 
-    private func routeAndSnaps(through waypoints: [Coordinate]) async throws -> (
+    private func routeAndSnaps(
+        through waypoints: [Coordinate],
+        operation: OfflineRoutingOperation
+    ) async throws -> (
         route: RoadRoute,
         snaps: [OfflineRoadSnap]
     ) {
-        guard waypoints.count > 1 else { throw OfflineRoadRoutingError.noPath }
-        let graphURL = try await commonGraphURL(for: waypoints)
-        let graph = try await graphLoader.graph(at: graphURL)
-        let candidates = waypoints.map { coordinate in
-            graph.nearestNodesByWeakComponent(
-                to: coordinate,
-                maximumDistanceMeters: maximumSnapDistanceMeters
-            )
-        }
-        let snaps = try connectedSnaps(from: candidates)
+        let startedAt = Date()
+        var selectedGraph: InstalledOfflineRoadGraph?
+        do {
+            guard waypoints.count > 1 else { throw OfflineRoadRoutingError.noPath }
+            let installation = try await commonGraph(for: waypoints)
+            selectedGraph = installation
+            let graph = try await graphLoader.graph(at: installation.fileURL)
+            let candidates = waypoints.map { coordinate in
+                graph.nearestNodesByWeakComponent(
+                    to: coordinate,
+                    maximumDistanceMeters: maximumSnapDistanceMeters
+                )
+            }
+            let snaps = try connectedSnaps(from: candidates)
 
-        var coordinates: [Coordinate] = []
-        var edges: [OfflineRoadEdge] = []
-        var distanceMeters: Double = 0
-        var expectedTravelTime: TimeInterval = 0
-        for index in snaps.indices.dropLast() {
-            try Task.checkCancellation()
-            let leg = try pathfinder.path(
-                in: graph,
-                from: snaps[index].nodeID,
-                to: snaps[index + 1].nodeID
-            )
-            coordinates.append(contentsOf: coordinates.isEmpty ? leg.coordinates : Array(leg.coordinates.dropFirst()))
-            edges.append(contentsOf: leg.edges)
-            distanceMeters += leg.distanceMeters
-            expectedTravelTime += leg.expectedTravelTime
-        }
-        guard coordinates.count > 1 else { throw OfflineRoadRoutingError.noPath }
-        return (
-            RoadRoute(
+            var coordinates: [Coordinate] = []
+            var edges: [OfflineRoadEdge] = []
+            var distanceMeters: Double = 0
+            var expectedTravelTime: TimeInterval = 0
+            for index in snaps.indices.dropLast() {
+                try Task.checkCancellation()
+                let leg = try pathfinder.path(
+                    in: graph,
+                    from: snaps[index].nodeID,
+                    to: snaps[index + 1].nodeID
+                )
+                coordinates.append(contentsOf: coordinates.isEmpty ? leg.coordinates : Array(leg.coordinates.dropFirst()))
+                edges.append(contentsOf: leg.edges)
+                distanceMeters += leg.distanceMeters
+                expectedTravelTime += leg.expectedTravelTime
+            }
+            guard coordinates.count > 1 else { throw OfflineRoadRoutingError.noPath }
+            let route = RoadRoute(
                 coordinates: coordinates,
                 distanceMeters: distanceMeters,
                 expectedTravelTime: expectedTravelTime,
                 context: roadContext(for: edges)
-            ),
-            snaps
+            )
+            await telemetry.record(telemetryEvent(
+                operation: operation,
+                outcome: .localSuccess,
+                installation: installation,
+                startedAt: startedAt
+            ))
+            return (route, snaps)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            await telemetry.record(telemetryEvent(
+                operation: operation,
+                outcome: .fallback(OfflineRoutingFallbackReason(error: error)),
+                installation: selectedGraph,
+                startedAt: startedAt
+            ))
+            throw error
+        }
+    }
+
+    private func telemetryEvent(
+        operation: OfflineRoutingOperation,
+        outcome: OfflineRoutingTelemetryEvent.Outcome,
+        installation: InstalledOfflineRoadGraph?,
+        startedAt: Date
+    ) -> OfflineRoutingTelemetryEvent {
+        OfflineRoutingTelemetryEvent(
+            occurredAt: Date(),
+            operation: operation,
+            outcome: outcome,
+            regionID: installation?.regionID,
+            regionName: installation?.regionName,
+            regionVersion: installation?.version,
+            durationMilliseconds: Int(Date().timeIntervalSince(startedAt) * 1_000)
         )
     }
 
@@ -96,20 +141,20 @@ struct OfflineRoadRouteProvider: RoadRouteProviding {
         return best.snaps
     }
 
-    private func commonGraphURL(for waypoints: [Coordinate]) async throws -> URL {
-        var selectedURL: URL?
+    private func commonGraph(for waypoints: [Coordinate]) async throws -> InstalledOfflineRoadGraph {
+        var selectedGraph: InstalledOfflineRoadGraph?
         for waypoint in waypoints {
             try Task.checkCancellation()
-            guard let url = await regionStore.localGraphURL(containing: waypoint) else {
+            guard let graph = await regionStore.localGraph(containing: waypoint) else {
                 throw OfflineRoadRoutingError.noCoverage
             }
-            if let selectedURL, selectedURL != url {
+            if let selectedGraph, selectedGraph.fileURL != graph.fileURL {
                 throw OfflineRoadRoutingError.noCoverage
             }
-            selectedURL = url
+            selectedGraph = graph
         }
-        guard let selectedURL else { throw OfflineRoadRoutingError.noCoverage }
-        return selectedURL
+        guard let selectedGraph else { throw OfflineRoadRoutingError.noCoverage }
+        return selectedGraph
     }
 
     private func roadContext(for edges: [OfflineRoadEdge]) -> RouteRoadContext {

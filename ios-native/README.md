@@ -40,7 +40,9 @@ testing:
 - ✅ **Embedded offline routing** — validated DEFLATE graph loading, cached spatial
   indexing, shared-component road snapping, turn-aware A*, one-way and
   turn-restriction enforcement, road/surface scoring context and automatic
-  MapKit fallback when one installed region cannot serve the request.
+  MapKit fallback when one installed region cannot serve the request. Private,
+  coordinate-free diagnostics surface local usage, pack version and fallback
+  reasons in Offline Areas without sending rider location off-device.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
   queue, storage controls, accessibility passes and release telemetry.
 

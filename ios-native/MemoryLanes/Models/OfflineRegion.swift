@@ -83,6 +83,13 @@ struct InstalledOfflineRegion: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
+struct InstalledOfflineRoadGraph: Hashable, Sendable {
+    let regionID: String
+    let regionName: String
+    let version: Int
+    let fileURL: URL
+}
+
 enum OfflineRegionInstallPhase: Equatable, Sendable {
     case downloading
     case verifying

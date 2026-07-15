@@ -2,8 +2,10 @@ import MapKit
 import SwiftUI
 
 struct OfflineAreasView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel: OfflineAreasViewModel
     @State private var pendingRemoval: InstalledOfflineRegion?
+    @State private var showsRoutingDiagnostics = false
 
     init(viewModel: OfflineAreasViewModel = OfflineAreasViewModel()) {
         _viewModel = State(initialValue: viewModel)
@@ -22,8 +24,10 @@ struct OfflineAreasView: View {
                     .mlStaggeredReveal(index: 3)
                 downloadSettings
                     .mlStaggeredReveal(index: 4)
-                attribution
+                routingDiagnostics
                     .mlStaggeredReveal(index: 5)
+                attribution
+                    .mlStaggeredReveal(index: 6)
             }
             .padding(.vertical, Spacing.lg)
             .mlScreenPadding()
@@ -181,6 +185,112 @@ struct OfflineAreasView: View {
             .tint(.mlAccent)
             .padding(Spacing.md)
             .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        }
+    }
+
+    private var routingDiagnostics: some View {
+        VStack(spacing: 0) {
+            Button {
+                Haptics.selection()
+                withAnimation(reduceMotion ? nil : Motion.spring) {
+                    showsRoutingDiagnostics.toggle()
+                }
+            } label: {
+                HStack(spacing: Spacing.md) {
+                    Image(systemName: "point.3.connected.trianglepath.dotted")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(width: Spacing.xl)
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("Routing diagnostics")
+                            .font(MLFont.bodyEmphasised)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text(viewModel.routingDiagnosticsSummary)
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                            .monospacedDigit()
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                        .rotationEffect(.degrees(showsRoutingDiagnostics ? 180 : 0))
+                }
+                .padding(Spacing.md)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(MLPressableButtonStyle())
+            .accessibilityLabel(showsRoutingDiagnostics ? "Hide routing diagnostics" : "Show routing diagnostics")
+
+            if showsRoutingDiagnostics {
+                Divider().overlay(Color.mlHairline)
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    HStack(spacing: 0) {
+                        diagnosticMetric(
+                            value: "\(viewModel.routingDiagnostics.localRouteCount)",
+                            label: "Local routes"
+                        )
+                        Divider().overlay(Color.mlHairline)
+                        diagnosticMetric(
+                            value: "\(viewModel.routingDiagnostics.fallbackCount)",
+                            label: "MapKit fallbacks"
+                        )
+                    }
+                    .frame(minHeight: Layout.minTouchTarget)
+
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        diagnosticDetail(label: "Last pack", value: viewModel.lastRoutingPackText)
+                        diagnosticDetail(label: "Last local issue", value: viewModel.lastFallbackText)
+                        diagnosticDetail(label: "Last check", value: viewModel.lastRoutingDurationText)
+                    }
+
+                    Button("Reset diagnostics", systemImage: "arrow.counterclockwise") {
+                        Task { await viewModel.resetRoutingDiagnostics() }
+                    }
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .frame(minHeight: Layout.minTouchTarget)
+                    .buttonStyle(MLPressableButtonStyle())
+
+                    Text("Stored only on this iPhone. Locations and route geometry are never included.")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(Spacing.md)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        }
+    }
+
+    private func diagnosticMetric(value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(value)
+                .font(MLFont.title2)
+                .foregroundStyle(Color.mlTextPrimary)
+                .monospacedDigit()
+            Text(label).mlKicker()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Spacing.sm)
+    }
+
+    private func diagnosticDetail(label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+            Text(label)
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextTertiary)
+            Spacer(minLength: Spacing.sm)
+            Text(value)
+                .font(MLFont.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.mlTextSecondary)
+                .multilineTextAlignment(.trailing)
         }
     }
 

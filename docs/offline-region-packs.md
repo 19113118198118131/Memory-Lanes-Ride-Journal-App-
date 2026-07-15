@@ -109,6 +109,12 @@ or invalid packs fall back to the replaceable MapKit provider. Cross-pack
 routing, offline in-ride rerouting and production-pack performance validation
 remain later milestones.
 
+Account → Offline Areas exposes progressively disclosed local diagnostics for
+real-device validation: aggregate local route and fallback counts, last pack
+version, last fallback reason and calculation duration. This data is stored
+only on-device and can be reset by the rider; no coordinates or route geometry
+are retained.
+
 ## Release workflow
 
 The `offline-graph-release` GitHub Environment should require approval and hold:

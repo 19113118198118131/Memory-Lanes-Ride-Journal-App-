@@ -66,9 +66,11 @@ Missing inputs remain missing. The UI labels geometry-only assessments as
 - [x] bound compressed and decoded pack size before publication
 - [ ] configure production release secrets and publish the first Auckland pack
 - retain OSM attribution and ODbL notices
-- [ ] add installed graph-version and routing-fallback telemetry
+- [x] add installed graph-version and routing-fallback telemetry
 
 ### Phase 3: on-device routing
+
+Cross-pack routing must use a compact boundary index or binary graph format. Two decoded v1 JSON graphs must not be held in memory together because the measured per-pack memory cost would make that unsafe on older supported iPhones.
 
 - [x] download only rider-selected regions
 - [x] verify pack checksums before activation
@@ -95,3 +97,8 @@ Route character is an enjoyment estimate, not evidence that a road is safe or
 clear. Legal access, closures, surface suitability and routing restrictions are
 hard constraints. OSM attribution is required anywhere OSM-derived results are
 presented. Apple MapKit data is not harvested into the proprietary graph.
+
+Offline routing diagnostics are coordinate-free and remain on the rider's
+iPhone. They retain aggregate local-route and fallback counts, the last pack ID
+and version, duration, and a bounded failure reason. Waypoints, route geometry,
+road names and rider location are never included.

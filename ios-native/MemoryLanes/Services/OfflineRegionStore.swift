@@ -11,7 +11,7 @@ protocol OfflineRegionServing: Sendable {
     ) async throws -> InstalledOfflineRegion
     func remove(regionID: String) async throws
     func storageByteCount() async -> Int64
-    func localGraphURL(containing coordinate: Coordinate) async -> URL?
+    func localGraph(containing coordinate: Coordinate) async -> InstalledOfflineRoadGraph?
 }
 
 protocol OfflineRegionNetworkClient: Sendable {
@@ -198,13 +198,19 @@ actor OfflineRegionStore: OfflineRegionServing {
         await installedRegions().reduce(0) { $0 + $1.descriptor.byteCount }
     }
 
-    func localGraphURL(containing coordinate: Coordinate) async -> URL? {
+    func localGraph(containing coordinate: Coordinate) async -> InstalledOfflineRoadGraph? {
         let candidates = await installedRegions()
             .filter { $0.descriptor.bounds.contains(coordinate) }
             .sorted { $0.descriptor.version > $1.descriptor.version }
         guard let region = candidates.first else { return nil }
         let url = rootURL.appendingPathComponent(region.localFileName)
-        return fileManager.fileExists(atPath: url.path) ? url : nil
+        guard fileManager.fileExists(atPath: url.path) else { return nil }
+        return InstalledOfflineRoadGraph(
+            regionID: region.id,
+            regionName: region.descriptor.name,
+            version: region.descriptor.version,
+            fileURL: url
+        )
     }
 
     private func downloadURL(for region: OfflineRegionDescriptor) throws -> URL {

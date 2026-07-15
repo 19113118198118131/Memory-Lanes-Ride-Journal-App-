@@ -97,9 +97,11 @@ struct OfflineRoadRoutingTests {
             TestRoadGraph.edge(way: 20, from: 2, to: 3, seconds: 1, surface: "gravel")
         ])
         let graph = try OfflineRoadGraphIndex(archive: archive)
+        let telemetry = RecordingOfflineRoutingTelemetry()
         let provider = OfflineRoadRouteProvider(
             regionStore: StubOfflineRegionStore(url: URL(fileURLWithPath: "/tmp/test.mlgraph")),
-            graphLoader: StubOfflineGraphLoader(graph: graph)
+            graphLoader: StubOfflineGraphLoader(graph: graph),
+            telemetry: telemetry
         )
 
         let route = try await provider.route(through: [
@@ -110,6 +112,11 @@ struct OfflineRoadRoutingTests {
         #expect(route.coordinates.map(\.latitude) == [-36.8, -36.799, -36.798])
         #expect(route.context.motorwayRatio == 0.5)
         #expect(route.context.unsuitableSurfaceRatio == 0.5)
+        let event = await telemetry.events.first
+        #expect(event?.operation == .route)
+        #expect(event?.outcome == .localSuccess)
+        #expect(event?.regionID == "test-region")
+        #expect(event?.regionVersion == 3)
     }
 
     @Test func providerChoosesTheClosestComponentSharedByEveryWaypoint() async throws {
@@ -137,7 +144,8 @@ struct OfflineRoadRoutingTests {
         let graph = try OfflineRoadGraphIndex(archive: archive)
         let provider = OfflineRoadRouteProvider(
             regionStore: StubOfflineRegionStore(url: URL(fileURLWithPath: "/tmp/component-test.mlgraph")),
-            graphLoader: StubOfflineGraphLoader(graph: graph)
+            graphLoader: StubOfflineGraphLoader(graph: graph),
+            telemetry: RecordingOfflineRoutingTelemetry()
         )
 
         let route = try await provider.route(through: [
@@ -164,6 +172,28 @@ struct OfflineRoadRoutingTests {
 
         let route = try await provider.route(through: Array(fallbackRoute.coordinates.prefix(2)))
         #expect(route == fallbackRoute)
+    }
+
+    @Test func providerRecordsCoordinateFreeFallbackReason() async throws {
+        let telemetry = RecordingOfflineRoutingTelemetry()
+        let provider = OfflineRoadRouteProvider(
+            regionStore: MissingOfflineRegionStore(),
+            graphLoader: StubOfflineGraphLoader(graph: try OfflineRoadGraphIndex(archive: TestRoadGraph.archive())),
+            telemetry: telemetry
+        )
+
+        await #expect(throws: OfflineRoadRoutingError.noCoverage) {
+            _ = try await provider.route(through: [
+                Coordinate(latitude: -36.8, longitude: 174.7),
+                Coordinate(latitude: -36.7, longitude: 174.8)
+            ])
+        }
+
+        let event = await telemetry.events.first
+        #expect(event?.outcome == .fallback(.noCoverage))
+        #expect(event?.regionID == nil)
+        #expect(event?.regionName == nil)
+        #expect(event?.regionVersion == nil)
     }
 }
 
@@ -240,7 +270,34 @@ private struct StubOfflineRegionStore: OfflineRegionServing {
 
     func remove(regionID _: String) async throws {}
     func storageByteCount() async -> Int64 { 0 }
-    func localGraphURL(containing _: Coordinate) async -> URL? { url }
+    func localGraph(containing _: Coordinate) async -> InstalledOfflineRoadGraph? {
+        InstalledOfflineRoadGraph(
+            regionID: "test-region",
+            regionName: "Test Region",
+            version: 3,
+            fileURL: url
+        )
+    }
+}
+
+private struct MissingOfflineRegionStore: OfflineRegionServing {
+    func catalog(forceRefresh _: Bool) async throws -> OfflineRegionManifest {
+        throw OfflineRoadRoutingError.noCoverage
+    }
+
+    func installedRegions() async -> [InstalledOfflineRegion] { [] }
+
+    func install(
+        _: OfflineRegionDescriptor,
+        wifiOnly _: Bool,
+        progress _: @Sendable @escaping (OfflineRegionInstallPhase) async -> Void
+    ) async throws -> InstalledOfflineRegion {
+        throw OfflineRoadRoutingError.noCoverage
+    }
+
+    func remove(regionID _: String) async throws {}
+    func storageByteCount() async -> Int64 { 0 }
+    func localGraph(containing _: Coordinate) async -> InstalledOfflineRoadGraph? { nil }
 }
 
 private struct StubOfflineGraphLoader: OfflineRoadGraphLoading {
@@ -256,4 +313,15 @@ private struct ThrowingRoadProvider: RoadRouteProviding {
 private struct FixedRoadProvider: RoadRouteProviding {
     let route: RoadRoute
     func route(through _: [Coordinate]) async throws -> RoadRoute { route }
+}
+
+private actor RecordingOfflineRoutingTelemetry: OfflineRoutingTelemetryServing {
+    private(set) var events: [OfflineRoutingTelemetryEvent] = []
+
+    func record(_ event: OfflineRoutingTelemetryEvent) {
+        events.append(event)
+    }
+
+    func diagnostics() -> OfflineRoutingDiagnostics { .empty }
+    func reset() { events = [] }
 }
