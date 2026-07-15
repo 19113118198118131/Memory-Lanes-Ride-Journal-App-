@@ -86,6 +86,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+      - name: Retain rejected graph for diagnosis
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-graph-rejected-${{ env.REGION_ID }}-${{ github.run_number }}
+          path: offline-dist/packs/${{ env.REGION_ID }}-v*.mlgraph
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Build and sign release manifest
         env:
           OFFLINE_MANIFEST_SIGNING_KEY: ${{ secrets.OFFLINE_MANIFEST_SIGNING_KEY }}
