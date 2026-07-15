@@ -36,7 +36,8 @@ jobs:
       - name: Install deterministic graph tooling
         run: |
           sudo apt-get update
-          sudo apt-get install --yes osmium-tool awscli
+          sudo apt-get install --yes osmium-tool
+          aws --version
 
       - name: Test graph compiler
         run: python3 -m unittest discover -s tools/offline_graph/tests -v
