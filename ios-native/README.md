@@ -32,22 +32,24 @@ testing:
   updates, storage management, cached catalog fallback and a coverage lookup
   seam for the embedded routing provider.
 - ✅ **Offline graph release pipeline** — deterministic motorcycle-access-aware
-  OSM compilation, one-way edges, turn restrictions, zlib graph archives,
+  OSM compilation, one-way edges, turn restrictions, raw-DEFLATE graph archives,
   SHA-256 pack integrity, Ed25519-signed catalogs and pack-first Supabase S3
   publication with fixture coverage. Releases are blocked on graph integrity,
   component health and representative two-way Auckland route probes, with a
   retained performance and quality report.
-- ✅ **Embedded offline routing** — validated zlib graph loading, cached spatial
-  indexing, nearest-road snapping, turn-aware A*, one-way and turn-restriction
-  enforcement, road/surface scoring context and automatic MapKit fallback when
-  one installed region cannot serve the request.
+- ✅ **Embedded offline routing** — validated DEFLATE graph loading, cached spatial
+  indexing, shared-component road snapping, turn-aware A*, one-way and
+  turn-restriction enforcement, road/surface scoring context and automatic
+  MapKit fallback when one installed region cannot serve the request.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
   queue, storage controls, accessibility passes and release telemetry.
 
 The graph-pack client, compiler, signed-release workflow and embedded pathfinder
-are now in place. Publishing and benchmarking the first production Auckland
-pack, cross-pack routing, offline rerouting and turn-by-turn navigation remain
-the next routing milestones. See
+are now in place. The first scoped Auckland build has passed deterministic
+quality, connectivity, route and desktop load benchmarks; publishing it and
+validating on physical iPhones are the remaining release steps. Cross-pack
+routing, offline rerouting and turn-by-turn navigation remain later routing
+milestones. See
 `../docs/independent-routing-architecture.md` and `../docs/offline-region-packs.md`.
 The latest static product-quality review is in `../docs/native-ui-ux-audit.md`.
 

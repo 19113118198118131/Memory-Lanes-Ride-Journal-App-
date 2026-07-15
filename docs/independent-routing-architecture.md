@@ -63,6 +63,7 @@ Missing inputs remain missing. The UI labels geometry-only assessments as
 - [x] sign and verify release manifests with an app-pinned Ed25519 key
 - [x] publish immutable packs before the catalog through Supabase Storage S3
 - [x] block releases on archive integrity, mainland connectivity and route probes
+- [x] bound compressed and decoded pack size before publication
 - [ ] configure production release secrets and publish the first Auckland pack
 - retain OSM attribution and ODbL notices
 - [ ] add installed graph-version and routing-fallback telemetry
@@ -75,10 +76,11 @@ Missing inputs remain missing. The UI labels geometry-only assessments as
 - [x] snap route points to downloaded roads and run turn-aware A* locally
 - [x] enforce one-way, node-via and way-via turn restrictions
 - [x] populate road-class and surface context for proprietary route scoring
+- [x] snap waypoints to a shared weakly connected road component
 - [x] prefer the embedded provider and fall back to MapKit outside local coverage
 - [ ] route seamlessly across adjacent installed packs
 - [ ] support offline in-ride rerouting
-- [ ] validate performance and graph quality against a production Auckland pack
+- [x] validate load, indexing and representative routes against the first Auckland build
 
 ### Phase 4: learning-to-rank
 

@@ -40,6 +40,12 @@
     <tag k="access" v="no" />
     <tag k="motorcycle" v="yes" />
   </way>
+  <way id="105">
+    <nd ref="5" />
+    <nd ref="6" />
+    <tag k="highway" v="service" />
+    <tag k="name" v="Car Park Aisle" />
+  </way>
   <relation id="500">
     <member type="way" ref="100" role="from" />
     <member type="node" ref="3" role="via" />

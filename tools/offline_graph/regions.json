@@ -8,24 +8,27 @@
     {
       "id": "nz-auckland-north",
       "name": "Auckland North",
-      "detail": "North Shore, Hibiscus Coast, Kaipara and Matakana",
+      "detail": "North Shore, Hibiscus Coast, Warkworth and Matakana",
       "bounds": {
-        "south": -36.95,
-        "west": 174.35,
-        "north": -36.15,
-        "east": 175.2
+        "south": -36.85,
+        "west": 174.5,
+        "north": -36.3,
+        "east": 174.85
       },
       "version": 1,
       "formatVersion": 1,
-      "encoding": "zlib-json",
+      "encoding": "deflate-json",
       "updatedAt": "2026-07-15T10:00:00Z",
       "quality": {
-        "minimumNodes": 25000,
-        "minimumEdges": 50000,
+        "minimumNodes": 100000,
+        "minimumEdges": 180000,
         "minimumTurnRestrictions": 1,
         "minimumLargestWeakComponentRatio": 0.85,
+        "minimumProbeComponentNodeRatio": 0.5,
         "maximumProbeSnapDistanceMeters": 2500,
         "maximumProbeExpandedNodes": 500000,
+        "maximumCompressedBytes": 10000000,
+        "maximumInflatedBytes": 80000000,
         "probes": [
           {
             "id": "albany",
@@ -50,18 +53,6 @@
             "name": "Matakana",
             "latitude": -36.3524,
             "longitude": 174.7159
-          },
-          {
-            "id": "helensville",
-            "name": "Helensville",
-            "latitude": -36.6768,
-            "longitude": 174.4494
-          },
-          {
-            "id": "kumeu",
-            "name": "Kumeu",
-            "latitude": -36.7710,
-            "longitude": 174.5508
           }
         ],
         "routePairs": [
@@ -70,13 +61,7 @@
           { "from": "orewa", "to": "warkworth" },
           { "from": "warkworth", "to": "orewa" },
           { "from": "warkworth", "to": "matakana" },
-          { "from": "matakana", "to": "warkworth" },
-          { "from": "warkworth", "to": "helensville" },
-          { "from": "helensville", "to": "warkworth" },
-          { "from": "helensville", "to": "kumeu" },
-          { "from": "kumeu", "to": "helensville" },
-          { "from": "kumeu", "to": "albany" },
-          { "from": "albany", "to": "kumeu" }
+          { "from": "matakana", "to": "warkworth" }
         ]
       }
     }

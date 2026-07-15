@@ -13,15 +13,18 @@
       },
       "version": 1,
       "formatVersion": 1,
-      "encoding": "zlib-json",
+      "encoding": "deflate-json",
       "updatedAt": "2026-07-15T10:00:00Z",
       "quality": {
         "minimumNodes": 5,
         "minimumEdges": 7,
         "minimumTurnRestrictions": 2,
         "minimumLargestWeakComponentRatio": 1.0,
+        "minimumProbeComponentNodeRatio": 1.0,
         "maximumProbeSnapDistanceMeters": 50,
         "maximumProbeExpandedNodes": 50,
+        "maximumCompressedBytes": 10000,
+        "maximumInflatedBytes": 10000,
         "probes": [
           {
             "id": "start",

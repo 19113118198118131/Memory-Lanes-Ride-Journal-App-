@@ -51,17 +51,17 @@ The decoded payload is:
     {
       "id": "nz-auckland-north",
       "name": "Auckland North",
-      "detail": "Albany, Hibiscus Coast and Warkworth",
+      "detail": "North Shore, Hibiscus Coast, Warkworth and Matakana",
       "bounds": {
-        "south": -36.86,
-        "west": 174.54,
-        "north": -36.25,
-        "east": 175.08
+        "south": -36.85,
+        "west": 174.5,
+        "north": -36.3,
+        "east": 174.85
       },
       "version": 1,
       "formatVersion": 1,
-      "encoding": "zlib-json",
-      "byteCount": 48382910,
+      "encoding": "deflate-json",
+      "byteCount": 6149934,
       "sha256": "<64-character lowercase SHA-256>",
       "downloadPath": "packs/nz-auckland-north-v1.mlgraph",
       "updatedAt": "2026-07-15T08:00:00Z"
@@ -77,7 +77,7 @@ verification succeeds.
 
 ## Graph format v1
 
-`.mlgraph` is deterministic zlib-compressed canonical JSON matching
+`.mlgraph` is deterministic raw-DEFLATE canonical JSON matching
 `OfflineRoadGraphArchive`:
 
 - directed nodes and edges suitable for one-way and turn-aware expansion;
@@ -88,13 +88,17 @@ verification succeeds.
 - region bounds, generation timestamp and OSM attribution.
 
 `tools/offline_graph/build_graph.py` excludes unsupported road classes,
-construction geometry, private access, motorcycle prohibitions and ferry paths;
+service aisles and driveways, construction geometry, private access, motorcycle
+prohibitions and ferry paths;
 it preserves explicit motorcycle overrides, one-way direction and supported
 OSM turn restrictions.
 
 The native app inflates and validates an activated pack off the main actor,
-builds a coarse spatial index, snaps planning points to nearby graph nodes and
-runs a turn-aware A* search optimized for expected travel time. The search
+builds a coarse spatial index, finds nearby nodes in each weakly connected road
+component and snaps every planning point to the best component shared by the
+whole route. This avoids selecting an isolated driveway fragment just because
+it is marginally closer than the connected road network. It then runs a
+turn-aware A* search optimized for expected travel time. The search
 enforces directed edges plus node-via and way-via prohibited/only restrictions.
 Conditional restriction text is retained but conservatively treated as active
 until the runtime can evaluate its schedule or vehicle expression.
@@ -122,11 +126,22 @@ uploads the immutable pack, then publishes `manifest.json` last.
 
 The release-blocking audit validates archive metadata, nodes, directed edges
 and turn-restriction references. It measures compression, parse/index time,
-peak memory, road-class mix, surface coverage and weakly connected components.
+peak memory, inflated size, road-class mix, surface coverage and weakly
+connected components.
 Each region also defines named road probes and directed route pairs. Auckland's
 first release must snap and route in both directions between representative
-mainland locations around Albany, Orewa, Warkworth, Matakana, Helensville and
-Kumeu. The JSON quality report is retained even when the release is rejected.
+mainland locations around Albany, Orewa, Warkworth and Matakana. The first pack
+is deliberately bounded to the North Shore and northeast coast so its decoded
+graph remains suitable for phone memory. The JSON quality report is retained
+even when the release is rejected.
+
+The first scoped Auckland build contains about 146,000 nodes and 266,000
+directed edges. Its 6.2 MB archive inflates to about 70 MB; a release-build
+Foundation decode plus component, restriction and routing indexes completed in
+about 1.9 seconds with a 352 MiB peak resident set on the build Mac. The release
+gate caps this format at 10 MB compressed and 80 MB decoded so a materially
+larger JSON graph cannot ship unnoticed. These figures are a baseline for real
+device validation, not a guarantee for every iPhone.
 
 Region definitions and version bumps live in
 `tools/offline_graph/regions.json`. A changed source or graph contract requires

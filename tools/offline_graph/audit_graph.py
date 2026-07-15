@@ -95,6 +95,8 @@ def nearest_node(
     coordinates: dict[int, tuple[float, float]],
     spatial_cells: dict[tuple[int, int], list[int]],
     maximum_distance_meters: float,
+    component_id_by_node: dict[int, int],
+    allowed_component_ids: set[int],
 ) -> tuple[int, float]:
     center = spatial_cell(coordinate)
     maximum_ring = max(math.ceil(maximum_distance_meters / 1_500), 1) + 1
@@ -104,6 +106,8 @@ def nearest_node(
         for longitude_offset in range(-maximum_ring, maximum_ring + 1):
             cell = (center[0] + latitude_offset, center[1] + longitude_offset)
             for node_id in spatial_cells.get(cell, []):
+                if component_id_by_node[node_id] not in allowed_component_ids:
+                    continue
                 distance = haversine_meters(coordinate, coordinates[node_id])
                 if distance < nearest_distance:
                     nearest_id = node_id
@@ -156,13 +160,24 @@ def route_probe(
 
 def audit(graph_path: Path, region: dict) -> dict:
     started_at = time.perf_counter()
+    quality = region["quality"]
     compressed = graph_path.read_bytes()
+    maximum_compressed_bytes = int(quality.get("maximumCompressedBytes", sys.maxsize))
+    if len(compressed) > maximum_compressed_bytes:
+        raise GraphAuditError(
+            f"Graph archive is {len(compressed)} bytes; maximum is {maximum_compressed_bytes}"
+        )
     decompression_started = time.perf_counter()
     try:
-        payload = zlib.decompress(compressed)
+        payload = zlib.decompress(compressed, wbits=-zlib.MAX_WBITS)
     except zlib.error as error:
-        raise GraphAuditError("Graph is not valid zlib data") from error
+        raise GraphAuditError("Graph is not valid raw DEFLATE data") from error
     decompression_seconds = time.perf_counter() - decompression_started
+    maximum_inflated_bytes = int(quality.get("maximumInflatedBytes", sys.maxsize))
+    if len(payload) > maximum_inflated_bytes:
+        raise GraphAuditError(
+            f"Inflated graph is {len(payload)} bytes; maximum is {maximum_inflated_bytes}"
+        )
 
     parsing_started = time.perf_counter()
     graph = json.loads(payload)
@@ -259,12 +274,12 @@ def audit(graph_path: Path, region: dict) -> dict:
         ):
             raise GraphAuditError("Graph contains an invalid turn restriction")
 
-    component_sizes = Counter(disjoint_set.find(node_id) for node_id in coordinates)
+    component_id_by_node = {node_id: disjoint_set.find(node_id) for node_id in coordinates}
+    component_sizes = Counter(component_id_by_node.values())
     largest_component_size = max(component_sizes.values(), default=0)
     largest_component_ratio = largest_component_size / max(len(coordinates), 1)
     indexing_seconds = time.perf_counter() - indexing_started
 
-    quality = region["quality"]
     minimum_nodes = int(quality.get("minimumNodes", 1))
     minimum_edges = int(quality.get("minimumEdges", 1))
     minimum_restrictions = int(quality.get("minimumTurnRestrictions", 0))
@@ -283,6 +298,14 @@ def audit(graph_path: Path, region: dict) -> dict:
         )
 
     maximum_snap_distance = float(quality.get("maximumProbeSnapDistanceMeters", 2_500))
+    minimum_probe_component_ratio = float(quality.get("minimumProbeComponentNodeRatio", 0))
+    allowed_probe_components = {
+        component_id
+        for component_id, size in component_sizes.items()
+        if size / max(len(coordinates), 1) >= minimum_probe_component_ratio
+    }
+    if not allowed_probe_components:
+        raise GraphAuditError("No road component is large enough for release route probes")
     snapped_probes = {}
     probe_report = []
     for probe in quality["probes"]:
@@ -294,6 +317,8 @@ def audit(graph_path: Path, region: dict) -> dict:
             coordinates,
             spatial_cells,
             maximum_snap_distance,
+            component_id_by_node,
+            allowed_probe_components,
         )
         snapped_probes[probe_id] = node_id
         probe_report.append(

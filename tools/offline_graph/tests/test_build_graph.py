@@ -35,7 +35,7 @@ class BuildGraphTests(unittest.TestCase):
     def write_graph(self, directory: Path, graph: dict) -> Path:
         payload = json.dumps(graph, sort_keys=True, separators=(",", ":")).encode("utf-8")
         path = directory / "test-region-v1.mlgraph"
-        path.write_bytes(build_graph.deterministic_zlib(payload))
+        path.write_bytes(build_graph.deterministic_deflate(payload))
         return path
 
     def test_compiler_preserves_legal_direction_and_restrictions(self):
@@ -45,6 +45,7 @@ class BuildGraphTests(unittest.TestCase):
         way_ids = [edge["wayID"] for edge in graph["edges"]]
         self.assertNotIn(102, way_ids)
         self.assertNotIn(103, way_ids)
+        self.assertNotIn(105, way_ids)
         self.assertIn(104, way_ids)
         reverse_lane = [edge for edge in graph["edges"] if edge["wayID"] == 101]
         self.assertEqual([(edge["sourceNodeID"], edge["destinationNodeID"]) for edge in reverse_lane], [(4, 3)])
@@ -59,14 +60,18 @@ class BuildGraphTests(unittest.TestCase):
         self.assertEqual(coast_road["maximumSpeedKPH"], 80.0)
         self.assertEqual(coast_road["surface"], "asphalt")
 
-    def test_zlib_output_is_deterministic_and_round_trips(self):
+    def test_deflate_output_is_deterministic_and_matches_foundation(self):
         graph = build_graph.compile_graph(self.fixture, self.region, "2026-07-15T10:00:00Z")
         payload = json.dumps(graph, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        first = build_graph.deterministic_zlib(payload)
-        second = build_graph.deterministic_zlib(payload)
+        first = build_graph.deterministic_deflate(payload)
+        second = build_graph.deterministic_deflate(payload)
 
         self.assertEqual(first, second)
-        self.assertEqual(json.loads(zlib.decompress(first)), graph)
+        self.assertEqual(json.loads(zlib.decompress(first, wbits=-zlib.MAX_WBITS)), graph)
+        self.assertEqual(
+            build_graph.deterministic_deflate(b"hello Memory Lanes").hex(),
+            "cb48cdc9c957f04dcdcd2faa54f049cc4b2d0600",
+        )
 
     def test_manifest_uses_pack_bytes_and_digest(self):
         with tempfile.TemporaryDirectory() as directory_name:

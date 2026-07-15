@@ -28,7 +28,6 @@ ROAD_CLASSES = {
     "living_street": "residential",
     "unclassified": "unclassified",
     "road": "unclassified",
-    "service": "service",
 }
 
 DEFAULT_SPEED_KPH = {
@@ -39,7 +38,6 @@ DEFAULT_SPEED_KPH = {
     "tertiary": 60.0,
     "residential": 40.0,
     "unclassified": 50.0,
-    "service": 25.0,
 }
 
 DENIED_ACCESS = {"no", "private", "agricultural", "forestry", "customers"}
@@ -77,7 +75,7 @@ def load_region(path: Path, region_id: str) -> dict:
     if len(matches) != 1:
         raise ValueError(f"Expected exactly one region named {region_id!r}")
     region = matches[0]
-    if region.get("formatVersion") != 1 or region.get("encoding") != "zlib-json":
+    if region.get("formatVersion") != 1 or region.get("encoding") != "deflate-json":
         raise ValueError("Region does not use the supported graph format")
     return region
 
@@ -292,8 +290,9 @@ def compile_graph(input_path: Path, region: dict, generated_at: str) -> dict:
     }
 
 
-def deterministic_zlib(payload: bytes) -> bytes:
-    return zlib.compress(payload, level=9)
+def deterministic_deflate(payload: bytes) -> bytes:
+    compressor = zlib.compressobj(level=9, wbits=-zlib.MAX_WBITS)
+    return compressor.compress(payload) + compressor.flush()
 
 
 def atomic_write(path: Path, payload: bytes) -> None:
@@ -308,7 +307,7 @@ def main() -> None:
     region = load_region(arguments.regions, arguments.region_id)
     graph = compile_graph(arguments.input, region, arguments.generated_at)
     payload = json.dumps(graph, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
-    atomic_write(arguments.output, deterministic_zlib(payload))
+    atomic_write(arguments.output, deterministic_deflate(payload))
     print(
         json.dumps(
             {

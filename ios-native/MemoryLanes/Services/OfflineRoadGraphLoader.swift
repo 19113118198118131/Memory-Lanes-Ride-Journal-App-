@@ -32,6 +32,7 @@ actor OfflineRoadGraphLoader: OfflineRoadGraphLoading {
         let compressed = try Data(contentsOf: url, options: .mappedIfSafe)
         let inflated: NSData
         do {
+            // Foundation names its raw DEFLATE codec `.zlib`; the release compiler matches these bytes.
             inflated = try (compressed as NSData).decompressed(using: .zlib)
         } catch {
             throw OfflineRoadRoutingError.invalidArchive
@@ -59,6 +60,7 @@ struct OfflineRoadGraphIndex: Sendable {
     let nodeRestrictions: [UInt64: [OfflineTurnRestriction]]
     let wayRestrictions: [UInt64: [OfflineTurnRestriction]]
     let maximumWayHistoryCount: Int
+    let weakComponentIDByNodeID: [UInt64: UInt64]
     private let spatialCells: [OfflineRoadSpatialCell: [UInt64]]
 
     init(archive: OfflineRoadGraphArchive) throws {
@@ -87,6 +89,7 @@ struct OfflineRoadGraphIndex: Sendable {
 
         var outgoingEdges: [UInt64: [OfflineRoadEdge]] = [:]
         var wayIDs = Set<UInt64>()
+        var weakComponents = OfflineRoadDisjointSet(nodeIDs: Array(coordinates.keys))
         for edge in archive.edges {
             guard edge.wayID > 0,
                   coordinates[edge.sourceNodeID] != nil,
@@ -100,6 +103,7 @@ struct OfflineRoadGraphIndex: Sendable {
             }
             outgoingEdges[edge.sourceNodeID, default: []].append(edge)
             wayIDs.insert(edge.wayID)
+            weakComponents.union(edge.sourceNodeID, edge.destinationNodeID)
         }
         for nodeID in outgoingEdges.keys {
             outgoingEdges[nodeID]?.sort {
@@ -133,11 +137,26 @@ struct OfflineRoadGraphIndex: Sendable {
         self.nodeRestrictions = nodeRestrictions
         self.wayRestrictions = wayRestrictions
         self.maximumWayHistoryCount = maximumWayHistoryCount
+        self.weakComponentIDByNodeID = Dictionary(
+            uniqueKeysWithValues: coordinates.keys.map { ($0, weakComponents.root(of: $0)) }
+        )
         self.spatialCells = spatialCells
     }
 
     func nearestNode(to coordinate: Coordinate, maximumDistanceMeters: Double = 5_000) -> OfflineRoadSnap? {
-        guard maximumDistanceMeters > 0 else { return nil }
+        return nearestNodesByWeakComponent(
+            to: coordinate,
+            maximumDistanceMeters: maximumDistanceMeters
+        )
+        .values
+        .min { $0.distanceMeters < $1.distanceMeters }
+    }
+
+    func nearestNodesByWeakComponent(
+        to coordinate: Coordinate,
+        maximumDistanceMeters: Double = 5_000
+    ) -> [UInt64: OfflineRoadSnap] {
+        guard maximumDistanceMeters > 0 else { return [:] }
         let center = Self.cell(for: coordinate)
         let maximumRing = max(Int(ceil(maximumDistanceMeters / 1_500)), 1) + 1
         var candidateIDs = Set<UInt64>()
@@ -151,16 +170,19 @@ struct OfflineRoadGraphIndex: Sendable {
             }
         }
 
-        var nearest: OfflineRoadSnap?
+        var nearestByComponent: [UInt64: OfflineRoadSnap] = [:]
         for nodeID in candidateIDs {
-            guard let nodeCoordinate = coordinates[nodeID] else { continue }
+            guard let nodeCoordinate = coordinates[nodeID],
+                  let componentID = weakComponentIDByNodeID[nodeID] else { continue }
             let distance = OfflineRoadGeometry.distanceMeters(coordinate, nodeCoordinate)
-            if distance <= maximumDistanceMeters,
-               nearest.map({ distance < $0.distanceMeters }) ?? true {
-                nearest = OfflineRoadSnap(nodeID: nodeID, coordinate: nodeCoordinate, distanceMeters: distance)
+            if distance <= maximumDistanceMeters {
+                let snap = OfflineRoadSnap(nodeID: nodeID, coordinate: nodeCoordinate, distanceMeters: distance)
+                if nearestByComponent[componentID].map({ distance < $0.distanceMeters }) ?? true {
+                    nearestByComponent[componentID] = snap
+                }
             }
         }
-        return nearest
+        return nearestByComponent
     }
 
     private static func cell(for coordinate: Coordinate) -> OfflineRoadSpatialCell {
@@ -168,6 +190,35 @@ struct OfflineRoadGraphIndex: Sendable {
             latitudeIndex: Int(floor((coordinate.latitude + 90) / spatialCellDegrees)),
             longitudeIndex: Int(floor((coordinate.longitude + 180) / spatialCellDegrees))
         )
+    }
+}
+
+private struct OfflineRoadDisjointSet {
+    private var parent: [UInt64: UInt64]
+    private var size: [UInt64: Int]
+
+    init(nodeIDs: [UInt64]) {
+        parent = Dictionary(uniqueKeysWithValues: nodeIDs.map { ($0, $0) })
+        size = Dictionary(uniqueKeysWithValues: nodeIDs.map { ($0, 1) })
+    }
+
+    mutating func root(of nodeID: UInt64) -> UInt64 {
+        guard let directParent = parent[nodeID] else { return nodeID }
+        if directParent == nodeID { return nodeID }
+        let value = root(of: directParent)
+        parent[nodeID] = value
+        return value
+    }
+
+    mutating func union(_ first: UInt64, _ second: UInt64) {
+        var firstRoot = root(of: first)
+        var secondRoot = root(of: second)
+        guard firstRoot != secondRoot else { return }
+        if size[firstRoot, default: 1] < size[secondRoot, default: 1] {
+            swap(&firstRoot, &secondRoot)
+        }
+        parent[secondRoot] = firstRoot
+        size[firstRoot, default: 1] += size[secondRoot, default: 1]
     }
 }
 

@@ -35,15 +35,13 @@ struct OfflineRoadRouteProvider: RoadRouteProviding {
         guard waypoints.count > 1 else { throw OfflineRoadRoutingError.noPath }
         let graphURL = try await commonGraphURL(for: waypoints)
         let graph = try await graphLoader.graph(at: graphURL)
-        let snaps = try waypoints.map { coordinate in
-            guard let snap = graph.nearestNode(
+        let candidates = waypoints.map { coordinate in
+            graph.nearestNodesByWeakComponent(
                 to: coordinate,
                 maximumDistanceMeters: maximumSnapDistanceMeters
-            ) else {
-                throw OfflineRoadRoutingError.cannotSnap
-            }
-            return snap
+            )
         }
+        let snaps = try connectedSnaps(from: candidates)
 
         var coordinates: [Coordinate] = []
         var edges: [OfflineRoadEdge] = []
@@ -71,6 +69,31 @@ struct OfflineRoadRouteProvider: RoadRouteProviding {
             ),
             snaps
         )
+    }
+
+    private func connectedSnaps(
+        from candidates: [[UInt64: OfflineRoadSnap]]
+    ) throws -> [OfflineRoadSnap] {
+        guard var commonComponents = candidates.first.map({ Set($0.keys) }),
+              !commonComponents.isEmpty else {
+            throw OfflineRoadRoutingError.cannotSnap
+        }
+        for options in candidates.dropFirst() {
+            commonComponents.formIntersection(options.keys)
+        }
+        guard !commonComponents.isEmpty else { throw OfflineRoadRoutingError.noPath }
+
+        var best: (distance: Double, snaps: [OfflineRoadSnap])?
+        for componentID in commonComponents {
+            let snaps = candidates.compactMap { $0[componentID] }
+            guard snaps.count == candidates.count else { continue }
+            let distance = snaps.reduce(0) { $0 + $1.distanceMeters }
+            if best.map({ distance < $0.distance }) ?? true {
+                best = (distance, snaps)
+            }
+        }
+        guard let best else { throw OfflineRoadRoutingError.noPath }
+        return best.snaps
     }
 
     private func commonGraphURL(for waypoints: [Coordinate]) async throws -> URL {

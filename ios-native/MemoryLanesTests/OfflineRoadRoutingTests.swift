@@ -3,7 +3,17 @@ import Testing
 @testable import MemoryLanes
 
 struct OfflineRoadRoutingTests {
-    @Test func loaderInflatesZlibAndBuildsSpatialIndex() async throws {
+    @Test func foundationInflatesCompilerDeflateContract() throws {
+        let compilerBytes = Data([
+            0xcb, 0x48, 0xcd, 0xc9, 0xc9, 0x57, 0xf0, 0x4d, 0xcd, 0xcd,
+            0x2f, 0xaa, 0x54, 0xf0, 0x49, 0xcc, 0x4b, 0x2d, 0x06, 0x00
+        ])
+        let inflated = try (compilerBytes as NSData).decompressed(using: .zlib) as Data
+
+        #expect(String(data: inflated, encoding: .utf8) == "hello Memory Lanes")
+    }
+
+    @Test func loaderInflatesDeflateAndBuildsSpatialIndex() async throws {
         let archive = TestRoadGraph.archive()
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -100,6 +110,44 @@ struct OfflineRoadRoutingTests {
         #expect(route.coordinates.map(\.latitude) == [-36.8, -36.799, -36.798])
         #expect(route.context.motorwayRatio == 0.5)
         #expect(route.context.unsuitableSurfaceRatio == 0.5)
+    }
+
+    @Test func providerChoosesTheClosestComponentSharedByEveryWaypoint() async throws {
+        let archive = OfflineRoadGraphArchive(
+            formatVersion: 1,
+            regionID: "component-test",
+            generatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            bounds: OfflineRegionBounds(south: -37, west: 174, north: -36, east: 175),
+            attribution: "OpenStreetMap contributors",
+            nodes: [
+                OfflineRoadNode(id: 1, coordinate: Coordinate(latitude: -36.800, longitude: 174.701)),
+                OfflineRoadNode(id: 2, coordinate: Coordinate(latitude: -36.795, longitude: 174.705)),
+                OfflineRoadNode(id: 3, coordinate: Coordinate(latitude: -36.790, longitude: 174.710)),
+                OfflineRoadNode(id: 6, coordinate: Coordinate(latitude: -36.800, longitude: 174.700)),
+                OfflineRoadNode(id: 7, coordinate: Coordinate(latitude: -36.8001, longitude: 174.7001))
+            ],
+            edges: [
+                TestRoadGraph.edge(way: 10, from: 1, to: 2, seconds: 1),
+                TestRoadGraph.edge(way: 20, from: 2, to: 3, seconds: 1),
+                TestRoadGraph.edge(way: 60, from: 6, to: 7, seconds: 1),
+                TestRoadGraph.edge(way: 60, from: 7, to: 6, seconds: 1)
+            ],
+            turnRestrictions: []
+        )
+        let graph = try OfflineRoadGraphIndex(archive: archive)
+        let provider = OfflineRoadRouteProvider(
+            regionStore: StubOfflineRegionStore(url: URL(fileURLWithPath: "/tmp/component-test.mlgraph")),
+            graphLoader: StubOfflineGraphLoader(graph: graph)
+        )
+
+        let route = try await provider.route(through: [
+            Coordinate(latitude: -36.800, longitude: 174.700),
+            Coordinate(latitude: -36.790, longitude: 174.710)
+        ])
+
+        #expect(route.coordinates.count == 3)
+        #expect(route.coordinates.first?.longitude == 174.701)
+        #expect(route.coordinates.last?.longitude == 174.710)
     }
 
     @Test func offlineFirstProviderFallsBackWhenCoverageIsMissing() async throws {
