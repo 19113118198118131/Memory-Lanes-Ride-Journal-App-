@@ -36,10 +36,16 @@ private final class GPXParserDelegate: NSObject, XMLParserDelegate {
     private var currentTime: Date?
     private var currentElement = ""
     private var buffer = ""
-    private var lastPointTimestamp: Date?
+    private var lastTrackTimestamp: Date?
+    private var lastRouteTimestamp: Date?
     private let fallbackStartTime = Date()
 
-    private(set) var points: [RecordingPoint] = []
+    private var trackPoints: [RecordingPoint] = []
+    private var routePoints: [RecordingPoint] = []
+
+    var points: [RecordingPoint] {
+        trackPoints.isEmpty ? routePoints : trackPoints
+    }
 
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
         currentElement = elementName
@@ -62,15 +68,18 @@ private final class GPXParserDelegate: NSObject, XMLParserDelegate {
             currentElevation = Double(value)
         } else if elementName == "time" {
             currentTime = DateParsing.gpxDate(from: value)
-        } else if elementName == "trkpt" || elementName == "rtept" {
-            appendCurrentPoint()
+        } else if elementName == "trkpt" {
+            appendCurrentPoint(isTrack: true)
+        } else if elementName == "rtept" {
+            appendCurrentPoint(isTrack: false)
         }
         buffer = ""
     }
 
-    private func appendCurrentPoint() {
+    private func appendCurrentPoint(isTrack: Bool) {
         guard let latitude = currentLatitude, let longitude = currentLongitude else { return }
-        let timestamp = currentTime ?? lastPointTimestamp?.addingTimeInterval(1) ?? fallbackStartTime
+        let previousTimestamp = isTrack ? lastTrackTimestamp : lastRouteTimestamp
+        let timestamp = currentTime ?? previousTimestamp?.addingTimeInterval(1) ?? fallbackStartTime
         let location = CLLocation(
             coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
             altitude: currentElevation ?? 0,
@@ -80,8 +89,13 @@ private final class GPXParserDelegate: NSObject, XMLParserDelegate {
             speed: 0,
             timestamp: timestamp
         )
-        points.append(RecordingPoint(location: location))
-        lastPointTimestamp = timestamp
+        if isTrack {
+            trackPoints.append(RecordingPoint(location: location))
+            lastTrackTimestamp = timestamp
+        } else {
+            routePoints.append(RecordingPoint(location: location))
+            lastRouteTimestamp = timestamp
+        }
     }
 }
 

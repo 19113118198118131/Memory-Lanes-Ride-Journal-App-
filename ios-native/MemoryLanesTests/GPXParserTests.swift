@@ -53,4 +53,28 @@ final class GPXParserTests: XCTestCase {
             }
         }
     }
+
+    func testPrefersRecordedTrackWhenFileAlsoContainsPlannedRoute() throws {
+        let data = Data(
+            """
+            <gpx>
+              <rte>
+                <rtept lat="-36.0" lon="174.0" />
+                <rtept lat="-37.0" lon="175.0" />
+              </rte>
+              <trk><trkseg>
+                <trkpt lat="-36.8485" lon="174.7633"><time>2026-01-01T00:00:00Z</time></trkpt>
+                <trkpt lat="-36.8485" lon="174.7643"><time>2026-01-01T00:00:10Z</time></trkpt>
+              </trkseg></trk>
+            </gpx>
+            """.utf8
+        )
+
+        let track = try GPXParser().parse(data: data)
+
+        XCTAssertEqual(track.points.count, 2)
+        XCTAssertEqual(track.points.first?.longitude, 174.7633)
+        XCTAssertEqual(track.durationSeconds, 10, accuracy: 0.001)
+        XCTAssertLessThan(track.distanceMeters, 200)
+    }
 }
