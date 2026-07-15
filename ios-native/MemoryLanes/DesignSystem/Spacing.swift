@@ -51,6 +51,10 @@ enum Layout {
     static let compactPanelMaxWidth: CGFloat = 360
     /// Speed-first live recorder instrument in landscape.
     static let liveCockpitMaxWidth: CGFloat = 300
+    /// Brand mark width on the signed-out welcome experience.
+    static let welcomeBrandMarkMaxWidth: CGFloat = 320
+    /// Rider identity mark on the account screen.
+    static let accountAvatarSize: CGFloat = 72
 }
 
 extension View {
