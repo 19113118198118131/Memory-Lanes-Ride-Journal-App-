@@ -3,11 +3,13 @@ import Foundation
 struct IndependentRoutePlanner: Sendable {
     static let diversityOverlapLimit = 0.40
 
-    private static let attemptCount = 14
+    private static let attemptCount = 15
     private static let concurrentAttemptLimit = 4
     private static let anchorRetryLimit = 3
-    private static let explicitDistanceTolerance = 0.22
-    private static let timeTolerance = 0.20
+    private static let bestMatchTolerance = 0.20
+    private static let closeMatchTolerance = 0.35
+    private static let alternativeTolerance = 0.50
+    private static let maximumCandidateCount = 6
 
     private let roadProvider: any RoadRouteProviding
     private let characterAnalyzer: RouteCharacterAnalyzer
@@ -50,7 +52,7 @@ struct IndependentRoutePlanner: Sendable {
             if isDiverse {
                 selected.append(evaluation)
             }
-            if selected.count == 3 { break }
+            if selected.count == Self.maximumCandidateCount { break }
         }
 
         guard !selected.isEmpty else { throw IndependentRoutePlanningError.noRoutes }
@@ -108,27 +110,28 @@ struct IndependentRoutePlanner: Sendable {
 
         let distanceKm = roadRoute.distanceMeters / 1_000
         let deviation: Double
-        let tolerance: Double
         if let requestedDistance = request.targetDistanceKm {
             deviation = relativeDifference(distanceKm, requestedDistance)
-            tolerance = Self.explicitDistanceTolerance
         } else {
             deviation = relativeDifference(roadRoute.expectedTravelTime, request.targetDuration)
-            tolerance = Self.timeTolerance
         }
-        guard deviation <= tolerance else { return nil }
+        guard deviation <= Self.alternativeTolerance else { return nil }
+        let matchTier = matchTier(for: deviation)
 
         let preview = roadRoute.coordinates.decimated(maxCount: 1_600)
         let character = characterAnalyzer.assess(
             coordinates: preview,
             context: roadRoute.context,
-            mood: request.mood
+            mood: request.primaryMood
         )
+        let secondaryScore = request.secondaryMood.map {
+            characterAnalyzer.assess(coordinates: preview, context: roadRoute.context, mood: $0).score
+        }
         let departure = CompassDirection.nearest(to: attempt.initialBearing)
         let targetDescription = request.targetDistanceKm.map { "\(Int($0.rounded())) km target" }
             ?? "\(request.time.title) target"
         let candidate = RouteCandidate(
-            title: "\(request.mood.title) \(departure.title) \(attempt.titleSuffix)",
+            title: "\(moodTitle(for: request)) \(departure.title) \(attempt.titleSuffix)",
             distanceKm: distanceKm,
             durationSeconds: roadRoute.expectedTravelTime,
             time: formattedDuration(roadRoute.expectedTravelTime),
@@ -136,13 +139,17 @@ struct IndependentRoutePlanner: Sendable {
             summary: "\(targetDescription) · \(departure.title.lowercased()) departure",
             preview: preview,
             waypoints: anchors,
-            character: character
+            character: character,
+            matchTier: matchTier,
+            targetDeviation: deviation,
+            targetDeltaText: targetDeltaText(for: roadRoute, request: request)
         )
-        let intentFit = max(1 - deviation / tolerance, 0)
+        let intentFit = max(1 - deviation / Self.alternativeTolerance, 0)
+        let blendedCharacterScore = Double(character.score) * 0.75 + Double(secondaryScore ?? character.score) * 0.25
         return EvaluatedCandidate(
             attemptIndex: attempt.index,
             candidate: candidate,
-            selectionScore: Double(character.score) + intentFit * 200
+            selectionScore: blendedCharacterScore + intentFit * 240 - Double(matchTier.rawValue) * 80
         )
     }
 
@@ -164,7 +171,7 @@ struct IndependentRoutePlanner: Sendable {
 
             for retry in 0..<Self.anchorRetryLimit {
                 try Task.checkCancellation()
-                let firstLegHasDirection = anchorIndex == 0 && request.direction != nil
+                let firstLegHasDirection = anchorIndex == 0 && !request.directions.isEmpty
                 let bearingJitter = firstLegHasDirection
                     ? generator.double(in: -3...3)
                     : generator.double(in: -18...18)
@@ -177,9 +184,11 @@ struct IndependentRoutePlanner: Sendable {
 
                 do {
                     let snapped = try await roadProvider.validatedAnchor(proposed, from: current)
-                    if anchorIndex == 0, let direction = request.direction {
+                    if anchorIndex == 0, !request.directions.isEmpty {
                         let snappedBearing = bearing(from: request.start, to: snapped)
-                        guard angularDifference(snappedBearing, direction.bearingDegrees) <= 22.5 else {
+                        guard request.directions.contains(where: {
+                            angularDifference(snappedBearing, $0.bearingDegrees) <= 22.5
+                        }) else {
                             continue
                         }
                     }
@@ -208,10 +217,12 @@ struct IndependentRoutePlanner: Sendable {
 
         return (0..<Self.attemptCount).map { index in
             let initialBearing: Double
-            if let direction = request.direction {
+            if !request.directions.isEmpty {
+                let orderedDirections = CompassDirection.allCases.filter(request.directions.contains)
+                let direction = orderedDirections[index % orderedDirections.count]
                 initialBearing = direction.bearingDegrees + generator.double(in: -16...16)
             } else {
-                initialBearing = generator.double(in: 0..<360) + request.mood.bearingBias
+                initialBearing = generator.double(in: 0..<360) + request.primaryMood.bearingBias
             }
             let scale = distanceScales[index % distanceScales.count] * generator.double(in: 0.96...1.04)
             return CandidateAttempt(
@@ -234,6 +245,28 @@ struct IndependentRoutePlanner: Sendable {
     private func relativeDifference(_ value: Double, _ target: Double) -> Double {
         guard target > 0 else { return 1 }
         return abs(value - target) / target
+    }
+
+    private func matchTier(for deviation: Double) -> RouteMatchTier {
+        if deviation <= Self.bestMatchTolerance { return .best }
+        if deviation <= Self.closeMatchTolerance { return .close }
+        return .explore
+    }
+
+    private func moodTitle(for request: RoutePlanRequest) -> String {
+        guard let secondaryMood = request.secondaryMood else { return request.primaryMood.title }
+        return "\(request.primaryMood.title) + \(secondaryMood.title)"
+    }
+
+    private func targetDeltaText(for route: RoadRoute, request: RoutePlanRequest) -> String {
+        if let targetDistanceKm = request.targetDistanceKm {
+            let delta = route.distanceMeters / 1_000 - targetDistanceKm
+            guard abs(delta) >= 0.5 else { return "On distance target" }
+            return String(format: "%@%.0f km", delta > 0 ? "+" : "", delta)
+        }
+        let deltaMinutes = Int(((route.expectedTravelTime - request.targetDuration) / 60).rounded())
+        guard abs(deltaMinutes) >= 1 else { return "On time target" }
+        return "\(deltaMinutes > 0 ? "+" : "")\(deltaMinutes) min"
     }
 
     private func bearing(from: Coordinate, to: Coordinate) -> Double {

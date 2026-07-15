@@ -1,5 +1,120 @@
 import SwiftUI
 
+struct RouteStartSearchControl: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject var provider: RouteStartLocationProvider
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(Color.mlTextSecondary)
+                TextField("Address, suburb, road or landmark", text: $provider.query)
+                    .font(MLFont.body)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                if provider.isSearching {
+                    ProgressView().tint(.mlAccent)
+                } else if !provider.query.isEmpty {
+                    Button {
+                        provider.clearSearch()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(Color.mlTextTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear start search")
+                }
+                Button {
+                    provider.useCurrentLocation()
+                } label: {
+                    Image(systemName: "location.fill")
+                        .foregroundStyle(Color.mlAccent)
+                        .mlHitTarget()
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .accessibilityLabel("Use current location")
+            }
+            .padding(.leading, Spacing.md)
+            .padding(.trailing, Spacing.xs)
+            .frame(minHeight: Layout.minTouchTarget)
+            .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                    .stroke(provider.coordinate == nil ? Color.mlHairline : Color.mlAccent.opacity(0.5), lineWidth: Layout.hairline)
+            )
+
+            if !provider.suggestions.isEmpty {
+                VStack(spacing: .zero) {
+                    ForEach(provider.suggestions) { suggestion in
+                        Button {
+                            Haptics.selection()
+                            provider.selectSuggestion(suggestion)
+                        } label: {
+                            HStack(spacing: Spacing.sm) {
+                                Image(systemName: "mappin.and.ellipse")
+                                    .foregroundStyle(Color.mlAccent)
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text(suggestion.title)
+                                        .font(MLFont.callout)
+                                        .foregroundStyle(Color.mlTextPrimary)
+                                        .lineLimit(1)
+                                    if !suggestion.subtitle.isEmpty {
+                                        Text(suggestion.subtitle)
+                                            .font(MLFont.caption)
+                                            .foregroundStyle(Color.mlTextSecondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(Spacing.sm)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        if suggestion.id != provider.suggestions.last?.id {
+                            Divider().overlay(Color.mlHairline)
+                        }
+                    }
+                }
+                .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                .transition(.move(edge: .top).combined(with: .opacity))
+            } else if provider.query.isEmpty, !provider.recentPlaces.isEmpty {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Recent starts").mlKicker()
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: Spacing.xs) {
+                            ForEach(provider.recentPlaces) { place in
+                                Button {
+                                    Haptics.selection()
+                                    provider.selectRecentPlace(place)
+                                } label: {
+                                    Label(place.title, systemImage: "clock.arrow.circlepath")
+                                        .font(MLFont.caption)
+                                        .foregroundStyle(Color.mlTextSecondary)
+                                        .padding(.horizontal, Spacing.sm)
+                                        .frame(minHeight: Layout.minTouchTarget)
+                                        .background(Color.mlSurfaceElevated, in: Capsule())
+                                }
+                                .buttonStyle(MLPressableButtonStyle())
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let selectedPlace = provider.selectedPlace {
+                Label(selectedPlace.title, systemImage: "checkmark.circle.fill")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlAccent)
+            }
+        }
+        .animation(reduceMotion ? nil : Motion.springGentle, value: provider.suggestions)
+    }
+}
+
 struct RouteDistanceControl: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var targetDistanceKm: Double?
@@ -73,7 +188,7 @@ struct RouteDistanceControl: View {
 }
 
 struct CompassDirectionPicker: View {
-    @Binding var selection: CompassDirection?
+    @Binding var selection: Set<CompassDirection>
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: Spacing.xs), count: 3)
     private let slots: [CompassSlot] = [
@@ -94,7 +209,7 @@ struct CompassDirectionPicker: View {
                         .foregroundStyle(Color.mlTextSecondary)
                 }
                 Spacer(minLength: Spacing.sm)
-                Text(selection?.title ?? "Surprise me")
+                Text(selection.isEmpty ? "Surprise me" : "\(selection.count) selected")
                     .font(MLFont.callout)
                     .foregroundStyle(Color.mlAccent)
             }
@@ -108,11 +223,19 @@ struct CompassDirectionPicker: View {
     }
 
     private func directionButton(_ slot: CompassSlot) -> some View {
-        let isSelected = slot.direction == selection && (selection != nil || slot == .surprise)
+        let isSelected = slot.direction.map(selection.contains) ?? selection.isEmpty
         return Button {
             Haptics.selection()
             withAnimation(Motion.springSnappy) {
-                selection = slot.direction
+                if let direction = slot.direction {
+                    if selection.contains(direction) {
+                        selection.remove(direction)
+                    } else {
+                        selection.insert(direction)
+                    }
+                } else {
+                    selection.removeAll()
+                }
             }
         } label: {
             VStack(spacing: Spacing.xxs) {
@@ -176,7 +299,7 @@ private enum CompassSlot: Hashable, Identifiable {
 #Preview("Route planning controls") {
     struct PreviewContent: View {
         @State private var distance: Double? = 80
-        @State private var direction: CompassDirection? = .northEast
+        @State private var direction: Set<CompassDirection> = [.northEast, .north]
 
         var body: some View {
             ScrollView {
@@ -196,7 +319,7 @@ private enum CompassSlot: Hashable, Identifiable {
 #Preview("Route planning controls — automatic") {
     struct PreviewContent: View {
         @State private var distance: Double?
-        @State private var direction: CompassDirection?
+        @State private var direction: Set<CompassDirection> = []
 
         var body: some View {
             VStack(spacing: Spacing.xl) {

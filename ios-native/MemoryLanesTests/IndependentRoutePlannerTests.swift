@@ -9,7 +9,7 @@ struct IndependentRoutePlannerTests {
         let planner = IndependentRoutePlanner(roadProvider: StubRoadProvider(), randomSeed: 41)
         let candidates = try await planner.candidates(for: request(distanceKm: 72))
 
-        #expect(candidates.count == 3)
+        #expect((3...6).contains(candidates.count))
         #expect(candidates.allSatisfy { $0.preview.count > 2 })
         #expect(candidates.allSatisfy { $0.character.confidence == .geometry })
     }
@@ -41,7 +41,7 @@ struct IndependentRoutePlannerTests {
         let planner = IndependentRoutePlanner(roadProvider: StubRoadProvider(), randomSeed: 4_242)
         let candidates = try await planner.candidates(for: request(distanceKm: 80))
 
-        #expect(candidates.count == 3)
+        #expect(candidates.count >= 3)
         for firstIndex in candidates.indices {
             for secondIndex in candidates.indices where secondIndex > firstIndex {
                 let overlap = RoutePolylineOverlap.sharedFraction(
@@ -58,9 +58,14 @@ struct IndependentRoutePlannerTests {
         let planner = IndependentRoutePlanner(roadProvider: StubRoadProvider(), randomSeed: 99)
         let candidates = try await planner.candidates(for: request(distanceKm: targetDistanceKm))
 
-        #expect(!candidates.isEmpty)
+        let bestMatches = candidates.filter { $0.matchTier == .best }
+
+        #expect(!bestMatches.isEmpty)
+        #expect(bestMatches.allSatisfy {
+            abs($0.distanceKm - targetDistanceKm) / targetDistanceKm <= 0.20
+        })
         #expect(candidates.allSatisfy {
-            abs($0.distanceKm - targetDistanceKm) / targetDistanceKm <= 0.22
+            abs($0.distanceKm - targetDistanceKm) / targetDistanceKm <= 0.50
         })
     }
 
@@ -73,10 +78,30 @@ struct IndependentRoutePlannerTests {
         ))
         let targetDuration = RouteTime.fortyFive.hours * 60 * 60
 
-        #expect(!candidates.isEmpty)
+        #expect(candidates.contains { $0.matchTier == .best })
         #expect(candidates.allSatisfy {
+            abs($0.durationSeconds - targetDuration) / targetDuration <= 0.50
+        })
+        #expect(candidates.filter { $0.matchTier == .best }.allSatisfy {
             abs($0.durationSeconds - targetDuration) / targetDuration <= 0.20
         })
+    }
+
+    @Test func candidatesAreClassifiedByTheirTargetDeviation() async throws {
+        let targetDistanceKm = 80.0
+        let planner = IndependentRoutePlanner(roadProvider: StubRoadProvider(), randomSeed: 4_001)
+        let candidates = try await planner.candidates(for: request(distanceKm: targetDistanceKm))
+
+        #expect(!candidates.isEmpty)
+        for candidate in candidates {
+            let deviation = abs(candidate.distanceKm - targetDistanceKm) / targetDistanceKm
+            switch candidate.matchTier {
+            case .best: #expect(deviation <= 0.20)
+            case .close: #expect(deviation > 0.20 && deviation <= 0.35)
+            case .explore: #expect(deviation > 0.35 && deviation <= 0.50)
+            }
+            #expect(candidate.targetDeviation == deviation)
+        }
     }
 
     @Test func requestedDirectionBiasesFirstLegIntoCompassSector() async throws {
@@ -94,6 +119,26 @@ struct IndependentRoutePlannerTests {
             let firstLegBearing = bearing(from: candidate.waypoints[0], to: candidate.waypoints[1])
             #expect(angularDifference(firstLegBearing, CompassDirection.east.bearingDegrees) <= 22.5)
         }
+    }
+
+    @Test func multipleDirectionsDistributeCandidatesAcrossAllowedSectors() async throws {
+        let allowed: Set<CompassDirection> = [.north, .east]
+        let planner = IndependentRoutePlanner(roadProvider: StubRoadProvider(), randomSeed: 2_027)
+        let candidates = try await planner.candidates(for: RoutePlanRequest(
+            primaryMood: .flowing,
+            secondaryMood: .scenic,
+            time: .ninety,
+            start: start,
+            targetDistanceKm: 75,
+            directions: allowed
+        ))
+
+        #expect(!candidates.isEmpty)
+        #expect(candidates.allSatisfy { candidate in
+            let firstLegBearing = bearing(from: candidate.waypoints[0], to: candidate.waypoints[1])
+            return allowed.contains { angularDifference(firstLegBearing, $0.bearingDegrees) <= 22.5 }
+        })
+        #expect(candidates.allSatisfy { $0.title.contains("Flowing + Scenic") })
     }
 
     @Test func failedAnchorValidationIsRetried() async throws {

@@ -117,32 +117,82 @@ enum CompassDirection: String, CaseIterable, Identifiable, Sendable {
 }
 
 struct RoutePlanRequest: Sendable {
-    let mood: RouteMood
+    let primaryMood: RouteMood
+    let secondaryMood: RouteMood?
     let time: RouteTime
     let start: Coordinate
     let targetDistanceKm: Double?
-    let direction: CompassDirection?
+    let directions: Set<CompassDirection>
 
     init(
         mood: RouteMood,
+        secondaryMood: RouteMood? = nil,
         time: RouteTime,
         start: Coordinate,
         targetDistanceKm: Double? = nil,
         direction: CompassDirection? = nil
     ) {
-        self.mood = mood
+        self.primaryMood = mood
+        self.secondaryMood = secondaryMood == mood ? nil : secondaryMood
         self.time = time
         self.start = start
         self.targetDistanceKm = targetDistanceKm
-        self.direction = direction
+        self.directions = direction.map { [$0] } ?? []
     }
 
+    init(
+        primaryMood: RouteMood,
+        secondaryMood: RouteMood? = nil,
+        time: RouteTime,
+        start: Coordinate,
+        targetDistanceKm: Double? = nil,
+        directions: Set<CompassDirection> = []
+    ) {
+        self.primaryMood = primaryMood
+        self.secondaryMood = secondaryMood == primaryMood ? nil : secondaryMood
+        self.time = time
+        self.start = start
+        self.targetDistanceKm = targetDistanceKm
+        self.directions = directions
+    }
+
+    var mood: RouteMood { primaryMood }
+
     var effectiveTargetDistanceKm: Double {
-        targetDistanceKm ?? mood.averageSpeedKmH * time.hours
+        let blendedSpeed = secondaryMood.map {
+            primaryMood.averageSpeedKmH * 0.7 + $0.averageSpeedKmH * 0.3
+        } ?? primaryMood.averageSpeedKmH
+        return targetDistanceKm ?? blendedSpeed * time.hours
     }
 
     var targetDuration: TimeInterval {
         time.hours * 60 * 60
+    }
+}
+
+enum RouteMatchTier: Int, CaseIterable, Comparable, Sendable {
+    case best
+    case close
+    case explore
+
+    static func < (lhs: RouteMatchTier, rhs: RouteMatchTier) -> Bool {
+        lhs.rawValue < rhs.rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .best: "Best Matches"
+        case .close: "Close Matches"
+        case .explore: "Explore Alternatives"
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .best: "Closest to the ride you asked for"
+        case .close: "Good roads with a small time or distance trade-off"
+        case .explore: "More variety when you feel flexible"
+        }
     }
 }
 
@@ -213,6 +263,9 @@ struct RouteCandidate: Identifiable, Sendable {
     let preview: [Coordinate]
     let waypoints: [Coordinate]
     let character: RouteCharacterAssessment
+    let matchTier: RouteMatchTier
+    let targetDeviation: Double
+    let targetDeltaText: String
     var recommendation: RouteRecommendation?
 
     init(
@@ -226,6 +279,9 @@ struct RouteCandidate: Identifiable, Sendable {
         preview: [Coordinate],
         waypoints: [Coordinate],
         character: RouteCharacterAssessment,
+        matchTier: RouteMatchTier = .best,
+        targetDeviation: Double = 0,
+        targetDeltaText: String = "On target",
         recommendation: RouteRecommendation? = nil
     ) {
         self.id = id
@@ -238,6 +294,9 @@ struct RouteCandidate: Identifiable, Sendable {
         self.preview = preview
         self.waypoints = waypoints
         self.character = character
+        self.matchTier = matchTier
+        self.targetDeviation = targetDeviation
+        self.targetDeltaText = targetDeltaText
         self.recommendation = recommendation
     }
 

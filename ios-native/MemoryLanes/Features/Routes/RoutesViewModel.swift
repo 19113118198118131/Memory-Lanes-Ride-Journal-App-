@@ -73,7 +73,10 @@ final class RoutesViewModel {
                 ranked.recommendation = recommendation(for: candidate.matchVector)
                 return ranked
             }
-            .sorted { $0.rankingScore > $1.rankingScore }
+            .sorted { lhs, rhs in
+                if lhs.matchTier != rhs.matchTier { return lhs.matchTier < rhs.matchTier }
+                return lhs.rankingScore > rhs.rankingScore
+            }
     }
 
     private func refreshRecommendations() async {

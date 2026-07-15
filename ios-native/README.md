@@ -21,7 +21,9 @@ testing:
   planned-vs-actual matching, group-ride lobbies and invitations.
 - ✅ **Independent routing Phase 1.5** — MapKit fallback behind a provider seam,
   proprietary route-character scoring, randomized validated candidates,
-  time/distance intent tolerance, compass departure bias and geometric diversity.
+  searchable and recent start locations, primary/secondary mood blends,
+  multi-direction departure bias, geometric diversity, and progressively disclosed
+  best/close/explore matches with visible time or distance trade-offs.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
   queue, storage controls, accessibility passes and release telemetry.
 

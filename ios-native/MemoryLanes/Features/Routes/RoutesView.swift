@@ -11,9 +11,11 @@ struct RoutesView: View {
     @State private var viewModel: RoutesViewModel
     @StateObject private var startLocation = RouteStartLocationProvider()
     @State private var selectedMood = RouteMood.flowing
+    @State private var secondaryMood: RouteMood?
     @State private var selectedTime = RouteTime.ninety
     @State private var targetDistanceKm: Double?
-    @State private var selectedDirection: CompassDirection?
+    @State private var selectedDirections: Set<CompassDirection> = []
+    @State private var expandedCandidateTiers: Set<RouteMatchTier> = [.best, .close]
     @State private var showCandidates = false
     @State private var routeCandidates: [RouteCandidate] = []
     @State private var routeSaveError: String?
@@ -67,9 +69,11 @@ struct RoutesView: View {
         .refreshable { await viewModel.refreshAll() }
         .task(id: refreshTrigger) { await viewModel.load() }
         .onChange(of: selectedMood) { _, _ in clearGeneratedCandidates() }
+        .onChange(of: secondaryMood) { _, _ in clearGeneratedCandidates() }
         .onChange(of: selectedTime) { _, _ in clearGeneratedCandidates() }
         .onChange(of: targetDistanceKm) { _, _ in clearGeneratedCandidates() }
-        .onChange(of: selectedDirection) { _, _ in clearGeneratedCandidates() }
+        .onChange(of: selectedDirections) { _, _ in clearGeneratedCandidates() }
+        .onChange(of: startLocation.coordinate) { _, _ in clearGeneratedCandidates() }
     }
 
     private var header: some View {
@@ -204,36 +208,7 @@ struct RoutesView: View {
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text("Start").mlKicker()
-                HStack(spacing: Spacing.md) {
-                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Text(startLocation.coordinate == nil ? "Choose a start" : "Current location")
-                            .font(MLFont.headline)
-                            .foregroundStyle(Color.mlTextPrimary)
-                        Text(startLocation.summary)
-                            .font(MLFont.caption)
-                            .foregroundStyle(Color.mlTextSecondary)
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                    Button {
-                        startLocation.useCurrentLocation()
-                    } label: {
-                        if startLocation.isLocating {
-                            ProgressView()
-                                .tint(.mlAccent)
-                        } else {
-                            Image(systemName: "location.fill")
-                                .font(MLFont.headline)
-                                .foregroundStyle(Color.mlAccent)
-                        }
-                    }
-                    .frame(width: 44, height: 44)
-                    .background(Color.mlSurfaceElevated, in: Circle())
-                    .buttonStyle(MLPressableButtonStyle())
-                    .accessibilityLabel("Use current location")
-                }
-                .padding(Spacing.md)
-                .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                RouteStartSearchControl(provider: startLocation)
 
                 if let errorMessage = startLocation.errorMessage {
                     Text(errorMessage)
@@ -243,14 +218,53 @@ struct RoutesView: View {
             }
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                Text("Mood").mlKicker()
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Main mood").mlKicker()
+                    Spacer()
+                    Text("Pick the character that matters most")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                }
                 FlowLayout(spacing: Spacing.xs) {
                     ForEach(RouteMood.allCases) { mood in
                         ChoiceChip(title: mood.title, systemImage: mood.symbol, isSelected: selectedMood == mood) {
-                            withAnimation(reduceMotion ? nil : Motion.springSnappy) { selectedMood = mood }
+                            withAnimation(reduceMotion ? nil : Motion.springSnappy) {
+                                selectedMood = mood
+                                if secondaryMood == mood { secondaryMood = nil }
+                            }
                         }
                     }
                 }
+
+                DisclosureGroup {
+                    FlowLayout(spacing: Spacing.xs) {
+                        ForEach(RouteMood.allCases.filter { $0 != selectedMood }) { mood in
+                            ChoiceChip(
+                                title: mood.title,
+                                systemImage: mood.symbol,
+                                isSelected: secondaryMood == mood
+                            ) {
+                                withAnimation(reduceMotion ? nil : Motion.springSnappy) {
+                                    secondaryMood = secondaryMood == mood ? nil : mood
+                                }
+                            }
+                        }
+                    }
+                    .padding(.top, Spacing.xs)
+                } label: {
+                    HStack {
+                        Text("Blend in another mood")
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextSecondary)
+                        Spacer()
+                        if let secondaryMood {
+                            Text(secondaryMood.title)
+                                .font(MLFont.caption)
+                                .foregroundStyle(Color.mlAccent)
+                        }
+                    }
+                }
+                .tint(.mlAccent)
             }
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -273,7 +287,7 @@ struct RoutesView: View {
 
             Divider().overlay(Color.mlHairline)
 
-            CompassDirectionPicker(selection: $selectedDirection)
+            CompassDirectionPicker(selection: $selectedDirections)
         }
         .padding(Spacing.md)
         .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -295,11 +309,55 @@ struct RoutesView: View {
                 .font(MLFont.caption)
                 .foregroundStyle(Color.mlTextSecondary)
 
-            ForEach(routeCandidates) { route in
-                candidateCard(route)
+            ForEach(RouteMatchTier.allCases, id: \.self) { tier in
+                let tierCandidates = routeCandidates.filter { $0.matchTier == tier }
+                if !tierCandidates.isEmpty {
+                    candidateTier(tier, candidates: tierCandidates)
+                }
             }
         }
         .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    private func candidateTier(_ tier: RouteMatchTier, candidates: [RouteCandidate]) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Button {
+                Haptics.selection()
+                withAnimation(reduceMotion ? nil : Motion.springSnappy) {
+                    if expandedCandidateTiers.contains(tier) {
+                        expandedCandidateTiers.remove(tier)
+                    } else {
+                        expandedCandidateTiers.insert(tier)
+                    }
+                }
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text(tier.title)
+                            .font(MLFont.headline)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text(tier.explanation)
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Spacer()
+                    Text("\(candidates.count)")
+                        .font(MLFont.monoSmall)
+                        .foregroundStyle(Color.mlAccent)
+                    Image(systemName: expandedCandidateTiers.contains(tier) ? "chevron.up" : "chevron.down")
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if expandedCandidateTiers.contains(tier) {
+                ForEach(Array(candidates.enumerated()), id: \.element.id) { index, route in
+                    candidateCard(route)
+                        .mlStaggeredReveal(index: index)
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -410,6 +468,10 @@ struct RoutesView: View {
                 }
             }
 
+            Label(route.targetDeltaText, systemImage: route.matchTier == .best ? "scope" : "arrow.left.and.right")
+                .font(MLFont.caption)
+                .foregroundStyle(route.matchTier == .best ? Color.mlAccent : Color.mlTextSecondary)
+
             SegmentedMetric(items: [
                 .init(value: route.distance, unit: "km", label: "Distance"),
                 .init(value: route.time, unit: "", label: "Time"),
@@ -515,13 +577,15 @@ struct RoutesView: View {
         defer { isGeneratingCandidates = false }
         do {
             let generated = try await viewModel.generateCandidates(for: RoutePlanRequest(
-                mood: selectedMood,
+                primaryMood: selectedMood,
+                secondaryMood: secondaryMood,
                 time: selectedTime,
                 start: start,
                 targetDistanceKm: targetDistanceKm,
-                direction: selectedDirection
+                directions: selectedDirections
             ))
             routeCandidates = generated
+            expandedCandidateTiers = [.best, .close]
             Haptics.success()
             withAnimation(reduceMotion ? nil : Motion.spring) {
                 showCandidates = true
