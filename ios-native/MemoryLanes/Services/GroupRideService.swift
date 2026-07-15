@@ -7,6 +7,8 @@ protocol GroupRideServing: Sendable {
     func createGroupRide(route: PlannedRoute, draft: GroupRideDraft) async throws -> GroupRide
     func updateGroupRide(shareToken: UUID, groupRideID: UUID, draft: GroupRideDraft) async throws -> GroupRide
     func setRSVP(_ rsvp: GroupRideRSVP, shareToken: UUID) async throws -> GroupRide
+    func setCheckIn(_ checkedIn: Bool, shareToken: UUID) async throws -> GroupRide
+    func postAnnouncement(_ message: String, shareToken: UUID) async throws -> GroupRide
     func leaveGroupRide(shareToken: UUID) async throws
     func setStatus(_ status: GroupRideStatus, shareToken: UUID) async throws -> GroupRide
 }
@@ -37,7 +39,7 @@ struct GroupRideService: GroupRideServing, Sendable {
     func fetchGroupRide(shareToken: UUID) async throws -> GroupRide {
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let payload: GroupRidePayload? = try await client.post(
-            path: "rest/v1/rpc/get_group_ride",
+            path: "rest/v1/rpc/get_group_ride_operations",
             body: GroupRideTokenPayload(token: shareToken),
             accessToken: token
         )
@@ -89,7 +91,29 @@ struct GroupRideService: GroupRideServing, Sendable {
             body: GroupRideRSVPPayload(token: shareToken, answer: rsvp.rawValue),
             accessToken: token
         )
-        guard let payload else { throw GroupRideServiceError.unavailable }
+        guard payload != nil else { throw GroupRideServiceError.unavailable }
+        return try await fetchGroupRide(shareToken: shareToken)
+    }
+
+    func setCheckIn(_ checkedIn: Bool, shareToken: UUID) async throws -> GroupRide {
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        let payload: GroupRidePayload? = try await client.post(
+            path: "rest/v1/rpc/set_group_ride_check_in",
+            body: GroupRideCheckInPayload(token: shareToken, checkedIn: checkedIn),
+            accessToken: token
+        )
+        guard let payload else { throw GroupRideServiceError.operationFailed }
+        return payload.groupRide(shareToken: shareToken)
+    }
+
+    func postAnnouncement(_ message: String, shareToken: UUID) async throws -> GroupRide {
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        let payload: GroupRidePayload? = try await client.post(
+            path: "rest/v1/rpc/post_group_ride_announcement",
+            body: GroupRideAnnouncementPayload(token: shareToken, message: message),
+            accessToken: token
+        )
+        guard let payload else { throw GroupRideServiceError.operationFailed }
         return payload.groupRide(shareToken: shareToken)
     }
 
@@ -111,8 +135,8 @@ struct GroupRideService: GroupRideServing, Sendable {
             body: GroupRideStatusPayload(token: shareToken, newStatus: status),
             accessToken: token
         )
-        guard let payload else { throw GroupRideServiceError.operationFailed }
-        return payload.groupRide(shareToken: shareToken)
+        guard payload != nil else { throw GroupRideServiceError.operationFailed }
+        return try await fetchGroupRide(shareToken: shareToken)
     }
 }
 
@@ -142,6 +166,21 @@ private struct GroupRideTokenPayload: Encodable {
 private struct GroupRideRSVPPayload: Encodable {
     let token: UUID
     let answer: String
+}
+
+private struct GroupRideCheckInPayload: Encodable {
+    let token: UUID
+    let checkedIn: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case token
+        case checkedIn = "checked_in"
+    }
+}
+
+private struct GroupRideAnnouncementPayload: Encodable {
+    let token: UUID
+    let message: String
 }
 
 private struct GroupRideDiscoveryPayload: Encodable {

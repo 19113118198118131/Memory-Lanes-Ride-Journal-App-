@@ -48,6 +48,10 @@ final class GroupRideTests: XCTestCase {
         XCTAssertEqual(groupRide.status, .scheduled)
         XCTAssertEqual(groupRide.goingCount, 1)
         XCTAssertEqual(groupRide.maybeCount, 1)
+        XCTAssertEqual(groupRide.checkedInCount, 0)
+        XCTAssertFalse(groupRide.isCheckedIn)
+        XCTAssertFalse(groupRide.checkInAvailable)
+        XCTAssertTrue(groupRide.announcements.isEmpty)
         XCTAssertTrue(groupRide.inviteURL?.absoluteString.contains(token.uuidString) == true)
     }
 
@@ -99,7 +103,26 @@ final class GroupRideTests: XCTestCase {
           "is_owner": true,
           "is_member": true,
           "your_rsvp": "going",
-          "members": [],
+          "checked_in_count": 2,
+          "your_checked_in_at": "2026-07-18T05:38:00+00:00",
+          "check_in_available": true,
+          "members": [
+            {
+              "name": "Alex",
+              "rsvp": "going",
+              "is_you": false,
+              "checked_in_at": "2026-07-18T05:40:00+00:00"
+            }
+          ],
+          "announcements": [
+            {
+              "id": "\(UUID().uuidString)",
+              "message": "Meet beside the northern entrance.",
+              "created_at": "2026-07-18T05:30:00+00:00",
+              "author_name": "Samar",
+              "is_host": true
+            }
+          ],
           "route_id": "\(UUID().uuidString)",
           "route_title": "Coast at Dusk",
           "distance_km": 67.2,
@@ -122,6 +145,12 @@ final class GroupRideTests: XCTestCase {
         XCTAssertEqual(ride.goingCount, 5)
         XCTAssertEqual(ride.declinedCount, 2)
         XCTAssertEqual(ride.details, "Fuelled by 5:45. Relaxed pace.")
+        XCTAssertEqual(ride.checkedInCount, 2)
+        XCTAssertTrue(ride.isCheckedIn)
+        XCTAssertTrue(ride.checkInAvailable)
+        XCTAssertNotNil(ride.members.first?.checkedInAt)
+        XCTAssertEqual(ride.announcements.first?.message, "Meet beside the northern entrance.")
+        XCTAssertTrue(ride.announcements.first?.isHost == true)
     }
 
     func testCommunitySummaryCalculatesCapacity() throws {

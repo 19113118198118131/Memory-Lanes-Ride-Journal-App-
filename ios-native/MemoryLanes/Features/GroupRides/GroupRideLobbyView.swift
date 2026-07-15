@@ -8,6 +8,8 @@ struct GroupRideLobbyView: View {
     @State private var pendingStatus: GroupRideStatus?
     @State private var showingLeaveConfirmation = false
     @State private var showAllAttendees = false
+    @State private var showAllAnnouncements = false
+    @State private var showingAnnouncementComposer = false
 
     let onStartRoute: (PlannedRoute) -> Void
     let onEnded: () -> Void
@@ -66,6 +68,13 @@ struct GroupRideLobbyView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
             }
+        }
+        .sheet(isPresented: $showingAnnouncementComposer) {
+            GroupRideAnnouncementComposer { message in
+                await viewModel.postAnnouncement(message)
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
         .confirmationDialog(
             pendingStatus == .completed ? "Mark this ride complete?" : "Cancel this group ride?",
@@ -155,16 +164,26 @@ struct GroupRideLobbyView: View {
 
                 meetingCard(groupRide)
                     .mlStaggeredReveal(index: 3)
-                if groupRide.isOwner {
-                    organiserDashboard(groupRide)
+                if shouldShowRideDay(groupRide) {
+                    rideDayCard(groupRide)
                         .mlStaggeredReveal(index: 4)
                 }
-                rsvpCard(groupRide)
-                    .mlStaggeredReveal(index: 5)
+                if groupRide.isOwner {
+                    organiserDashboard(groupRide)
+                        .mlStaggeredReveal(index: 5)
+                }
+                if !groupRide.announcements.isEmpty {
+                    announcements(groupRide)
+                        .mlStaggeredReveal(index: 6)
+                }
+                if !groupRide.isOwner {
+                    rsvpCard(groupRide)
+                        .mlStaggeredReveal(index: 7)
+                }
                 attendees(groupRide)
-                    .mlStaggeredReveal(index: 6)
+                    .mlStaggeredReveal(index: 8)
                 actions(groupRide)
-                    .mlStaggeredReveal(index: 7)
+                    .mlStaggeredReveal(index: 9)
 
                 if let errorMessage = viewModel.errorMessage {
                     HStack(spacing: Spacing.sm) {
@@ -288,6 +307,95 @@ struct GroupRideLobbyView: View {
         groupRide.meetTime?.formatted(date: .abbreviated, time: .shortened) ?? "Time to be confirmed"
     }
 
+    private func shouldShowRideDay(_ groupRide: GroupRide) -> Bool {
+        groupRide.status == .scheduled && (
+            groupRide.isOwner || groupRide.yourRSVP == .going || groupRide.yourRSVP == .maybe
+        )
+    }
+
+    private func rideDayCard(_ groupRide: GroupRide) -> some View {
+        HStack(spacing: Spacing.md) {
+            Image(systemName: groupRide.isCheckedIn ? "checkmark.circle.fill" : "location.circle.fill")
+                .font(MLFont.displaySmall)
+                .foregroundStyle(groupRide.isCheckedIn ? Color.mlSuccess : Color.mlAccent)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: Spacing.xxl, height: Spacing.xxl)
+                .background(
+                    (groupRide.isCheckedIn ? Color.mlSuccess : Color.mlAccent).opacity(0.12),
+                    in: Circle()
+                )
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(groupRide.isCheckedIn ? "You're checked in" : "Ride-day check-in")
+                    .font(MLFont.headline)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text(checkInDetail(groupRide))
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: Spacing.xs)
+
+            if groupRide.checkInAvailable {
+                Button {
+                    Task {
+                        if await viewModel.setCheckIn(!groupRide.isCheckedIn) {
+                            if groupRide.isCheckedIn {
+                                Haptics.selection()
+                            } else {
+                                Haptics.success()
+                            }
+                        } else {
+                            Haptics.error()
+                        }
+                    }
+                } label: {
+                    Group {
+                        if viewModel.pendingCheckIn != nil {
+                            ProgressView().tint(.mlAccent)
+                        } else {
+                            Text(groupRide.isCheckedIn ? "Undo" : "I'm here")
+                        }
+                    }
+                    .font(MLFont.callout)
+                    .foregroundStyle(groupRide.isCheckedIn ? Color.mlTextSecondary : Color.mlAccent)
+                    .frame(minWidth: Layout.minTouchTarget, minHeight: Layout.minTouchTarget)
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .disabled(viewModel.isWorking)
+                .accessibilityValue(groupRide.isCheckedIn ? "Checked in" : "Not checked in")
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(
+                    groupRide.isCheckedIn ? Color.mlSuccess.opacity(0.32) : Color.mlHairline,
+                    lineWidth: Layout.hairline
+                )
+        }
+        .animation(reduceMotion ? nil : Motion.springSnappy, value: groupRide.isCheckedIn)
+    }
+
+    private func checkInDetail(_ groupRide: GroupRide) -> String {
+        if groupRide.isCheckedIn {
+            return "The organiser can see that you've arrived."
+        }
+        if groupRide.checkInAvailable {
+            return "Let the organiser know you're at the meeting point."
+        }
+        guard let meetTime = groupRide.meetTime else {
+            return "Check-in becomes available when the host confirms the ride."
+        }
+        let opensAt = meetTime.addingTimeInterval(-21_600)
+        if Date() < opensAt {
+            return "Opens \(opensAt.formatted(date: .abbreviated, time: .shortened))."
+        }
+        return "Check-in has closed for this ride."
+    }
+
     private func rsvpCard(_ groupRide: GroupRide) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             SectionHeader(title: "Your RSVP")
@@ -296,47 +404,47 @@ struct GroupRideLobbyView: View {
                     .font(MLFont.callout)
                     .foregroundStyle(statusTint(groupRide.status))
             } else {
-            HStack(spacing: Spacing.sm) {
-                ForEach(GroupRideRSVP.allCases, id: \.self) { rsvp in
-                    let selected = groupRide.yourRSVP == rsvp
-                    Button {
-                        Task {
-                            if await viewModel.setRSVP(rsvp) {
-                                Haptics.selection()
-                            } else {
-                                Haptics.error()
+                HStack(spacing: Spacing.sm) {
+                    ForEach(GroupRideRSVP.allCases, id: \.self) { rsvp in
+                        let selected = groupRide.yourRSVP == rsvp
+                        Button {
+                            Task {
+                                if await viewModel.setRSVP(rsvp) {
+                                    Haptics.selection()
+                                } else {
+                                    Haptics.error()
+                                }
                             }
-                        }
-                    } label: {
-                        VStack(spacing: Spacing.xxs) {
-                            if viewModel.pendingRSVP == rsvp {
-                                ProgressView()
-                                    .tint(selected ? .mlOnAccent : .mlAccent)
-                                    .transition(.scale.combined(with: .opacity))
-                            } else {
-                                Image(systemName: rsvp.symbol)
-                                    .transition(.scale.combined(with: .opacity))
+                        } label: {
+                            VStack(spacing: Spacing.xxs) {
+                                if viewModel.pendingRSVP == rsvp {
+                                    ProgressView()
+                                        .tint(selected ? .mlOnAccent : .mlAccent)
+                                        .transition(.scale.combined(with: .opacity))
+                                } else {
+                                    Image(systemName: rsvp.symbol)
+                                        .transition(.scale.combined(with: .opacity))
+                                }
+                                Text(rsvp.title)
+                                    .font(MLFont.caption)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
                             }
-                            Text(rsvp.title)
-                                .font(MLFont.caption)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
+                            .foregroundStyle(selected ? Color.mlOnAccent : Color.mlTextSecondary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 58)
+                            .background(
+                                selected ? Color.mlAccent : Color.mlSurfaceElevated,
+                                in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                            )
                         }
-                        .foregroundStyle(selected ? Color.mlOnAccent : Color.mlTextSecondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 58)
-                        .background(
-                            selected ? Color.mlAccent : Color.mlSurfaceElevated,
-                            in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
-                        )
+                        .buttonStyle(MLPressableButtonStyle())
+                        .disabled(viewModel.isWorking)
+                        .accessibilityLabel(rsvp.title)
+                        .accessibilityValue(viewModel.pendingRSVP == rsvp ? "Updating" : selected ? "Selected" : "Not selected")
+                        .accessibilityAddTraits(selected ? .isSelected : [])
                     }
-                    .buttonStyle(MLPressableButtonStyle())
-                    .disabled(viewModel.isWorking)
-                    .accessibilityLabel(rsvp.title)
-                    .accessibilityValue(viewModel.pendingRSVP == rsvp ? "Updating" : selected ? "Selected" : "Not selected")
-                    .accessibilityAddTraits(selected ? .isSelected : [])
                 }
-            }
             }
         }
         .animation(reduceMotion ? nil : Motion.springSnappy, value: viewModel.pendingRSVP)
@@ -344,7 +452,7 @@ struct GroupRideLobbyView: View {
 
     private func attendees(_ groupRide: GroupRide) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            SectionHeader(title: "Who's Coming")
+            SectionHeader(title: groupRide.isOwner ? "Rider Roster" : "Who's Coming")
             if groupRide.members.isEmpty {
                 Text(groupRide.isMember || groupRide.isOwner
                     ? "No responses yet"
@@ -361,9 +469,12 @@ struct GroupRideLobbyView: View {
                             .font(MLFont.bodyEmphasised)
                             .foregroundStyle(Color.mlTextPrimary)
                         Spacer()
-                        Label(member.rsvp.title, systemImage: member.rsvp.symbol)
+                        Label(
+                            member.checkedInAt == nil ? member.rsvp.title : "Checked in",
+                            systemImage: member.checkedInAt == nil ? member.rsvp.symbol : "checkmark.circle.fill"
+                        )
                             .font(MLFont.caption)
-                            .foregroundStyle(rsvpTint(member.rsvp))
+                            .foregroundStyle(member.checkedInAt == nil ? rsvpTint(member.rsvp) : Color.mlSuccess)
                     }
                     .padding(.vertical, Spacing.xs)
                     .mlStaggeredReveal(index: index)
@@ -394,20 +505,131 @@ struct GroupRideLobbyView: View {
     private func organiserDashboard(_ groupRide: GroupRide) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             SectionHeader(title: "Organiser Dashboard")
-            HStack(spacing: 0) {
-                organiserMetric(value: groupRide.goingCount, label: "Riding", tint: .mlSuccess)
-                Divider().overlay(Color.mlHairline)
-                organiserMetric(value: groupRide.maybeCount, label: "Maybe", tint: .mlWarning)
-                Divider().overlay(Color.mlHairline)
-                organiserMetric(value: groupRide.declinedCount, label: "Declined", tint: .mlTextTertiary)
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("Ride-day readiness").mlKicker()
+                        Text(readinessTitle(groupRide))
+                            .font(MLFont.title2)
+                            .foregroundStyle(Color.mlTextPrimary)
+                    }
+                    Spacer()
+                    Text("\(groupRide.checkedInCount)/\(expectedRiderCount(groupRide))")
+                        .font(MLFont.title2)
+                        .foregroundStyle(Color.mlAccent)
+                        .monospacedDigit()
+                        .accessibilityLabel("\(groupRide.checkedInCount) of \(expectedRiderCount(groupRide)) checked in")
+                }
+
+                ProgressView(
+                    value: Double(groupRide.checkedInCount),
+                    total: Double(max(expectedRiderCount(groupRide), 1))
+                )
+                .tint(.mlAccent)
+
+                HStack(spacing: 0) {
+                    organiserMetric(value: groupRide.checkedInCount, label: "Here", tint: .mlAccent)
+                    Divider().overlay(Color.mlHairline)
+                    organiserMetric(value: groupRide.goingCount, label: "Riding", tint: .mlSuccess)
+                    Divider().overlay(Color.mlHairline)
+                    organiserMetric(value: groupRide.maybeCount, label: "Maybe", tint: .mlWarning)
+                }
+
+                if groupRide.status == .scheduled {
+                    Button {
+                        showingAnnouncementComposer = true
+                    } label: {
+                        Label("Send rider update", systemImage: "megaphone.fill")
+                            .font(MLFont.headline)
+                            .foregroundStyle(Color.mlAccent)
+                            .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget)
+                    }
+                    .buttonStyle(MLPressableButtonStyle())
+                    .background(Color.mlAccent.opacity(0.10), in: Capsule())
+                }
+
+                if groupRide.declinedCount > 0 {
+                    Text("\(groupRide.declinedCount) declined")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
             }
-            .padding(.vertical, Spacing.md)
+            .padding(Spacing.md)
             .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                     .stroke(Color.mlHairline, lineWidth: Layout.hairline)
             }
         }
+    }
+
+    private func expectedRiderCount(_ groupRide: GroupRide) -> Int {
+        let hostAlreadyCounted = groupRide.members.contains {
+            $0.isYou && $0.rsvp == .going
+        }
+        let expected = groupRide.goingCount + (hostAlreadyCounted ? 0 : 1)
+        return max(expected, groupRide.checkedInCount)
+    }
+
+    private func readinessTitle(_ groupRide: GroupRide) -> String {
+        if groupRide.checkedInCount == 0 { return "Waiting for riders" }
+        if groupRide.checkedInCount >= expectedRiderCount(groupRide) { return "Everyone is here" }
+        return "Riders are arriving"
+    }
+
+    private func announcements(_ groupRide: GroupRide) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            SectionHeader(title: "Host Updates")
+
+            ForEach(visibleAnnouncements(groupRide)) { announcement in
+                HStack(alignment: .top, spacing: Spacing.md) {
+                    Image(systemName: "megaphone.fill")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                        .background(Color.mlAccent.opacity(0.12), in: Circle())
+
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text(announcement.message)
+                            .font(MLFont.body)
+                            .foregroundStyle(Color.mlTextPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("\(announcement.authorName) · \(announcement.createdAt.formatted(.relative(presentation: .named)))")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextTertiary)
+                    }
+                }
+                .padding(Spacing.md)
+                .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                        .stroke(Color.mlAccent.opacity(0.20), lineWidth: Layout.hairline)
+                }
+            }
+
+            if groupRide.announcements.count > 1 {
+                Button {
+                    Haptics.selection()
+                    withAnimation(reduceMotion ? nil : Motion.spring) {
+                        showAllAnnouncements.toggle()
+                    }
+                } label: {
+                    Label(
+                        showAllAnnouncements ? "Show latest only" : "Show all updates",
+                        systemImage: showAllAnnouncements ? "chevron.up" : "chevron.down"
+                    )
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlAccent)
+                    .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget)
+                }
+                .buttonStyle(MLPressableButtonStyle())
+            }
+        }
+    }
+
+    private func visibleAnnouncements(_ groupRide: GroupRide) -> [GroupRideAnnouncement] {
+        showAllAnnouncements ? groupRide.announcements : Array(groupRide.announcements.prefix(1))
     }
 
     private func organiserMetric(value: Int, label: String, tint: Color) -> some View {
@@ -438,14 +660,14 @@ struct GroupRideLobbyView: View {
             if groupRide.status == .scheduled {
                 PrimaryButton(title: "Start Group Route", systemImage: "location.north.line.fill", isLoading: viewModel.isWorking) {
                     Task {
-                        if await viewModel.setRSVP(.going) {
+                        if await viewModel.prepareToStartRoute() {
                             onStartRoute(groupRide.plannedRoute)
                         } else {
                             Haptics.error()
                         }
                     }
                 }
-                .disabled(groupRide.isFull && groupRide.yourRSVP != .going)
+                .disabled(!groupRide.isOwner && groupRide.isFull && groupRide.yourRSVP != .going)
             }
 
             SecondaryButton(title: groupRide.visibility == .community ? "Share Community Ride" : "Share Invite", systemImage: "square.and.arrow.up") {
@@ -488,6 +710,96 @@ struct GroupRideLobbyView: View {
                 .buttonStyle(MLPressableButtonStyle())
                 .disabled(viewModel.isWorking)
             }
+        }
+    }
+}
+
+private struct GroupRideAnnouncementComposer: View {
+    let onSend: (String) async -> Bool
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var message = ""
+    @State private var isSending = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Ride-day update").mlKicker()
+                    Text("Tell everyone at once")
+                        .font(MLFont.displaySmall)
+                        .foregroundStyle(Color.mlTextPrimary)
+                    Text("Riders will see this in the lobby. Push delivery follows each rider's notification settings.")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                TextField("Fuel stop changed, running ten minutes late...", text: $message, axis: .vertical)
+                    .lineLimit(4...7)
+                    .textFieldStyle(MLTextFieldStyle())
+                    .onChange(of: message) { _, newValue in
+                        if newValue.count > 500 {
+                            message = String(newValue.prefix(500))
+                        }
+                    }
+
+                HStack {
+                    if let errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.circle.fill")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlDanger)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    Spacer()
+                    Text("\(message.count)/500")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                        .monospacedDigit()
+                }
+
+                PrimaryButton(title: "Send Update", systemImage: "paperplane.fill", isLoading: isSending) {
+                    Task { await send() }
+                }
+                .disabled(cleanMessage.isEmpty || isSending)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, Spacing.lg)
+            .mlScreenPadding()
+            .background(Color.mlBackground)
+            .navigationTitle("Rider Update")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isSending)
+                }
+            }
+            .animation(reduceMotion ? nil : Motion.spring, value: errorMessage)
+        }
+        .preferredColorScheme(.dark)
+        .interactiveDismissDisabled(isSending)
+    }
+
+    private var cleanMessage: String {
+        message.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func send() async {
+        guard !cleanMessage.isEmpty, !isSending else { return }
+        isSending = true
+        errorMessage = nil
+        let sent = await onSend(cleanMessage)
+        isSending = false
+        if sent {
+            Haptics.success()
+            dismiss()
+        } else {
+            Haptics.error()
+            errorMessage = "The update wasn't sent. Check your connection and try again."
         }
     }
 }

@@ -13,6 +13,8 @@ final class GroupRideViewModel {
     private(set) var state: LoadState = .loading
     private(set) var isWorking = false
     private(set) var pendingRSVP: GroupRideRSVP?
+    private(set) var pendingCheckIn: Bool?
+    private(set) var isPostingAnnouncement = false
     private(set) var didLeaveRide = false
     private(set) var didCloseRide = false
     var errorMessage: String?
@@ -89,6 +91,56 @@ final class GroupRideViewModel {
 
     func clearError() {
         errorMessage = nil
+    }
+
+    func setCheckIn(_ checkedIn: Bool) async -> Bool {
+        guard let groupRide, groupRide.checkInAvailable, !isWorking else { return false }
+        isWorking = true
+        pendingCheckIn = checkedIn
+        errorMessage = nil
+        defer {
+            pendingCheckIn = nil
+            isWorking = false
+        }
+        do {
+            state = .loaded(try await service.setCheckIn(checkedIn, shareToken: shareToken))
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func postAnnouncement(_ message: String) async -> Bool {
+        let cleanMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let groupRide, groupRide.isOwner, !cleanMessage.isEmpty, !isWorking else { return false }
+        isWorking = true
+        isPostingAnnouncement = true
+        errorMessage = nil
+        defer {
+            isPostingAnnouncement = false
+            isWorking = false
+        }
+        do {
+            state = .loaded(try await service.postAnnouncement(cleanMessage, shareToken: shareToken))
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func prepareToStartRoute() async -> Bool {
+        guard let groupRide else { return false }
+        if !groupRide.isOwner, groupRide.yourRSVP != .going {
+            guard await setRSVP(.going) else { return false }
+        }
+        if let refreshed = self.groupRide,
+           refreshed.checkInAvailable,
+           !refreshed.isCheckedIn {
+            _ = await setCheckIn(true)
+        }
+        return true
     }
 
     func updateGroupRide(_ draft: GroupRideDraft) async -> Bool {

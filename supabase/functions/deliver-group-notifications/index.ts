@@ -149,7 +149,11 @@ Deno.serve(async request => {
     for (const item of items) {
       await patchOutbox(item.id, { status: "sending", attempts: item.attempts + 1 });
 
-      if (item.kind === "group_rsvp" || item.kind === "group_updated") {
+      if (
+        item.kind === "group_rsvp" ||
+        item.kind === "group_updated" ||
+        item.kind === "group_announcement"
+      ) {
         const preferenceResponse = await rest(
           `notification_preferences?select=quiet_hours,timezone&user_id=eq.${item.recipient_id}&limit=1`,
         );

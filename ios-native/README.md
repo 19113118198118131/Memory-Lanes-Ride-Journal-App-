@@ -20,7 +20,8 @@ testing:
 - ✅ **Routes and social rides** — saved routes, editing, GPX export, route
   following, planned-vs-actual matching, native invite deep links, private and
   community events, capacity-aware three-state RSVP, attendee privacy, organiser
-  dashboard/edit/cancel/complete controls, and shared-route recording.
+  dashboard/edit/cancel/complete controls, ride-day check-in and readiness,
+  host announcements, and shared-route recording.
 - ✅ **Independent routing Phase 1.5** — MapKit fallback behind a provider seam,
   proprietary route-character scoring, randomized road-validated candidates,
   searchable and recent start locations, primary/secondary mood blends,

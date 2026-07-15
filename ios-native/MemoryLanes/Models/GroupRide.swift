@@ -83,11 +83,29 @@ struct GroupRideMember: Codable, Hashable, Sendable {
     let name: String
     let rsvp: GroupRideRSVP
     let isYou: Bool
+    let checkedInAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case name
         case rsvp
         case isYou = "is_you"
+        case checkedInAt = "checked_in_at"
+    }
+}
+
+struct GroupRideAnnouncement: Identifiable, Codable, Hashable, Sendable {
+    let id: UUID
+    let message: String
+    let createdAt: Date
+    let authorName: String
+    let isHost: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case message
+        case createdAt = "created_at"
+        case authorName = "author_name"
+        case isHost = "is_host"
     }
 }
 
@@ -186,6 +204,10 @@ struct GroupRide: Identifiable, Hashable, Sendable {
     var isMember: Bool
     var yourRSVP: GroupRideRSVP?
     var members: [GroupRideMember]
+    var checkedInCount: Int
+    var yourCheckedInAt: Date?
+    var checkInAvailable: Bool
+    var announcements: [GroupRideAnnouncement]
     let routeID: UUID
     let routeTitle: String
     let distanceKm: Double?
@@ -197,6 +219,7 @@ struct GroupRide: Identifiable, Hashable, Sendable {
 
     var spotsRemaining: Int? { capacity.map { max($0 - goingCount, 0) } }
     var isFull: Bool { spotsRemaining == 0 }
+    var isCheckedIn: Bool { yourCheckedInAt != nil }
 
     var withoutMembership: GroupRide {
         var copy = self
@@ -267,6 +290,10 @@ struct GroupRidePayload: Decodable, Sendable {
     let isMember: Bool
     let yourRSVP: GroupRideRSVP?
     let members: [GroupRideMember]
+    let checkedInCount: Int?
+    let yourCheckedInAt: Date?
+    let checkInAvailable: Bool?
+    let announcements: [GroupRideAnnouncement]?
     let routeID: UUID
     let routeTitle: String
     let distanceKm: Double?
@@ -293,6 +320,10 @@ struct GroupRidePayload: Decodable, Sendable {
         case isMember = "is_member"
         case yourRSVP = "your_rsvp"
         case members
+        case checkedInCount = "checked_in_count"
+        case yourCheckedInAt = "your_checked_in_at"
+        case checkInAvailable = "check_in_available"
+        case announcements
         case routeID = "route_id"
         case routeTitle = "route_title"
         case distanceKm = "distance_km"
@@ -321,6 +352,10 @@ struct GroupRidePayload: Decodable, Sendable {
             isMember: isMember,
             yourRSVP: yourRSVP,
             members: members,
+            checkedInCount: checkedInCount ?? members.filter { $0.checkedInAt != nil }.count,
+            yourCheckedInAt: yourCheckedInAt,
+            checkInAvailable: checkInAvailable ?? false,
+            announcements: announcements ?? [],
             routeID: routeID,
             routeTitle: routeTitle,
             distanceKm: distanceKm,
