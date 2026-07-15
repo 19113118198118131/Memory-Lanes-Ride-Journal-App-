@@ -10,10 +10,12 @@ struct AccountView: View {
     let onSignOut: () -> Void
 
     @State private var library = AccountLibrarySummary()
+    @State private var riderProfile: RiderProfile?
     @State private var isExporting = false
     @State private var activityPayload: ActivityPayload?
     @State private var errorMessage: String?
     @State private var confirmingSignOut = false
+    @State private var showingProfileEditor = false
     private let exportService = AccountDataExportService()
 
     var body: some View {
@@ -24,14 +26,16 @@ struct AccountView: View {
                         .mlStaggeredReveal(index: 0)
                     libraryOverview
                         .mlStaggeredReveal(index: 1)
-                    librarySection
+                    communitySection
                         .mlStaggeredReveal(index: 2)
-                    dataSection
+                    librarySection
                         .mlStaggeredReveal(index: 3)
-                    appSection
+                    dataSection
                         .mlStaggeredReveal(index: 4)
-                    sessionSection
+                    appSection
                         .mlStaggeredReveal(index: 5)
+                    sessionSection
+                        .mlStaggeredReveal(index: 6)
                 }
                 .padding(.horizontal, Spacing.screenH)
                 .padding(.vertical, Spacing.lg)
@@ -53,9 +57,28 @@ struct AccountView: View {
                 }
             }
         }
-        .task { await loadLocalLibrary() }
+        .task {
+            async let libraryTask: Void = loadLocalLibrary()
+            async let profileTask: Void = loadRiderProfile()
+            _ = await (libraryTask, profileTask)
+        }
         .sheet(item: $activityPayload) { payload in
             ActivityView(items: payload.items)
+        }
+        .sheet(isPresented: $showingProfileEditor) {
+            RiderProfileEditorView(
+                viewModel: RiderProfileEditorViewModel(
+                    profile: riderProfile,
+                    fallbackName: fallbackDisplayName,
+                    service: riderProfileService
+                )
+            ) { profile in
+                withAnimation(reduceMotion ? nil : Motion.springGentle) {
+                    riderProfile = profile
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .confirmationDialog("Sign out of Memory Lanes?", isPresented: $confirmingSignOut, titleVisibility: .visible) {
             Button("Sign Out", role: .destructive) {
@@ -93,6 +116,12 @@ struct AccountView: View {
                     .foregroundStyle(Color.mlTextSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
+                if let region = riderProfile?.region, !region.isEmpty {
+                    Label(region, systemImage: "mappin.and.ellipse")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 0)
@@ -177,6 +206,27 @@ struct AccountView: View {
                     title: "Offline Areas",
                     detail: "Download roads for local planning and navigation",
                     symbol: "arrow.down.map",
+                    trailingSymbol: "chevron.right"
+                )
+            }
+            .buttonStyle(MLPressableButtonStyle())
+        }
+    }
+
+    private var communitySection: some View {
+        accountSection(
+            title: "Community",
+            footer: "Only your display name and region appear on group rides. Your email and ride library remain private."
+        ) {
+            Button {
+                showingProfileEditor = true
+            } label: {
+                accountRow(
+                    title: "Rider profile",
+                    detail: riderProfile?.region.isEmpty == false
+                        ? "\(displayName) · \(riderProfile?.region ?? "")"
+                        : displayName,
+                    symbol: "person.crop.circle.badge.checkmark",
                     trailingSymbol: "chevron.right"
                 )
             }
@@ -348,6 +398,18 @@ struct AccountView: View {
     }
 
     @MainActor
+    private func loadRiderProfile() async {
+        do {
+            let profile = try await riderProfileService.fetchProfile()
+            withAnimation(reduceMotion ? nil : Motion.springGentle) {
+                riderProfile = profile
+            }
+        } catch {
+            // Profile identity is optional; account and solo riding remain available.
+        }
+    }
+
+    @MainActor
     private func exportAccountData() async {
         guard !isExporting else { return }
         isExporting = true
@@ -370,6 +432,14 @@ struct AccountView: View {
     }
 
     private var displayName: String {
+        if let profileName = riderProfile?.displayName,
+           !profileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return profileName
+        }
+        return fallbackDisplayName
+    }
+
+    private var fallbackDisplayName: String {
         guard let localPart = email?.split(separator: "@").first else { return "Rider" }
         let words = localPart
             .replacingOccurrences(of: ".", with: " ")
@@ -377,6 +447,10 @@ struct AccountView: View {
             .split(separator: " ")
         let name = words.map { $0.capitalized }.joined(separator: " ")
         return name.isEmpty ? "Rider" : name
+    }
+
+    private var riderProfileService: RiderProfileServing {
+        RiderProfileService(accessToken: accessToken, userID: userID)
     }
 
     private var initials: String {

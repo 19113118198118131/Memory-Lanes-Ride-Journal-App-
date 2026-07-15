@@ -9,18 +9,26 @@ import SwiftUI
 
 struct RootView: View {
     @StateObject private var authStore = AuthStore()
+    @State private var pendingGroupInvite: GroupRideInvite?
 
     var body: some View {
-        switch authStore.state {
-        case .checking:
-            ProgressView()
-                .tint(.mlAccent)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.mlBackground)
-        case .signedOut:
-            AuthView(authStore: authStore)
-        case .signedIn:
-            MainTabShell(authStore: authStore)
+        Group {
+            switch authStore.state {
+            case .checking:
+                ProgressView()
+                    .tint(.mlAccent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.mlBackground)
+            case .signedOut:
+                AuthView(authStore: authStore)
+            case .signedIn:
+                MainTabShell(authStore: authStore, pendingGroupInvite: $pendingGroupInvite)
+            }
+        }
+        .onOpenURL { url in
+            if let invite = GroupRideInvite.parse(url) {
+                pendingGroupInvite = invite
+            }
         }
     }
 }
@@ -34,6 +42,7 @@ private struct MainTabShell: View {
     }
 
     @ObservedObject var authStore: AuthStore
+    @Binding var pendingGroupInvite: GroupRideInvite?
     @State private var selectedTab: MainTab = .ride
     @State private var ridePath = NavigationPath()
     @State private var routesPath = NavigationPath()
@@ -111,7 +120,8 @@ private struct MainTabShell: View {
                     ),
                     refreshTrigger: refreshTrigger,
                     onSelectRoute: { routesPath.append($0) },
-                    onSelectGroupRide: { routesPath.append($0) }
+                    onSelectGroupRide: { routesPath.append($0) },
+                    onSelectCommunityRide: { routesPath.append($0) }
                 )
                 .navigationDestination(for: PlannedRoute.self) { route in
                     PlannedRouteDetailView(
@@ -132,22 +142,13 @@ private struct MainTabShell: View {
                     )
                 }
                 .navigationDestination(for: GroupRideSummary.self) { groupRide in
-                    GroupRideLobbyView(
-                        viewModel: GroupRideViewModel(
-                            shareToken: groupRide.shareToken,
-                            service: groupRideService
-                        ),
-                        onStartRoute: { route in
-                            recorderRoute = route
-                            showingRecorder = true
-                        },
-                        onEnded: {
-                            refreshTrigger = UUID()
-                            if !routesPath.isEmpty {
-                                routesPath.removeLast()
-                            }
-                        }
-                    )
+                    groupRideLobby(shareToken: groupRide.shareToken)
+                }
+                .navigationDestination(for: CommunityGroupRideSummary.self) { groupRide in
+                    groupRideLobby(shareToken: groupRide.shareToken)
+                }
+                .navigationDestination(for: GroupRideInvite.self) { invite in
+                    groupRideLobby(shareToken: invite.shareToken)
                 }
             }
             .tabItem { Label("Routes", systemImage: "map") }
@@ -190,6 +191,13 @@ private struct MainTabShell: View {
             .tabItem { Label("Stats", systemImage: "chart.bar") }
             .tag(MainTab.stats)
         }
+        .task(id: pendingGroupInvite) {
+            guard let invite = pendingGroupInvite else { return }
+            selectedTab = .routes
+            routesPath = NavigationPath()
+            routesPath.append(invite)
+            pendingGroupInvite = nil
+        }
         .mlToast($toast)
         .fullScreenCover(isPresented: $showingRecorder) {
             if let session = authStore.session {
@@ -222,6 +230,25 @@ private struct MainTabShell: View {
                 )
             }
         }
+    }
+
+    private func groupRideLobby(shareToken: UUID) -> some View {
+        GroupRideLobbyView(
+            viewModel: GroupRideViewModel(
+                shareToken: shareToken,
+                service: groupRideService
+            ),
+            onStartRoute: { route in
+                recorderRoute = route
+                showingRecorder = true
+            },
+            onEnded: {
+                refreshTrigger = UUID()
+                if !routesPath.isEmpty {
+                    routesPath.removeLast()
+                }
+            }
+        )
     }
 
     private func presentSavedRide(_ ride: Ride, message: String) {

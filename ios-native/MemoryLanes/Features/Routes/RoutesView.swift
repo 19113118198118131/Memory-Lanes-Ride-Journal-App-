@@ -12,33 +12,39 @@ struct RoutesView: View {
     @StateObject private var startLocation = RouteStartLocationProvider()
     @State private var planOptions = RoutePlanOptions()
     @State private var expandedCandidateTiers: Set<RouteMatchTier> = [.best, .close]
+    @State private var showsAllCommunityRides = false
     @State private var inputError: String?
     @State private var toast: Toast?
     let refreshTrigger: UUID
     let onSelectRoute: (PlannedRoute) -> Void
     let onSelectGroupRide: (GroupRideSummary) -> Void
+    let onSelectCommunityRide: (CommunityGroupRideSummary) -> Void
 
     init(
         viewModel: RoutesViewModel,
         refreshTrigger: UUID = UUID(),
         onSelectRoute: @escaping (PlannedRoute) -> Void = { _ in },
-        onSelectGroupRide: @escaping (GroupRideSummary) -> Void = { _ in }
+        onSelectGroupRide: @escaping (GroupRideSummary) -> Void = { _ in },
+        onSelectCommunityRide: @escaping (CommunityGroupRideSummary) -> Void = { _ in }
     ) {
         _viewModel = State(initialValue: viewModel)
         self.refreshTrigger = refreshTrigger
         self.onSelectRoute = onSelectRoute
         self.onSelectGroupRide = onSelectGroupRide
+        self.onSelectCommunityRide = onSelectCommunityRide
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.lg) {
                 header
+                groupRidesSection
+                communityRidesSection
+
+                SectionHeader(title: "Plan a Route")
                 setupCard
                 actionRow
                 plannerStatus
-
-                groupRidesSection
 
                 SectionHeader(title: "Saved Routes", actionTitle: "Refresh") {
                     Task { await viewModel.refresh() }
@@ -62,15 +68,159 @@ struct RoutesView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text("Ride setup").mlKicker()
-            Text("Plan the next good road")
+            Text("Routes & community").mlKicker()
+            Text("The next ride starts here")
                 .font(MLFont.displayXL)
                 .foregroundStyle(Color.mlTextPrimary)
-            Text("Pick a mood and time window, or open one of your saved planned routes.")
+            Text("Meet your group, discover a community ride, or shape a route of your own.")
                 .font(MLFont.body)
                 .foregroundStyle(Color.mlTextSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var communityRidesSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            SectionHeader(title: "Community Rides", actionTitle: "Refresh") {
+                Task { await viewModel.refreshCommunityRides() }
+            }
+
+            switch viewModel.communityState {
+            case .loading:
+                SkeletonBar(height: 142, radius: Radius.card).mlShimmer()
+            case .loaded(let rides):
+                let visible = showsAllCommunityRides ? rides : Array(rides.prefix(3))
+                LazyVStack(spacing: Spacing.sm) {
+                    ForEach(Array(visible.enumerated()), id: \.element.id) { index, ride in
+                        communityRideCard(ride)
+                            .mlStaggeredReveal(index: index)
+                    }
+                }
+                if rides.count > 3 {
+                    Button {
+                        Haptics.selection()
+                        withAnimation(reduceMotion ? nil : Motion.spring) {
+                            showsAllCommunityRides.toggle()
+                        }
+                    } label: {
+                        Label(
+                            showsAllCommunityRides ? "Show fewer rides" : "Show all \(rides.count) rides",
+                            systemImage: showsAllCommunityRides ? "chevron.up" : "chevron.down"
+                        )
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget)
+                    }
+                    .buttonStyle(MLPressableButtonStyle())
+                }
+            case .empty:
+                communityEmptyState
+            case .failed(let message):
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text(message)
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlDanger)
+                    Button("Try Again") {
+                        Task { await viewModel.refreshCommunityRides() }
+                    }
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlAccent)
+                    .frame(minHeight: Layout.minTouchTarget)
+                }
+            }
+        }
+    }
+
+    private var communityEmptyState: some View {
+        HStack(spacing: Spacing.md) {
+            Image(systemName: "person.3.sequence.fill")
+                .font(MLFont.title2)
+                .foregroundStyle(Color.mlAccent)
+                .frame(width: 44, height: 44)
+                .background(Color.mlAccent.opacity(0.14), in: Circle())
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text("No community rides nearby yet")
+                    .font(MLFont.bodyEmphasised)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text("Create one from a saved route and choose Community.")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+
+    private func communityRideCard(_ ride: CommunityGroupRideSummary) -> some View {
+        Button {
+            Haptics.selection()
+            onSelectCommunityRide(ride)
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack(alignment: .top, spacing: Spacing.md) {
+                    Image(systemName: "person.3.fill")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlOnAccent)
+                        .frame(width: 44, height: 44)
+                        .background(Color.mlAccent, in: Circle())
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text(ride.title)
+                            .font(MLFont.headline)
+                            .foregroundStyle(Color.mlTextPrimary)
+                            .multilineTextAlignment(.leading)
+                        Text(communityHostLine(ride))
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Spacer(minLength: Spacing.xs)
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(Color.mlAccent)
+                }
+
+                if let details = ride.details, !details.isEmpty {
+                    Text(details)
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+
+                HStack(spacing: Spacing.md) {
+                    Label(communitySchedule(ride), systemImage: "calendar")
+                    Label(ride.distanceKm.map { String(format: "%.0f km", $0) } ?? "Route set", systemImage: "road.lanes")
+                    Spacer()
+                    Text(communityCapacity(ride))
+                }
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextTertiary)
+                .monospacedDigit()
+            }
+            .padding(Spacing.md)
+            .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+            }
+        }
+        .buttonStyle(MLPressableButtonStyle())
+        .mlHoverLift()
+        .accessibilityLabel("\(ride.title), \(communitySchedule(ride)), \(communityCapacity(ride))")
+    }
+
+    private func communityHostLine(_ ride: CommunityGroupRideSummary) -> String {
+        let host = ride.hostedBy.map { "Hosted by \($0)" } ?? "Community host"
+        guard let region = ride.hostRegion, !region.isEmpty else { return host }
+        return "\(host) · \(region)"
+    }
+
+    private func communitySchedule(_ ride: CommunityGroupRideSummary) -> String {
+        ride.meetTime?.formatted(date: .abbreviated, time: .shortened) ?? "Time TBC"
+    }
+
+    private func communityCapacity(_ ride: CommunityGroupRideSummary) -> String {
+        if ride.isFull { return "Full" }
+        if let spots = ride.spotsRemaining { return "\(spots) spots" }
+        return "\(ride.goingCount) riding"
     }
 
     private var actionRow: some View {

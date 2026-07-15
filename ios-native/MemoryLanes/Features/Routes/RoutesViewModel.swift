@@ -18,6 +18,13 @@ final class RoutesViewModel {
         case failed(String)
     }
 
+    enum CommunityLoadState {
+        case loading
+        case loaded([CommunityGroupRideSummary])
+        case empty
+        case failed(String)
+    }
+
     enum CandidateLoadState {
         case idle
         case loading
@@ -27,6 +34,7 @@ final class RoutesViewModel {
 
     private(set) var state: LoadState = .loading
     private(set) var groupState: GroupLoadState = .loading
+    private(set) var communityState: CommunityLoadState = .loading
     private(set) var candidateState: CandidateLoadState = .idle
     private(set) var isSavingRoute = false
     private let routeService: RouteServing
@@ -57,6 +65,7 @@ final class RoutesViewModel {
     func load() async {
         state = .loading
         groupState = .loading
+        communityState = .loading
         await refreshAll()
         await refreshRecommendations()
     }
@@ -64,6 +73,7 @@ final class RoutesViewModel {
     func refreshAll() async {
         await refresh()
         await refreshGroupRides()
+        await refreshCommunityRides()
     }
 
     var recommendationStatus: String {
@@ -162,6 +172,20 @@ final class RoutesViewModel {
         } catch is CancellationError {
         } catch {
             groupState = .failed(error.localizedDescription)
+        }
+    }
+
+    func refreshCommunityRides() async {
+        guard let groupRideService else {
+            communityState = .empty
+            return
+        }
+        do {
+            let groupRides = try await groupRideService.fetchCommunityGroupRides()
+            communityState = groupRides.isEmpty ? .empty : .loaded(groupRides)
+        } catch is CancellationError {
+        } catch {
+            communityState = .failed(error.localizedDescription)
         }
     }
 

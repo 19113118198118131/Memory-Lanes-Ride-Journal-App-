@@ -13,7 +13,8 @@ final class GroupRideViewModel {
     private(set) var state: LoadState = .loading
     private(set) var isWorking = false
     private(set) var pendingRSVP: GroupRideRSVP?
-    private(set) var didEndRide = false
+    private(set) var didLeaveRide = false
+    private(set) var didCloseRide = false
     var errorMessage: String?
 
     let shareToken: UUID
@@ -31,16 +32,30 @@ final class GroupRideViewModel {
 
     func load() async {
         state = .loading
-        await refresh()
+        await refresh(showFailure: true)
     }
 
     func refresh() async {
+        await refresh(showFailure: true)
+    }
+
+    func observeChanges() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(20))
+            guard !Task.isCancelled else { return }
+            await refresh(showFailure: false)
+        }
+    }
+
+    private func refresh(showFailure: Bool) async {
         do {
             state = .loaded(try await service.fetchGroupRide(shareToken: shareToken))
             errorMessage = nil
         } catch is CancellationError {
         } catch {
-            state = .failed(error.localizedDescription)
+            if showFailure || groupRide == nil {
+                state = .failed(error.localizedDescription)
+            }
         }
     }
 
@@ -66,18 +81,17 @@ final class GroupRideViewModel {
         errorMessage = nil
     }
 
-    func updateMeeting(meetTime: Date?, meetPoint: String?) async -> Bool {
+    func updateGroupRide(_ draft: GroupRideDraft) async -> Bool {
         guard let groupRide, groupRide.isOwner, !isWorking else { return false }
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }
         do {
             state = .loaded(
-                try await service.updateMeeting(
+                try await service.updateGroupRide(
                     shareToken: shareToken,
                     groupRideID: groupRide.id,
-                    meetTime: meetTime,
-                    meetPoint: meetPoint
+                    draft: draft
                 )
             )
             return true
@@ -87,14 +101,29 @@ final class GroupRideViewModel {
         }
     }
 
-    func endRide() async -> Bool {
+    func leaveRide() async -> Bool {
+        guard let groupRide, !groupRide.isOwner, groupRide.isMember, !isWorking else { return false }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            try await service.leaveGroupRide(shareToken: shareToken)
+            didLeaveRide = true
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func setStatus(_ status: GroupRideStatus) async -> Bool {
         guard let groupRide, groupRide.isOwner, !isWorking else { return false }
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }
         do {
-            try await service.endGroupRide(groupRide)
-            didEndRide = true
+            state = .loaded(try await service.setStatus(status, shareToken: shareToken))
+            didCloseRide = true
             return true
         } catch {
             errorMessage = error.localizedDescription

@@ -1,9 +1,8 @@
 // ===============================
 // Memory Lanes Ride Journal - group.js
-// Group ride lobby + live spectator map. Anyone with the secret group link
-// can watch; joining and riding needs an account. All riders who joined via
-// this link broadcast onto this one shared map (that's the point - unlike
-// route-copy sharing, there's a single shared ride object).
+// Group ride invite + member lobby. Invite details can be opened from the
+// secret link, while attendee details and live positions remain restricted
+// to authenticated members of the ride.
 // ===============================
 
 import supabase from './supabaseClient.js';
@@ -31,6 +30,8 @@ const meetStatusEl = document.getElementById('group-meet-status');
 const rsvpRowEl   = document.getElementById('group-rsvp-row');
 const attendeesEl = document.getElementById('group-attendees');
 const attendeeListEl = document.getElementById('group-attendee-list');
+const openAppRowEl = document.getElementById('group-open-app-row');
+const openAppBtn = document.getElementById('group-open-app-btn');
 
 const LIVE_POLL_MS = 15000;
 
@@ -107,6 +108,13 @@ function renderRsvpButtons() {
   loadingEl.style.display = 'none';
   bodyEl.style.display = '';
 
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    openAppRowEl.style.display = '';
+    openAppBtn.addEventListener('click', () => {
+      window.location.href = `memorylanes://group/${groupToken}`;
+    });
+  }
+
   titleEl.textContent = gr.title;
   if (gr.hosted_by) {
     hostedByEl.textContent = `Hosted by ${gr.hosted_by}`;
@@ -154,7 +162,7 @@ function renderRsvpButtons() {
     } catch (_) {}
   }
 
-  startLivePolling();
+  if (user && gr.is_member) startLivePolling();
 })();
 
 meetSaveBtn.addEventListener('click', async () => {

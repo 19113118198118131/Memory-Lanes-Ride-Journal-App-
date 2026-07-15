@@ -1,6 +1,6 @@
 # Native Group Rides
 
-Status: Lobby and shared-route coordination implemented; live position mode pending consent and field validation
+Status: Production event coordination implemented; explicit live position mode pending consent and field validation
 
 ## Product Shape
 
@@ -9,18 +9,32 @@ A group ride is one planned route, one host, one recoverable invite, and a set o
 The native app preserves the original web flow:
 
 - Create a group ride from a saved planned route.
-- Set a meeting time and meeting point.
-- Share a secret invite that remains compatible with the web lobby.
+- Set a description, meeting time, meeting point, visibility, and optional capacity.
+- Share a web-compatible invite with a native app handoff. Release builds support
+  universal links; Personal Team debug builds use the lobby's custom app-link action.
 - Recover every active hosted or joined ride under Routes.
-- Review the route, host, meeting details, attendees, and RSVP state.
+- Discover opt-in community rides without exposing invite-only events.
+- Review the route, host, meeting details, capacity, attendees, and RSVP state.
+- Respond Riding, Maybe, or Not this time, with capacity enforced on the server.
+- Leave a joined ride, or edit, cancel, and complete a hosted ride.
+- Use the organiser dashboard to monitor Riding, Maybe, and Declined responses.
 - Start the shared route through the existing reliable native recorder.
-- End the ride as host, invalidating the invite and removing it from member lists.
+- Refresh event state manually or through a quiet foreground observer.
 
 ## Native Information Architecture
 
 Group rides live in the Routes tab because they are scheduled uses of planned routes. Adding a fifth primary tab would dilute the four established repeat workflows and give a still-growing social surface too much permanent weight.
 
-Active group rides appear before route-planning controls so an upcoming commitment is easier to reach than route creation. The lobby remains map-first and reuses the app's established metric, surface, button, loading, error, confirmation, and Dynamic Type patterns.
+Upcoming commitments and discoverable community rides appear before route-planning controls. Community results use progressive disclosure so social discovery does not overwhelm the core route workflow. The lobby remains map-first and reuses the app's established metric, surface, button, loading, error, confirmation, motion, and Dynamic Type patterns.
+
+## Privacy And Access
+
+- Invite-only rides never appear in community discovery.
+- Community discovery requires a signed-in rider.
+- Holding a secret invite can reveal the event and route, but attendee names require host or member access.
+- Event mutations, personal lists, community discovery, and live-rider reads require authentication.
+- Capacity is enforced inside the RSVP database function, not only in the UI.
+- RSVP does not enable location sharing.
 
 ## Live Location Gate
 
@@ -38,8 +52,8 @@ Mutual live positions require a later versioned slice with:
 
 ## Next Slices
 
-1. Native universal-link handling for group invites, including post-auth return to the lobby.
+1. Push invitation and RSVP-change notifications, with device-token lifecycle and quiet-hour controls.
 2. Explicit live-position consent and group-aware recording.
 3. Mutually visible live rider markers with freshness indicators.
-4. Leave-group and host handover rules.
+4. Host handover plus moderation, report, and block rules before a broader rider directory or messaging surface.
 5. Optional post-ride group recap without rankings, pace comparison, or pressure mechanics.

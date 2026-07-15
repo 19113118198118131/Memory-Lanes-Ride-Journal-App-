@@ -1,6 +1,6 @@
 import Foundation
 
-struct SupabaseHTTPClient {
+struct SupabaseHTTPClient: Sendable {
     var baseURL: URL = SupabaseConfig.url
     var anonKey: String = SupabaseConfig.anonKey
     var session: URLSession = .shared

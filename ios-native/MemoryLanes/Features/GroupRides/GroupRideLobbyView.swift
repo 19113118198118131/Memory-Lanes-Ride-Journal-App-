@@ -5,7 +5,8 @@ struct GroupRideLobbyView: View {
     @State private var viewModel: GroupRideViewModel
     @State private var activityPayload: ActivityPayload?
     @State private var showingMeetingEditor = false
-    @State private var showingEndConfirmation = false
+    @State private var pendingStatus: GroupRideStatus?
+    @State private var showingLeaveConfirmation = false
     @State private var showAllAttendees = false
 
     let onStartRoute: (PlannedRoute) -> Void
@@ -43,15 +44,18 @@ struct GroupRideLobbyView: View {
         .background(Color.mlBackground)
         .navigationTitle("Group Ride")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await viewModel.load() }
+        .task {
+            await viewModel.load()
+            await viewModel.observeChanges()
+        }
         .sheet(item: $activityPayload) { payload in
             ActivityView(items: payload.items)
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showingMeetingEditor) {
             if let groupRide = viewModel.groupRide {
-                GroupRideMeetingEditor(groupRide: groupRide, isSaving: viewModel.isWorking) { meetTime, meetPoint in
-                    let saved = await viewModel.updateMeeting(meetTime: meetTime, meetPoint: meetPoint)
+                GroupRideMeetingEditor(groupRide: groupRide, isSaving: viewModel.isWorking) { draft in
+                    let saved = await viewModel.updateGroupRide(draft)
                     if saved {
                         Haptics.success()
                         showingMeetingEditor = false
@@ -64,13 +68,40 @@ struct GroupRideLobbyView: View {
             }
         }
         .confirmationDialog(
-            "End this group ride?",
-            isPresented: $showingEndConfirmation,
+            pendingStatus == .completed ? "Mark this ride complete?" : "Cancel this group ride?",
+            isPresented: Binding(
+                get: { pendingStatus != nil },
+                set: { if !$0 { pendingStatus = nil } }
+            ),
             titleVisibility: .visible
         ) {
-            Button("End Group Ride", role: .destructive) {
+            if let status = pendingStatus {
+                Button(status == .completed ? "Mark Complete" : "Cancel Group Ride", role: status == .cancelled ? .destructive : nil) {
+                    pendingStatus = nil
+                    Task {
+                        if await viewModel.setStatus(status) {
+                            Haptics.success()
+                            onEnded()
+                        } else {
+                            Haptics.error()
+                        }
+                    }
+                }
+            }
+            Button("Keep Ride", role: .cancel) { pendingStatus = nil }
+        } message: {
+            Text(pendingStatus == .completed
+                ? "The ride moves out of everyone's upcoming list and remains recorded as completed."
+                : "The invitation closes and the ride moves out of everyone's upcoming list.")
+        }
+        .confirmationDialog(
+            "Leave this group ride?",
+            isPresented: $showingLeaveConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Leave Group Ride", role: .destructive) {
                 Task {
-                    if await viewModel.endRide() {
+                    if await viewModel.leaveRide() {
                         Haptics.success()
                         onEnded()
                     } else {
@@ -80,7 +111,7 @@ struct GroupRideLobbyView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The invite will stop working and this ride will leave every member's group-ride list.")
+            Text("Your RSVP is removed. You can join again later with the invitation while the ride is still open.")
         }
     }
 
@@ -111,8 +142,8 @@ struct GroupRideLobbyView: View {
 
                 SegmentedMetric(items: [
                     .init(value: groupRide.distanceKm.map { String(format: "%.1f", $0) } ?? "--", unit: "km", label: "Distance"),
-                    .init(value: groupRide.elevationM.map { String(format: "%.0f", $0) } ?? "--", unit: "m", label: "Ascent"),
-                    .init(value: "\(groupRide.members.filter { $0.rsvp != .no }.count)", unit: "", label: "Riders")
+                    .init(value: "\(groupRide.goingCount)", unit: "", label: "Riding"),
+                    .init(value: capacityMetric(groupRide), unit: "", label: groupRide.capacity == nil ? "Maybe" : "Spots")
                 ])
                 .padding(.horizontal, Spacing.md)
                 .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -124,12 +155,16 @@ struct GroupRideLobbyView: View {
 
                 meetingCard(groupRide)
                     .mlStaggeredReveal(index: 3)
+                if groupRide.isOwner {
+                    organiserDashboard(groupRide)
+                        .mlStaggeredReveal(index: 4)
+                }
                 rsvpCard(groupRide)
-                    .mlStaggeredReveal(index: 4)
-                attendees(groupRide)
                     .mlStaggeredReveal(index: 5)
-                actions(groupRide)
+                attendees(groupRide)
                     .mlStaggeredReveal(index: 6)
+                actions(groupRide)
+                    .mlStaggeredReveal(index: 7)
 
                 if let errorMessage = viewModel.errorMessage {
                     HStack(spacing: Spacing.sm) {
@@ -164,13 +199,41 @@ struct GroupRideLobbyView: View {
     private func header(_ groupRide: GroupRide) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(groupRide.isOwner ? "Hosting" : "Group route").mlKicker()
-            Text(groupRide.title)
-                .font(MLFont.displayXL)
-                .foregroundStyle(Color.mlTextPrimary)
+            HStack(alignment: .top, spacing: Spacing.sm) {
+                Text(groupRide.title)
+                    .font(MLFont.displayXL)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Spacer(minLength: Spacing.xs)
+                Label(groupRide.status.title, systemImage: groupRide.status.symbol)
+                    .font(MLFont.caption)
+                    .foregroundStyle(statusTint(groupRide.status))
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xs)
+                    .background(statusTint(groupRide.status).opacity(0.12), in: Capsule())
+            }
             Text(hostLine(groupRide))
                 .font(MLFont.body)
                 .foregroundStyle(Color.mlTextSecondary)
+            if let details = groupRide.details, !details.isEmpty {
+                Text(details)
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+    }
+
+    private func statusTint(_ status: GroupRideStatus) -> Color {
+        switch status {
+        case .scheduled: .mlAccent
+        case .cancelled: .mlDanger
+        case .completed: .mlSuccess
+        }
+    }
+
+    private func capacityMetric(_ groupRide: GroupRide) -> String {
+        guard let remaining = groupRide.spotsRemaining else { return "\(groupRide.maybeCount)" }
+        return "\(remaining)"
     }
 
     private func hostLine(_ groupRide: GroupRide) -> String {
@@ -228,6 +291,11 @@ struct GroupRideLobbyView: View {
     private func rsvpCard(_ groupRide: GroupRide) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             SectionHeader(title: "Your RSVP")
+            if groupRide.status != .scheduled {
+                Label("This ride is \(groupRide.status.title.lowercased()).", systemImage: groupRide.status.symbol)
+                    .font(MLFont.callout)
+                    .foregroundStyle(statusTint(groupRide.status))
+            } else {
             HStack(spacing: Spacing.sm) {
                 ForEach(GroupRideRSVP.allCases, id: \.self) { rsvp in
                     let selected = groupRide.yourRSVP == rsvp
@@ -269,6 +337,7 @@ struct GroupRideLobbyView: View {
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
+            }
         }
         .animation(reduceMotion ? nil : Motion.springSnappy, value: viewModel.pendingRSVP)
     }
@@ -277,7 +346,9 @@ struct GroupRideLobbyView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             SectionHeader(title: "Who's Coming")
             if groupRide.members.isEmpty {
-                Text("No responses yet")
+                Text(groupRide.isMember || groupRide.isOwner
+                    ? "No responses yet"
+                    : "RSVP to see the rider list.")
                     .font(MLFont.callout)
                     .foregroundStyle(Color.mlTextSecondary)
             } else {
@@ -320,6 +391,36 @@ struct GroupRideLobbyView: View {
         }
     }
 
+    private func organiserDashboard(_ groupRide: GroupRide) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            SectionHeader(title: "Organiser Dashboard")
+            HStack(spacing: 0) {
+                organiserMetric(value: groupRide.goingCount, label: "Riding", tint: .mlSuccess)
+                Divider().overlay(Color.mlHairline)
+                organiserMetric(value: groupRide.maybeCount, label: "Maybe", tint: .mlWarning)
+                Divider().overlay(Color.mlHairline)
+                organiserMetric(value: groupRide.declinedCount, label: "Declined", tint: .mlTextTertiary)
+            }
+            .padding(.vertical, Spacing.md)
+            .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+            }
+        }
+    }
+
+    private func organiserMetric(value: Int, label: String, tint: Color) -> some View {
+        VStack(spacing: Spacing.xxs) {
+            Text("\(value)")
+                .font(MLFont.title2)
+                .foregroundStyle(tint)
+                .monospacedDigit()
+            Text(label).mlKicker()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     private func visibleMembers(_ groupRide: GroupRide) -> [GroupRideMember] {
         showAllAttendees ? groupRide.members : Array(groupRide.members.prefix(4))
     }
@@ -334,27 +435,49 @@ struct GroupRideLobbyView: View {
 
     private func actions(_ groupRide: GroupRide) -> some View {
         VStack(spacing: Spacing.md) {
-            PrimaryButton(title: "Start Group Route", systemImage: "location.north.line.fill", isLoading: viewModel.isWorking) {
-                Task {
-                    if await viewModel.setRSVP(.going) {
-                        onStartRoute(groupRide.plannedRoute)
-                    } else {
-                        Haptics.error()
+            if groupRide.status == .scheduled {
+                PrimaryButton(title: "Start Group Route", systemImage: "location.north.line.fill", isLoading: viewModel.isWorking) {
+                    Task {
+                        if await viewModel.setRSVP(.going) {
+                            onStartRoute(groupRide.plannedRoute)
+                        } else {
+                            Haptics.error()
+                        }
                     }
                 }
+                .disabled(groupRide.isFull && groupRide.yourRSVP != .going)
             }
 
-            SecondaryButton(title: "Share Invite", systemImage: "square.and.arrow.up") {
+            SecondaryButton(title: groupRide.visibility == .community ? "Share Community Ride" : "Share Invite", systemImage: "square.and.arrow.up") {
                 if let inviteURL = groupRide.inviteURL {
                     activityPayload = ActivityPayload(items: [inviteURL])
                 }
             }
 
-            if groupRide.isOwner {
-                Button(role: .destructive) {
-                    showingEndConfirmation = true
+            if groupRide.isOwner && groupRide.status == .scheduled {
+                Menu {
+                    Button("Edit Ride", systemImage: "pencil") {
+                        showingMeetingEditor = true
+                    }
+                    Button("Mark Complete", systemImage: "checkmark.circle") {
+                        pendingStatus = .completed
+                    }
+                    Button("Cancel Group Ride", systemImage: "xmark.circle", role: .destructive) {
+                        pendingStatus = .cancelled
+                    }
                 } label: {
-                    Label("End Group Ride", systemImage: "xmark.circle")
+                    Label("Manage Group Ride", systemImage: "slider.horizontal.3")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(Color.mlSurfaceElevated, in: Capsule())
+                }
+                .buttonStyle(MLPressableButtonStyle())
+            } else if groupRide.isMember && groupRide.status == .scheduled {
+                Button(role: .destructive) {
+                    showingLeaveConfirmation = true
+                } label: {
+                    Label("Leave Group Ride", systemImage: "rectangle.portrait.and.arrow.right")
                         .font(MLFont.headline)
                         .foregroundStyle(Color.mlDanger)
                         .frame(maxWidth: .infinity)
@@ -377,9 +500,13 @@ struct GroupRideCreationSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var title: String
+    @State private var details = ""
+    @State private var visibility = GroupRideVisibility.inviteOnly
     @State private var hasMeetTime = true
     @State private var meetTime = Date().addingTimeInterval(86_400)
     @State private var meetPoint = ""
+    @State private var hasCapacity = false
+    @State private var capacity = 12
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -409,8 +536,30 @@ struct GroupRideCreationSheet: View {
                         Text("Ride name").mlKicker()
                         TextField("Group ride name", text: $title)
                             .textFieldStyle(MLTextFieldStyle())
+                        Text("What riders should know").mlKicker()
+                            .padding(.top, Spacing.xs)
+                        TextField("Pace, fuel stop, what to bring...", text: $details, axis: .vertical)
+                            .lineLimit(3...6)
+                            .textFieldStyle(MLTextFieldStyle())
                     }
                     .mlStaggeredReveal(index: 1)
+
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        Text("Who can find it").mlKicker()
+                        Picker("Visibility", selection: $visibility) {
+                            ForEach(GroupRideVisibility.allCases, id: \.self) { option in
+                                Text(option.title).tag(option)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        Text(visibility.detail)
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(Spacing.md)
+                    .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card))
+                    .mlStaggeredReveal(index: 2)
 
                     VStack(alignment: .leading, spacing: Spacing.md) {
                         Toggle("Set meeting time", isOn: $hasMeetTime)
@@ -423,11 +572,27 @@ struct GroupRideCreationSheet: View {
                         }
                         TextField("Meeting point", text: $meetPoint)
                             .textFieldStyle(MLTextFieldStyle())
+                        Divider().overlay(Color.mlHairline)
+                        Toggle("Limit group size", isOn: $hasCapacity)
+                            .font(MLFont.bodyEmphasised)
+                            .tint(.mlAccent)
+                        if hasCapacity {
+                            Stepper(value: $capacity, in: 2...100) {
+                                HStack {
+                                    Text("Available places")
+                                    Spacer()
+                                    Text("\(capacity)")
+                                        .foregroundStyle(Color.mlAccent)
+                                        .monospacedDigit()
+                                }
+                                .font(MLFont.body)
+                            }
+                        }
                     }
                     .padding(Spacing.md)
                     .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card))
-                    .mlStaggeredReveal(index: 2)
-                    .animation(reduceMotion ? nil : Motion.spring, value: hasMeetTime)
+                    .mlStaggeredReveal(index: 3)
+                    .animation(reduceMotion ? nil : Motion.spring, value: hasMeetTime || hasCapacity)
 
                     if let errorMessage {
                         Text(errorMessage)
@@ -440,7 +605,7 @@ struct GroupRideCreationSheet: View {
                         Task { await create() }
                     }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .mlStaggeredReveal(index: 3)
+                    .mlStaggeredReveal(index: 4)
                 }
                 .padding(.vertical, Spacing.md)
                 .mlScreenPadding()
@@ -464,11 +629,17 @@ struct GroupRideCreationSheet: View {
         errorMessage = nil
         defer { isSaving = false }
         do {
+            let draft = GroupRideDraft(
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                details: details.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                meetTime: hasMeetTime ? meetTime : nil,
+                meetPoint: meetPoint.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                visibility: visibility,
+                capacity: hasCapacity ? capacity : nil
+            )
             let groupRide = try await service.createGroupRide(
                 route: route,
-                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-                meetTime: hasMeetTime ? meetTime : nil,
-                meetPoint: meetPoint.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                draft: draft
             )
             Haptics.success()
             dismiss()
@@ -483,34 +654,89 @@ struct GroupRideCreationSheet: View {
 private struct GroupRideMeetingEditor: View {
     let groupRide: GroupRide
     let isSaving: Bool
-    let onSave: (Date?, String?) async -> Void
+    let onSave: (GroupRideDraft) async -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var title: String
+    @State private var details: String
+    @State private var visibility: GroupRideVisibility
     @State private var hasMeetTime: Bool
     @State private var meetTime: Date
     @State private var meetPoint: String
+    @State private var hasCapacity: Bool
+    @State private var capacity: Int
 
-    init(groupRide: GroupRide, isSaving: Bool, onSave: @escaping (Date?, String?) async -> Void) {
+    init(groupRide: GroupRide, isSaving: Bool, onSave: @escaping (GroupRideDraft) async -> Void) {
         self.groupRide = groupRide
         self.isSaving = isSaving
         self.onSave = onSave
+        _title = State(initialValue: groupRide.title)
+        _details = State(initialValue: groupRide.details ?? "")
+        _visibility = State(initialValue: groupRide.visibility)
         _hasMeetTime = State(initialValue: groupRide.meetTime != nil)
         _meetTime = State(initialValue: groupRide.meetTime ?? Date().addingTimeInterval(86_400))
         _meetPoint = State(initialValue: groupRide.meetPoint ?? "")
+        _hasCapacity = State(initialValue: groupRide.capacity != nil)
+        _capacity = State(initialValue: groupRide.capacity ?? 12)
     }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Toggle("Set meeting time", isOn: $hasMeetTime)
-                if hasMeetTime {
-                    DatePicker("Meet", selection: $meetTime)
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Ride details").mlKicker()
+                        TextField("Group ride name", text: $title)
+                            .textFieldStyle(MLTextFieldStyle())
+                        TextField("What riders should know", text: $details, axis: .vertical)
+                            .lineLimit(3...6)
+                            .textFieldStyle(MLTextFieldStyle())
+                    }
+
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        Text("Visibility").mlKicker()
+                        Picker("Visibility", selection: $visibility) {
+                            ForEach(GroupRideVisibility.allCases, id: \.self) { option in
+                                Text(option.title).tag(option)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        Text(visibility.detail)
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    .padding(Spacing.md)
+                    .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card))
+
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        Toggle("Set meeting time", isOn: $hasMeetTime)
+                            .font(MLFont.bodyEmphasised)
+                            .tint(.mlAccent)
+                        if hasMeetTime {
+                            DatePicker("Meet", selection: $meetTime)
+                                .tint(.mlAccent)
+                        }
+                        TextField("Meeting point", text: $meetPoint)
+                            .textFieldStyle(MLTextFieldStyle())
+                        Divider().overlay(Color.mlHairline)
+                        Toggle("Limit group size", isOn: $hasCapacity)
+                            .font(MLFont.bodyEmphasised)
+                            .tint(.mlAccent)
+                        if hasCapacity {
+                            Stepper("\(capacity) places", value: $capacity, in: 2...100)
+                                .font(MLFont.body)
+                        }
+                    }
+                    .padding(Spacing.md)
+                    .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card))
+                    .animation(reduceMotion ? nil : Motion.spring, value: hasMeetTime || hasCapacity)
                 }
-                TextField("Meeting point", text: $meetPoint)
+                .padding(.vertical, Spacing.md)
+                .mlScreenPadding()
             }
-            .scrollContentBackground(.hidden)
             .background(Color.mlBackground)
-            .navigationTitle("Meeting Details")
+            .navigationTitle("Edit Group Ride")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -519,13 +745,17 @@ private struct GroupRideMeetingEditor: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         Task {
-                            await onSave(
-                                hasMeetTime ? meetTime : nil,
-                                meetPoint.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-                            )
+                            await onSave(GroupRideDraft(
+                                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                                details: details.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                                meetTime: hasMeetTime ? meetTime : nil,
+                                meetPoint: meetPoint.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                                visibility: visibility,
+                                capacity: hasCapacity ? capacity : nil
+                            ))
                         }
                     }
-                    .disabled(isSaving)
+                    .disabled(isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }

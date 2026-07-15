@@ -394,14 +394,20 @@ Acceptance criteria:
 
 Functional requirements from existing repository scope:
 
-- Group ride setup.
-- Route sharing.
+- Group ride setup with description, schedule, meet point, visibility, and capacity.
+- Native/web-compatible invite sharing and authenticated deep-link recovery.
+- Community event discovery for rides explicitly published by their host.
+- Riding, Maybe, and Not this time RSVP lifecycle, including leave.
+- Organiser editing, response dashboard, cancellation, and completion.
 - Group meet/live ride support where enabled.
 - Profiles for social identity.
 
 Acceptance criteria:
 
 - Group features are optional and do not block solo use.
+- Invite-only rides are excluded from community discovery.
+- Capacity and event state are enforced server-side.
+- Attendee identity is visible only to the host and participating members.
 - Live sharing is explicit and user-controlled.
 - No silent location sharing.
 
@@ -803,9 +809,10 @@ Deliverables:
 
 Current group-ride status:
 
-- Native route-based creation, meeting details, recoverable hosted/joined lists, lobby, RSVP, attendees, sharing, ending, and shared-route recording are implemented.
+- Native route-based creation, event details, visibility/capacity, hosted/joined lists, community discovery, lobby, three-state RSVP, attendee privacy, leaving, organiser editing/dashboard, cancellation/completion, sharing, and shared-route recording are implemented.
+- Universal and custom app links preserve invites across authentication and open the native lobby. Universal links require deployment of the repository AASA file and a paid Apple team Release profile; Personal Team debug builds use the web lobby's custom app-link action.
 - Group invite links remain compatible with the original web lobby.
-- Native invite deep linking and live rider positions remain pending.
+- Push notifications, host handover, community moderation/messaging, and live rider positions remain pending.
 - RSVP never implies live-location consent; live sharing requires a separate explicit control and field-validation gate.
 
 ## 11. Definition of Done

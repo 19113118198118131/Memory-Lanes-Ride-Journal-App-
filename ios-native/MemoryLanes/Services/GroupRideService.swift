@@ -1,21 +1,17 @@
 import Foundation
 
-@MainActor
-protocol GroupRideServing {
+protocol GroupRideServing: Sendable {
     func fetchMyGroupRides() async throws -> [GroupRideSummary]
+    func fetchCommunityGroupRides() async throws -> [CommunityGroupRideSummary]
     func fetchGroupRide(shareToken: UUID) async throws -> GroupRide
-    func createGroupRide(
-        route: PlannedRoute,
-        title: String,
-        meetTime: Date?,
-        meetPoint: String?
-    ) async throws -> GroupRide
-    func updateMeeting(shareToken: UUID, groupRideID: UUID, meetTime: Date?, meetPoint: String?) async throws -> GroupRide
+    func createGroupRide(route: PlannedRoute, draft: GroupRideDraft) async throws -> GroupRide
+    func updateGroupRide(shareToken: UUID, groupRideID: UUID, draft: GroupRideDraft) async throws -> GroupRide
     func setRSVP(_ rsvp: GroupRideRSVP, shareToken: UUID) async throws -> GroupRide
-    func endGroupRide(_ groupRide: GroupRide) async throws
+    func leaveGroupRide(shareToken: UUID) async throws
+    func setStatus(_ status: GroupRideStatus, shareToken: UUID) async throws -> GroupRide
 }
 
-struct GroupRideService: GroupRideServing {
+struct GroupRideService: GroupRideServing, Sendable {
     var client = SupabaseHTTPClient()
     var accessToken: @Sendable () async -> String?
     var userID: UUID?
@@ -25,6 +21,15 @@ struct GroupRideService: GroupRideServing {
         return try await client.post(
             path: "rest/v1/rpc/get_my_group_rides",
             body: EmptyPayload(),
+            accessToken: token
+        )
+    }
+
+    func fetchCommunityGroupRides() async throws -> [CommunityGroupRideSummary] {
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        return try await client.post(
+            path: "rest/v1/rpc/discover_group_rides",
+            body: GroupRideDiscoveryPayload(maxResults: 20),
             accessToken: token
         )
     }
@@ -40,12 +45,7 @@ struct GroupRideService: GroupRideServing {
         return payload.groupRide(shareToken: shareToken)
     }
 
-    func createGroupRide(
-        route: PlannedRoute,
-        title: String,
-        meetTime: Date?,
-        meetPoint: String?
-    ) async throws -> GroupRide {
+    func createGroupRide(route: PlannedRoute, draft: GroupRideDraft) async throws -> GroupRide {
         guard let token = await accessToken(), let userID else { throw RideServiceError.notAuthenticated }
         let rows: [CreatedGroupRideRow] = try await client.post(
             path: "rest/v1/group_rides",
@@ -53,9 +53,12 @@ struct GroupRideService: GroupRideServing {
             body: CreateGroupRidePayload(
                 routeID: route.id,
                 ownerID: userID,
-                title: title,
-                meetTime: meetTime,
-                meetPoint: meetPoint
+                title: draft.title,
+                details: draft.details,
+                meetTime: draft.meetTime,
+                meetPoint: draft.meetPoint,
+                visibility: draft.visibility,
+                capacity: draft.capacity
             ),
             accessToken: token,
             prefer: "return=representation"
@@ -64,17 +67,16 @@ struct GroupRideService: GroupRideServing {
         return try await fetchGroupRide(shareToken: created.shareToken)
     }
 
-    func updateMeeting(
+    func updateGroupRide(
         shareToken: UUID,
         groupRideID: UUID,
-        meetTime: Date?,
-        meetPoint: String?
+        draft: GroupRideDraft
     ) async throws -> GroupRide {
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         try await client.patch(
             path: "rest/v1/group_rides",
             queryItems: [URLQueryItem(name: "id", value: "eq.\(groupRideID.uuidString)")],
-            body: GroupRideMeetingPayload(meetTime: meetTime, meetPoint: meetPoint),
+            body: GroupRideUpdatePayload(draft: draft),
             accessToken: token
         )
         return try await fetchGroupRide(shareToken: shareToken)
@@ -91,20 +93,33 @@ struct GroupRideService: GroupRideServing {
         return payload.groupRide(shareToken: shareToken)
     }
 
-    func endGroupRide(_ groupRide: GroupRide) async throws {
+    func leaveGroupRide(shareToken: UUID) async throws {
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
-        try await client.patch(
-            path: "rest/v1/group_rides",
-            queryItems: [URLQueryItem(name: "id", value: "eq.\(groupRide.id.uuidString)")],
-            body: EndGroupRidePayload(isActive: false),
+        let didLeave: Bool = try await client.post(
+            path: "rest/v1/rpc/leave_group_ride",
+            body: GroupRideTokenPayload(token: shareToken),
             accessToken: token
         )
+        guard didLeave else { throw GroupRideServiceError.operationFailed }
+    }
+
+    func setStatus(_ status: GroupRideStatus, shareToken: UUID) async throws -> GroupRide {
+        guard status != .scheduled else { throw GroupRideServiceError.operationFailed }
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        let payload: GroupRidePayload? = try await client.post(
+            path: "rest/v1/rpc/set_group_ride_status",
+            body: GroupRideStatusPayload(token: shareToken, newStatus: status),
+            accessToken: token
+        )
+        guard let payload else { throw GroupRideServiceError.operationFailed }
+        return payload.groupRide(shareToken: shareToken)
     }
 }
 
 enum GroupRideServiceError: LocalizedError {
     case unavailable
     case missingCreatedRide
+    case operationFailed
 
     var errorDescription: String? {
         switch self {
@@ -112,6 +127,8 @@ enum GroupRideServiceError: LocalizedError {
             "This group ride is no longer available. Ask the host for a current invite."
         case .missingCreatedRide:
             "The group ride was created, but Supabase did not return its invite."
+        case .operationFailed:
+            "That group ride change could not be completed. Refresh and try again."
         }
     }
 }
@@ -127,19 +144,43 @@ private struct GroupRideRSVPPayload: Encodable {
     let answer: String
 }
 
+private struct GroupRideDiscoveryPayload: Encodable {
+    let maxResults: Int
+
+    enum CodingKeys: String, CodingKey {
+        case maxResults = "max_results"
+    }
+}
+
+private struct GroupRideStatusPayload: Encodable {
+    let token: UUID
+    let newStatus: GroupRideStatus
+
+    enum CodingKeys: String, CodingKey {
+        case token
+        case newStatus = "new_status"
+    }
+}
+
 private struct CreateGroupRidePayload: Encodable {
     let routeID: UUID
     let ownerID: UUID
     let title: String
+    let details: String?
     let meetTime: Date?
     let meetPoint: String?
+    let visibility: GroupRideVisibility
+    let capacity: Int?
 
     enum CodingKeys: String, CodingKey {
         case routeID = "route_id"
         case ownerID = "owner_id"
         case title
+        case details
         case meetTime = "meet_time"
         case meetPoint = "meet_point"
+        case visibility
+        case capacity
     }
 }
 
@@ -153,20 +194,29 @@ private struct CreatedGroupRideRow: Decodable {
     }
 }
 
-private struct GroupRideMeetingPayload: Encodable {
+private struct GroupRideUpdatePayload: Encodable {
+    let title: String
+    let details: String?
     let meetTime: Date?
     let meetPoint: String?
+    let visibility: GroupRideVisibility
+    let capacity: Int?
+
+    init(draft: GroupRideDraft) {
+        title = draft.title
+        details = draft.details
+        meetTime = draft.meetTime
+        meetPoint = draft.meetPoint
+        visibility = draft.visibility
+        capacity = draft.capacity
+    }
 
     enum CodingKeys: String, CodingKey {
+        case title
+        case details
         case meetTime = "meet_time"
         case meetPoint = "meet_point"
-    }
-}
-
-private struct EndGroupRidePayload: Encodable {
-    let isActive: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case isActive = "is_active"
+        case visibility
+        case capacity
     }
 }

@@ -17,8 +17,10 @@ testing:
 - ✅ **Ride intelligence** — replay map, elevation/speed/acceleration/grip
   visualisations, Rider Craft calibration and progress, Ride Coach, corner
   tickets, Limit Point research preview and explainable insights.
-- ✅ **Routes and groups** — saved routes, editing, GPX export, route following,
-  planned-vs-actual matching, group-ride lobbies and invitations.
+- ✅ **Routes and social rides** — saved routes, editing, GPX export, route
+  following, planned-vs-actual matching, native invite deep links, private and
+  community events, capacity-aware three-state RSVP, attendee privacy, organiser
+  dashboard/edit/cancel/complete controls, and shared-route recording.
 - ✅ **Independent routing Phase 1.5** — MapKit fallback behind a provider seam,
   proprietary route-character scoring, randomized road-validated candidates,
   searchable and recent start locations, primary/secondary mood blends,
@@ -44,7 +46,8 @@ testing:
   coordinate-free diagnostics surface local usage, pack version and fallback
   reasons in Offline Areas without sending rider location off-device.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
-  queue, storage controls, accessibility passes and release telemetry.
+  queue, push invitations, community moderation, explicit live-location consent,
+  accessibility passes and release telemetry.
 
 The graph-pack client, compiler, signed-release workflow and embedded pathfinder
 are now in place. The first scoped Auckland build has passed deterministic

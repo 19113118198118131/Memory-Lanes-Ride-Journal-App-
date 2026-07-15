@@ -1,0 +1,20 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "57HZXXHCLS.app.memorylanes.native"
+        ],
+        "components": [
+          {
+            "/": "/group.html",
+            "?": {
+              "ride": "*"
+            },
+            "comment": "Open Memory Lanes group ride invitations in the native app."
+          }
+        ]
+      }
+    ]
+  }
+}

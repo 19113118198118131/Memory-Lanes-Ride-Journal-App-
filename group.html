@@ -68,6 +68,9 @@
       <p class="section-sub" id="group-route-line"></p>
       <p class="section-sub" id="group-meet-line" style="display:none;"></p>
       <p class="planner-goal-hint planner-goal-hint-ok" id="group-live-banner" style="display:none;"></p>
+      <div class="planner-toolbar-actions" id="group-open-app-row" style="display:none;">
+        <button type="button" id="group-open-app-btn" class="btn-outline">Open in Memory Lanes</button>
+      </div>
 
       <div id="group-meet-editor" class="profile-card" style="display:none;">
         <h3 style="margin-top:0;">Meeting details</h3>
@@ -124,14 +127,14 @@
       <p id="group-login-note" class="chart-desc" style="display:none;">
         You'll need a free Memory Lanes account to join and ride.
         <a href="index.html">Log in or sign up</a> and you'll be brought straight back to this group ride.
-        You can watch the live map right here without an account.
+        Live rider positions are visible only to members of this ride.
       </p>
     </div>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="group.js?v=90"></script>
+  <script type="module" src="group.js?v=91"></script>
   <script type="module" src="icons.js?v=90"></script>
   <script src="theme.js?v=90"></script>
 </body>

@@ -1,5 +1,62 @@
 import Foundation
 
+enum GroupRideStatus: String, Codable, CaseIterable, Hashable, Sendable {
+    case scheduled
+    case cancelled
+    case completed
+
+    var title: String {
+        switch self {
+        case .scheduled: "Upcoming"
+        case .cancelled: "Cancelled"
+        case .completed: "Completed"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .scheduled: "calendar.badge.clock"
+        case .cancelled: "xmark.circle.fill"
+        case .completed: "checkmark.circle.fill"
+        }
+    }
+}
+
+enum GroupRideVisibility: String, Codable, CaseIterable, Hashable, Sendable {
+    case inviteOnly = "invite_only"
+    case community
+
+    var title: String {
+        switch self {
+        case .inviteOnly: "Invite only"
+        case .community: "Community"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .inviteOnly: "Only riders with your link can find this ride."
+        case .community: "Signed-in riders can discover this ride in Memory Lanes."
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .inviteOnly: "link"
+        case .community: "person.3.fill"
+        }
+    }
+}
+
+struct GroupRideDraft: Equatable, Sendable {
+    var title: String
+    var details: String?
+    var meetTime: Date?
+    var meetPoint: String?
+    var visibility: GroupRideVisibility
+    var capacity: Int?
+}
+
 enum GroupRideRSVP: String, Codable, CaseIterable, Hashable, Sendable {
     case going
     case maybe
@@ -36,12 +93,20 @@ struct GroupRideMember: Codable, Hashable, Sendable {
 
 struct GroupRideSummary: Identifiable, Codable, Hashable, Sendable {
     let title: String
+    let details: String?
+    let visibility: GroupRideVisibility?
+    let capacity: Int?
+    let status: GroupRideStatus?
     let shareToken: UUID
     let meetTime: Date?
     let meetPoint: String?
     let createdAt: Date
     let isOwner: Bool
+    let yourRSVP: GroupRideRSVP?
     let memberCount: Int
+    let goingCount: Int?
+    let maybeCount: Int?
+    let declinedCount: Int?
     let routeTitle: String
 
     var id: UUID { shareToken }
@@ -49,25 +114,74 @@ struct GroupRideSummary: Identifiable, Codable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case title
+        case details
+        case visibility
+        case capacity
+        case status
         case shareToken = "share_token"
         case meetTime = "meet_time"
         case meetPoint = "meet_point"
         case createdAt = "created_at"
         case isOwner = "is_owner"
+        case yourRSVP = "your_rsvp"
         case memberCount = "member_count"
+        case goingCount = "going_count"
+        case maybeCount = "maybe_count"
+        case declinedCount = "declined_count"
         case routeTitle = "route_title"
+    }
+}
+
+struct CommunityGroupRideSummary: Identifiable, Codable, Hashable, Sendable {
+    let title: String
+    let details: String?
+    let shareToken: UUID
+    let meetTime: Date?
+    let hostedBy: String?
+    let hostRegion: String?
+    let capacity: Int?
+    let goingCount: Int
+    let maybeCount: Int
+    let routeTitle: String
+    let distanceKm: Double?
+    let elevationM: Double?
+
+    var id: UUID { shareToken }
+    var spotsRemaining: Int? { capacity.map { max($0 - goingCount, 0) } }
+    var isFull: Bool { spotsRemaining == 0 }
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case details
+        case shareToken = "share_token"
+        case meetTime = "meet_time"
+        case hostedBy = "hosted_by"
+        case hostRegion = "host_region"
+        case capacity
+        case goingCount = "going_count"
+        case maybeCount = "maybe_count"
+        case routeTitle = "route_title"
+        case distanceKm = "distance_km"
+        case elevationM = "elevation_m"
     }
 }
 
 struct GroupRide: Identifiable, Hashable, Sendable {
     let id: UUID
     var title: String
+    var details: String?
+    var visibility: GroupRideVisibility
+    var capacity: Int?
+    var status: GroupRideStatus
     var isActive: Bool
     let createdAt: Date
     var meetTime: Date?
     var meetPoint: String?
     let hostedBy: String?
     var memberCount: Int
+    var goingCount: Int
+    var maybeCount: Int
+    var declinedCount: Int
     let isOwner: Bool
     var isMember: Bool
     var yourRSVP: GroupRideRSVP?
@@ -80,6 +194,9 @@ struct GroupRide: Identifiable, Hashable, Sendable {
     let shareToken: UUID
 
     var inviteURL: URL? { Self.inviteURL(for: shareToken) }
+
+    var spotsRemaining: Int? { capacity.map { max($0 - goingCount, 0) } }
+    var isFull: Bool { spotsRemaining == 0 }
 
     var plannedRoute: PlannedRoute {
         PlannedRoute(
@@ -100,15 +217,45 @@ struct GroupRide: Identifiable, Hashable, Sendable {
     }
 }
 
+struct GroupRideInvite: Hashable, Sendable {
+    let shareToken: UUID
+
+    static func parse(_ url: URL) -> GroupRideInvite? {
+        if url.scheme?.lowercased() == "memorylanes" {
+            let tokenText = url.host?.lowercased() == "group"
+                ? url.pathComponents.dropFirst().first
+                : nil
+            guard let tokenText, let token = UUID(uuidString: tokenText) else { return nil }
+            return GroupRideInvite(shareToken: token)
+        }
+
+        guard url.host?.lowercased() == "memory-lanes-ride-journal-app.vercel.app",
+              url.path.lowercased().hasSuffix("/group.html"),
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let tokenText = components.queryItems?.first(where: { $0.name == "ride" })?.value,
+              let token = UUID(uuidString: tokenText) else {
+            return nil
+        }
+        return GroupRideInvite(shareToken: token)
+    }
+}
+
 struct GroupRidePayload: Decodable, Sendable {
     let id: UUID
     let title: String
+    let details: String?
+    let visibility: GroupRideVisibility?
+    let capacity: Int?
+    let status: GroupRideStatus?
     let isActive: Bool
     let createdAt: Date
     let meetTime: Date?
     let meetPoint: String?
     let hostedBy: String?
     let memberCount: Int
+    let goingCount: Int?
+    let maybeCount: Int?
+    let declinedCount: Int?
     let isOwner: Bool
     let isMember: Bool
     let yourRSVP: GroupRideRSVP?
@@ -122,12 +269,19 @@ struct GroupRidePayload: Decodable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id
         case title
+        case details
+        case visibility
+        case capacity
+        case status
         case isActive = "is_active"
         case createdAt = "created_at"
         case meetTime = "meet_time"
         case meetPoint = "meet_point"
         case hostedBy = "hosted_by"
         case memberCount = "member_count"
+        case goingCount = "going_count"
+        case maybeCount = "maybe_count"
+        case declinedCount = "declined_count"
         case isOwner = "is_owner"
         case isMember = "is_member"
         case yourRSVP = "your_rsvp"
@@ -143,12 +297,19 @@ struct GroupRidePayload: Decodable, Sendable {
         GroupRide(
             id: id,
             title: title,
+            details: details,
+            visibility: visibility ?? .inviteOnly,
+            capacity: capacity,
+            status: status ?? (isActive ? .scheduled : .completed),
             isActive: isActive,
             createdAt: createdAt,
             meetTime: meetTime,
             meetPoint: meetPoint,
             hostedBy: hostedBy,
             memberCount: memberCount,
+            goingCount: goingCount ?? members.filter { $0.rsvp == .going }.count,
+            maybeCount: maybeCount ?? members.filter { $0.rsvp == .maybe }.count,
+            declinedCount: declinedCount ?? members.filter { $0.rsvp == .no }.count,
             isOwner: isOwner,
             isMember: isMember,
             yourRSVP: yourRSVP,
