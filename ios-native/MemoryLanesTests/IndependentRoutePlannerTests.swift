@@ -75,7 +75,7 @@ struct IndependentRoutePlannerTests {
 
         #expect(!candidates.isEmpty)
         #expect(candidates.allSatisfy {
-            abs($0.durationSeconds - targetDuration) / targetDuration <= 0.30
+            abs($0.durationSeconds - targetDuration) / targetDuration <= 0.20
         })
     }
 

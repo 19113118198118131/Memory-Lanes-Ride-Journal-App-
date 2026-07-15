@@ -7,7 +7,7 @@ struct IndependentRoutePlanner: Sendable {
     private static let concurrentAttemptLimit = 4
     private static let anchorRetryLimit = 3
     private static let explicitDistanceTolerance = 0.22
-    private static let timeTolerance = 0.30
+    private static let timeTolerance = 0.20
 
     private let roadProvider: any RoadRouteProviding
     private let characterAnalyzer: RouteCharacterAnalyzer
