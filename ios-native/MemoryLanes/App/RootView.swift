@@ -9,6 +9,7 @@ import SwiftUI
 
 struct RootView: View {
     @StateObject private var authStore = AuthStore()
+    @StateObject private var notificationCoordinator = NotificationCoordinator.shared
     @State private var pendingGroupInvite: GroupRideInvite?
 
     var body: some View {
@@ -30,6 +31,29 @@ struct RootView: View {
                 pendingGroupInvite = invite
             }
         }
+        .task(id: notificationCoordinator.pendingGroupInvite) {
+            guard let invite = notificationCoordinator.pendingGroupInvite else { return }
+            pendingGroupInvite = invite
+            notificationCoordinator.pendingGroupInvite = nil
+        }
+        .task(id: authStore.session?.userID) {
+            guard authStore.session != nil else { return }
+            await notificationCoordinator.registerForRemoteNotificationsIfAuthorized()
+            await registerPushDevice(notificationCoordinator.deviceToken)
+        }
+        .onChange(of: notificationCoordinator.deviceToken) { _, token in
+            Task { await registerPushDevice(token) }
+        }
+    }
+
+    private func registerPushDevice(_ token: String?) async {
+        guard let token, authStore.session != nil else { return }
+        try? await NotificationService(
+            accessToken: { await authStore.validAccessToken() }
+        ).registerDevice(
+            token: token,
+            environment: NotificationCoordinator.pushEnvironment
+        )
     }
 }
 
@@ -226,7 +250,7 @@ private struct MainTabShell: View {
                     email: session.email,
                     userID: session.userID,
                     accessToken: { await authStore.validAccessToken() },
-                    onSignOut: { authStore.signOut() }
+                    onSignOut: signOut
                 )
             }
         }
@@ -263,6 +287,20 @@ private struct MainTabShell: View {
             try? await Task.sleep(for: .milliseconds(300))
             ridePath.append(ride)
             toast = .success(message)
+        }
+    }
+
+    private func signOut() {
+        Task { @MainActor in
+            let deviceToken = NotificationCoordinator.shared.deviceToken
+            let accessToken = await authStore.validAccessToken()
+
+            await NotificationCoordinator.shared.clearLocalStateForSignOut()
+            authStore.signOut()
+
+            guard let deviceToken, let accessToken else { return }
+            try? await NotificationService(accessToken: { accessToken })
+                .removeDevice(token: deviceToken)
         }
     }
 }

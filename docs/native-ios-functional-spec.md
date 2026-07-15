@@ -812,7 +812,11 @@ Current group-ride status:
 - Native route-based creation, event details, visibility/capacity, hosted/joined lists, community discovery, lobby, three-state RSVP, attendee privacy, leaving, organiser editing/dashboard, cancellation/completion, sharing, and shared-route recording are implemented.
 - Universal and custom app links preserve invites across authentication and open the native lobby. Universal links require deployment of the repository AASA file and a paid Apple team Release profile; Personal Team debug builds use the web lobby's custom app-link action.
 - Group invite links remain compatible with the original web lobby.
-- Push notifications, host handover, community moderation/messaging, and live rider positions remain pending.
+- Notification preferences, local pre-ride reminders, APNs device registration,
+  deep-link routing, a secure event outbox, RSVP/update triggers, quiet hours and
+  the credential-gated delivery worker are implemented. Production remote delivery
+  requires the paid Apple App ID push key and worker scheduler activation.
+- Host handover, community moderation/messaging, and live rider positions remain pending.
 - RSVP never implies live-location consent; live sharing requires a separate explicit control and field-validation gate.
 
 ## 11. Definition of Done

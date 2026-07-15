@@ -1,6 +1,6 @@
 # Native Group Rides
 
-Status: Production event coordination implemented; explicit live position mode pending consent and field validation
+Status: Production event coordination implemented; notification preferences, local reminders and secure APNs outbox implemented; APNs credentials and explicit live position mode pending activation/field validation
 
 ## Product Shape
 
@@ -20,6 +20,9 @@ The native app preserves the original web flow:
 - Use the organiser dashboard to monitor Riding, Maybe, and Declined responses.
 - Start the shared route through the existing reliable native recorder.
 - Refresh event state manually or through a quiet foreground observer.
+- Choose event, RSVP, reminder, and quiet-hour notification preferences in Account.
+- Receive a native reminder before an accepted or tentative ride; notification taps
+  deep-link directly to the matching lobby.
 
 ## Native Information Architecture
 
@@ -52,7 +55,7 @@ Mutual live positions require a later versioned slice with:
 
 ## Next Slices
 
-1. Push invitation and RSVP-change notifications, with device-token lifecycle and quiet-hour controls.
+1. Activate APNs credentials and the one-minute worker scheduler on the paid Apple team.
 2. Explicit live-position consent and group-aware recording.
 3. Mutually visible live rider markers with freshness indicators.
 4. Host handover plus moderation, report, and block rules before a broader rider directory or messaging surface.

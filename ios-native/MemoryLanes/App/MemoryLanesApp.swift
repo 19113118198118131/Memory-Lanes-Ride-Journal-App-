@@ -8,6 +8,8 @@ import SwiftUI
 
 @main
 struct MemoryLanesApp: App {
+    @UIApplicationDelegateAdaptor(MemoryLanesAppDelegate.self) private var appDelegate
+
     var body: some Scene {
         WindowGroup {
             RootView()

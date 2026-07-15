@@ -19,10 +19,16 @@ final class GroupRideViewModel {
 
     let shareToken: UUID
     private let service: GroupRideServing
+    private let notificationCoordinator: NotificationCoordinator
 
-    init(shareToken: UUID, service: GroupRideServing) {
+    init(
+        shareToken: UUID,
+        service: GroupRideServing,
+        notificationCoordinator: NotificationCoordinator = .shared
+    ) {
         self.shareToken = shareToken
         self.service = service
+        self.notificationCoordinator = notificationCoordinator
     }
 
     var groupRide: GroupRide? {
@@ -49,7 +55,9 @@ final class GroupRideViewModel {
 
     private func refresh(showFailure: Bool) async {
         do {
-            state = .loaded(try await service.fetchGroupRide(shareToken: shareToken))
+            let groupRide = try await service.fetchGroupRide(shareToken: shareToken)
+            state = .loaded(groupRide)
+            await notificationCoordinator.reconcileReminder(for: groupRide)
             errorMessage = nil
         } catch is CancellationError {
         } catch {
@@ -69,7 +77,9 @@ final class GroupRideViewModel {
             isWorking = false
         }
         do {
-            state = .loaded(try await service.setRSVP(rsvp, shareToken: shareToken))
+            let groupRide = try await service.setRSVP(rsvp, shareToken: shareToken)
+            state = .loaded(groupRide)
+            await notificationCoordinator.reconcileReminder(for: groupRide)
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -87,13 +97,13 @@ final class GroupRideViewModel {
         errorMessage = nil
         defer { isWorking = false }
         do {
-            state = .loaded(
-                try await service.updateGroupRide(
-                    shareToken: shareToken,
-                    groupRideID: groupRide.id,
-                    draft: draft
-                )
+            let updated = try await service.updateGroupRide(
+                shareToken: shareToken,
+                groupRideID: groupRide.id,
+                draft: draft
             )
+            state = .loaded(updated)
+            await notificationCoordinator.reconcileReminder(for: updated)
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -108,6 +118,7 @@ final class GroupRideViewModel {
         defer { isWorking = false }
         do {
             try await service.leaveGroupRide(shareToken: shareToken)
+            await notificationCoordinator.reconcileReminder(for: groupRide.withoutMembership)
             didLeaveRide = true
             return true
         } catch {
@@ -122,7 +133,9 @@ final class GroupRideViewModel {
         errorMessage = nil
         defer { isWorking = false }
         do {
-            state = .loaded(try await service.setStatus(status, shareToken: shareToken))
+            let updated = try await service.setStatus(status, shareToken: shareToken)
+            state = .loaded(updated)
+            await notificationCoordinator.reconcileReminder(for: updated)
             didCloseRide = true
             return true
         } catch {

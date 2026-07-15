@@ -46,8 +46,8 @@ testing:
   coordinate-free diagnostics surface local usage, pack version and fallback
   reasons in Offline Areas without sending rider location off-device.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
-  queue, push invitations, community moderation, explicit live-location consent,
-  accessibility passes and release telemetry.
+  queue, APNs credential activation, community moderation, explicit live-location
+  consent, accessibility passes and release telemetry.
 
 The graph-pack client, compiler, signed-release workflow and embedded pathfinder
 are now in place. The first scoped Auckland build has passed deterministic

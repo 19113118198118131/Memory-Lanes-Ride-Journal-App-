@@ -198,6 +198,13 @@ struct GroupRide: Identifiable, Hashable, Sendable {
     var spotsRemaining: Int? { capacity.map { max($0 - goingCount, 0) } }
     var isFull: Bool { spotsRemaining == 0 }
 
+    var withoutMembership: GroupRide {
+        var copy = self
+        copy.isMember = false
+        copy.yourRSVP = nil
+        return copy
+    }
+
     var plannedRoute: PlannedRoute {
         PlannedRoute(
             id: routeID,

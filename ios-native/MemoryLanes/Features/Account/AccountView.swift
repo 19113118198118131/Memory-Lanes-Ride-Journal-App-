@@ -28,14 +28,16 @@ struct AccountView: View {
                         .mlStaggeredReveal(index: 1)
                     communitySection
                         .mlStaggeredReveal(index: 2)
-                    librarySection
+                    notificationsSection
                         .mlStaggeredReveal(index: 3)
-                    dataSection
+                    librarySection
                         .mlStaggeredReveal(index: 4)
-                    appSection
+                    dataSection
                         .mlStaggeredReveal(index: 5)
-                    sessionSection
+                    appSection
                         .mlStaggeredReveal(index: 6)
+                    sessionSection
+                        .mlStaggeredReveal(index: 7)
                 }
                 .padding(.horizontal, Spacing.screenH)
                 .padding(.vertical, Spacing.lg)
@@ -227,6 +229,29 @@ struct AccountView: View {
                         ? "\(displayName) · \(riderProfile?.region ?? "")"
                         : displayName,
                     symbol: "person.crop.circle.badge.checkmark",
+                    trailingSymbol: "chevron.right"
+                )
+            }
+            .buttonStyle(MLPressableButtonStyle())
+        }
+    }
+
+    private var notificationsSection: some View {
+        accountSection(
+            title: "Notifications",
+            footer: "Choose which group ride updates deserve your attention."
+        ) {
+            NavigationLink {
+                NotificationSettingsView(
+                    viewModel: NotificationSettingsViewModel(
+                        service: NotificationService(accessToken: accessToken)
+                    )
+                )
+            } label: {
+                accountRow(
+                    title: "Ride notifications",
+                    detail: "Event updates, RSVPs and pre-ride reminders",
+                    symbol: "bell.badge",
                     trailingSymbol: "chevron.right"
                 )
             }
