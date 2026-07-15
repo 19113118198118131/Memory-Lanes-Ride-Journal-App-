@@ -1,6 +1,9 @@
 name: Offline graph release
 
 on:
+  push:
+    tags:
+      - 'offline-graph-nz-auckland-north-v*'
   workflow_dispatch:
     inputs:
       region_id:
@@ -21,7 +24,7 @@ jobs:
     timeout-minutes: 90
     environment: offline-graph-release
     env:
-      REGION_ID: ${{ inputs.region_id }}
+      REGION_ID: ${{ inputs.region_id || 'nz-auckland-north' }}
       REGIONS_FILE: tools/offline_graph/regions.json
       PUBLIC_KEY: I+N3zbgFy2UamDV/zHMphfpTrTb5IhqvrpZNV6Re7Rk=
       KEY_ID: release-2026-01
@@ -65,6 +68,23 @@ jobs:
             --generated-at "$GENERATED_AT" \
             --output "offline-dist/packs/${REGION_ID}-v${VERSION}.mlgraph"
 
+      - name: Audit and benchmark production graph
+        run: |
+          python3 tools/offline_graph/audit_graph.py \
+            --graph "offline-dist/packs/${REGION_ID}-v${VERSION}.mlgraph" \
+            --regions "$REGIONS_FILE" \
+            --region-id "$REGION_ID" \
+            --output "offline-dist/${REGION_ID}-v${VERSION}-quality.json"
+
+      - name: Retain graph quality report on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-graph-quality-${{ env.REGION_ID }}-${{ github.run_number }}
+          path: offline-dist/${{ env.REGION_ID }}-v*-quality.json
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Build and sign release manifest
         env:
           OFFLINE_MANIFEST_SIGNING_KEY: ${{ secrets.OFFLINE_MANIFEST_SIGNING_KEY }}
@@ -76,7 +96,7 @@ jobs:
       - name: Retain release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: offline-graph-${{ inputs.region_id }}-${{ github.run_number }}
+          name: offline-graph-${{ env.REGION_ID }}-${{ github.run_number }}
           path: offline-dist/
           if-no-files-found: error
           retention-days: 30
