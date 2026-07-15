@@ -818,8 +818,12 @@ Current group-ride status:
   deep-link routing, a secure event outbox, RSVP/update/announcement triggers, quiet hours and
   the credential-gated delivery worker are implemented. Production remote delivery
   requires the paid Apple App ID push key and worker scheduler activation.
-- Host handover, community moderation/messaging, and live rider positions remain pending.
-- RSVP never implies live-location consent; live sharing requires a separate explicit control and field-validation gate.
+- Explicit per-ride live-location consent and group-aware recorder publishing are implemented.
+  Sharing defaults off, uses authenticated role-gated RPCs, expires quickly after updates
+  stop, and can be stopped without stopping local recording. Production still requires
+  applying `supabase-group-live-sharing.sql` and physical-device field validation.
+- Live rider map markers, host handover, and community moderation/messaging remain pending.
+- RSVP never implies live-location consent.
 
 ## 11. Definition of Done
 

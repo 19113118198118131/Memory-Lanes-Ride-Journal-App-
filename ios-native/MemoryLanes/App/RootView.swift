@@ -77,6 +77,7 @@ private struct MainTabShell: View {
     @State private var showingAccount = false
     @State private var refreshTrigger = UUID()
     @State private var recorderRoute: PlannedRoute?
+    @State private var recorderGroupContext: GroupRideRecordingContext?
     @State private var toast: Toast?
 
     private var rideService: RideServing {
@@ -109,6 +110,7 @@ private struct MainTabShell: View {
                     onSelectRide: { ridePath.append($0) },
                     onStartRide: {
                         recorderRoute = nil
+                        recorderGroupContext = nil
                         showingRecorder = true
                     },
                     onImportRide: { showingImporter = true },
@@ -154,6 +156,7 @@ private struct MainTabShell: View {
                         groupRideService: groupRideService,
                         onStartRide: { route in
                             recorderRoute = route
+                            recorderGroupContext = nil
                             showingRecorder = true
                         },
                         onChanged: { refreshTrigger = UUID() },
@@ -228,6 +231,7 @@ private struct MainTabShell: View {
                 RecordingView(
                     session: session,
                     plannedRoute: recorderRoute,
+                    groupRideContext: recorderGroupContext,
                     accessToken: { await authStore.validAccessToken() }
                 ) { ride in
                     presentSavedRide(ride, message: "Ride saved to journal")
@@ -262,8 +266,9 @@ private struct MainTabShell: View {
                 shareToken: shareToken,
                 service: groupRideService
             ),
-            onStartRoute: { route in
+            onStartRoute: { route, context in
                 recorderRoute = route
+                recorderGroupContext = context
                 showingRecorder = true
             },
             onEnded: {

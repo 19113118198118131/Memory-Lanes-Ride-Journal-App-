@@ -1,6 +1,6 @@
 # Native Group Rides
 
-Status: Production event and ride-day coordination implemented; notification preferences, local reminders and secure APNs outbox implemented; APNs credentials and explicit live position mode pending activation/field validation
+Status: Production event and ride-day coordination implemented; notification preferences, local reminders and secure APNs outbox implemented; explicit live-position consent and group-aware publishing implemented pending production migration and physical-device validation; APNs credentials pending activation
 
 ## Product Shape
 
@@ -43,25 +43,33 @@ Upcoming commitments and discoverable community rides appear before route-planni
 - Check-in and host announcement mutations are authenticated, time/role gated RPCs;
   clients cannot read or write the underlying announcements table directly.
 - RSVP does not enable location sharing.
+- Live sharing starts only after a separate per-ride toggle that defaults off.
+- Only the host and riders marked Riding can publish or read group positions.
+- Stopping sharing does not stop local recording; failed updates leave recording untouched.
+- Positions become unreadable two minutes after updates stop, and consent has a hard
+  ride-window expiry even when the app is force-quit.
 
 ## Live Location Gate
 
-RSVP does not enable location sharing. Starting the route in this phase records only the rider's own ride through the existing native recorder.
+RSVP does not enable location sharing. The native start sheet now asks separately on
+every group ride and defaults to private. When enabled, the recorder publishes a
+throttled position through authenticated RPCs and exposes a persistent stop control.
+Network or consent failures are honest but non-blocking: the local ride and GPX continue.
 
-Mutual live positions require a later versioned slice with:
+The production migration in `supabase-group-live-sharing.sql` adds consent audit rows,
+role-gated publishing, two-minute position expiry, opportunistic cleanup and hardened
+direct-write policies. It must be applied before enabling the client on a release build.
 
-- A separate, explicit sharing control immediately before recording.
-- Clear membership and invite-based visibility boundaries.
-- Automatic expiry and deletion after the ride.
+Physical-device validation still requires:
+
 - Background battery and network testing on real devices.
-- Stale-position handling and honest offline states.
-- A prominent stop-sharing control that does not stop local ride recording.
-- Tests confirming that declining or revoking sharing never blocks the ride.
+- Weak-signal, pause, force-quit and membership-revocation exercises.
+- Confirmation that ten-second publishing remains acceptable on representative rides.
 
 ## Next Slices
 
 1. Activate APNs credentials and the one-minute worker scheduler on the paid Apple team.
-2. Explicit live-position consent and group-aware recording.
-3. Mutually visible live rider markers with freshness indicators.
+2. Apply and field-validate explicit live-position consent and group-aware recording.
+3. Add mutually visible live rider markers with freshness indicators.
 4. Host handover plus moderation, report, and block rules before a broader rider directory or messaging surface.
 5. Optional post-ride group recap without rankings, pace comparison, or pressure mechanics.

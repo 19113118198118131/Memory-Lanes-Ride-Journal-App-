@@ -12,10 +12,12 @@ struct RecordingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let session: AuthSession
     let plannedRoute: PlannedRoute?
+    let groupRideContext: GroupRideRecordingContext?
     let accessToken: @Sendable () async -> String?
     let onSaved: (Ride) -> Void
 
     @StateObject private var recorder = LiveRideRecorder()
+    @StateObject private var liveSharing: GroupLiveSharingController
     @State private var showingFinishConfirmation = false
     @State private var showingDiscardConfirmation = false
     @State private var finishedRide: RecordedRideResult?
@@ -27,13 +29,19 @@ struct RecordingView: View {
     init(
         session: AuthSession,
         plannedRoute: PlannedRoute?,
+        groupRideContext: GroupRideRecordingContext? = nil,
         accessToken: @escaping @Sendable () async -> String?,
         onSaved: @escaping (Ride) -> Void
     ) {
         self.session = session
         self.plannedRoute = plannedRoute
+        self.groupRideContext = groupRideContext
         self.accessToken = accessToken
         self.onSaved = onSaved
+        _liveSharing = StateObject(wrappedValue: GroupLiveSharingController(
+            context: groupRideContext,
+            service: GroupLiveLocationService(accessToken: accessToken)
+        ))
     }
 
     var body: some View {
@@ -57,19 +65,27 @@ struct RecordingView: View {
             if let recovered = await recorder.prepareForPresentation() {
                 recoveredFinishedRide = true
                 finishedRide = recovered
+            } else {
+                await liveSharing.start()
             }
+        }
+        .onChange(of: recorder.pointCount) { _, _ in
+            guard let point = recorder.points.last else { return }
+            Task { await liveSharing.offer(point) }
         }
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
+            Task { await liveSharing.stop() }
         }
         .alert("Finish ride?", isPresented: $showingFinishConfirmation) {
             Button("Keep Riding", role: .cancel) {}
             Button("Finish") {
                 Haptics.success()
                 Task {
+                    await liveSharing.stop()
                     recoveredFinishedRide = false
                     finishedRide = await recorder.finish()
                 }
@@ -81,8 +97,11 @@ struct RecordingView: View {
             Button("Keep Riding", role: .cancel) {}
             Button("Discard", role: .destructive) {
                 Haptics.warning()
-                recorder.discard()
-                dismiss()
+                Task {
+                    await liveSharing.stop()
+                    recorder.discard()
+                    dismiss()
+                }
             }
         } message: {
             Text("This deletes the active recording draft from this device.")
@@ -166,10 +185,15 @@ struct RecordingView: View {
     private var recorderHeader: some View {
         VStack(spacing: Spacing.sm) {
             topBar
+            if liveSharing.isVisible {
+                liveSharingPill
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
             if !usesCompactHeightLayout, recorder.lastErrorMessage != nil {
                 gpsPill
             }
         }
+        .animation(reduceMotion ? nil : Motion.springSnappy, value: liveSharing.status)
         .padding(.horizontal, Spacing.screenH)
         .padding(.top, Spacing.sm)
     }
@@ -219,6 +243,94 @@ struct RecordingView: View {
         .padding(.horizontal, Spacing.md)
         .frame(height: 40)
         .background(.ultraThinMaterial, in: Capsule())
+    }
+
+    private var liveSharingPill: some View {
+        HStack(spacing: Spacing.xs) {
+            Group {
+                switch liveSharing.status {
+                case .starting, .stopping:
+                    ProgressView().tint(.mlAccent)
+                case .sharing:
+                    Image(systemName: "location.fill")
+                        .foregroundStyle(Color.mlSuccess)
+                case .failed:
+                    Image(systemName: "wifi.exclamationmark")
+                        .foregroundStyle(Color.mlWarning)
+                case .inactive, .unavailable, .stopped:
+                    Image(systemName: "location.slash.fill")
+                        .foregroundStyle(Color.mlTextTertiary)
+                }
+            }
+            .frame(width: Spacing.md, height: Spacing.md)
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(liveSharingTitle)
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .lineLimit(1)
+                if case .failed(let message) = liveSharing.status {
+                    Text(message)
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: Spacing.xs)
+
+            if case .failed = liveSharing.status {
+                Button("Retry") {
+                    Haptics.selection()
+                    Task {
+                        await liveSharing.start()
+                        if let point = recorder.points.last {
+                            await liveSharing.offer(point)
+                        }
+                    }
+                }
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlAccent)
+                .mlHitTarget()
+                .buttonStyle(MLPressableButtonStyle())
+            }
+
+            if liveSharing.status != .starting, liveSharing.status != .stopping {
+                Button {
+                    Haptics.selection()
+                    Task { await liveSharing.stop() }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .accessibilityLabel("Stop sharing live position")
+            }
+        }
+        .padding(.leading, Spacing.md)
+        .padding(.trailing, Spacing.xxs)
+        .frame(minHeight: Spacing.xxl)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(Color.mlTextPrimary.opacity(0.12), lineWidth: Layout.hairline))
+    }
+
+    private var liveSharingTitle: String {
+        switch liveSharing.status {
+        case .inactive, .starting:
+            "Starting group sharing"
+        case .sharing:
+            "Live with \(groupRideContext?.title ?? "group")"
+        case .failed:
+            "Group sharing offline"
+        case .stopping:
+            "Stopping group sharing"
+        case .stopped:
+            "Group sharing stopped"
+        case .unavailable:
+            "Group sharing off"
+        }
     }
 
     private var controlPanel: some View {
@@ -326,7 +438,10 @@ struct RecordingView: View {
             }
         case .finished:
             PrimaryButton(title: "Done", systemImage: "checkmark") {
-                dismiss()
+                Task {
+                    await liveSharing.stop()
+                    dismiss()
+                }
             }
         }
     }

@@ -10,13 +10,14 @@ struct GroupRideLobbyView: View {
     @State private var showAllAttendees = false
     @State private var showAllAnnouncements = false
     @State private var showingAnnouncementComposer = false
+    @State private var pendingStartRide: GroupRide?
 
-    let onStartRoute: (PlannedRoute) -> Void
+    let onStartRoute: (PlannedRoute, GroupRideRecordingContext) -> Void
     let onEnded: () -> Void
 
     init(
         viewModel: GroupRideViewModel,
-        onStartRoute: @escaping (PlannedRoute) -> Void = { _ in },
+        onStartRoute: @escaping (PlannedRoute, GroupRideRecordingContext) -> Void = { _, _ in },
         onEnded: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
@@ -74,6 +75,24 @@ struct GroupRideLobbyView: View {
                 await viewModel.postAnnouncement(message)
             }
             .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $pendingStartRide) { groupRide in
+            GroupRideStartSheet(groupRide: groupRide) { shareLiveLocation in
+                guard await viewModel.prepareToStartRoute() else {
+                    Haptics.error()
+                    return false
+                }
+                let context = GroupRideRecordingContext(
+                    shareToken: groupRide.shareToken,
+                    title: groupRide.title,
+                    shareLiveLocation: shareLiveLocation
+                )
+                Haptics.success()
+                onStartRoute(groupRide.plannedRoute, context)
+                return true
+            }
+            .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
         .confirmationDialog(
@@ -659,13 +678,7 @@ struct GroupRideLobbyView: View {
         VStack(spacing: Spacing.md) {
             if groupRide.status == .scheduled {
                 PrimaryButton(title: "Start Group Route", systemImage: "location.north.line.fill", isLoading: viewModel.isWorking) {
-                    Task {
-                        if await viewModel.prepareToStartRoute() {
-                            onStartRoute(groupRide.plannedRoute)
-                        } else {
-                            Haptics.error()
-                        }
-                    }
+                    pendingStartRide = groupRide
                 }
                 .disabled(!groupRide.isOwner && groupRide.isFull && groupRide.yourRSVP != .going)
             }
@@ -711,6 +724,104 @@ struct GroupRideLobbyView: View {
                 .disabled(viewModel.isWorking)
             }
         }
+    }
+}
+
+private struct GroupRideStartSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let groupRide: GroupRide
+    let onStart: (Bool) async -> Bool
+
+    @State private var shareLiveLocation = false
+    @State private var isStarting = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Image(systemName: "person.3.fill")
+                        .font(MLFont.displaySmall)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(width: Spacing.xxl, height: Spacing.xxl)
+                        .background(Color.mlAccent.opacity(0.12), in: Circle())
+
+                    Text(groupRide.title)
+                        .font(MLFont.title2)
+                        .foregroundStyle(Color.mlTextPrimary)
+                    Text("Your ride records normally whether live sharing is on or off.")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
+
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Toggle(isOn: $shareLiveLocation) {
+                        Label {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text("Share my live position")
+                                    .font(MLFont.bodyEmphasised)
+                                    .foregroundStyle(Color.mlTextPrimary)
+                                Text("Off by default for every ride")
+                                    .font(MLFont.caption)
+                                    .foregroundStyle(Color.mlTextSecondary)
+                            }
+                        } icon: {
+                            Image(systemName: shareLiveLocation ? "location.fill" : "location.slash.fill")
+                                .foregroundStyle(shareLiveLocation ? Color.mlAccent : Color.mlTextTertiary)
+                                .contentTransition(.symbolEffect(.replace))
+                        }
+                    }
+                    .tint(.mlAccent)
+                    .onChange(of: shareLiveLocation) { _, _ in Haptics.selection() }
+
+                    if shareLiveLocation {
+                        Label(
+                            "Only the host and riders marked Riding can see you. Updates expire within two minutes when sharing stops.",
+                            systemImage: "hand.raised.fill"
+                        )
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
+                .padding(Spacing.md)
+                .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                        .stroke(shareLiveLocation ? Color.mlAccent.opacity(0.38) : Color.mlHairline, lineWidth: Layout.hairline)
+                }
+                .animation(reduceMotion ? nil : Motion.springSnappy, value: shareLiveLocation)
+
+                Spacer(minLength: 0)
+
+                PrimaryButton(
+                    title: shareLiveLocation ? "Start & Share" : "Start Ride",
+                    systemImage: "location.north.line.fill",
+                    isLoading: isStarting
+                ) {
+                    isStarting = true
+                    Task {
+                        let started = await onStart(shareLiveLocation)
+                        isStarting = false
+                        if started { dismiss() }
+                    }
+                }
+            }
+            .padding(.vertical, Spacing.md)
+            .mlScreenPadding()
+            .background(Color.mlBackground)
+            .navigationTitle("Before You Ride")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isStarting)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+        .onAppear { shareLiveLocation = false }
     }
 }
 

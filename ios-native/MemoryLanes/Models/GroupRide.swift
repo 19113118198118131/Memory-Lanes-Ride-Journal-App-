@@ -57,6 +57,41 @@ struct GroupRideDraft: Equatable, Sendable {
     var capacity: Int?
 }
 
+/// Ephemeral handoff from the group lobby to the recorder. Live sharing is an
+/// explicit per-ride choice and is intentionally not inferred from RSVP or
+/// check-in state.
+struct GroupRideRecordingContext: Hashable, Sendable {
+    let shareToken: UUID
+    let title: String
+    let shareLiveLocation: Bool
+}
+
+struct GroupLiveSharingReceipt: Decodable, Hashable, Sendable {
+    let enabled: Bool
+    let expiresAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case enabled
+        case expiresAt = "expires_at"
+    }
+}
+
+struct GroupLiveRider: Decodable, Hashable, Sendable {
+    let name: String
+    let latitude: Double
+    let longitude: Double
+    let speedKmH: Double?
+    let updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case latitude = "lat"
+        case longitude = "lng"
+        case speedKmH = "speed_kmh"
+        case updatedAt = "updated_at"
+    }
+}
+
 enum GroupRideRSVP: String, Codable, CaseIterable, Hashable, Sendable {
     case going
     case maybe
