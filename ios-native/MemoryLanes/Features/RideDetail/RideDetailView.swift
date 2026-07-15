@@ -463,11 +463,10 @@ struct RideDetailView: View {
                     }
                 }
 
-                #if DEBUG
-                if !viewModel.calibrationReviewTargets.isEmpty {
+                if RiderCraftFeature.isResearchPreviewEnabled,
+                   !viewModel.calibrationReviewTargets.isEmpty {
                     calibrationReviewCard
                 }
-                #endif
 
                 if detail.corners.isEmpty {
                     EmptyState(systemImage: "point.topleft.down.to.point.bottomright.curvepath",
@@ -499,8 +498,8 @@ struct RideDetailView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("Development only").mlKicker()
-                    Text("Rider Craft calibration")
+                    Text("Optional · about one minute").mlKicker()
+                    Text("Make Rider Craft more accurate")
                         .font(MLFont.headline)
                         .foregroundStyle(Color.mlTextPrimary)
                 }
@@ -510,14 +509,18 @@ struct RideDetailView: View {
                     .foregroundStyle(Color.mlInfo)
             }
 
-            Text("Replay detector candidates and unflagged controls, then export the labels for threshold review.")
+            Text("Check a few moments from this ride to show where the GPS-based reading looks right, unclear, or missed something.")
                 .font(MLFont.callout)
                 .foregroundStyle(Color.mlTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button {
                 showingCalibrationReview = true
             } label: {
-                Label("Open Calibration Review", systemImage: "scope")
+                Label(
+                    viewModel.calibrationReviewedCount == 0 ? "Calibrate This Ride" : "Continue Calibration",
+                    systemImage: "scope"
+                )
                     .font(MLFont.bodyEmphasised)
                     .foregroundStyle(Color.mlOnAccent)
                     .frame(maxWidth: .infinity)

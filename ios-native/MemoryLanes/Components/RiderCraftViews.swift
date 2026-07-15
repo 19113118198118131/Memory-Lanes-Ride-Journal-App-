@@ -215,7 +215,7 @@ private struct RiderCraftReadingGuide: View {
                     guideRow("Detections per corner", "This is a normalised count of four GPS-supported patterns, not a score. Lower can mean fewer detected patterns, but one ride is never a verdict.")
                     guideRow("Detector tiles", "Each tile counts where the model saw braking after turn-in, a flat-exit proxy, an early-apex proxy, or braking deep into a detected bend.")
                     guideRow("Replay evidence", "Tap Replay to inspect the road shape and moment yourself. Geometry, traffic, GPS noise, and one-second sampling can explain a detection.")
-                    guideRow("Calibrating", "The thresholds are still being tested across roads, devices, riders, and weather. Treat every result as a reflection prompt, not proof of an error.")
+                    guideRow("Why calibrate", "GPS can misread traffic, road shape, or signal noise. Checking a few replay moments helps tune future Rider Craft detection so its prompts become more accurate and less noisy.")
                 }
                 .padding(.top, Spacing.xs)
                 .transition(.opacity.combined(with: .move(edge: .top)))

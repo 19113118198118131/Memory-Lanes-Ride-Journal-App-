@@ -48,6 +48,7 @@ final class RideDetailViewModel {
     private(set) var calibrationReviews: [String: RiderCraftCalibrationReview] = [:]
     var calibrationReviewErrorMessage: String?
     var isExportingCalibrationReviews = false
+    var isResettingCalibrationReviews = false
 
     @ObservationIgnored private var playbackTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackSaveTask: Task<Void, Never>?
@@ -311,6 +312,41 @@ final class RideDetailViewModel {
             try await calibrationReviewStore.save(review)
             calibrationReviews[target.id] = review
             calibrationReviewErrorMessage = nil
+            return true
+        } catch {
+            calibrationReviewErrorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func clearCalibrationDecision(for target: RiderCraftCalibrationReviewTarget) async -> Bool {
+        guard let analysis = detail?.riderCraft else { return false }
+        do {
+            try await calibrationReviewStore.removeReview(
+                for: ride.id,
+                thresholdVersion: analysis.thresholdVersion,
+                targetID: target.id
+            )
+            calibrationReviews[target.id] = nil
+            calibrationReviewErrorMessage = nil
+            return true
+        } catch {
+            calibrationReviewErrorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func resetCalibrationReviews() async -> Bool {
+        guard let analysis = detail?.riderCraft else { return false }
+        isResettingCalibrationReviews = true
+        calibrationReviewErrorMessage = nil
+        defer { isResettingCalibrationReviews = false }
+        do {
+            try await calibrationReviewStore.resetReviews(
+                for: ride.id,
+                thresholdVersion: analysis.thresholdVersion
+            )
+            calibrationReviews = [:]
             return true
         } catch {
             calibrationReviewErrorMessage = error.localizedDescription

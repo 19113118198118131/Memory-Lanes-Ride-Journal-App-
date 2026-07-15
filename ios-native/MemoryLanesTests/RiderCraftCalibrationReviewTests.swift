@@ -53,6 +53,31 @@ final class RiderCraftCalibrationReviewTests: XCTestCase {
         XCTAssertEqual(archive.summary.detectors.first(where: { $0.kind == .flatExit })?.candidateMismatches, 1)
     }
 
+    func testReviewStoreCanUncheckOneTargetAndResetOnlyOneRide() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rider-craft-reset-tests-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = directory.appendingPathComponent("reviews.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let rideID = UUID()
+        let otherRideID = UUID()
+        let store = RiderCraftCalibrationReviewStore(fileURL: fileURL)
+        try await store.save(review(rideID: rideID, targetID: "first", decision: .match))
+        try await store.save(review(rideID: rideID, targetID: "second", decision: .unsure))
+        try await store.save(review(rideID: otherRideID, targetID: "other", decision: .mismatch))
+
+        try await store.removeReview(for: rideID, thresholdVersion: 1, targetID: "first")
+        var rideReviews = try await store.reviews(for: rideID, thresholdVersion: 1)
+        XCTAssertEqual(rideReviews.map(\.targetID), ["second"])
+
+        try await store.resetReviews(for: rideID, thresholdVersion: 1)
+        rideReviews = try await store.reviews(for: rideID, thresholdVersion: 1)
+        let otherRideReviews = try await store.reviews(for: otherRideID, thresholdVersion: 1)
+
+        XCTAssertTrue(rideReviews.isEmpty)
+        XCTAssertEqual(otherRideReviews.map(\.targetID), ["other"])
+    }
+
     func testReviewSummaryAttributesControlMissToSelectedDetector() {
         let rideID = UUID()
         let reviews = [

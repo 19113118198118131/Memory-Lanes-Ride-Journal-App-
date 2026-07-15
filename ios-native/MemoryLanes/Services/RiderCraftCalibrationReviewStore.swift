@@ -3,6 +3,8 @@ import Foundation
 protocol RiderCraftCalibrationReviewStoring: Sendable {
     func reviews(for rideID: UUID, thresholdVersion: Int) async throws -> [RiderCraftCalibrationReview]
     func save(_ review: RiderCraftCalibrationReview) async throws
+    func removeReview(for rideID: UUID, thresholdVersion: Int, targetID: String) async throws
+    func resetReviews(for rideID: UUID, thresholdVersion: Int) async throws
     func makeExportFile() async throws -> URL
 }
 
@@ -51,6 +53,26 @@ actor RiderCraftCalibrationReviewStore: RiderCraftCalibrationReviewStoring {
         reviews.sort {
             if $0.rideID == $1.rideID { return $0.replayIndex < $1.replayIndex }
             return $0.rideID.uuidString < $1.rideID.uuidString
+        }
+        try persist(reviews)
+        cachedReviews = reviews
+    }
+
+    func removeReview(for rideID: UUID, thresholdVersion: Int, targetID: String) async throws {
+        var reviews = try loadReviews()
+        reviews.removeAll {
+            $0.rideID == rideID
+                && $0.thresholdVersion == thresholdVersion
+                && $0.targetID == targetID
+        }
+        try persist(reviews)
+        cachedReviews = reviews
+    }
+
+    func resetReviews(for rideID: UUID, thresholdVersion: Int) async throws {
+        var reviews = try loadReviews()
+        reviews.removeAll {
+            $0.rideID == rideID && $0.thresholdVersion == thresholdVersion
         }
         try persist(reviews)
         cachedReviews = reviews

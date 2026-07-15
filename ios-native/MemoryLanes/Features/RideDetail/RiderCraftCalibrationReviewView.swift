@@ -2,24 +2,29 @@ import SwiftUI
 
 struct RiderCraftCalibrationReviewView: View {
     private enum ReviewSet: String, CaseIterable, Identifiable {
-        case candidates = "Candidates"
-        case controls = "Controls"
+        case candidates = "Flagged"
+        case controls = "Checks"
 
         var id: Self { self }
     }
 
     @Bindable var viewModel: RideDetailViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var reviewSet: ReviewSet = .candidates
     @State private var selectedTargetID: String?
     @State private var selectedControlKind: RiderCraftEvent.Kind?
     @State private var activityPayload: ActivityPayload?
+    @State private var isGuideExpanded = true
+    @State private var confirmingReset = false
+    @State private var toast: Toast?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
                     summary
+                    calibrationGuide
                     Picker("Review set", selection: $reviewSet) {
                         ForEach(ReviewSet.allCases) { set in
                             Text(set.rawValue).tag(set)
@@ -35,8 +40,8 @@ struct RiderCraftCalibrationReviewView: View {
                     } else {
                         EmptyState(
                             systemImage: "checkmark.seal",
-                            title: reviewSet == .candidates ? "No candidates" : "No control corners",
-                            message: "This ride has no targets in the selected calibration set."
+                            title: reviewSet == .candidates ? "No flagged moments" : "No check moments",
+                            message: "There is nothing to review in this part of the ride."
                         )
                     }
 
@@ -53,7 +58,7 @@ struct RiderCraftCalibrationReviewView: View {
                 .mlScreenPadding()
             }
             .background(Color.mlBackground)
-            .navigationTitle("Craft Calibration")
+            .navigationTitle("Calibrate Rider Craft")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -89,6 +94,17 @@ struct RiderCraftCalibrationReviewView: View {
         .sheet(item: $activityPayload) { payload in
             ActivityView(items: payload.items)
         }
+        .confirmationDialog(
+            "Reset calibration for this ride?",
+            isPresented: $confirmingReset,
+            titleVisibility: .visible
+        ) {
+            Button("Reset This Ride", role: .destructive) { resetRideCalibration() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This clears every answer for this ride only. Your ride, analysis, and other calibrated rides will not be changed.")
+        }
+        .mlToast($toast)
     }
 
     private var filteredTargets: [RiderCraftCalibrationReviewTarget] {
@@ -106,13 +122,14 @@ struct RiderCraftCalibrationReviewView: View {
         let candidateMatches = reviewSummary.detectors.map(\.candidateMatches).reduce(0, +)
         let candidateMismatches = reviewSummary.detectors.map(\.candidateMismatches).reduce(0, +)
         return VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("Development review").mlKicker()
-            Text("Replay the evidence, then label whether the detector and map agree.")
+            Text("Optional · about one minute").mlKicker()
+            Text("Help Rider Craft understand this ride")
                 .font(MLFont.headline)
                 .foregroundStyle(Color.mlTextPrimary)
-            Text("These labels stay local and do not change rider-facing coaching.")
+            Text("GPS can confuse traffic, road shape, or a signal jump with riding technique. A few quick answers show where the app read your trace correctly and where it did not.")
                 .font(MLFont.callout)
                 .foregroundStyle(Color.mlTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             ProgressView(
                 value: Double(viewModel.calibrationReviewedCount),
@@ -120,16 +137,29 @@ struct RiderCraftCalibrationReviewView: View {
             )
             .tint(.mlAccent)
 
-            Text("\(viewModel.calibrationReviewedCount) of \(viewModel.calibrationReviewTargets.count) reviewed")
+            Text("\(viewModel.calibrationReviewedCount) of \(viewModel.calibrationReviewTargets.count) moments checked")
                 .font(MLFont.caption)
                 .foregroundStyle(Color.mlTextSecondary)
 
             Divider().overlay(Color.mlHairline)
 
             HStack(spacing: Spacing.sm) {
-                summaryMetric("Supported", value: candidateMatches, tint: .mlSuccess)
-                summaryMetric("Rejected", value: candidateMismatches, tint: .mlDanger)
-                summaryMetric("Control misses", value: reviewSummary.controlMisses, tint: .mlInfo)
+                summaryMetric("Looks right", value: candidateMatches, tint: .mlSuccess)
+                summaryMetric("Not right", value: candidateMismatches, tint: .mlDanger)
+                summaryMetric("Missed", value: reviewSummary.controlMisses, tint: .mlInfo)
+            }
+
+            if viewModel.calibrationReviewedCount > 0 {
+                Button {
+                    confirmingReset = true
+                } label: {
+                    Label("Reset calibration for this ride", systemImage: "arrow.counterclockwise")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlDanger)
+                        .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget)
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .disabled(viewModel.isResettingCalibrationReviews)
             }
         }
         .padding(Spacing.md)
@@ -138,6 +168,81 @@ struct RiderCraftCalibrationReviewView: View {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(Color.mlHairline, lineWidth: Layout.hairline)
         )
+    }
+
+    private var calibrationGuide: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Button {
+                Haptics.selection()
+                withAnimation(reduceMotion ? nil : Motion.spring) { isGuideExpanded.toggle() }
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "questionmark.circle.fill")
+                        .foregroundStyle(Color.mlAccent)
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("How calibration helps")
+                            .font(MLFont.bodyEmphasised)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text("What to look for and what your answers do")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: isGuideExpanded ? "chevron.up" : "chevron.down")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
+                .frame(minHeight: Layout.minTouchTarget)
+            }
+            .buttonStyle(.plain)
+
+            if isGuideExpanded {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    guideStep(1, "Look at the corner", "The map jumps to one moment. Use the road shape and replay point as a reminder, not as a test of your riding.")
+                    guideStep(2, "Give the simple answer", "Choose Looks right when the highlighted pattern seems visible, Not right when it does not, or Not sure when the GPS is unclear.")
+                    guideStep(3, "Check both lists", "Flagged shows what Rider Craft noticed. Checks samples ordinary corners so you can tell us if it missed something obvious.")
+
+                    Label(
+                        "Your answers stay on this phone until exported. They help us tune future detection so coaching becomes more accurate and less noisy; they do not change this ride's score.",
+                        systemImage: "lock.shield.fill"
+                    )
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                    Text("Tip: tap your selected answer again to uncheck it.")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlAccent)
+                }
+                .padding(.top, Spacing.xs)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.mlAccent.opacity(0.35), lineWidth: Layout.hairline)
+        )
+    }
+
+    private func guideStep(_ number: Int, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            Text("\(number)")
+                .font(MLFont.monoSmall)
+                .foregroundStyle(Color.mlOnAccent)
+                .frame(width: 28, height: 28)
+                .background(Color.mlAccent, in: Circle())
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(title)
+                    .font(MLFont.bodyEmphasised)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text(detail)
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private func replayMap(_ target: RiderCraftCalibrationReviewTarget) -> some View {
@@ -193,8 +298,8 @@ struct RiderCraftCalibrationReviewView: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(target.isControl ? "Unflagged control" : "Detector candidate").mlKicker()
-                    Text(target.candidateKind?.title ?? "No supported event detected")
+                    Text(target.isControl ? "Routine corner check" : "Rider Craft highlighted").mlKicker()
+                    Text(target.candidateKind?.title ?? "No pattern was highlighted")
                         .font(MLFont.headline)
                         .foregroundStyle(Color.mlTextPrimary)
                 }
@@ -213,8 +318,8 @@ struct RiderCraftCalibrationReviewView: View {
             }
 
             Text(target.isControl
-                 ? "Check whether replay reveals an obvious supported event the detector missed. This is not a safety judgement."
-                 : "Check whether the replay and surrounding trace support this candidate pattern.")
+                 ? "Look for an obvious pattern Rider Craft may have missed. Most check moments should simply be No miss."
+                 : "Look at the road shape and replay point. Does the highlighted pattern seem consistent with this moment?")
                 .font(MLFont.callout)
                 .foregroundStyle(Color.mlTextSecondary)
         }
@@ -228,15 +333,15 @@ struct RiderCraftCalibrationReviewView: View {
 
     private func decisionControls(_ target: RiderCraftCalibrationReviewTarget) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("Review decision").mlKicker()
+            Text("What does the replay show?").mlKicker()
             if target.isControl {
                 HStack {
-                    Text("If missed, detector")
+                    Text("If something was missed")
                         .font(MLFont.callout)
                         .foregroundStyle(Color.mlTextSecondary)
                     Spacer()
                     Picker("Missed detector", selection: $selectedControlKind) {
-                        Text("Choose detector").tag(RiderCraftEvent.Kind?.none)
+                        Text("Choose the pattern").tag(RiderCraftEvent.Kind?.none)
                         ForEach(RiderCraftEvent.Kind.calibrationControlKinds, id: \.self) { kind in
                             Text(kind.title).tag(RiderCraftEvent.Kind?.some(kind))
                         }
@@ -250,14 +355,14 @@ struct RiderCraftCalibrationReviewView: View {
             }
             HStack(spacing: Spacing.sm) {
                 decisionButton(
-                    target.isControl ? "No miss" : "Supports",
+                    target.isControl ? "No miss" : "Looks right",
                     symbol: "checkmark",
                     decision: .match,
                     tint: .mlSuccess,
                     target: target
                 )
                 decisionButton(
-                    target.isControl ? "Missed" : "Doesn't",
+                    target.isControl ? "Missed one" : "Not right",
                     symbol: "xmark",
                     decision: .mismatch,
                     tint: .mlDanger,
@@ -284,14 +389,19 @@ struct RiderCraftCalibrationReviewView: View {
         let isSelected = viewModel.calibrationDecision(for: target) == decision
         return Button {
             Task {
-                let saved = await viewModel.saveCalibrationDecision(
-                    decision,
-                    for: target,
-                    suspectedKind: target.isControl ? selectedControlKind : nil
-                )
+                let saved: Bool
+                if isSelected {
+                    saved = await viewModel.clearCalibrationDecision(for: target)
+                } else {
+                    saved = await viewModel.saveCalibrationDecision(
+                        decision,
+                        for: target,
+                        suspectedKind: target.isControl ? selectedControlKind : nil
+                    )
+                }
                 if saved {
                     Haptics.selection()
-                    selectNextUnreviewed(after: target)
+                    if !isSelected { selectNextUnreviewed(after: target) }
                 } else {
                     Haptics.error()
                 }
@@ -319,6 +429,8 @@ struct RiderCraftCalibrationReviewView: View {
         }
         .buttonStyle(MLPressableButtonStyle())
         .disabled(target.isControl && decision == .mismatch && selectedControlKind == nil)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityHint(isSelected ? "Double tap to clear this answer" : "Double tap to choose this answer")
     }
 
     private var selectedIndex: Int {
@@ -417,6 +529,19 @@ struct RiderCraftCalibrationReviewView: View {
                 activityPayload = ActivityPayload(items: [try await viewModel.exportCalibrationReviews()])
             } catch {
                 Haptics.error()
+            }
+        }
+    }
+
+    private func resetRideCalibration() {
+        Task {
+            if await viewModel.resetCalibrationReviews() {
+                Haptics.success()
+                selectFirstTarget(preferUnreviewed: false)
+                toast = .success("Calibration reset for this ride")
+            } else {
+                Haptics.error()
+                toast = .error("Calibration could not be reset")
             }
         }
     }
