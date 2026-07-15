@@ -104,6 +104,22 @@ struct IndependentRoutePlannerTests {
         }
     }
 
+    @Test func aUsableDistantMatchIsKeptAsACollapsedAlternative() async throws {
+        let planner = IndependentRoutePlanner(
+            roadProvider: FixedDurationRoadProvider(minutes: 75),
+            randomSeed: 7_575
+        )
+        let candidates = try await planner.candidates(for: RoutePlanRequest(
+            mood: .relaxed,
+            time: .fortyFive,
+            start: start
+        ))
+
+        #expect(!candidates.isEmpty)
+        #expect(candidates.allSatisfy { $0.matchTier == .explore })
+        #expect(candidates.allSatisfy { $0.targetDeltaText == "+30 min" })
+    }
+
     @Test func requestedDirectionBiasesFirstLegIntoCompassSector() async throws {
         let planner = IndependentRoutePlanner(roadProvider: StubRoadProvider(), randomSeed: 2_026)
         let candidates = try await planner.candidates(for: RoutePlanRequest(
@@ -154,6 +170,20 @@ struct IndependentRoutePlannerTests {
         #expect(!candidates.isEmpty)
         #expect(snapshot.failures == 3)
         #expect(snapshot.validations > snapshot.failures)
+    }
+
+    @Test func anExhaustedFirstBatchRecoversWithFreshGeometry() async throws {
+        let probe = RouteBatchRetryProbe(failuresBeforeSuccess: 15)
+        let planner = IndependentRoutePlanner(
+            roadProvider: RecoveringRoadProvider(probe: probe),
+            randomSeed: 9_909
+        )
+
+        let candidates = try await planner.candidates(for: request(distanceKm: 80))
+        let attempts = await probe.attemptCount
+
+        #expect(!candidates.isEmpty)
+        #expect(attempts > 15)
     }
 
     private func request(distanceKm: Double) -> RoutePlanRequest {
@@ -218,6 +248,49 @@ private struct RetryingStubRoadProvider: RoadRouteProviding {
 
     func route(through waypoints: [Coordinate]) async throws -> RoadRoute {
         try await routeProvider.route(through: waypoints)
+    }
+}
+
+private struct RecoveringRoadProvider: RoadRouteProviding {
+    let probe: RouteBatchRetryProbe
+    private let routeProvider = StubRoadProvider()
+
+    func route(through waypoints: [Coordinate]) async throws -> RoadRoute {
+        if await probe.shouldFail() {
+            throw IndependentRoutePlanningError.noRoutes
+        }
+        return try await routeProvider.route(through: waypoints)
+    }
+}
+
+private struct FixedDurationRoadProvider: RoadRouteProviding {
+    let minutes: Double
+    private let routeProvider = StubRoadProvider()
+
+    func route(through waypoints: [Coordinate]) async throws -> RoadRoute {
+        let route = try await routeProvider.route(through: waypoints)
+        return RoadRoute(
+            coordinates: route.coordinates,
+            distanceMeters: route.distanceMeters,
+            expectedTravelTime: minutes * 60,
+            context: route.context
+        )
+    }
+}
+
+private actor RouteBatchRetryProbe {
+    private var remainingFailures: Int
+    private(set) var attemptCount = 0
+
+    init(failuresBeforeSuccess: Int) {
+        remainingFailures = failuresBeforeSuccess
+    }
+
+    func shouldFail() -> Bool {
+        attemptCount += 1
+        guard remainingFailures > 0 else { return false }
+        remainingFailures -= 1
+        return true
     }
 }
 

@@ -15,45 +15,15 @@ extension RoadRouteProviding {
 struct MapKitRoadRouteProvider: RoadRouteProviding {
     func validatedAnchor(_ coordinate: Coordinate, from _: Coordinate) async throws -> Coordinate {
         try Task.checkCancellation()
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = "street"
-        request.resultTypes = .address
-        request.region = MKCoordinateRegion(
-            center: coordinate.clCoordinate,
-            latitudinalMeters: 2_000,
-            longitudinalMeters: 2_000
-        )
-
-        let response: MKLocalSearch.Response
-        do {
-            response = try await MKLocalSearch(request: request).start()
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
+        guard CLLocationCoordinate2DIsValid(coordinate.clCoordinate),
+              (-90...90).contains(coordinate.latitude),
+              (-180...180).contains(coordinate.longitude) else {
             throw IndependentRoutePlanningError.noRoutes
         }
-
-        let target = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        guard let nearest = response.mapItems.min(by: { lhs, rhs in
-            let lhsLocation = CLLocation(
-                latitude: lhs.placemark.coordinate.latitude,
-                longitude: lhs.placemark.coordinate.longitude
-            )
-            let rhsLocation = CLLocation(
-                latitude: rhs.placemark.coordinate.latitude,
-                longitude: rhs.placemark.coordinate.longitude
-            )
-            return lhsLocation.distance(from: target) < rhsLocation.distance(from: target)
-        }) else {
-            throw IndependentRoutePlanningError.noRoutes
-        }
-
-        let snapped = nearest.placemark.coordinate
-        let snappedLocation = CLLocation(latitude: snapped.latitude, longitude: snapped.longitude)
-        guard snappedLocation.distance(from: target) <= 2_000 else {
-            throw IndependentRoutePlanningError.noRoutes
-        }
-        return Coordinate(latitude: snapped.latitude, longitude: snapped.longitude)
+        // MKDirections snaps each leg to the road network and is the authoritative
+        // routability check. A preceding text search was both less accurate near
+        // coastlines and multiplied MapKit requests enough to exhaust a whole run.
+        return coordinate
     }
 
     func route(through waypoints: [Coordinate]) async throws -> RoadRoute {
@@ -76,7 +46,7 @@ struct MapKitRoadRouteProvider: RoadRouteProviding {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                throw IndependentRoutePlanningError.noRoutes
+                throw error
             }
             guard let leg = response.routes.first else { throw IndependentRoutePlanningError.noRoutes }
             let legCoordinates = leg.polyline.memoryLanesCoordinates

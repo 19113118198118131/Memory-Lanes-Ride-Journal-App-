@@ -4,11 +4,12 @@ struct IndependentRoutePlanner: Sendable {
     static let diversityOverlapLimit = 0.40
 
     private static let attemptCount = 15
-    private static let concurrentAttemptLimit = 4
+    private static let concurrentAttemptLimit = 2
+    private static let generationRoundLimit = 3
     private static let anchorRetryLimit = 3
     private static let bestMatchTolerance = 0.20
     private static let closeMatchTolerance = 0.35
-    private static let alternativeTolerance = 0.50
+    private static let maximumAlternativeTolerance = 0.80
     private static let maximumCandidateCount = 6
 
     private let roadProvider: any RoadRouteProviding
@@ -31,18 +32,35 @@ struct IndependentRoutePlanner: Sendable {
 
     func candidates(for request: RoutePlanRequest) async throws -> [RouteCandidate] {
         try Task.checkCancellation()
-        let attempts = candidateAttempts(for: request, seed: runSeed())
-        let evaluated = try await evaluate(attempts: attempts, request: request)
-            .sorted { lhs, rhs in
-                if lhs.selectionScore != rhs.selectionScore {
-                    return lhs.selectionScore > rhs.selectionScore
-                }
-                return lhs.attemptIndex < rhs.attemptIndex
+        let baseSeed = runSeed()
+        var evaluated: [EvaluatedCandidate] = []
+
+        for round in 0..<Self.generationRoundLimit {
+            try Task.checkCancellation()
+            let attempts = candidateAttempts(
+                for: request,
+                seed: roundSeed(base: baseSeed, round: round),
+                indexOffset: round * Self.attemptCount
+            )
+            evaluated.append(contentsOf: try await evaluate(attempts: attempts, request: request))
+            if selectCandidates(from: evaluated).count >= 3 { break }
+        }
+
+        let selected = selectCandidates(from: evaluated)
+        guard !selected.isEmpty else { throw IndependentRoutePlanningError.noRoutes }
+        return selected.map(\.candidate)
+    }
+
+    private func selectCandidates(from evaluations: [EvaluatedCandidate]) -> [EvaluatedCandidate] {
+        let evaluated = evaluations.sorted { lhs, rhs in
+            if lhs.selectionScore != rhs.selectionScore {
+                return lhs.selectionScore > rhs.selectionScore
             }
+            return lhs.attemptIndex < rhs.attemptIndex
+        }
 
         var selected: [EvaluatedCandidate] = []
         for evaluation in evaluated {
-            try Task.checkCancellation()
             let isDiverse = selected.allSatisfy {
                 RoutePolylineOverlap.sharedFraction(
                     evaluation.candidate.preview,
@@ -54,9 +72,7 @@ struct IndependentRoutePlanner: Sendable {
             }
             if selected.count == Self.maximumCandidateCount { break }
         }
-
-        guard !selected.isEmpty else { throw IndependentRoutePlanningError.noRoutes }
-        return selected.map(\.candidate)
+        return selected
     }
 
     private func evaluate(
@@ -115,7 +131,7 @@ struct IndependentRoutePlanner: Sendable {
         } else {
             deviation = relativeDifference(roadRoute.expectedTravelTime, request.targetDuration)
         }
-        guard deviation <= Self.alternativeTolerance else { return nil }
+        guard deviation <= Self.maximumAlternativeTolerance else { return nil }
         let matchTier = matchTier(for: deviation)
 
         let preview = roadRoute.coordinates.decimated(maxCount: 1_600)
@@ -144,7 +160,7 @@ struct IndependentRoutePlanner: Sendable {
             targetDeviation: deviation,
             targetDeltaText: targetDeltaText(for: roadRoute, request: request)
         )
-        let intentFit = max(1 - deviation / Self.alternativeTolerance, 0)
+        let intentFit = max(1 - deviation / Self.maximumAlternativeTolerance, 0)
         let blendedCharacterScore = Double(character.score) * 0.75 + Double(secondaryScore ?? character.score) * 0.25
         return EvaluatedCandidate(
             attemptIndex: attempt.index,
@@ -210,7 +226,11 @@ struct IndependentRoutePlanner: Sendable {
         return anchors
     }
 
-    private func candidateAttempts(for request: RoutePlanRequest, seed: UInt64) -> [CandidateAttempt] {
+    private func candidateAttempts(
+        for request: RoutePlanRequest,
+        seed: UInt64,
+        indexOffset: Int
+    ) -> [CandidateAttempt] {
         var generator = SeededRouteRandomNumberGenerator(seed: seed)
         let distanceScales = [0.72, 0.82, 0.92, 1.02, 1.12]
         let suffixes = ["Loop", "Circuit", "Arc", "Roam"]
@@ -226,7 +246,7 @@ struct IndependentRoutePlanner: Sendable {
             }
             let scale = distanceScales[index % distanceScales.count] * generator.double(in: 0.96...1.04)
             return CandidateAttempt(
-                index: index,
+                index: indexOffset + index,
                 anchorCount: generator.integer(in: 3...6),
                 distanceScale: scale,
                 initialBearing: normalizedBearing(initialBearing),
@@ -240,6 +260,10 @@ struct IndependentRoutePlanner: Sendable {
         if let randomSeed { return randomSeed }
         var generator = SystemRandomNumberGenerator()
         return generator.next()
+    }
+
+    private func roundSeed(base: UInt64, round: Int) -> UInt64 {
+        base &+ UInt64(round) &* 0x9E3779B97F4A7C15
     }
 
     private func relativeDifference(_ value: Double, _ target: Double) -> Double {

@@ -23,7 +23,8 @@ testing:
   proprietary route-character scoring, randomized validated candidates,
   searchable and recent start locations, primary/secondary mood blends,
   multi-direction departure bias, geometric diversity, and progressively disclosed
-  best/close/explore matches with visible time or distance trade-offs.
+  best/close/explore matches with visible time or distance trade-offs. Generation
+  retries fresh geometry in bounded rounds when MapKit cannot route the first set.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
   queue, storage controls, accessibility passes and release telemetry.
 

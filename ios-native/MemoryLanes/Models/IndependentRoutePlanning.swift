@@ -331,6 +331,6 @@ enum IndependentRoutePlanningError: LocalizedError {
     case noRoutes
 
     var errorDescription: String? {
-        "No road loop matched this setup closely enough. Try another direction, adjust the distance, or choose a different start."
+        "Apple Maps could not build a usable road loop after several attempts. Check your connection, then regenerate or choose another start."
     }
 }
