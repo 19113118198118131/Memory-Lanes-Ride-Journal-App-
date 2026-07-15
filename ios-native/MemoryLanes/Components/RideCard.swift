@@ -58,7 +58,7 @@ struct RideCard: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
-        .buttonStyle(MLPressableButtonStyle(scale: 0.985))
+        .buttonStyle(MLPressableButtonStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(ride.title), \(ride.distanceFormatted) kilometres, \(ride.durationFormatted), \(cardSubtitle)")
         .accessibilityAddTraits(.isButton)
@@ -101,7 +101,7 @@ struct SourceBadge: View {
         .font(MLFont.monoSmall)
         .foregroundStyle(Color.mlTextPrimary)
         .padding(.horizontal, Spacing.xs)
-        .padding(.vertical, 5)
+        .padding(.vertical, Spacing.xxs)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().stroke(Color.mlHairline, lineWidth: Layout.hairline))
         .accessibilityLabel("Source: \(source.rawValue)")
@@ -122,7 +122,7 @@ struct FlowChip: View {
         .font(MLFont.monoSmall)
         .foregroundStyle(Color.mlOnAccent)
         .padding(.horizontal, Spacing.xs)
-        .padding(.vertical, 5)
+        .padding(.vertical, Spacing.xxs)
         .background(Color.mlAccent, in: Capsule())
         .accessibilityLabel("Flow score \(score)")
     }

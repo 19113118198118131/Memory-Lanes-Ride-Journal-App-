@@ -6,6 +6,8 @@ struct IndependentRoutePlanner: Sendable {
     private static let attemptCount = 15
     private static let concurrentAttemptLimit = 2
     private static let generationRoundLimit = 3
+    static let directionsRequestBudget = MapKitRoadRouteProvider.requestBudget
+    private static let roundRequestBudgets = [24, 12, 8]
     private static let anchorRetryLimit = 3
     private static let bestMatchTolerance = 0.20
     private static let closeMatchTolerance = 0.35
@@ -37,10 +39,14 @@ struct IndependentRoutePlanner: Sendable {
 
         for round in 0..<Self.generationRoundLimit {
             try Task.checkCancellation()
-            let attempts = candidateAttempts(
+            let generatedAttempts = candidateAttempts(
                 for: request,
                 seed: roundSeed(base: baseSeed, round: round),
                 indexOffset: round * Self.attemptCount
+            )
+            let attempts = attempts(
+                from: generatedAttempts,
+                fittingLegBudget: Self.roundRequestBudgets[round]
             )
             evaluated.append(contentsOf: try await evaluate(attempts: attempts, request: request))
             if selectCandidates(from: evaluated).count >= 3 { break }
@@ -120,6 +126,8 @@ struct IndependentRoutePlanner: Sendable {
             roadRoute = try await roadProvider.route(through: anchors)
         } catch is CancellationError {
             throw CancellationError()
+        } catch IndependentRoutePlanningError.requestLimitReached {
+            throw IndependentRoutePlanningError.requestLimitReached
         } catch {
             return nil
         }
@@ -213,6 +221,8 @@ struct IndependentRoutePlanner: Sendable {
                     break
                 } catch is CancellationError {
                     throw CancellationError()
+                } catch IndependentRoutePlanningError.requestLimitReached {
+                    throw IndependentRoutePlanningError.requestLimitReached
                 } catch {
                     continue
                 }
@@ -256,6 +266,21 @@ struct IndependentRoutePlanner: Sendable {
                 titleSuffix: suffixes[index % suffixes.count]
             )
         }
+    }
+
+    private func attempts(
+        from candidates: [CandidateAttempt],
+        fittingLegBudget budget: Int
+    ) -> [CandidateAttempt] {
+        var remaining = budget
+        var selected: [CandidateAttempt] = []
+        for candidate in candidates {
+            let requestCost = candidate.anchorCount + 1
+            guard requestCost <= remaining else { continue }
+            selected.append(candidate)
+            remaining -= requestCost
+        }
+        return selected
     }
 
     private func runSeed() -> UInt64 {

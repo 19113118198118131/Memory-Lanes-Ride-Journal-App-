@@ -18,14 +18,24 @@ final class RoutesViewModel {
         case failed(String)
     }
 
+    enum CandidateLoadState {
+        case idle
+        case loading
+        case loaded([RouteCandidate])
+        case failed(String)
+    }
+
     private(set) var state: LoadState = .loading
     private(set) var groupState: GroupLoadState = .loading
+    private(set) var candidateState: CandidateLoadState = .idle
     private(set) var isSavingRoute = false
     private let routeService: RouteServing
     private let rideService: RideServing
     private let groupRideService: GroupRideServing?
     private let planner: IndependentRoutePlanner
     private var recommender = RideRecommendationEngine(ratedRides: [])
+    private var candidateTask: Task<[RouteCandidate], Error>?
+    private var candidateGeneration = 0
 
     init(
         routeService: RouteServing,
@@ -66,9 +76,25 @@ final class RoutesViewModel {
         recommender.score(vector)
     }
 
-    func generateCandidates(for request: RoutePlanRequest) async throws -> [RouteCandidate] {
-        try await planner.candidates(for: request)
-            .map { candidate in
+    var isGeneratingCandidates: Bool {
+        if case .loading = candidateState { return true }
+        return false
+    }
+
+    func generateCandidates(for request: RoutePlanRequest) async {
+        candidateTask?.cancel()
+        candidateGeneration += 1
+        let generation = candidateGeneration
+        candidateState = .loading
+
+        let planner = planner
+        let task = Task { try await planner.candidates(for: request) }
+        candidateTask = task
+
+        do {
+            let generated = try await task.value
+            guard generation == candidateGeneration else { return }
+            let ranked = generated.map { candidate in
                 var ranked = candidate
                 ranked.recommendation = recommendation(for: candidate.matchVector)
                 return ranked
@@ -77,6 +103,32 @@ final class RoutesViewModel {
                 if lhs.matchTier != rhs.matchTier { return lhs.matchTier < rhs.matchTier }
                 return lhs.rankingScore > rhs.rankingScore
             }
+            candidateState = ranked.isEmpty
+                ? .failed(IndependentRoutePlanningError.noRoutes.localizedDescription)
+                : .loaded(ranked)
+        } catch is CancellationError {
+            guard generation == candidateGeneration else { return }
+            candidateState = .idle
+        } catch {
+            guard generation == candidateGeneration else { return }
+            candidateState = .failed(error.localizedDescription)
+        }
+
+        if generation == candidateGeneration {
+            candidateTask = nil
+        }
+    }
+
+    func clearCandidateSession() {
+        candidateGeneration += 1
+        candidateTask?.cancel()
+        candidateTask = nil
+        candidateState = .idle
+    }
+
+    func cancelCandidateGeneration() {
+        guard isGeneratingCandidates else { return }
+        clearCandidateSession()
     }
 
     private func refreshRecommendations() async {

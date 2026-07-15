@@ -97,6 +97,7 @@ struct SegmentedMetric: View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
             Text(item.value)
                 .font(MLFont.displaySmall)
+                .monospacedDigit()
                 .foregroundStyle(Color.mlTextPrimary)
                 .minimumScaleFactor(0.75)
             Text(item.unit)

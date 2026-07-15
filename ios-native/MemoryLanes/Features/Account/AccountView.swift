@@ -3,6 +3,7 @@ import SwiftUI
 struct AccountView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let email: String?
     let userID: UUID
     let accessToken: @Sendable () async -> String?
@@ -329,7 +330,7 @@ struct AccountView: View {
     @MainActor
     private func loadLocalLibrary() async {
         let rides = await RideLocalStore.shared.rides(for: userID)
-        withAnimation(Motion.springGentle) {
+        withAnimation(reduceMotion ? nil : Motion.springGentle) {
             library = AccountLibrarySummary(rides: rides)
         }
     }

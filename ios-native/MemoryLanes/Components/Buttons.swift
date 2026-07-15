@@ -3,11 +3,11 @@ import SwiftUI
 // MARK: - PrimaryButton
 //
 // Full-width accent fill, pill shape, haptic on tap, built-in loading state.
-// While loading it disables itself and swaps the label for a progress view so a
-// screen never has to manage a separate spinner.
+// While loading it disables itself and adds progress beside the stable label.
 
 struct PrimaryButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
     let title: String
     var systemImage: String? = nil
     var isLoading: Bool = false
@@ -22,12 +22,10 @@ struct PrimaryButton: View {
                 if isLoading {
                     ProgressView()
                         .tint(.mlOnAccent)
-                } else {
-                    if let systemImage {
-                        Image(systemName: systemImage)
-                    }
-                    Text(title)
+                } else if let systemImage {
+                    Image(systemName: systemImage)
                 }
+                Text(title)
             }
             .font(MLFont.headline)
             .foregroundStyle(Color.mlOnAccent)
@@ -35,7 +33,7 @@ struct PrimaryButton: View {
             .padding(.vertical, Spacing.sm)
             .frame(minHeight: 52)
             .background(Color.mlAccent, in: Capsule())
-            .opacity(isLoading ? 0.85 : 1)
+            .opacity(isEnabled ? (isLoading ? 0.85 : 1) : 0.45)
         }
         .buttonStyle(MLPressableButtonStyle())
         .disabled(isLoading)
@@ -50,6 +48,7 @@ struct PrimaryButton: View {
 // Bordered, no fill. Same footprint as the primary so they line up in a stack.
 
 struct SecondaryButton: View {
+    @Environment(\.isEnabled) private var isEnabled
     let title: String
     var systemImage: String? = nil
     let action: () -> Void
@@ -71,6 +70,7 @@ struct SecondaryButton: View {
             .background(
                 Capsule().stroke(Color.mlHairline, lineWidth: Layout.hairline)
             )
+            .opacity(isEnabled ? 1 : 0.45)
         }
         .buttonStyle(MLPressableButtonStyle())
         .accessibilityLabel(title)

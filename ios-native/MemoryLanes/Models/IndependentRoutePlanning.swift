@@ -201,6 +201,38 @@ enum RoutePlanningLimits {
     static let distanceStep: Double = 5
 }
 
+struct RoutePlanOptions: Equatable, Sendable {
+    var primaryMood: RouteMood = .flowing
+    var secondaryMood: RouteMood?
+    var time: RouteTime = .ninety
+    var targetDistanceKm: Double?
+    var directions: Set<CompassDirection> = []
+
+    var isDefault: Bool { self == Self() }
+
+    var suggestedDistanceKm: Double {
+        let averageSpeed = secondaryMood.map {
+            primaryMood.averageSpeedKmH * 0.7 + $0.averageSpeedKmH * 0.3
+        } ?? primaryMood.averageSpeedKmH
+        return averageSpeed * time.hours
+    }
+
+    mutating func reset() {
+        self = Self()
+    }
+
+    func request(start: Coordinate) -> RoutePlanRequest {
+        RoutePlanRequest(
+            primaryMood: primaryMood,
+            secondaryMood: secondaryMood,
+            time: time,
+            start: start,
+            targetDistanceKm: targetDistanceKm,
+            directions: directions
+        )
+    }
+}
+
 struct RouteRoadContext: Equatable, Sendable {
     var scenicLandRatio: Double?
     var urbanRatio: Double?
@@ -329,8 +361,14 @@ struct RouteCandidate: Identifiable, Sendable {
 
 enum IndependentRoutePlanningError: LocalizedError {
     case noRoutes
+    case requestLimitReached
 
     var errorDescription: String? {
-        "Apple Maps could not build a usable road loop after several attempts. Check your connection, then regenerate or choose another start."
+        switch self {
+        case .noRoutes:
+            "Apple Maps could not build a usable road loop after several attempts. Check your connection, then regenerate or choose another start."
+        case .requestLimitReached:
+            "Apple Maps needs a brief pause before planning again. Wait about a minute, then try once more."
+        }
     }
 }

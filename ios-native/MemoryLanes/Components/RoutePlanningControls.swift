@@ -22,19 +22,28 @@ struct RouteStartSearchControl: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(Color.mlTextTertiary)
+                            .mlHitTarget()
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(MLPressableButtonStyle())
                     .accessibilityLabel("Clear start search")
                 }
                 Button {
                     provider.useCurrentLocation()
                 } label: {
-                    Image(systemName: "location.fill")
-                        .foregroundStyle(Color.mlAccent)
-                        .mlHitTarget()
+                    Group {
+                        if provider.isLocating {
+                            ProgressView()
+                                .tint(.mlAccent)
+                        } else {
+                            Image(systemName: "location.fill")
+                                .foregroundStyle(Color.mlAccent)
+                        }
+                    }
+                    .mlHitTarget()
                 }
                 .buttonStyle(MLPressableButtonStyle())
-                .accessibilityLabel("Use current location")
+                .disabled(provider.isLocating)
+                .accessibilityLabel(provider.isLocating ? "Finding current location" : "Use current location")
             }
             .padding(.leading, Spacing.md)
             .padding(.trailing, Spacing.xs)
@@ -72,7 +81,7 @@ struct RouteStartSearchControl: View {
                             .padding(Spacing.sm)
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(MLPressableButtonStyle())
 
                         if suggestion.id != provider.suggestions.last?.id {
                             Divider().overlay(Color.mlHairline)
@@ -115,6 +124,137 @@ struct RouteStartSearchControl: View {
     }
 }
 
+struct RoutePlanningProgressView: View {
+    var body: some View {
+        HStack(spacing: Spacing.md) {
+            Image(systemName: "map.fill")
+                .font(MLFont.title2)
+                .foregroundStyle(Color.mlAccent)
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text("Exploring nearby roads")
+                    .font(MLFont.headline)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text("Checking road-only loops, travel time and route character.")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Planning route. Exploring nearby roads.")
+    }
+}
+
+struct RoutePlanningFailureView: View {
+    let title: String
+    let message: String
+    let retryTitle: String
+    var retrySystemImage = "arrow.clockwise"
+    let onRetry: () -> Void
+    let onReset: (() -> Void)?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(alignment: .top, spacing: Spacing.sm) {
+                Image(systemName: "map.fill")
+                    .font(MLFont.title2)
+                    .foregroundStyle(Color.mlWarning)
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(title)
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                    Text(message)
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            PrimaryButton(title: retryTitle, systemImage: retrySystemImage, action: onRetry)
+
+            if let onReset {
+                Button {
+                    onReset()
+                } label: {
+                    Label("Reset options", systemImage: "arrow.counterclockwise")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .frame(maxWidth: .infinity)
+                        .mlHitTarget()
+                }
+                .buttonStyle(MLPressableButtonStyle())
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.mlWarning.opacity(0.35), lineWidth: Layout.hairline)
+        )
+    }
+}
+
+struct RouteCandidateInsightDisclosure: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isExpanded = false
+    let route: RouteCandidate
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                ForEach(route.character.reasons, id: \.self) { reason in
+                    Label(reason, systemImage: "road.lanes.curved.right")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
+
+                Text(route.character.confidence.title)
+                    .mlKicker()
+
+                if let recommendation = route.recommendation {
+                    Divider().overlay(Color.mlHairline)
+                    ForEach(recommendation.reasons, id: \.self) { reason in
+                        Label(reason, systemImage: "checkmark.circle")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Text("\(recommendation.confidence.rawValue.capitalized) confidence · based only on your rated rides")
+                        .mlKicker()
+                }
+            }
+            .padding(.top, Spacing.sm)
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("Why this route").mlKicker()
+                    Text(route.character.label)
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                }
+                Spacer(minLength: Spacing.sm)
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
+                    Text("\(route.character.score)")
+                        .font(MLFont.mono)
+                        .foregroundStyle(Color.mlAccent)
+                    Text("/100")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                }
+            }
+            .frame(minHeight: Layout.minTouchTarget)
+            .contentShape(Rectangle())
+        }
+        .tint(.mlAccent)
+        .padding(.vertical, Spacing.xxs)
+        .animation(reduceMotion ? nil : Motion.springGentle, value: isExpanded)
+    }
+}
+
 struct RouteDistanceControl: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var targetDistanceKm: Double?
@@ -142,6 +282,7 @@ struct RouteDistanceControl: View {
                     HStack(alignment: .firstTextBaseline) {
                         Text("\(Int(distanceBinding.wrappedValue.rounded()))")
                             .font(MLFont.displaySmall)
+                            .monospacedDigit()
                             .foregroundStyle(Color.mlTextPrimary)
                         Text("km")
                             .font(MLFont.callout)
@@ -188,6 +329,7 @@ struct RouteDistanceControl: View {
 }
 
 struct CompassDirectionPicker: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: Set<CompassDirection>
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: Spacing.xs), count: 3)
@@ -226,7 +368,7 @@ struct CompassDirectionPicker: View {
         let isSelected = slot.direction.map(selection.contains) ?? selection.isEmpty
         return Button {
             Haptics.selection()
-            withAnimation(Motion.springSnappy) {
+            withAnimation(reduceMotion ? nil : Motion.springSnappy) {
                 if let direction = slot.direction {
                     if selection.contains(direction) {
                         selection.remove(direction)
@@ -331,4 +473,20 @@ private enum CompassSlot: Hashable, Identifiable {
         }
     }
     return PreviewContent().preferredColorScheme(.dark)
+}
+
+#Preview("Route planner recovery") {
+    VStack(spacing: Spacing.lg) {
+        RoutePlanningProgressView()
+        RoutePlanningFailureView(
+            title: "No road-only loop yet",
+            message: "Apple Maps could not build a usable loop from this setup.",
+            retryTitle: "Try Again",
+            onRetry: {},
+            onReset: {}
+        )
+    }
+    .padding(Spacing.md)
+    .background(Color.mlBackground)
+    .preferredColorScheme(.dark)
 }

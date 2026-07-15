@@ -167,7 +167,7 @@ struct RiderCraftRideView: View {
                     .stroke(Color.mlHairline, lineWidth: Layout.hairline)
             )
         }
-        .buttonStyle(MLPressableButtonStyle(scale: 0.98))
+        .buttonStyle(MLPressableButtonStyle())
     }
 
     private func symbol(_ kind: RiderCraftEvent.Kind) -> String {
@@ -423,7 +423,7 @@ struct RiderCraftProgressView: View {
                 }
                 .frame(minHeight: Layout.minTouchTarget)
             }
-            .buttonStyle(MLPressableButtonStyle(scale: 0.98))
+            .buttonStyle(MLPressableButtonStyle())
 
             if showBadges {
                 ForEach(Array(progress.badges.enumerated()), id: \.element.id) { index, badge in

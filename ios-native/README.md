@@ -20,16 +20,19 @@ testing:
 - ✅ **Routes and groups** — saved routes, editing, GPX export, route following,
   planned-vs-actual matching, group-ride lobbies and invitations.
 - ✅ **Independent routing Phase 1.5** — MapKit fallback behind a provider seam,
-  proprietary route-character scoring, randomized validated candidates,
+  proprietary route-character scoring, randomized road-validated candidates,
   searchable and recent start locations, primary/secondary mood blends,
   multi-direction departure bias, geometric diversity, and progressively disclosed
   best/close/explore matches with visible time or distance trade-offs. Generation
-  retries fresh geometry in bounded rounds when MapKit cannot route the first set.
+  retries failed coastal anchors and fresh geometry in bounded rounds, reuses
+  validated road legs, stays below Apple Maps request throttling, and offers
+  cancellable loading plus nearby retry/reset recovery when no loop is found.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
   queue, storage controls, accessibility passes and release telemetry.
 
 Phase 2 OSM graph packs, on-device offline pathfinding and turn-by-turn navigation
 remain intentionally out of scope. See `../docs/independent-routing-architecture.md`.
+The latest static product-quality review is in `../docs/native-ui-ux-audit.md`.
 
 ## Requirements
 

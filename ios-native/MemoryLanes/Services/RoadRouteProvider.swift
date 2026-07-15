@@ -13,16 +13,30 @@ extension RoadRouteProviding {
 }
 
 struct MapKitRoadRouteProvider: RoadRouteProviding {
-    func validatedAnchor(_ coordinate: Coordinate, from _: Coordinate) async throws -> Coordinate {
+    static let requestBudget = 44
+
+    private let cache: MapKitRoadLegCache
+    private let requestGate: MapKitDirectionsRequestGate
+
+    init(
+        cache: MapKitRoadLegCache = MapKitRoadLegCache(),
+        requestGate: MapKitDirectionsRequestGate = MapKitDirectionsRequestGate()
+    ) {
+        self.cache = cache
+        self.requestGate = requestGate
+    }
+
+    func validatedAnchor(_ coordinate: Coordinate, from origin: Coordinate) async throws -> Coordinate {
         try Task.checkCancellation()
         guard CLLocationCoordinate2DIsValid(coordinate.clCoordinate),
               (-90...90).contains(coordinate.latitude),
               (-180...180).contains(coordinate.longitude) else {
             throw IndependentRoutePlanningError.noRoutes
         }
-        // MKDirections snaps each leg to the road network and is the authoritative
-        // routability check. A preceding text search was both less accurate near
-        // coastlines and multiplied MapKit requests enough to exhaust a whole run.
+
+        // Route the proposed leg now so water and other unroutable anchors can be
+        // jittered by the planner. The result is cached and reused during assembly.
+        _ = try await leg(from: origin, to: coordinate)
         return coordinate
     }
 
@@ -34,37 +48,15 @@ struct MapKitRoadRouteProvider: RoadRouteProviding {
 
         for index in waypoints.indices.dropLast() {
             try Task.checkCancellation()
-            let request = MKDirections.Request()
-            request.source = mapItem(for: waypoints[index])
-            request.destination = mapItem(for: waypoints[index + 1])
-            request.transportType = .automobile
-            request.requestsAlternateRoutes = true
-
-            let response: MKDirections.Response
-            do {
-                response = try await MKDirections(request: request).calculate()
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch {
-                throw error
-            }
-            guard let leg = response.routes.first(where: { route in
-                !Self.containsFerry(route) && RoadRouteGeometryValidator.isPlausibleLeg(
-                    route.polyline.memoryLanesCoordinates,
-                    source: waypoints[index],
-                    destination: waypoints[index + 1]
-                )
-            }) else {
-                throw IndependentRoutePlanningError.noRoutes
-            }
-            let legCoordinates = leg.polyline.memoryLanesCoordinates
+            let leg = try await leg(from: waypoints[index], to: waypoints[index + 1])
+            let legCoordinates = leg.coordinates
             if let previousEnd = coordinates.last,
                let nextStart = legCoordinates.first,
                !RoadRouteGeometryValidator.canJoin(previousEnd, nextStart) {
                 throw IndependentRoutePlanningError.noRoutes
             }
             coordinates.append(contentsOf: coordinates.isEmpty ? legCoordinates : Array(legCoordinates.dropFirst()))
-            distanceMeters += leg.distance
+            distanceMeters += leg.distanceMeters
             expectedTravelTime += leg.expectedTravelTime
         }
 
@@ -75,6 +67,45 @@ struct MapKitRoadRouteProvider: RoadRouteProviding {
             expectedTravelTime: expectedTravelTime,
             context: .geometryOnly
         )
+    }
+
+    private func leg(from source: Coordinate, to destination: Coordinate) async throws -> RoadRoute {
+        let key = MapKitRoadLegKey(source: source, destination: destination)
+        if let cached = await cache.value(for: key) { return cached }
+
+        try await requestGate.beginRequest()
+        let request = MKDirections.Request()
+        request.source = mapItem(for: source)
+        request.destination = mapItem(for: destination)
+        request.transportType = .automobile
+        request.requestsAlternateRoutes = true
+
+        let response: MKDirections.Response
+        do {
+            response = try await MKDirections(request: request).calculate()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw error
+        }
+        guard let route = response.routes.first(where: { route in
+            !Self.containsFerry(route) && RoadRouteGeometryValidator.isPlausibleLeg(
+                route.polyline.memoryLanesCoordinates,
+                source: source,
+                destination: destination
+            )
+        }) else {
+            throw IndependentRoutePlanningError.noRoutes
+        }
+
+        let value = RoadRoute(
+            coordinates: route.polyline.memoryLanesCoordinates,
+            distanceMeters: route.distance,
+            expectedTravelTime: route.expectedTravelTime,
+            context: .geometryOnly
+        )
+        await cache.store(value, for: key)
+        return value
     }
 
     private func mapItem(for coordinate: Coordinate) -> MKMapItem {
@@ -92,9 +123,47 @@ struct MapKitRoadRouteProvider: RoadRouteProviding {
     }
 }
 
+struct MapKitRoadLegKey: Hashable, Sendable {
+    let source: Coordinate
+    let destination: Coordinate
+}
+
+actor MapKitRoadLegCache {
+    private static let capacity = 96
+    private var values: [MapKitRoadLegKey: RoadRoute] = [:]
+    private var insertionOrder: [MapKitRoadLegKey] = []
+
+    func value(for key: MapKitRoadLegKey) -> RoadRoute? {
+        values[key]
+    }
+
+    func store(_ value: RoadRoute, for key: MapKitRoadLegKey) {
+        if values[key] == nil { insertionOrder.append(key) }
+        values[key] = value
+
+        while insertionOrder.count > Self.capacity {
+            let expired = insertionOrder.removeFirst()
+            values.removeValue(forKey: expired)
+        }
+    }
+}
+
+actor MapKitDirectionsRequestGate {
+    private static let window: TimeInterval = 60
+    private var requestDates: [Date] = []
+
+    func beginRequest(now: Date = Date()) throws {
+        requestDates.removeAll { now.timeIntervalSince($0) >= Self.window }
+        guard requestDates.count < MapKitRoadRouteProvider.requestBudget else {
+            throw IndependentRoutePlanningError.requestLimitReached
+        }
+        requestDates.append(now)
+    }
+}
+
 struct RoadRouteGeometryValidator {
     private static let maximumAnchorSnapMeters = 5_000.0
-    private static let maximumJoinGapMeters = 750.0
+    private static let maximumJoinGapMeters = 250.0
     private static let maximumPolylineGapMeters = 5_000.0
 
     static func isPlausibleLeg(

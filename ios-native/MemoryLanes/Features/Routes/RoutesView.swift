@@ -10,16 +10,10 @@ struct RoutesView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel: RoutesViewModel
     @StateObject private var startLocation = RouteStartLocationProvider()
-    @State private var selectedMood = RouteMood.flowing
-    @State private var secondaryMood: RouteMood?
-    @State private var selectedTime = RouteTime.ninety
-    @State private var targetDistanceKm: Double?
-    @State private var selectedDirections: Set<CompassDirection> = []
+    @State private var planOptions = RoutePlanOptions()
     @State private var expandedCandidateTiers: Set<RouteMatchTier> = [.best, .close]
-    @State private var showCandidates = false
-    @State private var routeCandidates: [RouteCandidate] = []
-    @State private var routeSaveError: String?
-    @State private var isGeneratingCandidates = false
+    @State private var inputError: String?
+    @State private var toast: Toast?
     let refreshTrigger: UUID
     let onSelectRoute: (PlannedRoute) -> Void
     let onSelectGroupRide: (GroupRideSummary) -> Void
@@ -42,22 +36,13 @@ struct RoutesView: View {
                 header
                 setupCard
                 actionRow
-
-                if showCandidates {
-                    candidates
-                }
+                plannerStatus
 
                 groupRidesSection
 
-                if let routeSaveError {
-                    Text(routeSaveError)
-                        .font(MLFont.callout)
-                        .foregroundStyle(Color.mlDanger)
-                        .padding(Spacing.md)
-                        .background(Color.mlDanger.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                SectionHeader(title: "Saved Routes", actionTitle: "Refresh") {
+                    Task { await viewModel.refresh() }
                 }
-
-                SectionHeader(title: "Saved Routes")
                 savedRoutesContent
             }
             .padding(.vertical, Spacing.md)
@@ -68,12 +53,11 @@ struct RoutesView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await viewModel.refreshAll() }
         .task(id: refreshTrigger) { await viewModel.load() }
-        .onChange(of: selectedMood) { _, _ in clearGeneratedCandidates() }
-        .onChange(of: secondaryMood) { _, _ in clearGeneratedCandidates() }
-        .onChange(of: selectedTime) { _, _ in clearGeneratedCandidates() }
-        .onChange(of: targetDistanceKm) { _, _ in clearGeneratedCandidates() }
-        .onChange(of: selectedDirections) { _, _ in clearGeneratedCandidates() }
+        .onChange(of: planOptions) { _, _ in clearGeneratedCandidates() }
         .onChange(of: startLocation.coordinate) { _, _ in clearGeneratedCandidates() }
+        .onDisappear { viewModel.cancelCandidateGeneration() }
+        .animation(reduceMotion ? nil : Motion.springGentle, value: viewModel.isGeneratingCandidates)
+        .mlToast($toast)
     }
 
     private var header: some View {
@@ -90,20 +74,14 @@ struct RoutesView: View {
     }
 
     private var actionRow: some View {
-        HStack(spacing: Spacing.md) {
-            PrimaryButton(
-                title: "Plan Route",
-                systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill",
-                isLoading: isGeneratingCandidates
-            ) {
-                Haptics.impact(.medium)
-                Task { await generateCandidates() }
-            }
-            .disabled(isGeneratingCandidates)
-            SecondaryButton(title: "Refresh", systemImage: "arrow.clockwise") {
-                Task { await viewModel.refresh() }
-            }
+        PrimaryButton(
+            title: viewModel.isGeneratingCandidates ? "Planning Route" : "Plan Route",
+            systemImage: "point.topleft.down.to.point.bottomright.curvepath.fill",
+            isLoading: viewModel.isGeneratingCandidates
+        ) {
+            Task { await generateCandidates() }
         }
+        .disabled(viewModel.isGeneratingCandidates)
     }
 
     private var groupRidesSection: some View {
@@ -204,7 +182,7 @@ struct RoutesView: View {
 
     private var setupCard: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            SectionHeader(title: "Route setup")
+            setupHeader
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text("Start").mlKicker()
@@ -227,10 +205,10 @@ struct RoutesView: View {
                 }
                 FlowLayout(spacing: Spacing.xs) {
                     ForEach(RouteMood.allCases) { mood in
-                        ChoiceChip(title: mood.title, systemImage: mood.symbol, isSelected: selectedMood == mood) {
+                        ChoiceChip(title: mood.title, systemImage: mood.symbol, isSelected: planOptions.primaryMood == mood) {
                             withAnimation(reduceMotion ? nil : Motion.springSnappy) {
-                                selectedMood = mood
-                                if secondaryMood == mood { secondaryMood = nil }
+                                planOptions.primaryMood = mood
+                                if planOptions.secondaryMood == mood { planOptions.secondaryMood = nil }
                             }
                         }
                     }
@@ -238,14 +216,14 @@ struct RoutesView: View {
 
                 DisclosureGroup {
                     FlowLayout(spacing: Spacing.xs) {
-                        ForEach(RouteMood.allCases.filter { $0 != selectedMood }) { mood in
+                        ForEach(RouteMood.allCases.filter { $0 != planOptions.primaryMood }) { mood in
                             ChoiceChip(
                                 title: mood.title,
                                 systemImage: mood.symbol,
-                                isSelected: secondaryMood == mood
+                                isSelected: planOptions.secondaryMood == mood
                             ) {
                                 withAnimation(reduceMotion ? nil : Motion.springSnappy) {
-                                    secondaryMood = secondaryMood == mood ? nil : mood
+                                    planOptions.secondaryMood = planOptions.secondaryMood == mood ? nil : mood
                                 }
                             }
                         }
@@ -257,7 +235,7 @@ struct RoutesView: View {
                             .font(MLFont.callout)
                             .foregroundStyle(Color.mlTextSecondary)
                         Spacer()
-                        if let secondaryMood {
+                        if let secondaryMood = planOptions.secondaryMood {
                             Text(secondaryMood.title)
                                 .font(MLFont.caption)
                                 .foregroundStyle(Color.mlAccent)
@@ -271,8 +249,8 @@ struct RoutesView: View {
                 Text("Time").mlKicker()
                 FlowLayout(spacing: Spacing.xs) {
                     ForEach(RouteTime.allCases) { time in
-                        ChoiceChip(title: time.title, systemImage: "clock", isSelected: selectedTime == time) {
-                            withAnimation(reduceMotion ? nil : Motion.springSnappy) { selectedTime = time }
+                        ChoiceChip(title: time.title, systemImage: "clock", isSelected: planOptions.time == time) {
+                            withAnimation(reduceMotion ? nil : Motion.springSnappy) { planOptions.time = time }
                         }
                     }
                 }
@@ -281,24 +259,79 @@ struct RoutesView: View {
             Divider().overlay(Color.mlHairline)
 
             RouteDistanceControl(
-                targetDistanceKm: $targetDistanceKm,
-                suggestedDistanceKm: selectedMood.averageSpeedKmH * selectedTime.hours
+                targetDistanceKm: $planOptions.targetDistanceKm,
+                suggestedDistanceKm: planOptions.suggestedDistanceKm
             )
 
             Divider().overlay(Color.mlHairline)
 
-            CompassDirectionPicker(selection: $selectedDirections)
+            CompassDirectionPicker(selection: $planOptions.directions)
         }
         .padding(Spacing.md)
-        .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .fill(Color.mlSurface)
+        }
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(Color.mlHairline, lineWidth: Layout.hairline)
         )
-        .disabled(isGeneratingCandidates)
+        .disabled(viewModel.isGeneratingCandidates)
     }
 
-    private var candidates: some View {
+    @ViewBuilder
+    private var setupHeader: some View {
+        if planOptions.isDefault {
+            SectionHeader(title: "Route setup")
+        } else {
+            SectionHeader(title: "Route setup", actionTitle: "Reset options") {
+                resetPlanningOptions()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var plannerStatus: some View {
+        if let inputError {
+            RoutePlanningFailureView(
+                title: "Choose a start",
+                message: inputError,
+                retryTitle: "Use Current Location",
+                retrySystemImage: "location.fill",
+                onRetry: useCurrentLocationForPlanning,
+                onReset: nil
+            )
+        } else {
+            switch viewModel.candidateState {
+            case .idle:
+                EmptyView()
+            case .loading:
+                RoutePlanningProgressView()
+            case .loaded(let routeCandidates):
+                candidates(routeCandidates)
+            case .failed(let message):
+                if planOptions.isDefault {
+                    RoutePlanningFailureView(
+                        title: "No road-only loop yet",
+                        message: message,
+                        retryTitle: "Try Again",
+                        onRetry: { Task { await generateCandidates() } },
+                        onReset: nil
+                    )
+                } else {
+                    RoutePlanningFailureView(
+                        title: "No road-only loop yet",
+                        message: message,
+                        retryTitle: "Try Again",
+                        onRetry: { Task { await generateCandidates() } },
+                        onReset: resetPlanningOptions
+                    )
+                }
+            }
+        }
+    }
+
+    private func candidates(_ routeCandidates: [RouteCandidate]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             SectionHeader(title: "Route Candidates", actionTitle: "Regenerate") {
                 Haptics.selection()
@@ -348,8 +381,9 @@ struct RoutesView: View {
                         .foregroundStyle(Color.mlTextSecondary)
                 }
                 .contentShape(Rectangle())
+                .frame(minHeight: Layout.minTouchTarget)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(MLPressableButtonStyle())
 
             if expandedCandidateTiers.contains(tier) {
                 ForEach(Array(candidates.enumerated()), id: \.element.id) { index, route in
@@ -478,46 +512,7 @@ struct RoutesView: View {
                 .init(value: route.elevation, unit: "m", label: "Ascent")
             ])
 
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Text("Memory Lanes road model").mlKicker()
-                        Text(route.character.label)
-                            .font(MLFont.headline)
-                            .foregroundStyle(Color.mlTextPrimary)
-                    }
-                    Spacer()
-                    Text("\(route.character.score)")
-                        .font(MLFont.mono)
-                        .foregroundStyle(Color.mlAccent)
-                    Text("/100")
-                        .font(MLFont.caption)
-                        .foregroundStyle(Color.mlTextTertiary)
-                }
-
-                ForEach(route.character.reasons, id: \.self) { reason in
-                    Label(reason, systemImage: "road.lanes.curved.right")
-                        .font(MLFont.caption)
-                        .foregroundStyle(Color.mlTextSecondary)
-                }
-
-                Text(route.character.confidence.title)
-                    .mlKicker()
-            }
-            .padding(Spacing.sm)
-            .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
-
-            if let recommendation = route.recommendation {
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    ForEach(recommendation.reasons, id: \.self) { reason in
-                        Label(reason, systemImage: "checkmark.circle")
-                            .font(MLFont.caption)
-                            .foregroundStyle(Color.mlTextSecondary)
-                    }
-                    Text("\(recommendation.confidence.rawValue.capitalized) confidence · based only on your rated rides")
-                        .mlKicker()
-                }
-            }
+            RouteCandidateInsightDisclosure(route: route)
 
             SecondaryButton(title: "Use This Route", systemImage: "checkmark.circle.fill") {
                 Task { await saveCandidate(route) }
@@ -546,64 +541,63 @@ struct RoutesView: View {
             }
         }
         .frame(height: 150)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        )
     }
 
     private func saveCandidate(_ candidate: RouteCandidate) async {
         guard !viewModel.isSavingRoute else { return }
-        routeSaveError = nil
         do {
             let route = try await viewModel.createRoute(candidate.draft)
             Haptics.success()
-            withAnimation(reduceMotion ? nil : Motion.spring) {
-                showCandidates = false
-            }
+            viewModel.clearCandidateSession()
             onSelectRoute(route)
         } catch {
             Haptics.error()
-            routeSaveError = error.localizedDescription
+            toast = .error(error.localizedDescription)
         }
     }
 
     private func generateCandidates() async {
-        guard !isGeneratingCandidates else { return }
+        guard !viewModel.isGeneratingCandidates else { return }
         guard let start = startLocation.coordinate else {
             Haptics.warning()
-            routeSaveError = "Use your current location before planning a road route."
+            inputError = "Search for a place or use your current location before planning."
             return
         }
-        isGeneratingCandidates = true
-        routeSaveError = nil
-        defer { isGeneratingCandidates = false }
-        do {
-            let generated = try await viewModel.generateCandidates(for: RoutePlanRequest(
-                primaryMood: selectedMood,
-                secondaryMood: secondaryMood,
-                time: selectedTime,
-                start: start,
-                targetDistanceKm: targetDistanceKm,
-                directions: selectedDirections
-            ))
-            routeCandidates = generated
+        inputError = nil
+        await viewModel.generateCandidates(for: planOptions.request(start: start))
+        switch viewModel.candidateState {
+        case .loaded:
             expandedCandidateTiers = [.best, .close]
             Haptics.success()
-            withAnimation(reduceMotion ? nil : Motion.spring) {
-                showCandidates = true
-            }
-        } catch {
+        case .failed:
             Haptics.error()
-            routeCandidates = []
-            showCandidates = false
-            routeSaveError = error.localizedDescription
+        default:
+            break
         }
     }
 
     private func clearGeneratedCandidates() {
-        guard showCandidates || !routeCandidates.isEmpty else { return }
+        inputError = nil
+        viewModel.clearCandidateSession()
+    }
+
+    private func resetPlanningOptions() {
+        Haptics.selection()
         withAnimation(reduceMotion ? nil : Motion.springSnappy) {
-            showCandidates = false
-            routeCandidates = []
+            planOptions.reset()
         }
+        inputError = nil
+        viewModel.clearCandidateSession()
+    }
+
+    private func useCurrentLocationForPlanning() {
+        inputError = nil
+        startLocation.useCurrentLocation()
     }
 
 }
@@ -1209,7 +1203,7 @@ private struct ChoiceChip: View {
                 .background(isSelected ? Color.mlAccent : Color.mlSurfaceElevated, in: Capsule())
                 .overlay(Capsule().stroke(Color.mlHairline, lineWidth: Layout.hairline))
         }
-        .buttonStyle(MLPressableButtonStyle(scale: 0.98))
+        .buttonStyle(MLPressableButtonStyle())
     }
 }
 

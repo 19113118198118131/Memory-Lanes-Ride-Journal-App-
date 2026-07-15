@@ -56,8 +56,13 @@ final class RouteStartLocationProvider: NSObject, ObservableObject {
     }
 
     func useCurrentLocation() {
+        searchTask?.cancel()
+        searchTask = nil
         errorMessage = nil
+        isSearching = false
         isLocating = true
+        suggestions = []
+        completions = [:]
 
         switch manager.authorizationStatus {
         case .notDetermined:
@@ -75,7 +80,10 @@ final class RouteStartLocationProvider: NSObject, ObservableObject {
     }
 
     func selectSuggestion(_ suggestion: RouteStartSuggestion) {
-        guard let completion = completions[suggestion.id] else { return }
+        guard let completion = completions[suggestion.id] else {
+            errorMessage = "That search result expired. Type the place again and retry."
+            return
+        }
         searchTask?.cancel()
         isSearching = true
         errorMessage = nil
@@ -83,7 +91,12 @@ final class RouteStartLocationProvider: NSObject, ObservableObject {
             guard let self else { return }
             do {
                 let response = try await MKLocalSearch(request: MKLocalSearch.Request(completion: completion)).start()
-                guard !Task.isCancelled, let item = response.mapItems.first else { return }
+                guard !Task.isCancelled else { return }
+                guard let item = response.mapItems.first else {
+                    isSearching = false
+                    errorMessage = "That start location could not be resolved. Try a nearby road or suburb."
+                    return
+                }
                 let coordinate = item.placemark.coordinate
                 let place = RouteStartPlace(
                     title: item.name ?? suggestion.title,
@@ -113,10 +126,13 @@ final class RouteStartLocationProvider: NSObject, ObservableObject {
         selectedPlace = nil
         suggestions = []
         completions = [:]
+        completer.queryFragment = ""
+        errorMessage = nil
     }
 
     private func updateSearch(for query: String) {
         guard !isUpdatingQueryInternally else { return }
+        errorMessage = nil
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let searchOrigin = searchRegionCenter
         if trimmed != selectedPlace?.title {

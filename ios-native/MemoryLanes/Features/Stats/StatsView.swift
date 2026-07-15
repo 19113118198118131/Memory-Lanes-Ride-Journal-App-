@@ -119,7 +119,7 @@ struct StatsView: View {
                     systemImage: "mountain.2.fill"
                 )
             }
-            .buttonStyle(MLPressableButtonStyle(scale: 0.98))
+            .buttonStyle(MLPressableButtonStyle())
         }
     }
 
@@ -137,8 +137,9 @@ struct StatsView: View {
                     VStack(spacing: Spacing.xs) {
                         Text(bar.distanceKm > 0 ? String(format: "%.0f", bar.distanceKm) : "0")
                             .font(MLFont.caption)
+                            .monospacedDigit()
                             .foregroundStyle(Color.mlTextSecondary)
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: Radius.chip)
                             .fill(Color.mlAccent.gradient)
                             .frame(height: max(18, CGFloat(bar.heightRatio) * 118))
                             .opacity(bar.distanceKm > 0 ? 1 : 0.22)

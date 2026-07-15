@@ -143,7 +143,7 @@ struct VerdictChip: View {
             .font(MLFont.caption.weight(.semibold))
             .foregroundStyle(tint)
             .padding(.horizontal, Spacing.xs)
-            .padding(.vertical, 4)
+            .padding(.vertical, Spacing.xxs)
             .background(tint.opacity(0.14), in: Capsule())
     }
 }

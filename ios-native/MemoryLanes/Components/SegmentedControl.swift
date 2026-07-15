@@ -49,7 +49,7 @@ struct MLSegmentedControl<Item: Hashable>: View {
                         .frame(minWidth: equalWidth ? nil : 92)
                         .frame(height: compact ? Layout.minTouchTarget : nil)
                         .padding(.vertical, compact ? 0 : Spacing.xs)
-                        .padding(.horizontal, compact ? 2 : 0)
+                        .padding(.horizontal, compact ? Spacing.xxs / 2 : 0)
                         .background {
                             if isSelected {
                                 Capsule()

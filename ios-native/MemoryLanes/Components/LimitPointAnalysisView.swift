@@ -243,7 +243,7 @@ private struct LimitPointAnalysisContent: View {
                     .stroke(selectedCornerID == corner.id ? tint(corner.severity).opacity(0.5) : Color.mlHairline)
             )
         }
-        .buttonStyle(MLPressableButtonStyle(scale: 0.98))
+        .buttonStyle(MLPressableButtonStyle())
     }
 
     @ViewBuilder

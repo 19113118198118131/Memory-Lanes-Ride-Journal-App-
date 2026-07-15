@@ -43,10 +43,13 @@ struct RideDetailView: View {
                         content
                             .background(
                                 Color.mlBackground
-                                    .clipShape(.rect(topLeadingRadius: 28, topTrailingRadius: 28))
+                                    .clipShape(.rect(
+                                        topLeadingRadius: Radius.card + Spacing.sm,
+                                        topTrailingRadius: Radius.card + Spacing.sm
+                                    ))
                             )
-                            .offset(y: -28)
-                            .padding(.bottom, -28)
+                            .offset(y: -(Radius.card + Spacing.sm))
+                            .padding(.bottom, -(Radius.card + Spacing.sm))
                     }
                 }
                 .scrollIndicators(.hidden)

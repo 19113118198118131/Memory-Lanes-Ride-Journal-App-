@@ -5,6 +5,80 @@ import Testing
 struct IndependentRoutePlannerTests {
     private let start = Coordinate(latitude: -36.85, longitude: 174.76)
 
+    @Test func routeOptionsResetToAStableDefaultSetup() {
+        var options = RoutePlanOptions(
+            primaryMood: .scenic,
+            secondaryMood: .twisty,
+            time: .halfDay,
+            targetDistanceKm: 180,
+            directions: [.north, .northEast]
+        )
+
+        #expect(!options.isDefault)
+        options.reset()
+
+        #expect(options.isDefault)
+        #expect(options.primaryMood == .flowing)
+        #expect(options.secondaryMood == nil)
+        #expect(options.time == .ninety)
+        #expect(options.targetDistanceKm == nil)
+        #expect(options.directions.isEmpty)
+    }
+
+    @Test func blendedMoodSuggestionMatchesTheEffectivePlannerTarget() {
+        let options = RoutePlanOptions(
+            primaryMood: .flowing,
+            secondaryMood: .relaxed,
+            time: .ninety
+        )
+        let request = options.request(start: start)
+
+        #expect(options.suggestedDistanceKm == request.effectiveTargetDistanceKm)
+    }
+
+    @Test @MainActor func failedGenerationCanReturnToIdleForRecovery() async {
+        let planner = IndependentRoutePlanner(roadProvider: AlwaysFailingRoadProvider(), randomSeed: 1)
+        let viewModel = RoutesViewModel(
+            routeService: PreviewRouteService(),
+            rideService: PreviewRideService(),
+            planner: planner
+        )
+
+        await viewModel.generateCandidates(for: request(distanceKm: 80))
+        if case .failed = viewModel.candidateState {
+            #expect(true)
+        } else {
+            Issue.record("Expected a recoverable planner failure")
+        }
+
+        viewModel.clearCandidateSession()
+        if case .idle = viewModel.candidateState {
+            #expect(true)
+        } else {
+            Issue.record("Expected reset to restore the idle planner state")
+        }
+    }
+
+    @Test @MainActor func canceledGenerationCannotPublishLateCandidates() async {
+        let planner = IndependentRoutePlanner(roadProvider: SlowRoadProvider(), randomSeed: 2)
+        let viewModel = RoutesViewModel(
+            routeService: PreviewRouteService(),
+            rideService: PreviewRideService(),
+            planner: planner
+        )
+
+        let generation = Task { await viewModel.generateCandidates(for: request(distanceKm: 80)) }
+        try? await Task.sleep(for: .milliseconds(10))
+        viewModel.clearCandidateSession()
+        await generation.value
+
+        if case .idle = viewModel.candidateState {
+            #expect(true)
+        } else {
+            Issue.record("A cancelled generation published stale candidates")
+        }
+    }
+
     @Test func plannerProducesRankedCandidatesWithoutAHostedRoutingDependency() async throws {
         let planner = IndependentRoutePlanner(roadProvider: StubRoadProvider(), randomSeed: 41)
         let candidates = try await planner.candidates(for: request(distanceKm: 72))
@@ -173,7 +247,7 @@ struct IndependentRoutePlannerTests {
     }
 
     @Test func anExhaustedFirstBatchRecoversWithFreshGeometry() async throws {
-        let probe = RouteBatchRetryProbe(failuresBeforeSuccess: 15)
+        let probe = RouteBatchRetryProbe(failuresBeforeSuccess: 5)
         let planner = IndependentRoutePlanner(
             roadProvider: RecoveringRoadProvider(probe: probe),
             randomSeed: 9_909
@@ -183,7 +257,46 @@ struct IndependentRoutePlannerTests {
         let attempts = await probe.attemptCount
 
         #expect(!candidates.isEmpty)
-        #expect(attempts > 15)
+        #expect(attempts > 5)
+    }
+
+    @Test func generationStaysWithinTheAppleMapsRequestBudget() async {
+        let probe = DirectionsRequestBudgetProbe()
+        let planner = IndependentRoutePlanner(
+            roadProvider: BudgetCountingFailingRoadProvider(probe: probe),
+            randomSeed: 22_044
+        )
+
+        do {
+            _ = try await planner.candidates(for: request(distanceKm: 80))
+            Issue.record("Expected every route attempt to fail")
+        } catch {
+            #expect(error is IndependentRoutePlanningError)
+        }
+
+        let requestCount = await probe.requestCount
+        #expect(requestCount <= IndependentRoutePlanner.directionsRequestBudget)
+    }
+
+    @Test func AppleMapsRequestGateFailsClearlyAndRecoversAfterItsWindow() async throws {
+        let gate = MapKitDirectionsRequestGate()
+        let start = Date(timeIntervalSince1970: 1_000)
+
+        for _ in 0..<MapKitRoadRouteProvider.requestBudget {
+            try await gate.beginRequest(now: start)
+        }
+
+        do {
+            try await gate.beginRequest(now: start)
+            Issue.record("Expected the safety gate to stop before MapKit throttles")
+        } catch let error as IndependentRoutePlanningError {
+            guard case .requestLimitReached = error else {
+                Issue.record("Expected a request-limit error")
+                return
+            }
+        }
+
+        try await gate.beginRequest(now: start.addingTimeInterval(61))
     }
 
     @Test func disconnectedCoastalLegsCannotBeJoinedAcrossWater() {
@@ -191,6 +304,13 @@ struct IndependentRoutePlannerTests {
         let outgoingShore = Coordinate(latitude: -36.76, longitude: 174.88)
 
         #expect(!RoadRouteGeometryValidator.canJoin(incomingShore, outgoingShore))
+    }
+
+    @Test func visibleGapBetweenAdjacentRoadLegsIsRejected() {
+        let firstLegEnd = Coordinate(latitude: -36.8000, longitude: 174.7800)
+        let nextLegStart = Coordinate(latitude: -36.8000, longitude: 174.7840)
+
+        #expect(!RoadRouteGeometryValidator.canJoin(firstLegEnd, nextLegStart))
     }
 
     @Test func aLongSparseWaterCrossingIsNotPlausibleRoadGeometry() {
@@ -309,6 +429,30 @@ private struct FixedDurationRoadProvider: RoadRouteProviding {
     }
 }
 
+private struct AlwaysFailingRoadProvider: RoadRouteProviding {
+    func route(through _: [Coordinate]) async throws -> RoadRoute {
+        throw IndependentRoutePlanningError.noRoutes
+    }
+}
+
+private struct SlowRoadProvider: RoadRouteProviding {
+    private let routeProvider = StubRoadProvider()
+
+    func route(through waypoints: [Coordinate]) async throws -> RoadRoute {
+        try await Task.sleep(for: .milliseconds(100))
+        return try await routeProvider.route(through: waypoints)
+    }
+}
+
+private struct BudgetCountingFailingRoadProvider: RoadRouteProviding {
+    let probe: DirectionsRequestBudgetProbe
+
+    func route(through waypoints: [Coordinate]) async throws -> RoadRoute {
+        await probe.add(waypoints.count - 1)
+        throw IndependentRoutePlanningError.noRoutes
+    }
+}
+
 private actor RouteBatchRetryProbe {
     private var remainingFailures: Int
     private(set) var attemptCount = 0
@@ -322,6 +466,14 @@ private actor RouteBatchRetryProbe {
         guard remainingFailures > 0 else { return false }
         remainingFailures -= 1
         return true
+    }
+}
+
+private actor DirectionsRequestBudgetProbe {
+    private(set) var requestCount = 0
+
+    func add(_ count: Int) {
+        requestCount += count
     }
 }
 
