@@ -280,7 +280,7 @@ private struct RideProfileChart: View {
     @State private var selected: ReplayPoint?
 
     private var displayPoints: [ReplayPoint] {
-        AnalyticsDisplaySampler.sample(points, limit: 1_200)
+        AnalyticsDisplaySampler.sample(points, limit: 600)
     }
 
     private var elevationBounds: (min: Double, max: Double) {
@@ -311,9 +311,9 @@ private struct RideProfileChart: View {
                                 x: .value("Distance", point.distanceKm),
                                 y: .value("Elevation shape", normalizedElevation(point.elevationMeters))
                             )
-                            .foregroundStyle(Color.mlAccent)
+                            .foregroundStyle(by: .value("Profile", "Elevation"))
                             .lineStyle(StrokeStyle(lineWidth: 2.5))
-                            .interpolationMethod(.catmullRom)
+                            .interpolationMethod(.monotone)
                         }
                     }
                     if mode != .elevation {
@@ -322,9 +322,9 @@ private struct RideProfileChart: View {
                                 x: .value("Distance", point.distanceKm),
                                 y: .value("Speed shape", normalizedSpeed(point.speedKmh))
                             )
-                            .foregroundStyle(Color.mlInfo)
-                            .lineStyle(StrokeStyle(lineWidth: 2))
-                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(by: .value("Profile", "Speed"))
+                            .lineStyle(StrokeStyle(lineWidth: 1.8))
+                            .interpolationMethod(.monotone)
                         }
                     }
                     if let selected {
@@ -332,6 +332,11 @@ private struct RideProfileChart: View {
                             .foregroundStyle(Color.mlTextSecondary.opacity(0.7))
                     }
                 }
+                .chartForegroundStyleScale([
+                    "Elevation": Color.mlAccent,
+                    "Speed": Color.mlInfo
+                ])
+                .chartLegend(.hidden)
                 .chartYScale(domain: 0...1)
                 .chartYAxis(.hidden)
                 .chartXAxisLabel("Distance (km)")
@@ -437,11 +442,28 @@ private struct RideProfileChart: View {
         guard let plotFrame = proxy.plotFrame else { return }
         let origin = geometry[plotFrame].origin
         guard let distance: Double = proxy.value(atX: location.x - origin.x),
-              let nearest = points.min(by: {
-                  abs($0.distanceKm - distance) < abs($1.distanceKm - distance)
-              }) else { return }
+              let nearest = nearestPoint(to: distance) else { return }
         if selected?.id != nearest.id { Haptics.selection() }
         selected = nearest
+    }
+
+    private func nearestPoint(to distance: Double) -> ReplayPoint? {
+        guard !points.isEmpty else { return nil }
+        var lower = 0
+        var upper = points.count
+        while lower < upper {
+            let middle = (lower + upper) / 2
+            if points[middle].distanceKm < distance {
+                lower = middle + 1
+            } else {
+                upper = middle
+            }
+        }
+        if lower == 0 { return points[0] }
+        if lower == points.count { return points[points.count - 1] }
+        let before = points[lower - 1]
+        let after = points[lower]
+        return abs(before.distanceKm - distance) <= abs(after.distanceKm - distance) ? before : after
     }
 }
 
@@ -515,7 +537,7 @@ private struct InputProfileChart: View {
     @State private var selected: RideAccelerationSample?
 
     private var displayAcceleration: [RideAccelerationSample] {
-        AnalyticsDisplaySampler.sample(analytics.acceleration, limit: 1_200)
+        AnalyticsDisplaySampler.sample(analytics.acceleration, limit: 600)
     }
 
     private var range: ClosedRange<Double> {
@@ -707,7 +729,7 @@ private struct GripUsageChart: View {
     let showsAxesAndGrid: Bool
 
     private var displayPoints: [GripUsagePoint] {
-        AnalyticsDisplaySampler.sample(points, limit: 1_000)
+        AnalyticsDisplaySampler.sample(points, limit: 600)
     }
 
     private var domain: ClosedRange<Double> {

@@ -194,6 +194,21 @@ enum RouteGeometry {
             )
         }
 
+        // A long ride's display route is deliberately decimated for MapKit.
+        // When neighbouring display points are far apart they cannot describe
+        // the local corner shape, so use a close, stable camera around the exact
+        // replay coordinate instead of framing kilometres of route.
+        let adjacentDistances = [
+            replayIndex > 0 ? distanceMeters(route[replayIndex], route[replayIndex - 1]) : nil,
+            replayIndex < route.count - 1 ? distanceMeters(route[replayIndex], route[replayIndex + 1]) : nil
+        ].compactMap { $0 }
+        if adjacentDistances.contains(where: { $0 > 350 }) {
+            return MKCoordinateRegion(
+                center: coordinate.clCoordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
+            )
+        }
+
         let targetDistance = 90.0
         var lower = replayIndex
         var upper = replayIndex

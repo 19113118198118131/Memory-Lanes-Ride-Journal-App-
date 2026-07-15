@@ -113,7 +113,7 @@ struct RideDetailView: View {
 
     @ViewBuilder
     private var heroMap: some View {
-        let route = viewModel.routeForMomentPinning
+        let route = viewModel.mapDisplayRoute
         ZStack(alignment: .bottom) {
             if route.count > 1 {
                 MLMapView(

@@ -26,6 +26,11 @@ final class RideDetailViewModel {
 
     private(set) var ride: Ride
     private(set) var state: DetailState = .loading
+    /// Full coordinate stream, built once for accurate moment pinning.
+    private(set) var replayRoute: [Coordinate] = []
+    /// Lightweight route used by MapKit so long rides never redraw tens of
+    /// thousands of coordinates during scrolling or replay.
+    private(set) var mapDisplayRoute: [Coordinate]
     var section: Section = .overview
     var momentErrorMessage: String?
     var isSavingMoment = false
@@ -55,6 +60,7 @@ final class RideDetailViewModel {
         calibrationReviewStore: any RiderCraftCalibrationReviewStoring = RiderCraftCalibrationReviewStore.shared
     ) {
         self.ride = ride
+        self.mapDisplayRoute = ride.routePreview
         self.rideService = rideService
         self.calibrationReviewStore = calibrationReviewStore
     }
@@ -69,7 +75,7 @@ final class RideDetailViewModel {
     }
 
     var routeForMomentPinning: [Coordinate] {
-        if let replayRoute = detail?.replayPoints.map(\.coordinate), !replayRoute.isEmpty { return replayRoute }
+        if !replayRoute.isEmpty { return replayRoute }
         if let detailRoutePreview, !detailRoutePreview.isEmpty { return detailRoutePreview }
         return ride.routePreview
     }
@@ -119,9 +125,8 @@ final class RideDetailViewModel {
     }
 
     var completedReplayRoute: [Coordinate] {
-        guard let points = detail?.replayPoints, !points.isEmpty else { return [] }
-        let endIndex = min(playbackIndex, points.count - 1)
-        var completed = points.prefix(endIndex + 1).map(\.coordinate)
+        guard let mapIndex = mapReplayIndex, !mapDisplayRoute.isEmpty else { return [] }
+        var completed = Array(mapDisplayRoute.prefix(mapIndex + 1))
         if let currentReplayCoordinate, completed.last != currentReplayCoordinate {
             completed.append(currentReplayCoordinate)
         }
@@ -129,7 +134,12 @@ final class RideDetailViewModel {
     }
 
     var mapReplayIndex: Int? {
-        canReplay ? min(playbackIndex, max(routeForMomentPinning.count - 1, 0)) : nil
+        guard canReplay,
+              mapDisplayRoute.count > 1,
+              let replayCount = detail?.replayPoints.count,
+              replayCount > 1 else { return nil }
+        let progress = Double(min(playbackIndex, replayCount - 1)) / Double(replayCount - 1)
+        return min(Int((progress * Double(mapDisplayRoute.count - 1)).rounded()), mapDisplayRoute.count - 1)
     }
 
     var playbackProgressText: String {
@@ -164,6 +174,10 @@ final class RideDetailViewModel {
         state = .loading
         do {
             let detail = try await rideService.fetchDetail(for: ride)
+            replayRoute = detail.replayPoints.map(\.coordinate)
+            mapDisplayRoute = detail.routePreview.count > 1
+                ? detail.routePreview
+                : AnalyticsDisplaySampler.sample(replayRoute, limit: 240)
             state = .loaded(detail)
             playbackIndex = min(playbackIndex, max(detail.replayPoints.count - 1, 0))
             playbackElapsedSeconds = detail.replayPoints.indices.contains(playbackIndex)
