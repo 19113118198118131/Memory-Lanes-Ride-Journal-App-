@@ -184,6 +184,16 @@ final class LiveRideRecorder: NSObject, ObservableObject {
         removeDraft()
     }
 
+    /// Permanently removes a completed ride the rider has explicitly chosen
+    /// not to keep. This is intentionally separate from `discard()`, which only
+    /// owns the active recording draft.
+    func discardCompletedRide(_ result: RecordedRideResult) async {
+        await completedRidePersister.remove(result)
+        removeCompletedGPX(result)
+        discard()
+        lastErrorMessage = nil
+    }
+
     private func beginRecording() {
         if points.isEmpty {
             startedAt = Date()
@@ -319,12 +329,19 @@ final class LiveRideRecorder: NSObject, ObservableObject {
     private func writeCompletedGPX(_ result: RecordedRideResult) {
         do {
             try fileManager.createDirectory(at: completedDirectory, withIntermediateDirectories: true)
-            let safeDate = DateFormatting.fileSafeString(from: result.startedAt)
-            let url = completedDirectory.appendingPathComponent("\(safeDate)-ride.gpx")
-            try result.gpxText.write(to: url, atomically: true, encoding: .utf8)
+            try result.gpxText.write(to: completedGPXURL(for: result), atomically: true, encoding: .utf8)
         } catch {
             lastErrorMessage = "Ride finished, but GPX export could not be written locally."
         }
+    }
+
+    private func removeCompletedGPX(_ result: RecordedRideResult) {
+        try? fileManager.removeItem(at: completedGPXURL(for: result))
+    }
+
+    private func completedGPXURL(for result: RecordedRideResult) -> URL {
+        let safeDate = DateFormatting.fileSafeString(from: result.startedAt)
+        return completedDirectory.appendingPathComponent("\(safeDate)-ride.gpx")
     }
 }
 

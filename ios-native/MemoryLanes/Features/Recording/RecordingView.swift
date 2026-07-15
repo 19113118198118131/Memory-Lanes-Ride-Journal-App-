@@ -97,6 +97,9 @@ struct RecordingView: View {
                 onSaved: { ride in
                     await recorder.markCompletedRideSaved(result)
                     onSaved(ride)
+                },
+                onDiscard: {
+                    await recorder.discardCompletedRide(result)
                 }
             ) {
                 dismiss()
@@ -423,11 +426,13 @@ private struct RecordingFinishedSheet: View {
     let accessToken: @Sendable () async -> String?
     let isRecovered: Bool
     let onSaved: (Ride) async -> Void
+    let onDiscard: () async -> Void
     let onDone: () -> Void
 
     @State private var title: String
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var showingDiscardConfirmation = false
 
     private let importService = RideImportService()
 
@@ -438,6 +443,7 @@ private struct RecordingFinishedSheet: View {
         accessToken: @escaping @Sendable () async -> String?,
         isRecovered: Bool = false,
         onSaved: @escaping (Ride) async -> Void,
+        onDiscard: @escaping () async -> Void,
         onDone: @escaping () -> Void
     ) {
         self.result = result
@@ -446,6 +452,7 @@ private struct RecordingFinishedSheet: View {
         self.accessToken = accessToken
         self.isRecovered = isRecovered
         self.onSaved = onSaved
+        self.onDiscard = onDiscard
         self.onDone = onDone
         _title = State(initialValue: Self.defaultTitle(for: result.startedAt))
     }
@@ -510,10 +517,39 @@ private struct RecordingFinishedSheet: View {
                 onDone()
             }
             .disabled(isSaving)
+
+            if isRecovered {
+                Button(role: .destructive) {
+                    Haptics.warning()
+                    showingDiscardConfirmation = true
+                } label: {
+                    Label("Discard Ride", systemImage: "trash")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlDanger)
+                        .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget)
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .disabled(isSaving)
+            }
         }
         .padding(Spacing.lg)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.mlBackground)
+        .confirmationDialog(
+            "Discard this recovered ride?",
+            isPresented: $showingDiscardConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Discard Ride", role: .destructive) {
+                Task {
+                    await onDiscard()
+                    onDone()
+                }
+            }
+            Button("Keep Ride", role: .cancel) {}
+        } message: {
+            Text("This permanently removes the pending ride from this device. It cannot be recovered later.")
+        }
     }
 
     private var cleanTitle: String {

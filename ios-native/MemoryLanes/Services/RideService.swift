@@ -148,50 +148,61 @@ struct RideService: RideServing {
 
     func fetchDetail(for ride: Ride) async throws -> RideDetail {
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
-        let metadata = try await fetchStoredMetadata(for: ride.id, accessToken: token)
         guard let gpxPath = ride.gpxPath else {
+            let metadata = try await fetchStoredMetadata(for: ride.id, accessToken: token)
             return RideDetail(id: ride.id, routePreview: [], replayPoints: [], elevation: [], corners: [], moments: metadata.moments, weather: nil, coachScore: nil, coachScores: [], feedback: metadata.feedback, debrief: "This ride does not have an attached GPX file yet.")
         }
-        let data = try await client.download(
+
+        // These requests are independent. Starting them together removes
+        // several full network round trips from the long-ride loading path.
+        async let metadataRequest = fetchStoredMetadata(for: ride.id, accessToken: token)
+        async let dataRequest = client.download(
             path: "storage/v1/object/gpx-files/\(gpxPath)",
             accessToken: token
         )
+        async let historyRequest = fetchPastCoachHistoryOrEmpty(excluding: ride.id, accessToken: token)
+        async let plannedRouteRequest = fetchLinkedPlannedRoute(id: ride.plannedRouteID, accessToken: token)
+
+        let (metadata, data, history, plannedRoute) = try await (
+            metadataRequest,
+            dataRequest,
+            historyRequest,
+            plannedRouteRequest
+        )
         let track = try GPXParser().parse(data: data)
-        let history = (try? await fetchPastCoachHistory(excluding: ride.id, accessToken: token)) ?? .empty
+
+        // Weather can travel over the network while the deterministic local
+        // analysis works through the track.
+        async let weatherRequest = fetchRideWeather(for: track)
         let coach = RideCoachAnalyzer().analyze(
             points: track.points,
             pastCorners: history.corners,
             recentScores: history.averageScores
         )
-        let plannedRoute: PlannedRoute?
-        if let plannedRouteID = ride.plannedRouteID {
-            plannedRoute = try? await fetchPlannedRoute(id: plannedRouteID, accessToken: token)
-        } else {
-            plannedRoute = nil
-        }
         let routeMatch = plannedRoute.flatMap {
             RouteMatchAnalyzer().analyze(plannedRoute: $0, actualTrack: track)
         }
-        let weather: Weather?
-        if let start = track.points.first {
-            weather = try? await weatherService.fetchWeather(at: start.coordinate, rideDate: track.startedAt)
-        } else {
-            weather = nil
-        }
+        let weather = await weatherRequest
         let limitPointAnalysis = LimitPointAnalyzer().analyze(
             replayPoints: track.replayPoints,
             wet: (weather?.precipitationMm ?? 0) >= 0.2
         )
-        if let summary = coach.storageSummary {
-            try? await saveCoachSummary(summary, for: ride.id, accessToken: token)
-        }
         let features = RideFeatureExtractor().extract(
             ride: ride,
             points: track.points,
             scores: coach.scores,
             corners: coach.corners
         )
-        try? await saveFeatureRecord(features, for: ride.id, accessToken: token)
+
+        // Derived-data persistence is useful caching, not a prerequisite for
+        // reading a ride. Do it after the result is ready so a slow patch never
+        // holds the analytics UI behind skeletons.
+        persistDerivedAnalysis(
+            summary: coach.storageSummary,
+            features: features,
+            rideID: ride.id,
+            accessToken: token
+        )
         return RideDetail(
             id: ride.id,
             routePreview: track.routePreview,
@@ -362,6 +373,34 @@ struct RideService: RideServing {
                 values.reduce(0, +) / Double(values.count)
             }
         )
+    }
+
+    private func fetchPastCoachHistoryOrEmpty(excluding rideID: UUID, accessToken: String) async -> RideCoachHistory {
+        (try? await fetchPastCoachHistory(excluding: rideID, accessToken: accessToken)) ?? .empty
+    }
+
+    private func fetchLinkedPlannedRoute(id: UUID?, accessToken: String) async -> PlannedRoute? {
+        guard let id else { return nil }
+        return try? await fetchPlannedRoute(id: id, accessToken: accessToken)
+    }
+
+    private func fetchRideWeather(for track: GPXTrack) async -> Weather? {
+        guard let start = track.points.first else { return nil }
+        return try? await weatherService.fetchWeather(at: start.coordinate, rideDate: track.startedAt)
+    }
+
+    private func persistDerivedAnalysis(
+        summary: RideCoachStorageSummary?,
+        features: RideFeatureRecord,
+        rideID: UUID,
+        accessToken: String
+    ) {
+        Task(priority: .utility) {
+            if let summary {
+                try? await saveCoachSummary(summary, for: rideID, accessToken: accessToken)
+            }
+            try? await saveFeatureRecord(features, for: rideID, accessToken: accessToken)
+        }
     }
 
     private func fetchPlannedRoute(id: UUID, accessToken: String) async throws -> PlannedRoute? {

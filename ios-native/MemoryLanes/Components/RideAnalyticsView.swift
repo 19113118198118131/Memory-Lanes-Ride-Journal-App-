@@ -8,21 +8,36 @@ struct RideAnalyticsView: View {
     let debrief: String?
     let coachTrend: String?
     let onSelectReplayIndex: (Int) -> Void
+    @AppStorage("analytics.showsAxesAndGrid") private var showsAxesAndGrid = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             approximationLabel
             RideInsightOverview(insights: analytics.insights)
             AnalyticsReadingGuide()
-            RideProfileChart(points: replayPoints, onSelectReplayIndex: onSelectReplayIndex)
-            CornerRadiusChart(points: analytics.cornerPoints, onSelectReplayIndex: onSelectReplayIndex)
+            AnalyticsDisplayOptions(showsAxesAndGrid: $showsAxesAndGrid)
+            RideProfileChart(
+                points: replayPoints,
+                showsAxesAndGrid: showsAxesAndGrid,
+                onSelectReplayIndex: onSelectReplayIndex
+            )
+            CornerRadiusChart(
+                points: analytics.cornerPoints,
+                showsAxesAndGrid: showsAxesAndGrid,
+                onSelectReplayIndex: onSelectReplayIndex
+            )
             inputSummary
-            InputProfileChart(analytics: analytics, onSelectReplayIndex: onSelectReplayIndex)
-            GripUsageChart(points: analytics.gripUsage)
+            InputProfileChart(
+                analytics: analytics,
+                showsAxesAndGrid: showsAxesAndGrid,
+                onSelectReplayIndex: onSelectReplayIndex
+            )
+            GripUsageChart(points: analytics.gripUsage, showsAxesAndGrid: showsAxesAndGrid)
             RideCoachTechniqueView(
                 scores: coachScores,
                 debrief: debrief,
-                trend: coachTrend
+                trend: coachTrend,
+                showsAxesAndGrid: showsAxesAndGrid
             )
             RideCompositionView(slices: analytics.composition)
         }
@@ -74,6 +89,39 @@ struct RideAnalyticsView: View {
         .accessibilityElement(children: .combine)
     }
 
+}
+
+private struct AnalyticsDisplayOptions: View {
+    @Binding var showsAxesAndGrid: Bool
+
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: "chart.xyaxis.line")
+                .foregroundStyle(Color.mlAccent)
+                .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                .background(Color.mlAccent.opacity(0.1), in: Circle())
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text("Axes & grid")
+                    .font(MLFont.bodyEmphasised)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text("Show scales and reference guides")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+            }
+            Spacer()
+            Toggle("Axes & grid", isOn: $showsAxesAndGrid)
+                .labelsHidden()
+                .tint(Color.mlAccent)
+                .onChange(of: showsAxesAndGrid) { _, _ in Haptics.selection() }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.xs)
+        .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        )
+    }
 }
 
 private struct RideInsightOverview: View {
@@ -225,10 +273,15 @@ private struct RideProfileChart: View {
     }
 
     let points: [ReplayPoint]
+    let showsAxesAndGrid: Bool
     let onSelectReplayIndex: (Int) -> Void
 
     @State private var mode = Mode.both
     @State private var selected: ReplayPoint?
+
+    private var displayPoints: [ReplayPoint] {
+        AnalyticsDisplaySampler.sample(points, limit: 1_200)
+    }
 
     private var elevationBounds: (min: Double, max: Double) {
         let values = points.map(\.elevationMeters)
@@ -253,7 +306,7 @@ private struct RideProfileChart: View {
             } else {
                 Chart {
                     if mode != .speed {
-                        ForEach(points) { point in
+                        ForEach(displayPoints) { point in
                             LineMark(
                                 x: .value("Distance", point.distanceKm),
                                 y: .value("Elevation shape", normalizedElevation(point.elevationMeters))
@@ -264,7 +317,7 @@ private struct RideProfileChart: View {
                         }
                     }
                     if mode != .elevation {
-                        ForEach(points) { point in
+                        ForEach(displayPoints) { point in
                             LineMark(
                                 x: .value("Distance", point.distanceKm),
                                 y: .value("Speed shape", normalizedSpeed(point.speedKmh))
@@ -282,10 +335,10 @@ private struct RideProfileChart: View {
                 .chartYScale(domain: 0...1)
                 .chartYAxis(.hidden)
                 .chartXAxisLabel("Distance (km)")
-                .chartXAxis {
-                    AxisMarks { _ in
-                        AxisGridLine().foregroundStyle(Color.mlHairline.opacity(0.5))
-                        AxisValueLabel().foregroundStyle(Color.mlTextTertiary)
+                .analyticsXAxis(visible: showsAxesAndGrid)
+                .overlay {
+                    if showsAxesAndGrid {
+                        profileScaleOverlay
                     }
                 }
                 .chartOverlay { proxy in
@@ -316,6 +369,47 @@ private struct RideProfileChart: View {
     }
 
     private var speedSummary: String { "max \(Int(maximumSpeed.rounded())) km/h" }
+
+    private var profileScaleOverlay: some View {
+        HStack {
+            if mode != .speed {
+                scaleLabels(
+                    top: "\(Int(elevationBounds.max.rounded())) m",
+                    bottom: "\(Int(elevationBounds.min.rounded())) m",
+                    color: .mlAccent,
+                    alignment: .leading
+                )
+            }
+            Spacer()
+            if mode != .elevation {
+                scaleLabels(
+                    top: "\(Int(maximumSpeed.rounded())) km/h",
+                    bottom: "0 km/h",
+                    color: .mlInfo,
+                    alignment: .trailing
+                )
+            }
+        }
+        .padding(.horizontal, Spacing.xs)
+        .padding(.vertical, Spacing.sm)
+        .allowsHitTesting(false)
+    }
+
+    private func scaleLabels(
+        top: String,
+        bottom: String,
+        color: Color,
+        alignment: HorizontalAlignment
+    ) -> some View {
+        VStack(alignment: alignment, spacing: 0) {
+            Text(top)
+            Spacer()
+            Text(bottom)
+        }
+        .font(MLFont.monoSmall)
+        .foregroundStyle(color)
+        .shadow(color: Color.mlBackground, radius: 3)
+    }
 
     private func normalizedElevation(_ value: Double) -> Double {
         let span = elevationBounds.max - elevationBounds.min
@@ -416,8 +510,13 @@ private struct RideCompositionView: View {
 
 private struct InputProfileChart: View {
     let analytics: RideAnalytics
+    let showsAxesAndGrid: Bool
     let onSelectReplayIndex: (Int) -> Void
     @State private var selected: RideAccelerationSample?
+
+    private var displayAcceleration: [RideAccelerationSample] {
+        AnalyticsDisplaySampler.sample(analytics.acceleration, limit: 1_200)
+    }
 
     private var range: ClosedRange<Double> {
         let values = analytics.acceleration.map(\.acceleration)
@@ -429,6 +528,11 @@ private struct InputProfileChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             chartTitle("Acceleration Profile", detail: "Brake, corner, drive, cruise")
+            AnalyticsLegend(items: [
+                .init(title: "Acceleration", color: .mlInfo, style: .line),
+                .init(title: "Braking", color: .mlDanger, style: .area),
+                .init(title: "Drive", color: .mlSuccess, style: .area)
+            ])
             Chart {
                 ForEach(analytics.brakingZones) { zone in
                     RectangleMark(
@@ -450,7 +554,7 @@ private struct InputProfileChart: View {
                 }
                 RuleMark(y: .value("Zero", 0))
                     .foregroundStyle(Color.mlHairline)
-                ForEach(analytics.acceleration) { sample in
+                ForEach(displayAcceleration) { sample in
                     LineMark(
                         x: .value("Distance", sample.distanceKm),
                         y: .value("Acceleration", sample.acceleration)
@@ -472,7 +576,7 @@ private struct InputProfileChart: View {
             .chartYScale(domain: range)
             .chartXAxisLabel("Distance (km)")
             .chartYAxisLabel("Acceleration (m/s²)")
-            .analyticsAxes()
+            .analyticsAxes(visible: showsAxesAndGrid)
             .chartOverlay { proxy in
                 GeometryReader { geometry in
                     Rectangle().fill(.clear).contentShape(Rectangle())
@@ -507,6 +611,7 @@ private struct InputProfileChart: View {
 
 private struct CornerRadiusChart: View {
     let points: [CornerAnalyticsPoint]
+    let showsAxesAndGrid: Bool
     let onSelectReplayIndex: (Int) -> Void
     @State private var selected: CornerAnalyticsPoint?
 
@@ -529,6 +634,12 @@ private struct CornerRadiusChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             chartTitle("Corner Speed vs Radius", detail: "Tap a corner to replay it")
+            AnalyticsLegend(items: [
+                .init(title: "Corners", color: .mlAccent, style: .point),
+                .init(title: "0.20 g", color: .mlInfo, style: .dash),
+                .init(title: "0.35 g", color: .mlWarning, style: .dash),
+                .init(title: "0.50 g", color: .mlDanger, style: .dash)
+            ])
             if visiblePoints.isEmpty {
                 analyticsEmpty("No significant corners available for this chart.")
             } else {
@@ -555,9 +666,10 @@ private struct CornerRadiusChart: View {
                     "0.35 g": Color.mlWarning,
                     "0.50 g": Color.mlDanger
                 ])
+                .chartLegend(.hidden)
                 .chartXAxisLabel("Corner radius (m)")
                 .chartYAxisLabel("Apex speed (km/h)")
-                .analyticsAxes()
+                .analyticsAxes(visible: showsAxesAndGrid)
                 .chartOverlay { proxy in
                     GeometryReader { geometry in
                         Rectangle().fill(.clear).contentShape(Rectangle())
@@ -592,6 +704,11 @@ private struct CornerRadiusChart: View {
 
 private struct GripUsageChart: View {
     let points: [GripUsagePoint]
+    let showsAxesAndGrid: Bool
+
+    private var displayPoints: [GripUsagePoint] {
+        AnalyticsDisplaySampler.sample(points, limit: 1_000)
+    }
 
     private var domain: ClosedRange<Double> {
         let peak = points.flatMap { [abs($0.lateralG), abs($0.longitudinalG)] }.max() ?? 0.5
@@ -602,13 +719,18 @@ private struct GripUsageChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             chartTitle("Grip Usage", detail: "Left/right cornering, braking below, drive above")
+            AnalyticsLegend(items: [
+                .init(title: "Cornering", color: .mlAccent, style: .point),
+                .init(title: "Braking", color: .mlDanger, style: .point),
+                .init(title: "Drive", color: .mlSuccess, style: .point)
+            ])
             if points.isEmpty {
                 analyticsEmpty("Not enough moving GPS points for a grip-usage view.")
             } else {
                 Chart {
                     RuleMark(x: .value("Centre", 0)).foregroundStyle(Color.mlHairline)
                     RuleMark(y: .value("Centre", 0)).foregroundStyle(Color.mlHairline)
-                    ForEach(points) { point in
+                    ForEach(displayPoints) { point in
                         PointMark(
                             x: .value("Lateral g", point.lateralG),
                             y: .value("Longitudinal g", point.longitudinalG)
@@ -621,7 +743,7 @@ private struct GripUsageChart: View {
                 .chartYScale(domain: domain)
                 .chartXAxisLabel("Cornering (g)")
                 .chartYAxisLabel("Brake / drive (g)")
-                .analyticsAxes()
+                .analyticsAxes(visible: showsAxesAndGrid)
                 .frame(height: 260)
                 .accessibilityLabel("Approximate grip usage scatter plot")
             }
@@ -640,6 +762,7 @@ private struct RideCoachTechniqueView: View {
     let scores: [RideCoachScore]
     let debrief: String?
     let trend: String?
+    let showsAxesAndGrid: Bool
 
     @State private var showsBreakdown = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -658,8 +781,15 @@ private struct RideCoachTechniqueView: View {
             }
 
             if scores.count >= 3 {
-                TechniquePolygon(scores: scores)
+                TechniquePolygon(scores: scores, showsAxesAndGrid: showsAxesAndGrid)
                     .frame(height: 280)
+
+                if showsAxesAndGrid {
+                    Label("Centre 0 · outer ring 100", systemImage: "scope")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
 
                 if let trend {
                     Label(trend, systemImage: "chart.line.uptrend.xyaxis")
@@ -736,6 +866,7 @@ private struct RideCoachTechniqueView: View {
 
 private struct TechniquePolygon: View {
     let scores: [RideCoachScore]
+    let showsAxesAndGrid: Bool
 
     private let labels = ["Entry", "Exit", "Brake", "Throttle", "Repeat"]
 
@@ -752,19 +883,21 @@ private struct TechniquePolygon: View {
 
             ZStack {
                 Canvas { context, _ in
-                    for level in [0.25, 0.5, 0.75, 1.0] {
-                        context.stroke(
-                            polygonPath(center: center, radius: radius, values: Array(repeating: level, count: 5)),
-                            with: .color(Color.mlHairline.opacity(level == 1 ? 0.8 : 0.45)),
-                            lineWidth: level == 1 ? 1.2 : 0.8
-                        )
-                    }
+                    if showsAxesAndGrid {
+                        for level in [0.25, 0.5, 0.75, 1.0] {
+                            context.stroke(
+                                polygonPath(center: center, radius: radius, values: Array(repeating: level, count: 5)),
+                                with: .color(Color.mlHairline.opacity(level == 1 ? 0.8 : 0.45)),
+                                lineWidth: level == 1 ? 1.2 : 0.8
+                            )
+                        }
 
-                    for index in 0..<5 {
-                        var axis = Path()
-                        axis.move(to: center)
-                        axis.addLine(to: point(index: index, scale: 1, center: center, radius: radius))
-                        context.stroke(axis, with: .color(Color.mlHairline.opacity(0.6)), lineWidth: 0.8)
+                        for index in 0..<5 {
+                            var axis = Path()
+                            axis.move(to: center)
+                            axis.addLine(to: point(index: index, scale: 1, center: center, radius: radius))
+                            context.stroke(axis, with: .color(Color.mlHairline.opacity(0.6)), lineWidth: 0.8)
+                        }
                     }
 
                     let scorePath = polygonPath(center: center, radius: radius, values: values)
@@ -782,9 +915,14 @@ private struct TechniquePolygon: View {
 
                 ForEach(labels.indices, id: \.self) { index in
                     let location = point(index: index, scale: 1.23, center: center, radius: radius)
-                    Text(labels[index])
-                        .font(MLFont.kicker)
-                        .foregroundStyle(Color.mlTextSecondary)
+                    VStack(spacing: 1) {
+                        Text(labels[index])
+                            .font(MLFont.kicker)
+                        Text("\(Int((values[index] * 100).rounded()))")
+                            .font(MLFont.monoSmall)
+                            .foregroundStyle(Color.mlAccent)
+                    }
+                    .foregroundStyle(Color.mlTextSecondary)
                         .position(location)
                 }
             }
@@ -826,6 +964,57 @@ private struct GripReferencePoint: Identifiable {
     var id: String { "\(level)-\(radius)" }
 }
 
+private struct AnalyticsLegend: View {
+    struct Item {
+        enum Style { case line, dash, point, area }
+        let title: String
+        let color: Color
+        let style: Style
+    }
+
+    let items: [Item]
+
+    var body: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 76), alignment: .leading)],
+            alignment: .leading,
+            spacing: Spacing.xs
+        ) {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                HStack(spacing: Spacing.xs) {
+                    swatch(item)
+                    Text(item.title)
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(items.map(\.title).joined(separator: ", "))
+    }
+
+    @ViewBuilder
+    private func swatch(_ item: Item) -> some View {
+        switch item.style {
+        case .point:
+            Circle().fill(item.color).frame(width: 7, height: 7)
+        case .area:
+            RoundedRectangle(cornerRadius: 2)
+                .fill(item.color.opacity(0.2))
+                .overlay(RoundedRectangle(cornerRadius: 2).stroke(item.color, lineWidth: 1))
+                .frame(width: 18, height: 8)
+        case .line:
+            Capsule().fill(item.color).frame(width: 20, height: 2)
+        case .dash:
+            HStack(spacing: 2) {
+                Capsule().fill(item.color).frame(width: 7, height: 2)
+                Capsule().fill(item.color).frame(width: 7, height: 2)
+            }
+        }
+    }
+}
+
 @MainActor
 private func chartTitle(_ title: String, detail: String) -> some View {
     VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -856,18 +1045,56 @@ private extension View {
             )
     }
 
-    func analyticsAxes() -> some View {
-        chartXAxis {
-            AxisMarks { _ in
-                AxisGridLine().foregroundStyle(Color.mlHairline.opacity(0.5))
-                AxisValueLabel().foregroundStyle(Color.mlTextTertiary)
-            }
+    func analyticsAxes(visible: Bool) -> some View {
+        modifier(AnalyticsAxesModifier(visible: visible))
+    }
+
+    func analyticsXAxis(visible: Bool) -> some View {
+        modifier(AnalyticsXAxisModifier(visible: visible))
+    }
+}
+
+private struct AnalyticsAxesModifier: ViewModifier {
+    let visible: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if visible {
+            content
+                .chartXAxis {
+                    AxisMarks { _ in
+                        AxisGridLine().foregroundStyle(Color.mlHairline.opacity(0.5))
+                        AxisValueLabel().foregroundStyle(Color.mlTextTertiary)
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading) { _ in
+                        AxisGridLine().foregroundStyle(Color.mlHairline)
+                        AxisValueLabel().foregroundStyle(Color.mlTextTertiary)
+                    }
+                }
+        } else {
+            content
+                .chartXAxis(.hidden)
+                .chartYAxis(.hidden)
         }
-        .chartYAxis {
-            AxisMarks(position: .leading) { _ in
-                AxisGridLine().foregroundStyle(Color.mlHairline)
-                AxisValueLabel().foregroundStyle(Color.mlTextTertiary)
+    }
+}
+
+private struct AnalyticsXAxisModifier: ViewModifier {
+    let visible: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if visible {
+            content.chartXAxis {
+                AxisMarks { _ in
+                    AxisGridLine().foregroundStyle(Color.mlHairline.opacity(0.5))
+                    AxisValueLabel().foregroundStyle(Color.mlTextTertiary)
+                }
             }
+        } else {
+            content.chartXAxis(.hidden)
         }
     }
 }
