@@ -41,6 +41,7 @@ final class RoutesViewModel {
     private let rideService: RideServing
     private let groupRideService: GroupRideServing?
     private let planner: IndependentRoutePlanner
+    private let elevationService: any RouteElevationProviding
     private var recommender = RideRecommendationEngine(ratedRides: [])
     private var candidateTask: Task<[RouteCandidate], Error>?
     private var candidateGeneration = 0
@@ -49,12 +50,14 @@ final class RoutesViewModel {
         routeService: RouteServing,
         rideService: RideServing,
         groupRideService: GroupRideServing? = nil,
-        planner: IndependentRoutePlanner = IndependentRoutePlanner()
+        planner: IndependentRoutePlanner = IndependentRoutePlanner(),
+        elevationService: any RouteElevationProviding = OpenMeteoElevationService()
     ) {
         self.routeService = routeService
         self.rideService = rideService
         self.groupRideService = groupRideService
         self.planner = planner
+        self.elevationService = elevationService
     }
 
     var routes: [PlannedRoute] {
@@ -104,7 +107,11 @@ final class RoutesViewModel {
         do {
             let generated = try await task.value
             guard generation == candidateGeneration else { return }
-            let ranked = generated.map { candidate in
+            // Fill in elevation (MapKit doesn't provide it) before ranking, so
+            // both the displayed Ascent stat and the personalised match use it.
+            let enriched = await enrichElevation(generated)
+            guard generation == candidateGeneration else { return }
+            let ranked = enriched.map { candidate in
                 var ranked = candidate
                 ranked.recommendation = recommendation(for: candidate.matchVector)
                 return ranked
@@ -126,6 +133,26 @@ final class RoutesViewModel {
 
         if generation == candidateGeneration {
             candidateTask = nil
+        }
+    }
+
+    // Best-effort, concurrent elevation lookup for the returned candidates. Any
+    // candidate whose lookup fails keeps its nil elevation (shown as "--"), so a
+    // flaky or offline elevation service never blocks route planning.
+    private func enrichElevation(_ candidates: [RouteCandidate]) async -> [RouteCandidate] {
+        guard !candidates.isEmpty else { return candidates }
+        return await withTaskGroup(of: (Int, Double?).self) { group in
+            for (index, candidate) in candidates.enumerated() {
+                let preview = candidate.preview
+                group.addTask { [elevationService] in
+                    (index, try? await elevationService.elevationGainMeters(along: preview))
+                }
+            }
+            var result = candidates
+            for await (index, gain) in group {
+                if let gain { result[index].elevationM = gain }
+            }
+            return result
         }
     }
 

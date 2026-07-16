@@ -85,6 +85,11 @@ struct MapKitRoadRouteProvider: RoadRouteProviding {
             response = try await MKDirections(request: request).calculate()
         } catch is CancellationError {
             throw CancellationError()
+        } catch let error as MKError where error.code == .loadingThrottled {
+            // Apple throttled us before our own request budget kicked in. Surface
+            // the same "wait a moment, then retry" path instead of degrading into
+            // a generic "no routes" failure the rider can't act on.
+            throw IndependentRoutePlanningError.requestLimitReached
         } catch {
             throw error
         }

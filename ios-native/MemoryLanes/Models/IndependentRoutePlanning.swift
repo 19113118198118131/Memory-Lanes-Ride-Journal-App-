@@ -290,7 +290,9 @@ struct RouteCandidate: Identifiable, Sendable {
     let distanceKm: Double
     let durationSeconds: TimeInterval
     let time: String
-    let elevationM: Double?
+    // Settable so the view model can fill in Open-Meteo elevation after the
+    // MapKit-only planner (which has no elevation data) returns candidates.
+    var elevationM: Double?
     let summary: String
     let preview: [Coordinate]
     let waypoints: [Coordinate]

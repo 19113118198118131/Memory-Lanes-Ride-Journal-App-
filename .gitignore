@@ -7,3 +7,6 @@ DerivedData/
 .tools/
 offline-dist/
 offline-work/
+
+# Build snapshots / archives must not be committed to history
+/*.zip
