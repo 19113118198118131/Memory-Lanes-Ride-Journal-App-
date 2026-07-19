@@ -69,6 +69,9 @@ struct RecordingView: View {
                 await liveSharing.start()
             }
         }
+        .task(id: groupRideContext?.shareToken) {
+            await liveSharing.observeRiders()
+        }
         .onChange(of: recorder.pointCount) { _, _ in
             guard let point = recorder.points.last else { return }
             Task { await liveSharing.offer(point) }
@@ -78,14 +81,14 @@ struct RecordingView: View {
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
-            Task { await liveSharing.stop() }
+            Task { await liveSharing.endSession() }
         }
         .alert("Finish ride?", isPresented: $showingFinishConfirmation) {
             Button("Keep Riding", role: .cancel) {}
             Button("Finish") {
                 Haptics.success()
                 Task {
-                    await liveSharing.stop()
+                    await liveSharing.endSession()
                     recoveredFinishedRide = false
                     finishedRide = await recorder.finish()
                 }
@@ -98,7 +101,7 @@ struct RecordingView: View {
             Button("Discard", role: .destructive) {
                 Haptics.warning()
                 Task {
-                    await liveSharing.stop()
+                    await liveSharing.endSession()
                     recorder.discard()
                     dismiss()
                 }
@@ -136,6 +139,7 @@ struct RecordingView: View {
                     recordedRoute: recorder.routePreview,
                     guideRoute: plannedRoute?.route ?? [],
                     latestPoint: latestPoint,
+                    liveRiders: liveSharing.riders,
                     cameraMode: cameraMode,
                     reduceMotion: reduceMotion,
                     followsCamera: $followsRideCamera
@@ -194,6 +198,7 @@ struct RecordingView: View {
             }
         }
         .animation(reduceMotion ? nil : Motion.springSnappy, value: liveSharing.status)
+        .animation(reduceMotion ? nil : Motion.springSnappy, value: liveSharing.riders.count)
         .padding(.horizontal, Spacing.screenH)
         .padding(.top, Spacing.sm)
     }
@@ -269,8 +274,8 @@ struct RecordingView: View {
                     .font(MLFont.caption)
                     .foregroundStyle(Color.mlTextPrimary)
                     .lineLimit(1)
-                if case .failed(let message) = liveSharing.status {
-                    Text(message)
+                if let detail = liveSharingDetail {
+                    Text(detail)
                         .font(MLFont.caption)
                         .foregroundStyle(Color.mlTextSecondary)
                         .lineLimit(1)
@@ -295,7 +300,7 @@ struct RecordingView: View {
                 .buttonStyle(MLPressableButtonStyle())
             }
 
-            if liveSharing.status != .starting, liveSharing.status != .stopping {
+            if liveSharing.canStopSharing {
                 Button {
                     Haptics.selection()
                     Task { await liveSharing.stop() }
@@ -321,15 +326,32 @@ struct RecordingView: View {
         case .inactive, .starting:
             "Starting group sharing"
         case .sharing:
-            "Live with \(groupRideContext?.title ?? "group")"
+            "Sharing with \(groupRideContext?.title ?? "group")"
         case .failed:
-            "Group sharing offline"
+            "Your sharing is offline"
         case .stopping:
             "Stopping group sharing"
         case .stopped:
-            "Group sharing stopped"
+            "Group map · You are private"
         case .unavailable:
-            "Group sharing off"
+            "Group map · You are private"
+        }
+    }
+
+    private var liveSharingDetail: String? {
+        if case .failed(let message) = liveSharing.status {
+            return message
+        }
+        switch liveSharing.riderMapStatus {
+        case .unavailable:
+            return nil
+        case .loading:
+            return "Looking for riders"
+        case .offline:
+            return liveSharing.riders.isEmpty ? "Group map offline" : "Showing last fresh positions"
+        case .live:
+            let count = liveSharing.riders.count
+            return count == 0 ? "No other riders live yet" : "\(count) other rider\(count == 1 ? "" : "s") live"
         }
     }
 
@@ -439,7 +461,7 @@ struct RecordingView: View {
         case .finished:
             PrimaryButton(title: "Done", systemImage: "checkmark") {
                 Task {
-                    await liveSharing.stop()
+                    await liveSharing.endSession()
                     dismiss()
                 }
             }

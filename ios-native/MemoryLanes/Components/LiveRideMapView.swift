@@ -5,6 +5,7 @@ struct LiveRideMapView: UIViewRepresentable {
     let recordedRoute: [Coordinate]
     let guideRoute: [Coordinate]
     let latestPoint: RecordingPoint?
+    let liveRiders: [GroupLiveRider]
     let cameraMode: LiveRideCameraMode
     let reduceMotion: Bool
     @Binding var followsCamera: Bool
@@ -37,6 +38,7 @@ struct LiveRideMapView: UIViewRepresentable {
         context.coordinator.parent = self
         context.coordinator.configureMap(mapView, colorScheme: colorScheme)
         context.coordinator.updateOverlays(on: mapView, recorded: recordedRoute, guide: guideRoute)
+        context.coordinator.updateGroupRiders(liveRiders, on: mapView)
         context.coordinator.update(point: latestPoint, on: mapView)
     }
 
@@ -53,6 +55,7 @@ struct LiveRideMapView: UIViewRepresentable {
         private var recordedSignature = RouteSignature.empty
         private var guideSignature = RouteSignature.empty
         private var renderedOverlays: [MKOverlay] = []
+        private var groupRiderAnnotations: [UUID: GroupRiderAnnotation] = [:]
         private var didAddRiderAnnotation = false
         private var didApplyCamera = false
         private var configuredColorScheme: ColorScheme?
@@ -151,6 +154,23 @@ struct LiveRideMapView: UIViewRepresentable {
             apply(cameraState, to: mapView)
         }
 
+        func updateGroupRiders(_ riders: [GroupLiveRider], on mapView: MKMapView) {
+            let incomingIDs = Set(riders.map(\.id))
+            let removedIDs = Set(groupRiderAnnotations.keys).subtracting(incomingIDs)
+            let removedAnnotations = removedIDs.compactMap { groupRiderAnnotations.removeValue(forKey: $0) }
+            mapView.removeAnnotations(removedAnnotations)
+
+            for rider in riders {
+                if let annotation = groupRiderAnnotations[rider.id] {
+                    annotation.update(with: rider)
+                } else {
+                    let annotation = GroupRiderAnnotation(rider: rider)
+                    groupRiderAnnotations[rider.id] = annotation
+                    mapView.addAnnotation(annotation)
+                }
+            }
+        }
+
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             guard let polyline = overlay as? MKPolyline else { return MKOverlayRenderer(overlay: overlay) }
             let renderer = MKPolylineRenderer(polyline: polyline)
@@ -167,13 +187,27 @@ struct LiveRideMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
-            guard annotation === riderAnnotation else { return nil }
-            let identifier = "live-rider"
-            if let reused = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? RiderPuckAnnotationView {
-                reused.annotation = annotation
-                return reused
+            if annotation === riderAnnotation {
+                let identifier = "live-rider"
+                if let reused = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? RiderPuckAnnotationView {
+                    reused.annotation = annotation
+                    return reused
+                }
+                return RiderPuckAnnotationView(annotation: annotation, reuseIdentifier: identifier)
             }
-            return RiderPuckAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+
+            guard annotation is GroupRiderAnnotation else { return nil }
+            let identifier = "group-live-rider"
+            let marker = (mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView)
+                ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+            marker.annotation = annotation
+            marker.canShowCallout = true
+            marker.markerTintColor = UIColor(Color.mlInfo)
+            marker.glyphTintColor = UIColor(Color.mlOnAccent)
+            marker.glyphImage = UIImage(systemName: "person.fill")
+            marker.displayPriority = .required
+            marker.collisionMode = .circle
+            return marker
         }
 
         func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
@@ -250,6 +284,31 @@ private struct RouteSignature: Equatable {
 
 private final class RiderAnnotation: NSObject, MKAnnotation {
     @objc dynamic var coordinate = CLLocationCoordinate2D(latitude: -36.85, longitude: 174.76)
+}
+
+private final class GroupRiderAnnotation: NSObject, MKAnnotation {
+    let id: UUID
+    @objc dynamic var coordinate: CLLocationCoordinate2D
+    var title: String?
+    var subtitle: String?
+
+    init(rider: GroupLiveRider) {
+        id = rider.id
+        coordinate = CLLocationCoordinate2D(latitude: rider.latitude, longitude: rider.longitude)
+        title = rider.name
+        subtitle = Self.subtitle(for: rider)
+    }
+
+    func update(with rider: GroupLiveRider) {
+        coordinate = CLLocationCoordinate2D(latitude: rider.latitude, longitude: rider.longitude)
+        title = rider.name
+        subtitle = Self.subtitle(for: rider)
+    }
+
+    private static func subtitle(for rider: GroupLiveRider) -> String {
+        guard let speedKmH = rider.speedKmH else { return "Live with your group" }
+        return "\(Int(speedKmH.rounded())) km/h"
+    }
 }
 
 private final class RiderPuckAnnotationView: MKAnnotationView {

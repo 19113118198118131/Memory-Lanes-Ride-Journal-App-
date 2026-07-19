@@ -76,14 +76,21 @@ struct GroupLiveSharingReceipt: Decodable, Hashable, Sendable {
     }
 }
 
-struct GroupLiveRider: Decodable, Hashable, Sendable {
+struct GroupLiveRider: Identifiable, Decodable, Hashable, Sendable {
+    let id: UUID
     let name: String
     let latitude: Double
     let longitude: Double
     let speedKmH: Double?
     let updatedAt: Date
 
+    func isFresh(at date: Date = Date(), maxAge: TimeInterval = 120) -> Bool {
+        let age = date.timeIntervalSince(updatedAt)
+        return age >= -30 && age <= maxAge
+    }
+
     enum CodingKeys: String, CodingKey {
+        case id
         case name
         case latitude = "lat"
         case longitude = "lng"

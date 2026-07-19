@@ -1,6 +1,6 @@
 # Native Group Rides
 
-Status: Production event and ride-day coordination implemented; notification preferences, local reminders and secure APNs outbox implemented; explicit live-position consent and group-aware publishing implemented pending production migration and physical-device validation; APNs credentials pending activation
+Status: Production event and ride-day coordination implemented; notification preferences, local reminders and secure APNs outbox implemented; explicit live-position consent, group-aware publishing, and fresh rider markers implemented pending production migration and physical-device validation; APNs credentials pending activation
 
 ## Product Shape
 
@@ -55,6 +55,9 @@ RSVP does not enable location sharing. The native start sheet now asks separatel
 every group ride and defaults to private. When enabled, the recorder publishes a
 throttled position through authenticated RPCs and exposes a persistent stop control.
 Network or consent failures are honest but non-blocking: the local ride and GPX continue.
+Fresh positions from other participating riders appear as named MapKit markers. Riders
+who keep their own location private can still record the shared route and see positions
+that others explicitly chose to share. Stale markers are removed after two minutes.
 
 The production migration in `supabase-group-live-sharing.sql` adds consent audit rows,
 role-gated publishing, two-minute position expiry, opportunistic cleanup and hardened
@@ -70,6 +73,5 @@ Physical-device validation still requires:
 
 1. Activate APNs credentials and the one-minute worker scheduler on the paid Apple team.
 2. Apply and field-validate explicit live-position consent and group-aware recording.
-3. Add mutually visible live rider markers with freshness indicators.
-4. Host handover plus moderation, report, and block rules before a broader rider directory or messaging surface.
-5. Optional post-ride group recap without rankings, pace comparison, or pressure mechanics.
+3. Host handover plus moderation, report, and block rules before a broader rider directory or messaging surface.
+4. Optional post-ride group recap without rankings, pace comparison, or pressure mechanics.

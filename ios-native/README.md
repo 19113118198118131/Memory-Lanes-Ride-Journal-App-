@@ -22,7 +22,8 @@ testing:
   community events, capacity-aware three-state RSVP, attendee privacy, organiser
   dashboard/edit/cancel/complete controls, ride-day check-in and readiness,
   host announcements, shared-route recording, and explicit per-ride live-location
-  consent with throttled, expiring group-aware publishing and an independent stop control.
+  consent with throttled, expiring group-aware publishing, an independent stop control,
+  and fresh named rider markers on the live MapKit cockpit.
 - ✅ **Independent routing Phase 1.5** — MapKit fallback behind a provider seam,
   proprietary route-character scoring, randomized road-validated candidates,
   searchable and recent start locations, primary/secondary mood blends,
@@ -48,7 +49,7 @@ testing:
   coordinate-free diagnostics surface local usage, pack version and fallback
   reasons in Offline Areas without sending rider location off-device.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
-  queue, APNs credential activation, community moderation, live-rider map markers,
+  queue, APNs credential activation, community moderation, host handover,
   physical-device live-sharing validation, accessibility passes and release telemetry.
 
 The graph-pack client, compiler, signed-release workflow and embedded pathfinder

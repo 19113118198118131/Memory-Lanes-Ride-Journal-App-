@@ -4,6 +4,9 @@
 -- Live sharing is deliberately separate from RSVP and check-in. Clients can
 -- only enable and publish through the authenticated functions below; direct
 -- writes remain available solely for the original non-group shared-route flow.
+-- The three authenticated SECURITY DEFINER functions are intentional Data API
+-- endpoints. Each validates auth.uid(), ride membership/state and bounded input
+-- before touching rows that clients cannot access directly.
 
 begin;
 
@@ -17,6 +20,7 @@ create index if not exists live_positions_group_fresh_idx
 create table if not exists public.group_live_sharing_consents (
   group_ride_id uuid not null references public.group_rides(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
+  sharing_id uuid not null default gen_random_uuid(),
   started_at timestamptz not null default now(),
   expires_at timestamptz not null,
   last_shared_at timestamptz,
@@ -24,18 +28,50 @@ create table if not exists public.group_live_sharing_consents (
   constraint group_live_consent_expiry_after_start check (expires_at > started_at)
 );
 
+alter table public.group_live_sharing_consents
+  add column if not exists sharing_id uuid not null default gen_random_uuid();
+
+create unique index if not exists group_live_consents_sharing_id_idx
+  on public.group_live_sharing_consents (sharing_id);
+
 create index if not exists group_live_consents_expiry_idx
   on public.group_live_sharing_consents (expires_at);
+
+create index if not exists group_live_consents_user_idx
+  on public.group_live_sharing_consents (user_id);
 
 alter table public.group_live_sharing_consents enable row level security;
 
 -- Consent rows are an audit boundary, not a client-readable data surface.
 revoke all on table public.group_live_sharing_consents from public, anon, authenticated;
 
+drop policy if exists "clients cannot access group live sharing consents"
+  on public.group_live_sharing_consents;
+create policy "clients cannot access group live sharing consents"
+  on public.group_live_sharing_consents
+  for all
+  to authenticated
+  using (false)
+  with check (false);
+
 drop policy if exists "owners insert own live position" on public.live_positions;
 drop policy if exists "owners update own live position" on public.live_positions;
+drop policy if exists "owners select own live position" on public.live_positions;
+drop policy if exists "owners delete own live position" on public.live_positions;
 drop policy if exists "owners insert own non-group live position" on public.live_positions;
 drop policy if exists "owners update own non-group live position" on public.live_positions;
+
+create policy "owners select own live position"
+  on public.live_positions
+  for select
+  to authenticated
+  using ((select auth.uid()) = user_id);
+
+create policy "owners delete own live position"
+  on public.live_positions
+  for delete
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 create policy "owners insert own non-group live position"
   on public.live_positions
@@ -122,7 +158,8 @@ begin
   on conflict (group_ride_id, user_id) do update
   set started_at = excluded.started_at,
       expires_at = excluded.expires_at,
-      last_shared_at = null;
+      last_shared_at = null,
+      sharing_id = gen_random_uuid();
 
   return jsonb_build_object(
     'enabled', true,
@@ -242,6 +279,7 @@ as $$
       )
   ) then coalesce((
     select jsonb_agg(jsonb_build_object(
+      'id', consent.sharing_id,
       'name', coalesce(nullif(trim(coalesce(profile.display_name, '')), ''), 'A rider'),
       'lat', position.lat,
       'lng', position.lng,

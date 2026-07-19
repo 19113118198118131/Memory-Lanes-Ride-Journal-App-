@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 protocol GroupLiveLocationServing: Sendable {
@@ -124,11 +125,21 @@ final class GroupLiveSharingController: ObservableObject {
         case stopped
     }
 
+    enum RiderMapStatus: Equatable {
+        case unavailable
+        case loading
+        case live
+        case offline
+    }
+
     @Published private(set) var status: Status
+    @Published private(set) var riders: [GroupLiveRider] = []
+    @Published private(set) var riderMapStatus: RiderMapStatus
 
     let context: GroupRideRecordingContext?
     private let service: any GroupLiveLocationServing
     private let publisher: GroupLivePositionPublisher?
+    private var sessionIsActive = true
 
     init(
         context: GroupRideRecordingContext?,
@@ -136,6 +147,7 @@ final class GroupLiveSharingController: ObservableObject {
     ) {
         self.context = context
         self.service = service
+        riderMapStatus = context == nil ? .unavailable : .loading
         if let context, context.shareLiveLocation {
             status = .inactive
             publisher = GroupLivePositionPublisher(service: service, shareToken: context.shareToken)
@@ -146,8 +158,7 @@ final class GroupLiveSharingController: ObservableObject {
     }
 
     var isVisible: Bool {
-        guard context?.shareLiveLocation == true else { return false }
-        return status != .stopped
+        context != nil && sessionIsActive
     }
 
     var isSharing: Bool {
@@ -155,20 +166,38 @@ final class GroupLiveSharingController: ObservableObject {
         return false
     }
 
-    func start() async {
-        guard let context, context.shareLiveLocation, status != .starting else { return }
-        status = .starting
-        do {
-            let receipt = try await service.setSharing(true, shareToken: context.shareToken)
-            guard receipt.enabled else {
-                status = .failed(message: "Group sharing could not be enabled. Ride recording is still active.")
-                return
-            }
-            await publisher?.reset()
-            status = .sharing(expiresAt: receipt.expiresAt)
-        } catch {
-            status = .failed(message: Self.message(for: error))
+    var canStopSharing: Bool {
+        switch status {
+        case .starting, .sharing, .failed:
+            context?.shareLiveLocation == true
+        case .unavailable, .inactive, .stopping, .stopped:
+            false
         }
+    }
+
+    func start() async {
+        guard let context, sessionIsActive else { return }
+        if context.shareLiveLocation, status != .starting {
+            status = .starting
+            do {
+                let receipt = try await service.setSharing(true, shareToken: context.shareToken)
+                guard sessionIsActive else {
+                    _ = try? await service.setSharing(false, shareToken: context.shareToken)
+                    status = .stopped
+                    return
+                }
+                guard receipt.enabled else {
+                    status = .failed(message: "Group sharing could not be enabled. Ride recording is still active.")
+                    await refreshRiders()
+                    return
+                }
+                await publisher?.reset()
+                status = .sharing(expiresAt: receipt.expiresAt)
+            } catch {
+                status = .failed(message: Self.message(for: error))
+            }
+        }
+        await refreshRiders()
     }
 
     func offer(_ point: RecordingPoint) async {
@@ -187,6 +216,44 @@ final class GroupLiveSharingController: ObservableObject {
         status = .stopping
         _ = try? await service.setSharing(false, shareToken: context.shareToken)
         status = .stopped
+    }
+
+    func observeRiders() async {
+        guard context != nil else { return }
+        while !Task.isCancelled, sessionIsActive {
+            await refreshRiders()
+            do {
+                try await Task.sleep(for: .seconds(10))
+            } catch {
+                return
+            }
+        }
+    }
+
+    func refreshRiders(now: Date = Date()) async {
+        guard let context, sessionIsActive else { return }
+        if riders.isEmpty {
+            riderMapStatus = .loading
+        }
+        do {
+            let fetchedRiders = try await service.fetchRiders(shareToken: context.shareToken)
+            guard sessionIsActive else { return }
+            riders = fetchedRiders
+                .filter { $0.isFresh(at: now) }
+            riderMapStatus = .live
+        } catch is CancellationError {
+        } catch {
+            riders = riders.filter { $0.isFresh(at: now) }
+            riderMapStatus = .offline
+        }
+    }
+
+    func endSession() async {
+        guard sessionIsActive else { return }
+        sessionIsActive = false
+        await stop()
+        riders = []
+        riderMapStatus = .unavailable
     }
 
     private static func message(for error: Error) -> String {

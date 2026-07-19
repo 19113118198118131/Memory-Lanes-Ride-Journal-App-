@@ -822,7 +822,8 @@ Current group-ride status:
   Sharing defaults off, uses authenticated role-gated RPCs, expires quickly after updates
   stop, and can be stopped without stopping local recording. Production still requires
   applying `supabase-group-live-sharing.sql` and physical-device field validation.
-- Live rider map markers, host handover, and community moderation/messaging remain pending.
+- Fresh live rider map markers are implemented with a private-state fallback and client-side stale filtering.
+- Host handover and community moderation/messaging remain pending.
 - RSVP never implies live-location consent.
 
 ## 11. Definition of Done

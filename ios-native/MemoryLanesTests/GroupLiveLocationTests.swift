@@ -6,6 +6,7 @@ final class GroupLiveLocationTests: XCTestCase {
     func testLiveRiderDecodesSupabaseContract() throws {
         let json = """
         [{
+          "id": "7a39b877-5a4d-4a38-a959-a4a80144911d",
           "name": "Alex",
           "lat": -36.71,
           "lng": 174.74,
@@ -20,6 +21,7 @@ final class GroupLiveLocationTests: XCTestCase {
         )
 
         XCTAssertEqual(riders.first?.name, "Alex")
+        XCTAssertEqual(riders.first?.id.uuidString.lowercased(), "7a39b877-5a4d-4a38-a959-a4a80144911d")
         XCTAssertEqual(riders.first?.latitude, -36.71)
         XCTAssertEqual(riders.first?.speedKmH, 42.5)
     }
@@ -47,7 +49,7 @@ final class GroupLiveLocationTests: XCTestCase {
     }
 
     @MainActor
-    func testControllerRequiresExplicitSharingChoice() async {
+    func testControllerRequiresExplicitChoiceBeforePublishingButStillLoadsGroupMap() async {
         let service = GroupLiveLocationServiceSpy()
         let context = GroupRideRecordingContext(
             shareToken: UUID(),
@@ -60,10 +62,11 @@ final class GroupLiveLocationTests: XCTestCase {
         await controller.offer(makePoint())
 
         XCTAssertEqual(controller.status, .unavailable)
-        XCTAssertFalse(controller.isVisible)
+        XCTAssertTrue(controller.isVisible)
         let snapshot = await service.snapshot()
         XCTAssertTrue(snapshot.sharingChanges.isEmpty)
         XCTAssertTrue(snapshot.publishedTokens.isEmpty)
+        XCTAssertEqual(snapshot.fetchCount, 1)
     }
 
     @MainActor
@@ -89,6 +92,39 @@ final class GroupLiveLocationTests: XCTestCase {
         XCTAssertEqual(point.coordinate, Coordinate(latitude: -36.71, longitude: 174.74))
     }
 
+    @MainActor
+    func testControllerRemovesStaleRidersWhenRefreshFails() async {
+        let service = GroupLiveLocationServiceSpy()
+        let now = Date(timeIntervalSince1970: 2_000)
+        await service.setRiders([
+            GroupLiveRider(
+                id: UUID(),
+                name: "Alex",
+                latitude: -36.71,
+                longitude: 174.74,
+                speedKmH: 42,
+                updatedAt: now.addingTimeInterval(-30)
+            )
+        ])
+        let controller = GroupLiveSharingController(
+            context: GroupRideRecordingContext(
+                shareToken: UUID(),
+                title: "Sunday Loop",
+                shareLiveLocation: false
+            ),
+            service: service
+        )
+
+        await controller.refreshRiders(now: now)
+        XCTAssertEqual(controller.riders.count, 1)
+
+        await service.setFetchError(true)
+        await controller.refreshRiders(now: now.addingTimeInterval(121))
+
+        XCTAssertTrue(controller.riders.isEmpty)
+        XCTAssertEqual(controller.riderMapStatus, .offline)
+    }
+
     private func makePoint() -> RecordingPoint {
         RecordingPoint(location: CLLocation(
             coordinate: CLLocationCoordinate2D(latitude: -36.71, longitude: 174.74),
@@ -111,10 +147,14 @@ private actor GroupLiveLocationServiceSpy: GroupLiveLocationServing {
     struct Snapshot: Sendable {
         let sharingChanges: [SharingChange]
         let publishedTokens: [UUID]
+        let fetchCount: Int
     }
 
     private var sharingChanges: [SharingChange] = []
     private var publishedTokens: [UUID] = []
+    private var riders: [GroupLiveRider] = []
+    private var fetchCount = 0
+    private var shouldFailFetch = false
 
     func setSharing(_ enabled: Bool, shareToken: UUID) async throws -> GroupLiveSharingReceipt {
         sharingChanges.append(SharingChange(enabled: enabled, token: shareToken))
@@ -129,10 +169,24 @@ private actor GroupLiveLocationServiceSpy: GroupLiveLocationServing {
     }
 
     func fetchRiders(shareToken: UUID) async throws -> [GroupLiveRider] {
-        []
+        fetchCount += 1
+        if shouldFailFetch { throw GroupLiveLocationError.publishRejected }
+        return riders
+    }
+
+    func setRiders(_ riders: [GroupLiveRider]) {
+        self.riders = riders
+    }
+
+    func setFetchError(_ shouldFail: Bool) {
+        shouldFailFetch = shouldFail
     }
 
     func snapshot() -> Snapshot {
-        Snapshot(sharingChanges: sharingChanges, publishedTokens: publishedTokens)
+        Snapshot(
+            sharingChanges: sharingChanges,
+            publishedTokens: publishedTokens,
+            fetchCount: fetchCount
+        )
     }
 }
