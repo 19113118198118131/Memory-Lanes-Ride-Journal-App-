@@ -55,6 +55,7 @@
 	<string>Memory Lanes records your ride in the background so you never lose a track if the screen locks.</string>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>audio</string>
 		<string>location</string>
 	</array>
 </dict>

@@ -2,9 +2,11 @@
 
 ## Purpose
 
-The live camera is a glanceable map instrument for an active recording. It is
-not turn-by-turn navigation. Recording, background location, draft recovery and
-ride saving remain independent from camera presentation.
+The live camera is a glanceable map instrument for an active recording. When a
+planned route is selected, the cockpit also prepares road-aware MapKit steps,
+spoken maneuver prompts and sustained off-route recovery. Recording, background
+location, draft recovery and ride saving remain independent from navigation and
+camera presentation.
 
 ## Behaviour
 
@@ -18,10 +20,24 @@ ride saving remain independent from camera presentation.
 - maximum 28-degree bearing change per accepted GPS update
 - forward-shifted camera centre while moving
 - manual map interaction suspends following until the rider recentres
+- road-aware maneuver instructions and remaining distance/ETA for planned rides
+- spoken prompts at one kilometre, 300 metres and the maneuver
+- background spoken prompts while the screen is locked, with audio ducking
+  released after each instruction
+- a 12-second off-route hold before recalculation, avoiding noisy-GPS reroutes
+- automatic road recalculation with a 45-second retry cooldown
+- geometric saved-route guidance when road directions are unavailable
 
 `LiveRideCameraController` is deterministic and has no MapKit dependency.
 `LiveRideMapView` translates its output into `MKMapCamera` updates. This keeps
 camera calibration testable without a live GPS session or rendered map.
+
+`TurnByTurnNavigationEngine` is also deterministic and MapKit-independent. It
+matches GPS fixes to route geometry, keeps progress monotonic through noisy
+fixes and loops, selects the next road instruction, derives ETA and detects
+arrival. `MapKitTurnByTurnRouteProvider` is the current online instruction
+source. The embedded offline graph can generate routes, but offline maneuver
+instructions and offline recalculation remain a later routing milestone.
 
 ## Automated validation
 
@@ -50,6 +66,14 @@ Test with the phone securely mounted and do not operate controls while moving.
 7. Repeat in landscape and portrait. The rider should stay in the lower part of
    the useful map area without being obscured by the ride HUD.
 8. Enable Reduce Motion. The map should remain flat, north-up and unanimated.
+9. Start a saved route and verify each maneuver card and spoken prompt agrees
+   with the road ahead. Voice can be muted from the map control.
+10. Deliberately miss a safe turn. Guidance should wait through brief GPS drift,
+    then show recalculation and return to road instructions without interrupting
+    recording.
+11. Disable network access after guidance has loaded. Recording must continue;
+    a failed recalculation must retain the saved-route fallback rather than end
+    the ride.
 
 The MapKit camera-distance multiplier is an empirical starting point. Adjust it
 only after comparing these scenarios on a mounted physical device.

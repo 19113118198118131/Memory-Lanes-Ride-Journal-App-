@@ -763,6 +763,13 @@ Deliverables:
 - Start ride from planned route.
 - Planned vs actual overlay.
 - Route match score.
+- Online road-aware turn-by-turn maneuvers and spoken prompts.
+- Sustained off-route recalculation without interrupting recording.
+
+Current status: the online MapKit instruction path, deterministic progress
+engine, cockpit guidance, voice control, arrival and recalculation are built.
+Offline graph instructions, cross-pack routing and offline recalculation remain
+the next routing milestones.
 
 ### Phase 4B: Limit Point Route Study
 

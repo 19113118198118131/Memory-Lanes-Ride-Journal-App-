@@ -18,6 +18,7 @@ struct RecordingView: View {
 
     @StateObject private var recorder = LiveRideRecorder()
     @StateObject private var liveSharing: GroupLiveSharingController
+    @StateObject private var navigation: TurnByTurnNavigationController
     @State private var showingFinishConfirmation = false
     @State private var showingDiscardConfirmation = false
     @State private var finishedRide: RecordedRideResult?
@@ -42,6 +43,7 @@ struct RecordingView: View {
             context: groupRideContext,
             service: GroupLiveLocationService(accessToken: accessToken)
         ))
+        _navigation = StateObject(wrappedValue: TurnByTurnNavigationController(plannedRoute: plannedRoute))
     }
 
     var body: some View {
@@ -67,6 +69,7 @@ struct RecordingView: View {
                 finishedRide = recovered
             } else {
                 await liveSharing.start()
+                navigation.prepare(startingAt: recorder.points.last?.coordinate)
             }
         }
         .task(id: groupRideContext?.shareToken) {
@@ -74,6 +77,7 @@ struct RecordingView: View {
         }
         .onChange(of: recorder.pointCount) { _, _ in
             guard let point = recorder.points.last else { return }
+            navigation.update(point)
             Task { await liveSharing.offer(point) }
         }
         .onAppear {
@@ -81,6 +85,7 @@ struct RecordingView: View {
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
+            navigation.cancel()
             Task { await liveSharing.endSession() }
         }
         .alert("Finish ride?", isPresented: $showingFinishConfirmation) {
@@ -137,7 +142,9 @@ struct RecordingView: View {
             if latestPoint != nil || (plannedRoute?.route.count ?? 0) > 1 {
                 LiveRideMapView(
                     recordedRoute: recorder.routePreview,
-                    guideRoute: plannedRoute?.route ?? [],
+                    guideRoute: navigation.routeCoordinates.isEmpty
+                        ? plannedRoute?.route ?? []
+                        : navigation.routeCoordinates,
                     latestPoint: latestPoint,
                     liveRiders: liveSharing.riders,
                     cameraMode: cameraMode,
@@ -160,6 +167,16 @@ struct RecordingView: View {
                 Haptics.selection()
                 cameraMode = cameraMode == .headingUp ? .northUp : .headingUp
                 followsRideCamera = true
+            }
+
+            if showsTurnByTurnBanner {
+                mapControlButton(
+                    symbol: navigation.isVoiceEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill",
+                    label: navigation.isVoiceEnabled ? "Mute navigation voice" : "Enable navigation voice"
+                ) {
+                    Haptics.selection()
+                    navigation.isVoiceEnabled.toggle()
+                }
             }
 
             if !followsRideCamera {
@@ -357,7 +374,9 @@ struct RecordingView: View {
 
     private var controlPanel: some View {
         VStack(spacing: Spacing.sm) {
-            if let followSnapshot {
+            if showsTurnByTurnBanner {
+                TurnByTurnGuidanceBanner(state: navigation.state, snapshot: navigation.snapshot)
+            } else if let followSnapshot {
                 compactRouteGuidance(followSnapshot)
             }
 
@@ -435,6 +454,16 @@ struct RecordingView: View {
             recordedPoints: recorder.points,
             distanceMeters: recorder.distanceMeters
         )
+    }
+
+    private var showsTurnByTurnBanner: Bool {
+        guard plannedRoute != nil else { return false }
+        switch navigation.state {
+        case .loading, .navigating, .rerouting, .arrived:
+            return true
+        case .inactive, .unavailable:
+            return false
+        }
     }
 
     @ViewBuilder
