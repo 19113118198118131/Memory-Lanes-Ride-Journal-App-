@@ -5,7 +5,7 @@
 // ===============================
 
 import supabase from './supabaseClient.js';
-import { mlIconSVG } from './icons.js?v=90';
+import { mlIconSVG } from './icons.js?v=91';
 import { generateLoopCandidates, targetDistanceKm, formatMinutes, buildWhyBullets, buildCautions, MOOD_LABELS } from './planner-engine.js?v=90';
 import { buildRecommender } from './ai/recommender.js?v=90';
 

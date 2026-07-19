@@ -15,9 +15,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Ride Journal Dashboard</title>
-  <link rel="stylesheet" href="style.css?v=90" />
+  <link rel="stylesheet" href="style.css?v=91" />
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0a192f">
+  <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="assets/logo/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
@@ -58,33 +58,10 @@
         <h1>Memory Lanes</h1>
       </div>
       <div class="premium-top-actions">
-        <button id="export-data-btn" class="premium-icon-action" type="button" aria-label="Export ride data">Export</button>
-        <button id="logout-btn" class="premium-icon-action premium-logout-action" type="button">Logout</button>
-      </div>
-    </section>
-
-    <section class="premium-action-grid" aria-label="Primary actions">
-      <button id="record-ride-btn" class="premium-start-tile" type="button">
-        <span class="premium-tile-icon" data-icon="play"></span>
-        <span>Start Ride</span>
-      </button>
-      <div class="premium-action-stack">
-        <a class="premium-action-tile" href="planner.html">
-          <span data-icon="route"></span>
-          <span>Plan Route</span>
+        <a class="premium-avatar-action" href="account.html" aria-label="Open account">
+          <span data-icon="user"></span>
         </a>
-        <button id="home-btn" class="premium-action-tile" type="button">
-          <span data-icon="upload"></span>
-          <span>Upload GPX</span>
-        </button>
       </div>
-    </section>
-
-    <section id="premium-last-ride" class="premium-last-ride" aria-live="polite">
-      <div class="premium-section-head">
-        <span>Last Ride</span>
-      </div>
-      <div class="premium-empty-card">Loading your latest ride…</div>
     </section>
 
     <section class="premium-metric-row" aria-label="Ride summary">
@@ -98,63 +75,36 @@
         <strong id="premium-best-flow">--</strong>
         <span>Coach score</span>
       </article>
-      <article class="premium-metric-card premium-metric-card-warm">
-        <span class="premium-metric-label">Moments</span>
-        <strong id="premium-moments">--</strong>
-        <span>Captures</span>
-      </article>
     </section>
 
-    <!-- Rider profile: the name shown on shared-route invite pages -->
-    <section id="profile-section" class="profile-card">
-      <div class="profile-head">
-        <h2>Rider Profile</h2>
-        <button type="button" id="profile-toggle-btn" class="btn-outline">Edit</button>
-      </div>
-      <p id="profile-summary" class="section-sub">Loading profile…</p>
-      <div id="profile-form" style="display:none;">
-        <p class="section-sub">Shown when you share a route: "Shared by <em>your name</em>". Leave blank to stay anonymous on invites.</p>
-        <div class="profile-fields">
-          <label>Display name
-            <input type="text" id="profile-name-input" maxlength="40" placeholder="e.g. Samar" />
-          </label>
-          <label>Region
-            <input type="text" id="profile-region-input" maxlength="60" placeholder="e.g. Auckland, NZ" />
-          </label>
-        </div>
-        <div class="planner-toolbar-actions">
-          <button type="button" id="profile-save-btn" class="btn-primary">Save Profile</button>
-        </div>
-        <p id="profile-status" class="chart-desc"></p>
-      </div>
-    </section>
-
-    <!-- Group rides you host or joined: lose the link, recover it here -->
-    <section id="group-rides-section" class="profile-card" style="display:none;">
-      <h2>Your Group Rides</h2>
-      <div id="group-rides-list"></div>
+    <section class="premium-primary-actions" aria-label="Primary actions">
+      <button id="record-ride-btn" class="premium-primary-button" type="button">
+        <span data-icon="play"></span>
+        <span>Start Ride</span>
+      </button>
+      <button id="home-btn" class="premium-secondary-button" type="button">
+        <span data-icon="download"></span>
+        <span>Import GPX</span>
+      </button>
     </section>
 
     <div class="premium-section-head premium-recent-head">
       <span>Recent Rides</span>
       <button id="stats-btn" class="premium-link-button" type="button">View Stats</button>
-      <button id="journal-btn" class="premium-link-button" type="button">Journal</button>
     </div>
     <div id="ride-list">Loading…</div>
 
-    <nav class="premium-tabbar" aria-label="App sections">
+    <nav class="premium-tabbar app-tabbar" aria-label="App sections">
       <a class="active" href="dashboard.html" aria-current="page"><span data-icon="play"></span><span>Ride</span></a>
       <a href="planner.html"><span data-icon="route"></span><span>Routes</span></a>
       <a href="journal.html"><span data-icon="book"></span><span>Journal</span></a>
       <a href="stats.html"><span data-icon="stats"></span><span>Stats</span></a>
-      <a href="dashboard.html#profile-section"><span data-icon="gauge"></span><span>Profile</span></a>
     </nav>
   </main>
 
   <!-- ========== JS for dashboard ========= -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script type="module" src="dashboard.js?v=90"></script>
-  <script type="module" src="icons.js?v=90"></script>
+  <script type="module" src="icons.js?v=91"></script>
   <script src="theme.js?v=90"></script>
 </body>
 </html>

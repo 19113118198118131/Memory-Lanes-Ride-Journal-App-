@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('ml-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Manage your Memory Lanes rider profile, ride library, privacy and account." />
+  <title>Account - Memory Lanes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=91" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
+</head>
+<body class="ios-app-page ios-account-page">
+  <header class="account-topbar">
+    <a class="account-close" href="dashboard.html" aria-label="Close account"><span data-icon="x"></span></a>
+    <h1>Account</h1>
+    <span class="account-topbar-spacer" aria-hidden="true"></span>
+  </header>
+
+  <main class="account-shell">
+    <section class="account-profile-header" aria-labelledby="account-name">
+      <div id="account-avatar" class="account-avatar" aria-hidden="true">R</div>
+      <div class="account-profile-copy">
+        <p class="premium-kicker">Rider profile</p>
+        <h2 id="account-name">Rider</h2>
+        <p id="account-email">Loading account…</p>
+        <p id="account-region" class="account-region" hidden></p>
+      </div>
+      <span class="account-connected" title="Cloud account connected" aria-label="Cloud account connected"><span data-icon="check"></span></span>
+    </section>
+
+    <section class="account-library-overview" aria-label="Library overview">
+      <div><strong id="account-ride-count">--</strong><span>Rides</span></div>
+      <div><strong id="account-distance">--</strong><span>Distance</span></div>
+      <div><strong>On</strong><span>Sync</span></div>
+    </section>
+
+    <section class="account-section" aria-labelledby="community-heading">
+      <p id="community-heading" class="premium-kicker">Community</p>
+      <div class="account-panel">
+        <button id="account-profile-toggle" class="account-row" type="button" aria-expanded="false">
+          <span class="account-row-icon" data-icon="user"></span>
+          <span><strong>Rider profile</strong><small id="account-profile-detail">Choose how riders see you</small></span>
+          <span data-icon="chevron"></span>
+        </button>
+        <div id="account-profile-form" class="account-inline-form" hidden>
+          <label>Display name<input id="account-name-input" type="text" maxlength="40" autocomplete="name" placeholder="Your rider name" /></label>
+          <label>Region<input id="account-region-input" type="text" maxlength="60" placeholder="Auckland, NZ" /></label>
+          <button id="account-profile-save" class="btn-primary" type="button">Save Profile</button>
+          <p id="account-profile-status" class="account-status" aria-live="polite"></p>
+        </div>
+      </div>
+      <p class="account-section-footer">Only your display name and region appear on group rides. Your email and ride library remain private.</p>
+    </section>
+
+    <section id="account-group-section" class="account-section" aria-labelledby="group-heading" hidden>
+      <p id="group-heading" class="premium-kicker">Your group rides</p>
+      <div id="account-group-list" class="account-panel"></div>
+    </section>
+
+    <section class="account-section" aria-labelledby="library-heading">
+      <p id="library-heading" class="premium-kicker">Library &amp; Sync</p>
+      <div class="account-panel">
+        <div class="account-row account-row-static">
+          <span class="account-row-icon" data-icon="cloud"></span>
+          <span><strong>Cloud sync</strong><small>Supabase account connected</small></span>
+          <span class="account-row-status">On</span>
+        </div>
+        <a class="account-row" href="planner.html">
+          <span class="account-row-icon" data-icon="route"></span>
+          <span><strong>Routes &amp; group rides</strong><small>Plan, host and join rides</small></span>
+          <span data-icon="chevron"></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="account-section" aria-labelledby="data-heading">
+      <p id="data-heading" class="premium-kicker">Data &amp; Privacy</p>
+      <div class="account-panel">
+        <button id="export-data-btn" class="account-row" type="button">
+          <span class="account-row-icon" data-icon="upload"></span>
+          <span><strong>Export account data</strong><small>Create a portable copy of your rides and GPX files</small></span>
+          <span data-icon="chevron"></span>
+        </button>
+      </div>
+      <p id="account-export-status" class="account-section-footer" aria-live="polite">Your export includes ride records, coaching summaries and original GPX tracks.</p>
+    </section>
+
+    <section class="account-section" aria-labelledby="app-heading">
+      <p id="app-heading" class="premium-kicker">Memory Lanes</p>
+      <div class="account-panel">
+        <div class="account-row account-row-static">
+          <span class="account-row-icon" data-icon="sparkle"></span>
+          <span><strong>App version</strong><small>Web experience</small></span>
+          <span class="account-row-status account-version">0.1.0</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="account-section" aria-labelledby="session-heading">
+      <p id="session-heading" class="premium-kicker">Session</p>
+      <div class="account-panel">
+        <button id="account-sign-out" class="account-row account-row-danger" type="button">
+          <span class="account-row-icon" data-icon="logout"></span>
+          <span><strong>Sign out</strong><small>Your cloud rides remain in your account</small></span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script type="module" src="account.js?v=91"></script>
+  <script type="module" src="icons.js?v=91"></script>
+</body>
+</html>

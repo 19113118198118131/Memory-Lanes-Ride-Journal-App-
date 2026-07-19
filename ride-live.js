@@ -11,7 +11,7 @@ import supabase from './supabaseClient.js';
 // ride-live.html exactly. A bare './icons.js' is a DIFFERENT module URL to
 // './icons.js?v=N', so the browser loads icons.js twice and applyIcons()
 // runs twice, duplicating every button icon on this page.
-import { mlIconSVG } from './icons.js?v=90';
+import { mlIconSVG } from './icons.js?v=91';
 
 // Native iOS recorder bridge (Capacitor). Loaded LAZILY: the bridge pulls in
 // @capacitor/core from a CDN, so importing it statically would make every web

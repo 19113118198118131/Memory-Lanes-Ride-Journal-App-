@@ -18,9 +18,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=90" />
+  <link rel="stylesheet" href="style.css?v=91" />
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0a192f">
+  <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="assets/logo/favicon.png">
 </head>
@@ -73,50 +73,13 @@
          LANDING HERO
          ======================== -->
     <section id="landing-hero">
-      <div class="hero-bg" aria-hidden="true">
-        <svg viewBox="0 0 900 420" width="100%" height="100%" preserveAspectRatio="none">
-          <path id="hero-road-a" class="hero-road-draw" fill="none" stroke-width="2.5"
-                d="M-20 360 C 160 300, 200 200, 380 210 S 620 300, 740 220 S 900 120, 960 170"/>
-          <path class="hero-road-b" fill="none" stroke-width="2"
-                d="M-20 400 C 180 340, 260 400, 420 330 S 640 250, 780 300 S 920 260, 980 290"/>
-          <circle class="hero-rider" r="4.5">
-            <animateMotion dur="9s" repeatCount="indefinite">
-              <mpath href="#hero-road-a"/>
-            </animateMotion>
-          </circle>
-        </svg>
-      </div>
-      <h2 class="hero-title">Relive every ride.</h2>
-      <p class="hero-sub">Upload a GPX track and Memory Lanes turns every ride into cinematic replays, practical rider insights, and memories you'll want to keep.</p>
-      <div class="hero-cards">
-        <div class="hero-card">
-          <div class="hero-card-icon" data-icon="map"></div>
-          <div class="hero-card-title">Replay &amp; Analytics</div>
-          <div class="hero-card-text">Watch your ride back on the map with live telemetry, elevation and speed charts, and weather from the day.</div>
-        </div>
-        <div class="hero-card">
-          <div class="hero-card-icon" data-icon="gauge"></div>
-          <div class="hero-card-title">Ride Coach</div>
-          <div class="hero-card-text">GPS-based technique feedback: corner entry, exit drive, braking feel, and one thing to practise next ride.</div>
-        </div>
-        <div class="hero-card">
-          <div class="hero-card-icon" data-icon="book"></div>
-          <div class="hero-card-title">Journal &amp; Share</div>
-          <div class="hero-card-text">Pin moments to the map, build a rider's journal, export ride cards and replay videos, share read-only links.</div>
-        </div>
-        <div class="hero-card">
-          <div class="hero-card-icon" data-icon="route"></div>
-          <div class="hero-card-title">Plan a Ride</div>
-          <div class="hero-card-text">Set a goal and a starting point, and get road-snapped route candidates matched to what you're after.</div>
-        </div>
-      </div>
+      <img class="welcome-brand-mark" src="assets/logo/logo.png" alt="" />
+      <h2 class="hero-title">Memory Lanes</h2>
+      <p class="hero-sub">Ride. Remember. Refine.</p>
       <div class="hero-actions">
-        <button type="button" id="ios-get-started-btn" class="btn-primary">Get Started</button>
-        <label for="gpx-upload" class="btn-muted" title="Upload a .gpx file">Upload GPX</label>
-        <button id="try-demo-btn" class="btn-muted">Try a sample ride</button>
-        <a href="planner.html" class="btn-muted">Plan a route</a>
+        <button type="button" id="ios-get-started-btn" class="btn-primary">Create Account</button>
+        <button type="button" id="ios-sign-in-btn" class="btn-outline">Sign In</button>
       </div>
-      <p class="hero-note">The sample is a synthetic 11 km loop, so you can explore every feature before uploading your own GPX.</p>
     </section>
 
     <!-- ========================
@@ -155,8 +118,8 @@
          AUTH SECTION
          ======================== -->
     <section id="auth-section" style="display:none; margin-bottom: 2rem;">
-      <h2>Log In</h2>
-      <p class="section-sub">Use your ride journal account, or sign up with the same form.</p>
+      <h2>Welcome back</h2>
+      <p class="section-sub">Sign in to your ride journal or create a new account.</p>
       <div class="auth-form">
         <input type="email" id="auth-email" placeholder="Email" />
         <input type="password" id="auth-password" placeholder="Password" />
@@ -432,8 +395,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=90"></script>
-  <script type="module" src="icons.js?v=90"></script>
+  <script type="module" src="script.js?v=91"></script>
+  <script type="module" src="icons.js?v=91"></script>
   <script src="theme.js?v=90"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->
 

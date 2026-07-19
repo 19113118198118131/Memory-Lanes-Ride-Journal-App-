@@ -17,9 +17,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=90" />
+  <link rel="stylesheet" href="style.css?v=91" />
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0a192f">
+  <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="assets/logo/favicon.png">
 </head>
@@ -48,6 +48,7 @@
       <span class="nav-sep">|</span>
       <a class="nav-link" href="planner.html" data-nav="planner.html" aria-current="page">Plan</a>
     </nav>
+    <a class="web-account-action" href="account.html" aria-label="Open account"><span data-icon="user"></span></a>
   </header>
 
   <header>
@@ -245,19 +246,18 @@
       <p class="planner-attribution">Routing by OSRM &middot; Search by Photon (Komoot) &middot; Map data &copy; OpenStreetMap contributors &middot; Elevation by Open-Meteo</p>
     </div>
 
-    <nav class="ios-tabbar" aria-label="App sections">
+    <nav class="ios-tabbar app-tabbar" aria-label="App sections">
       <a href="dashboard.html"><span data-icon="play"></span><span>Ride</span></a>
       <a class="active" href="planner.html" aria-current="page"><span data-icon="route"></span><span>Routes</span></a>
       <a href="journal.html"><span data-icon="book"></span><span>Journal</span></a>
       <a href="stats.html"><span data-icon="stats"></span><span>Stats</span></a>
-      <a href="dashboard.html#profile-section"><span data-icon="gauge"></span><span>Profile</span></a>
     </nav>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
   <script type="module" src="planner.js?v=90"></script>
-  <script type="module" src="icons.js?v=90"></script>
+  <script type="module" src="icons.js?v=91"></script>
   <script src="theme.js?v=90"></script>
 </body>
 </html>

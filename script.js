@@ -5,7 +5,7 @@
 import supabase from './supabaseClient.js';
 import { analyzeRide, renderRiderSkills, summarizeForStorage } from './riderskills.js?v=90';
 import { buildRideInsights } from './insights.js?v=90';
-import { mlIconSVG } from './icons.js?v=90';
+import { mlIconSVG } from './icons.js?v=91';
 import { extractRideFeatures } from './ai/feature-extractor.js?v=90';
 import { FEATURE_SCHEMA_VERSION } from './ai/feature-schema.js?v=90';
 import { initRideFeedback } from './ai/ride-feedback.js?v=90';
@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const headerAuthControls    = document.getElementById('header-auth-controls');
   const headerLoginBtn        = document.getElementById('header-login-btn');
   const iosGetStartedBtn      = document.getElementById('ios-get-started-btn');
+  const iosSignInBtn          = document.getElementById('ios-sign-in-btn');
   const headerAccountControls = document.getElementById('header-account-controls');
   const headerLogoutBtn       = document.getElementById('header-logout-btn');
   const headerMyRidesBtn      = document.getElementById('header-my-rides-btn');
@@ -2496,14 +2497,17 @@ headerLoginBtn.addEventListener('click', () => {
   if (emailInput) emailInput.focus();
 });
 
-iosGetStartedBtn?.addEventListener('click', () => {
+function showWelcomeAuth() {
   pendingSaveAfterLogin = false;
   authSection.style.display = 'block';
   fadeInElement(authSection);
   authSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
   const emailInput = document.getElementById('auth-email');
   if (emailInput) emailInput.focus();
-});
+}
+
+iosGetStartedBtn?.addEventListener('click', showWelcomeAuth);
+iosSignInBtn?.addEventListener('click', showWelcomeAuth);
 
 headerLogoutBtn.addEventListener('click', async () => {
   await supabase.auth.signOut();

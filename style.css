@@ -5996,3 +5996,525 @@ body.ios-app-page .best-card,
   body.ios-app-page footer,
   body.ios-welcome-page footer { display: none; }
 }
+
+/* ============================================================
+   NATIVE/WEB PARITY LAYER
+   Mirrors ios-native/DESIGN-SYSTEM.md while remaining responsive
+   when the rider opens Memory Lanes in a desktop browser.
+   ============================================================ */
+:root {
+  --ml-app-bg: #0a0a0a;
+  --ml-app-surface: #141414;
+  --ml-app-elevated: #1c1c1c;
+  --ml-app-hairline: #2a2a2a;
+  --ml-app-accent: #2ee6c0;
+  --ml-app-text: #f5f5f7;
+  --ml-app-secondary: #9a9aa0;
+  --ml-app-tertiary: #6a6a70;
+  --ml-app-success: #30d158;
+  --ml-app-danger: #ff453a;
+  --ml-app-radius-card: 16px;
+  --ml-app-radius-button: 12px;
+  --ml-app-spring: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body.ios-app-page,
+.premium-home-page {
+  --ios-bg: var(--ml-app-bg);
+  --ios-surface: var(--ml-app-surface);
+  --ios-surface-2: var(--ml-app-elevated);
+  --ios-line: var(--ml-app-hairline);
+  --ios-line-strong: rgba(46, 230, 192, 0.42);
+  --ios-text: var(--ml-app-text);
+  --ios-muted: var(--ml-app-secondary);
+  --ios-faint: var(--ml-app-tertiary);
+  --ios-accent: var(--ml-app-accent);
+  --ios-accent-2: var(--ml-app-accent);
+  --ios-danger: var(--ml-app-danger);
+  --ios-radius: var(--ml-app-radius-card);
+  --ios-radius-sm: var(--ml-app-radius-button);
+  --ios-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+  background: var(--ml-app-bg);
+  color: var(--ml-app-text);
+}
+
+body.ios-welcome-page {
+  --ios-bg: var(--ml-app-bg);
+  --ios-surface: var(--ml-app-surface);
+  --ios-line: var(--ml-app-hairline);
+  --ios-text: var(--ml-app-text);
+  --ios-muted: var(--ml-app-secondary);
+  --ios-faint: var(--ml-app-tertiary);
+  --ios-accent: var(--ml-app-accent);
+  --ios-accent-2: var(--ml-app-accent);
+  min-height: 100svh;
+  overflow-x: hidden;
+  background: var(--ml-app-bg);
+  color: var(--ml-app-text);
+}
+
+body.ios-app-page main,
+body.ios-welcome-page main,
+.premium-home-shell { box-sizing: border-box; }
+
+body.ios-welcome-page > .main-header,
+body.ios-welcome-page > .theme-toggle-corner { display: none; }
+
+body.ios-welcome-page main {
+  width: min(100%, 520px);
+  min-height: 100svh;
+  padding: 0 20px;
+}
+
+.ios-welcome-page #landing-hero {
+  box-sizing: border-box;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: max(32px, env(safe-area-inset-top)) 0 max(32px, env(safe-area-inset-bottom));
+}
+
+.ios-welcome-page .welcome-brand-mark {
+  width: min(78vw, 320px);
+  aspect-ratio: 1;
+  margin: 0 auto 18px;
+  display: block;
+  object-fit: cover;
+  border-radius: 32px;
+  filter: saturate(0.9) contrast(1.03);
+  -webkit-mask-image: radial-gradient(circle at center, #000 56%, transparent 76%);
+  mask-image: radial-gradient(circle at center, #000 56%, transparent 76%);
+}
+
+.ios-welcome-page .hero-title {
+  margin: 0;
+  color: var(--ml-app-text);
+  font-size: clamp(38px, 10vw, 56px);
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.ios-welcome-page .hero-sub {
+  margin: 10px auto 36px;
+  color: var(--ml-app-secondary);
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.ios-welcome-page .hero-actions {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 12px;
+}
+
+.ios-welcome-page .hero-actions .btn-primary,
+.ios-welcome-page .hero-actions .btn-outline {
+  width: 100%;
+  min-height: 56px;
+  border-radius: var(--ml-app-radius-button);
+  font-size: 16px;
+  font-weight: 700;
+  transition: transform 240ms var(--ml-app-spring), background-color 240ms var(--ml-app-spring), border-color 240ms var(--ml-app-spring);
+}
+
+.ios-welcome-page .hero-actions .btn-primary {
+  border-color: var(--ml-app-accent);
+  background: var(--ml-app-accent);
+  color: #061410;
+}
+
+.ios-welcome-page .hero-actions .btn-outline {
+  border: 1px solid var(--ml-app-hairline);
+  background: var(--ml-app-surface);
+  color: var(--ml-app-text);
+}
+
+.ios-welcome-page .hero-actions button:active { transform: scale(0.96); }
+
+.ios-welcome-page #auth-section {
+  box-sizing: border-box;
+  width: min(100%, 420px);
+  margin: 0 auto 48px !important;
+  padding: 24px;
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-card);
+  background: var(--ml-app-surface);
+  box-shadow: none;
+}
+
+.ios-welcome-page #auth-section h2 {
+  margin: 0 0 8px;
+  color: var(--ml-app-text);
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.ios-welcome-page #auth-section .section-sub { margin-bottom: 20px; color: var(--ml-app-secondary); }
+.ios-welcome-page .auth-form { display: grid; gap: 12px; }
+.ios-welcome-page .auth-form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-button);
+  background: var(--ml-app-elevated);
+  color: var(--ml-app-text);
+}
+.ios-welcome-page .auth-form input:focus {
+  outline: none;
+  border-color: var(--ml-app-accent);
+}
+.ios-welcome-page .auth-form button {
+  min-height: 52px;
+  border-radius: var(--ml-app-radius-button);
+}
+.ios-welcome-page .auth-form #login-btn {
+  border-color: var(--ml-app-accent);
+  background: var(--ml-app-accent);
+  color: #061410;
+}
+.ios-welcome-page .auth-form #signup-btn {
+  border: 1px solid var(--ml-app-hairline);
+  background: transparent;
+  color: var(--ml-app-text);
+}
+
+.premium-home-page {
+  --app-bg: var(--ml-app-bg);
+  --app-panel: var(--ml-app-surface);
+  --app-panel-soft: var(--ml-app-elevated);
+  --app-border: var(--ml-app-hairline);
+  --app-border-soft: var(--ml-app-hairline);
+  --app-text: var(--ml-app-text);
+  --app-muted: var(--ml-app-secondary);
+  --app-dim: var(--ml-app-tertiary);
+  --app-accent: var(--ml-app-accent);
+  --app-accent-strong: var(--ml-app-accent);
+}
+
+.premium-home-shell {
+  width: min(100%, 760px);
+  max-width: 760px;
+  padding: calc(20px + env(safe-area-inset-top)) 20px calc(104px + env(safe-area-inset-bottom));
+}
+
+.premium-app-topbar h1 {
+  font-size: clamp(34px, 7vw, 52px);
+  line-height: 1;
+  font-weight: 700;
+}
+
+.premium-avatar-action,
+.web-account-action,
+.account-close {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: 50%;
+  background: var(--ml-app-surface);
+  color: var(--ml-app-accent);
+  text-decoration: none;
+  transition: transform 240ms var(--ml-app-spring), background-color 240ms var(--ml-app-spring), border-color 240ms var(--ml-app-spring);
+}
+
+.premium-avatar-action .ml-icon,
+.web-account-action .ml-icon,
+.account-close .ml-icon { width: 21px; height: 21px; }
+
+.premium-metric-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.premium-metric-card,
+.premium-empty-card,
+.premium-home-page .ride-entry.premium-ride-row {
+  background: var(--ml-app-surface);
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-card);
+  box-shadow: none;
+}
+
+.premium-metric-card { padding: 20px; }
+.premium-metric-card strong {
+  font-size: clamp(30px, 7vw, 42px);
+  font-variant-numeric: tabular-nums;
+}
+
+.premium-primary-actions {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.premium-primary-button,
+.premium-secondary-button {
+  min-height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: var(--ml-app-radius-button);
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: transform 240ms var(--ml-app-spring), background-color 240ms var(--ml-app-spring), border-color 240ms var(--ml-app-spring);
+}
+
+.premium-primary-button {
+  border: 1px solid var(--ml-app-accent);
+  background: var(--ml-app-accent);
+  color: #061410;
+}
+
+.premium-secondary-button {
+  border: 1px solid var(--ml-app-hairline);
+  background: var(--ml-app-surface);
+  color: var(--ml-app-text);
+}
+
+.premium-primary-button .ml-icon,
+.premium-secondary-button .ml-icon { width: 20px; height: 20px; }
+
+.premium-recent-head { margin-top: 0; }
+.premium-home-page .filters-container { margin-bottom: 12px; }
+
+.app-tabbar { grid-template-columns: repeat(4, 1fr); }
+
+.web-account-action {
+  position: absolute;
+  right: 18px;
+  top: calc(14px + env(safe-area-inset-top));
+}
+
+body.ios-app-page .main-header { position: relative; }
+
+.premium-avatar-action:active,
+.web-account-action:active,
+.account-close:active,
+.premium-primary-button:active,
+.premium-secondary-button:active,
+.account-row:active,
+.app-tabbar a:active { transform: scale(0.96); }
+
+/* Account */
+body.ios-account-page { padding-bottom: 48px; }
+
+.account-topbar {
+  width: min(100%, 760px);
+  min-height: 72px;
+  margin: 0 auto;
+  padding: calc(14px + env(safe-area-inset-top)) 20px 10px;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 12px;
+  background: var(--ml-app-bg);
+  border: 0;
+  opacity: 1;
+  animation: none;
+}
+
+.account-topbar h1 {
+  margin: 0;
+  color: var(--ml-app-text);
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.account-shell {
+  width: min(100%, 760px) !important;
+  padding: 20px 20px 64px !important;
+}
+
+.account-profile-header {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.account-avatar {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(46, 230, 192, 0.45);
+  border-radius: 50%;
+  background: rgba(46, 230, 192, 0.12);
+  color: var(--ml-app-accent);
+  font-size: 25px;
+  font-weight: 700;
+}
+
+.account-profile-copy { min-width: 0; }
+.account-profile-copy h2 {
+  margin: 2px 0 4px;
+  overflow: hidden;
+  color: var(--ml-app-text);
+  font-size: 24px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-profile-copy p:not(.premium-kicker) {
+  margin: 0;
+  overflow: hidden;
+  color: var(--ml-app-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-profile-copy .account-region { margin-top: 4px; color: var(--ml-app-tertiary); }
+
+.account-connected { color: var(--ml-app-success); }
+.account-connected .ml-icon { width: 22px; height: 22px; }
+
+.account-library-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 32px;
+  overflow: hidden;
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-card);
+  background: var(--ml-app-surface);
+}
+
+.account-library-overview > div {
+  min-width: 0;
+  padding: 18px 10px;
+  text-align: center;
+}
+.account-library-overview > div + div { border-left: 1px solid var(--ml-app-hairline); }
+.account-library-overview strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ml-app-text);
+  font-size: clamp(22px, 6vw, 30px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-library-overview span,
+.account-row small {
+  display: block;
+  margin-top: 5px;
+  color: var(--ml-app-secondary);
+  font-size: 12px;
+}
+
+.account-section { margin-bottom: 28px; }
+.account-section > .premium-kicker { margin: 0 4px 8px; }
+.account-panel {
+  overflow: hidden;
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-card);
+  background: var(--ml-app-surface);
+}
+
+.account-row {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--ml-app-text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 240ms var(--ml-app-spring), background-color 240ms var(--ml-app-spring);
+}
+.account-row + .account-row { border-top: 1px solid var(--ml-app-hairline); }
+.account-row strong { display: block; font-size: 15px; font-weight: 650; }
+.account-row > .ml-icon { width: 18px; color: var(--ml-app-tertiary); }
+.account-row-icon { color: var(--ml-app-accent); }
+.account-row-icon .ml-icon { width: 21px; height: 21px; }
+.account-row-status { color: var(--ml-app-success); font-size: 13px; font-weight: 650; }
+.account-version { color: var(--ml-app-secondary); font-variant-numeric: tabular-nums; }
+.account-row-danger strong,
+.account-row-danger .account-row-icon { color: var(--ml-app-danger); }
+
+.account-inline-form {
+  padding: 4px 16px 16px 60px;
+  border-top: 1px solid var(--ml-app-hairline);
+}
+.account-inline-form label {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--ml-app-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.account-inline-form .btn-primary { width: 100%; margin-top: 14px; }
+.account-status { min-height: 18px; margin: 8px 0 0; color: var(--ml-app-secondary); font-size: 12px; }
+.account-section-footer { margin: 8px 4px 0; color: var(--ml-app-tertiary); font-size: 12px; line-height: 1.45; }
+
+@media (hover: hover) and (pointer: fine) {
+  .premium-avatar-action:hover,
+  .web-account-action:hover,
+  .account-close:hover {
+    transform: scale(1.02);
+    border-color: rgba(46, 230, 192, 0.4);
+    background: var(--ml-app-elevated);
+  }
+  .premium-primary-button:hover,
+  .premium-secondary-button:hover,
+  .account-row:hover,
+  .app-tabbar a:hover {
+    transform: scale(1.01);
+  }
+  .premium-secondary-button:hover,
+  .account-row:hover { background: var(--ml-app-elevated); }
+}
+
+@media (min-width: 820px) {
+  body.ios-routes-page main,
+  body.ios-routes-page header:not(.main-header) { width: min(calc(100% - 48px), 1120px); }
+  body.ios-stats-page main,
+  body.ios-stats-page header:not(.main-header),
+  body.ios-journal-page main { width: min(calc(100% - 48px), 960px); }
+  body.ios-routes-page .main-header,
+  body.ios-stats-page .main-header,
+  body.ios-journal-page .main-header { width: min(calc(100% - 48px), 1120px); }
+  .premium-primary-actions { grid-template-columns: 1fr 1fr; }
+  .app-tabbar { width: min(calc(100vw - 48px), 560px); }
+  .account-inline-form { padding-left: 60px; padding-right: 60px; }
+}
+
+@media (max-width: 420px) {
+  .premium-home-shell,
+  .account-shell { padding-inline: 16px !important; }
+  .premium-metric-card { padding: 16px; }
+  .account-profile-header { grid-template-columns: 64px minmax(0, 1fr) 24px; gap: 12px; }
+  .account-avatar { width: 64px; height: 64px; }
+  .account-inline-form { padding-left: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-avatar-action,
+  .web-account-action,
+  .account-close,
+  .premium-primary-button,
+  .premium-secondary-button,
+  .account-row,
+  .app-tabbar a { transition-duration: 0.01ms; }
+}

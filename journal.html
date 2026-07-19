@@ -15,7 +15,7 @@
   <meta charset="UTF-8" />
   <title>Rider's Journal | Memory Lanes</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="stylesheet" href="style.css?v=90" />
+  <link rel="stylesheet" href="style.css?v=91" />
 
   <!-- StPageFlip Flipbook Library (MIT License) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/dist/css/page-flip.min.css"/>
@@ -50,6 +50,7 @@
       <span class="nav-sep">|</span>
       <a class="nav-link" href="planner.html" data-nav="planner.html">Plan</a>
     </nav>
+    <a class="web-account-action" href="account.html" aria-label="Open account"><span data-icon="user"></span></a>
   </header>
   <main>
     <section aria-labelledby="journal-heading">
@@ -74,12 +75,11 @@
       <!-- Moment List/Grid View (default) -->
       <div id="journal-moments-list" class="journal-moments-list" aria-live="polite">Loading...</div>
     </section>
-    <nav class="ios-tabbar" aria-label="App sections">
+    <nav class="ios-tabbar app-tabbar" aria-label="App sections">
       <a href="dashboard.html"><span data-icon="play"></span><span>Ride</span></a>
       <a href="planner.html"><span data-icon="route"></span><span>Routes</span></a>
       <a class="active" href="journal.html" aria-current="page"><span data-icon="book"></span><span>Journal</span></a>
       <a href="stats.html"><span data-icon="stats"></span><span>Stats</span></a>
-      <a href="dashboard.html#profile-section"><span data-icon="gauge"></span><span>Profile</span></a>
     </nav>
   </main>
 <footer>
@@ -91,9 +91,7 @@
   <script src="https://cdn.jsdelivr.net/npm/stpageflip@2.0.8/dist/js/page-flip.browser.min.js"></script>
   <!-- Then load your app's main code as a module -->
   <script type="module" src="journal.js?v=90"></script>
-  <script type="module" src="icons.js?v=90"></script>
+  <script type="module" src="icons.js?v=91"></script>
   <script src="theme.js?v=90"></script>
 </body>
 </html>
-
-

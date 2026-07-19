@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=90" />
+  <link rel="stylesheet" href="style.css?v=91" />
   <style>
     /* Page-scoped styles for the stats view */
     .stats-grid {
@@ -75,7 +75,7 @@
     #monthChart { max-height: 340px; }
   </style>
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0a192f">
+  <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="assets/logo/favicon.png">
 </head>
@@ -104,6 +104,7 @@
       <span class="nav-sep">|</span>
       <a class="nav-link" href="planner.html" data-nav="planner.html">Plan</a>
     </nav>
+    <a class="web-account-action" href="account.html" aria-label="Open account"><span data-icon="user"></span></a>
   </header>
 
   <header>
@@ -151,19 +152,18 @@
       <div id="all-routes-map"></div>
       <div id="routes-progress"></div>
     </section>
-    <nav class="ios-tabbar" aria-label="App sections">
+    <nav class="ios-tabbar app-tabbar" aria-label="App sections">
       <a href="dashboard.html"><span data-icon="play"></span><span>Ride</span></a>
       <a href="planner.html"><span data-icon="route"></span><span>Routes</span></a>
       <a href="journal.html"><span data-icon="book"></span><span>Journal</span></a>
       <a class="active" href="stats.html" aria-current="page"><span data-icon="stats"></span><span>Stats</span></a>
-      <a href="dashboard.html#profile-section"><span data-icon="gauge"></span><span>Profile</span></a>
     </nav>
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script type="module" src="stats.js?v=90"></script>
-  <script type="module" src="icons.js?v=90"></script>
+  <script type="module" src="icons.js?v=91"></script>
   <script src="theme.js?v=90"></script>
 </body>
 </html>
