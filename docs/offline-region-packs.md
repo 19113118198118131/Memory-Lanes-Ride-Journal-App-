@@ -35,7 +35,7 @@ and validates the manifest. Unverified network or cached catalogs are rejected.
 ```json
 {
   "schemaVersion": 1,
-  "keyID": "release-2026-01",
+  "keyID": "release-2026-07",
   "payload": "<base64 canonical manifest JSON>",
   "signature": "<base64 Ed25519 signature>"
 }
@@ -120,9 +120,11 @@ are retained.
 The `offline-graph-release` GitHub Environment should require approval and hold:
 
 - `OFFLINE_MANIFEST_SIGNING_KEY`: base64 raw 32-byte Ed25519 private key;
-- `SUPABASE_S3_ACCESS_KEY_ID` and `SUPABASE_S3_SECRET_ACCESS_KEY`;
-- `SUPABASE_S3_ENDPOINT`: the direct project Storage S3 endpoint;
-- `SUPABASE_S3_REGION`: the Storage region.
+- `SUPABASE_S3_ACCESS_KEY_ID` and `SUPABASE_S3_SECRET_ACCESS_KEY`.
+
+The project-specific Storage endpoint and region are non-secret workflow
+configuration. If the Supabase project or region changes, update them in the
+workflow alongside the public download URL used by the iOS app.
 
 The private signing key and S3 credentials are server-only and must never enter
 the repository or iOS bundle. The workflow tests the compiler, downloads the

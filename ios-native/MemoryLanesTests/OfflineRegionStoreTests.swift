@@ -49,6 +49,15 @@ struct OfflineRegionStoreTests {
         #expect(cached.regions.map(\.id) == [harness.region.id])
     }
 
+    @Test func unpublishedCatalogHasAnActionableError() async throws {
+        let harness = try Harness(packData: Data("graph".utf8))
+        await harness.network.failManifestRequests(status: 404)
+
+        await #expect(throws: OfflineRegionError.catalogNotPublished) {
+            _ = try await harness.store.catalog(forceRefresh: true)
+        }
+    }
+
     @Test func removalDeletesCoverageWithoutTouchingOtherRegions() async throws {
         let harness = try Harness(packData: Data("graph".utf8))
         _ = try await harness.store.install(harness.region, wifiOnly: false) { _ in }
@@ -167,6 +176,7 @@ private actor FakeOfflineRegionNetworkClient: OfflineRegionNetworkClient {
     private var manifestData = Data()
     private let packData: Data
     private var shouldFailManifest = false
+    private var manifestFailureStatus: Int?
 
     init(packData: Data) {
         self.packData = packData
@@ -180,7 +190,14 @@ private actor FakeOfflineRegionNetworkClient: OfflineRegionNetworkClient {
         shouldFailManifest = true
     }
 
+    func failManifestRequests(status: Int) {
+        manifestFailureStatus = status
+    }
+
     func data(for _: URLRequest) async throws -> Data {
+        if let manifestFailureStatus {
+            throw OfflineRegionError.server(status: manifestFailureStatus)
+        }
         if shouldFailManifest { throw URLError(.notConnectedToInternet) }
         return manifestData
     }

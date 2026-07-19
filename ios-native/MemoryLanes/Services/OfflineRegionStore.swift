@@ -54,7 +54,7 @@ actor OfflineRegionStore: OfflineRegionServing {
     static let supportedGraphFormatVersion = 1
 
     static let productionManifestKeys: [String: Data] = [
-        "release-2026-01": Data(base64Encoded: "I+N3zbgFy2UamDV/zHMphfpTrTb5IhqvrpZNV6Re7Rk=") ?? Data()
+        "release-2026-07": Data(base64Encoded: "TLp0ED02bf81xYkeUIWNv3m/sJJ6F/9JW9egtAwFq5o=") ?? Data()
     ]
 
     private struct InstalledArchive: Codable {
@@ -112,6 +112,9 @@ actor OfflineRegionStore: OfflineRegionServing {
             return manifest
         } catch {
             if let cached = loadCachedManifest() { return cached }
+            if case OfflineRegionError.server(status: 404) = error {
+                throw OfflineRegionError.catalogNotPublished
+            }
             if let offlineError = error as? OfflineRegionError { throw offlineError }
             throw OfflineRegionError.catalogUnavailable(error.localizedDescription)
         }
@@ -354,6 +357,7 @@ actor OfflineRegionStore: OfflineRegionServing {
 
 enum OfflineRegionError: LocalizedError, Equatable {
     case catalogUnavailable(String)
+    case catalogNotPublished
     case invalidServerResponse
     case server(status: Int)
     case unsupportedManifest
@@ -368,6 +372,8 @@ enum OfflineRegionError: LocalizedError, Equatable {
         switch self {
         case .catalogUnavailable:
             return "Offline areas could not be loaded. Check your connection and try again."
+        case .catalogNotPublished:
+            return "Offline road areas are not available for download yet. Please try again after the next map release."
         case .invalidServerResponse:
             return "The offline-area server returned an invalid response."
         case .server(let status):
