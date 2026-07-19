@@ -113,6 +113,69 @@ final class TurnByTurnNavigationTests: XCTestCase {
         XCTAssertEqual(NavigationManeuverClassifier.classify("You have arrived at your destination"), .arrive)
     }
 
+    func testOfflineManeuverBuilderCreatesNamedTurnInstructions() throws {
+        let coordinates = [
+            Coordinate(latitude: -36.85, longitude: 174.76),
+            Coordinate(latitude: -36.85, longitude: 174.77),
+            Coordinate(latitude: -36.86, longitude: 174.77)
+        ]
+        let path = OfflineNavigationPath(
+            route: RoadRoute(
+                coordinates: coordinates,
+                distanceMeters: 2_000,
+                expectedTravelTime: 180,
+                context: .geometryOnly
+            ),
+            edges: [
+                offlineEdge(wayID: 10, source: 1, destination: 2, name: "Valley Road"),
+                offlineEdge(wayID: 20, source: 2, destination: 3, name: "Ridge Road")
+            ]
+        )
+
+        let route = try OfflineManeuverBuilder().route(from: path)
+
+        XCTAssertEqual(route.instructions.map(\.maneuver), [.start, .right, .arrive])
+        XCTAssertEqual(route.instructions[0].text, "Head east on Valley Road")
+        XCTAssertEqual(route.instructions[1].text, "Turn right onto Ridge Road")
+        XCTAssertEqual(route.instructions[1].startsAtMeters, 1_000)
+    }
+
+    func testOfflineManeuverBuilderSuppressesSameRoadBends() throws {
+        let coordinates = [
+            Coordinate(latitude: -36.85, longitude: 174.76),
+            Coordinate(latitude: -36.85, longitude: 174.77),
+            Coordinate(latitude: -36.86, longitude: 174.77)
+        ]
+        let path = OfflineNavigationPath(
+            route: RoadRoute(
+                coordinates: coordinates,
+                distanceMeters: 2_000,
+                expectedTravelTime: 180,
+                context: .geometryOnly
+            ),
+            edges: [
+                offlineEdge(wayID: 10, source: 1, destination: 2, name: "Coast Road"),
+                offlineEdge(wayID: 10, source: 2, destination: 3, name: "Coast Road")
+            ]
+        )
+
+        let route = try OfflineManeuverBuilder().route(from: path)
+
+        XCTAssertEqual(route.instructions.map(\.maneuver), [.start, .arrive])
+    }
+
+    func testOfflineFirstTurnByTurnProviderFallsBackWhenCoverageIsMissing() async throws {
+        let expected = navigationRoute()
+        let provider = OfflineFirstTurnByTurnRouteProvider(
+            offline: ThrowingTurnByTurnProvider(),
+            fallback: FixedTurnByTurnProvider(route: expected)
+        )
+
+        let route = try await provider.route(through: expected.coordinates)
+
+        XCTAssertEqual(route, expected)
+    }
+
     func testVoicePolicyAnnouncesEachDistanceThresholdOnce() {
         var policy = NavigationAnnouncementPolicy()
         let first = snapshot(distance: 950)
@@ -184,4 +247,35 @@ final class TurnByTurnNavigationTests: XCTestCase {
             matchedDistanceMeters: 4_000
         )
     }
+
+    private func offlineEdge(
+        wayID: UInt64,
+        source: UInt64,
+        destination: UInt64,
+        name: String
+    ) -> OfflineRoadEdge {
+        OfflineRoadEdge(
+            wayID: wayID,
+            sourceNodeID: source,
+            destinationNodeID: destination,
+            distanceMeters: 1_000,
+            expectedTravelTime: 90,
+            roadClass: .secondary,
+            name: name,
+            surface: "asphalt",
+            maximumSpeedKPH: 80
+        )
+    }
+}
+
+private struct ThrowingTurnByTurnProvider: TurnByTurnRouteProviding {
+    func route(through _: [Coordinate]) async throws -> TurnByTurnRoute {
+        throw OfflineRoadRoutingError.noCoverage
+    }
+}
+
+private struct FixedTurnByTurnProvider: TurnByTurnRouteProviding {
+    let route: TurnByTurnRoute
+
+    func route(through _: [Coordinate]) async throws -> TurnByTurnRoute { route }
 }

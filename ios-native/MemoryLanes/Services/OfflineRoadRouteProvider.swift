@@ -1,5 +1,10 @@
 import Foundation
 
+struct OfflineNavigationPath: Sendable {
+    let route: RoadRoute
+    let edges: [OfflineRoadEdge]
+}
+
 struct OfflineRoadRouteProvider: RoadRouteProviding {
     private let regionStore: any OfflineRegionServing
     private let graphLoader: any OfflineRoadGraphLoading
@@ -34,12 +39,18 @@ struct OfflineRoadRouteProvider: RoadRouteProviding {
         try await routeAndSnaps(through: waypoints, operation: .route).route
     }
 
+    func navigationPath(through waypoints: [Coordinate]) async throws -> OfflineNavigationPath {
+        let result = try await routeAndSnaps(through: waypoints, operation: .route)
+        return OfflineNavigationPath(route: result.route, edges: result.edges)
+    }
+
     private func routeAndSnaps(
         through waypoints: [Coordinate],
         operation: OfflineRoutingOperation
     ) async throws -> (
         route: RoadRoute,
-        snaps: [OfflineRoadSnap]
+        snaps: [OfflineRoadSnap],
+        edges: [OfflineRoadEdge]
     ) {
         let startedAt = Date()
         var selectedGraph: InstalledOfflineRoadGraph?
@@ -85,7 +96,7 @@ struct OfflineRoadRouteProvider: RoadRouteProviding {
                 installation: installation,
                 startedAt: startedAt
             ))
-            return (route, snaps)
+            return (route, snaps, edges)
         } catch is CancellationError {
             throw CancellationError()
         } catch {

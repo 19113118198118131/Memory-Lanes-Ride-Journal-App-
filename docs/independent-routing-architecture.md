@@ -81,7 +81,8 @@ Cross-pack routing must use a compact boundary index or binary graph format. Two
 - [x] snap waypoints to a shared weakly connected road component
 - [x] prefer the embedded provider and fall back to MapKit outside local coverage
 - [ ] route seamlessly across adjacent installed packs
-- [ ] support offline in-ride rerouting
+- [x] generate conservative named-road maneuvers on-device and support
+  offline-first in-ride rerouting with MapKit fallback outside local coverage
 - [x] validate load, indexing and representative routes against the first Auckland build
 
 ### Phase 4: learning-to-rank

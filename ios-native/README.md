@@ -48,11 +48,12 @@ testing:
   MapKit fallback when one installed region cannot serve the request. Private,
   coordinate-free diagnostics surface local usage, pack version and fallback
   reasons in Offline Areas without sending rider location off-device.
-- ✅ **Online turn-by-turn foundation** — planned rides are expanded into MapKit
-  road steps with glanceable maneuvers, remaining distance and ETA, optional
-  spoken prompts, loop-safe monotonic progress, arrival handling and sustained
-  off-route recalculation. Navigation failure never interrupts ride recording
-  and falls back to geometric saved-route guidance.
+- ✅ **Offline-first turn-by-turn foundation** — installed road packs generate
+  conservative named-road maneuvers on-device, with MapKit fallback outside
+  downloaded coverage. Planned rides show glanceable instructions, remaining
+  distance and ETA, optional spoken prompts, loop-safe monotonic progress,
+  arrival handling and sustained offline-first rerouting. Navigation failure
+  never interrupts ride recording and falls back to geometric saved-route guidance.
 - 🚧 **Production hardening** — broader real-world route coverage, offline upload
   queue, APNs credential activation, community moderation, host handover,
   physical-device live-sharing validation, accessibility passes and release telemetry.
@@ -61,8 +62,7 @@ The graph-pack client, compiler, signed-release workflow and embedded pathfinder
 are now in place. The first scoped Auckland build has passed deterministic
 quality, connectivity, route and desktop load benchmarks; publishing it and
 validating on physical iPhones are the remaining release steps. Cross-pack
-routing, offline maneuver generation and offline recalculation remain later
-routing milestones. See
+routing remains a later routing milestone. See
 `../docs/independent-routing-architecture.md` and `../docs/offline-region-packs.md`.
 The latest static product-quality review is in `../docs/native-ui-ux-audit.md`.
 

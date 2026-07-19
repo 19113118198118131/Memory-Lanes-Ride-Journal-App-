@@ -35,9 +35,10 @@ camera calibration testable without a live GPS session or rendered map.
 `TurnByTurnNavigationEngine` is also deterministic and MapKit-independent. It
 matches GPS fixes to route geometry, keeps progress monotonic through noisy
 fixes and loops, selects the next road instruction, derives ETA and detects
-arrival. `MapKitTurnByTurnRouteProvider` is the current online instruction
-source. The embedded offline graph can generate routes, but offline maneuver
-instructions and offline recalculation remain a later routing milestone.
+arrival. Installed graph packs now generate conservative maneuvers at meaningful
+named-road and bearing changes; sustained off-route recovery uses the same
+offline provider. `MapKitTurnByTurnRouteProvider` remains the automatic fallback
+outside downloaded coverage or when a local graph cannot serve the whole route.
 
 ## Automated validation
 

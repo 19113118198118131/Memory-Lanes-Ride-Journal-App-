@@ -131,7 +131,7 @@ final class TurnByTurnNavigationController: ObservableObject {
 
     init(
         plannedRoute: PlannedRoute?,
-        provider: any TurnByTurnRouteProviding = MapKitTurnByTurnRouteProvider(),
+        provider: any TurnByTurnRouteProviding = OfflineFirstTurnByTurnRouteProvider(),
         speaker: any NavigationSpeaking = SystemNavigationSpeaker()
     ) {
         self.plannedRoute = plannedRoute
