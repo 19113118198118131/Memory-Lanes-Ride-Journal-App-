@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=91" />
+  <link rel="stylesheet" href="style.css?v=92" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -53,7 +53,7 @@
 
   <header>
     <div class="dashboard-header">
-      <h1 data-head-icon="route">Plan a Route</h1>
+      <h1 data-head-icon="route">Routes</h1>
       <div class="button-group">
         <button id="planner-record-btn" class="btn-outline">Skip Planning, Just Ride</button>
         <button id="planner-dashboard-btn" class="btn-outline">My Rides</button>
@@ -67,6 +67,44 @@
     </div>
 
     <div id="planner-body" style="display:none;">
+
+      <section class="routes-hub-intro" aria-labelledby="routes-hub-title">
+        <p class="premium-kicker">Routes &amp; community</p>
+        <h2 id="routes-hub-title">The next ride starts here</h2>
+        <p>Meet your group, discover a community ride, or shape a route of your own.</p>
+      </section>
+
+      <section class="routes-community-section" aria-labelledby="your-group-rides-title">
+        <div class="routes-section-heading">
+          <div>
+            <p class="premium-kicker">Riding together</p>
+            <h2 id="your-group-rides-title">Your Group Rides</h2>
+          </div>
+          <button type="button" id="routes-community-refresh" class="routes-icon-button" aria-label="Refresh group rides" title="Refresh group rides">
+            <span data-icon="redo"></span>
+          </button>
+        </div>
+        <div id="routes-my-groups-state" class="routes-feed-state" role="status">Loading your rides…</div>
+        <div id="routes-my-groups-list" class="routes-community-list" aria-live="polite"></div>
+      </section>
+
+      <section class="routes-community-section" aria-labelledby="community-rides-title">
+        <div class="routes-section-heading">
+          <div>
+            <p class="premium-kicker">Open invitations</p>
+            <h2 id="community-rides-title">Community Rides</h2>
+          </div>
+        </div>
+        <div id="routes-community-state" class="routes-feed-state" role="status">Finding upcoming rides…</div>
+        <div id="routes-community-list" class="routes-community-list" aria-live="polite"></div>
+        <button type="button" id="routes-community-more" class="routes-show-more" hidden>Show all rides</button>
+      </section>
+
+      <div class="routes-planner-heading">
+        <p class="premium-kicker">Build your own</p>
+        <h2>Plan a Route</h2>
+        <p>Choose the character and time, then refine the road before you ride.</p>
+      </div>
 
       <!-- ========================
            GOAL-FIRST ONBOARDING
@@ -246,6 +284,70 @@
       <p class="planner-attribution">Routing by OSRM &middot; Search by Photon (Komoot) &middot; Map data &copy; OpenStreetMap contributors &middot; Elevation by Open-Meteo</p>
     </div>
 
+    <dialog id="group-ride-create-dialog" class="group-ride-create-dialog" aria-labelledby="group-ride-create-title">
+      <form id="group-ride-create-form" class="group-ride-create-sheet">
+        <div class="group-ride-sheet-handle" aria-hidden="true"></div>
+        <div class="group-ride-sheet-head">
+          <div>
+            <p class="premium-kicker">Organise</p>
+            <h2 id="group-ride-create-title">Create Group Ride</h2>
+            <p id="group-ride-create-route" class="group-ride-sheet-route"></p>
+          </div>
+          <button type="button" id="group-ride-create-close" class="routes-icon-button" aria-label="Close group ride setup" title="Close">
+            <span data-icon="x"></span>
+          </button>
+        </div>
+
+        <label class="group-ride-field">
+          <span>Ride name</span>
+          <input id="group-ride-create-name" type="text" maxlength="160" autocomplete="off" required placeholder="Sunday coast ride" />
+        </label>
+        <label class="group-ride-field">
+          <span>What riders should know</span>
+          <textarea id="group-ride-create-details" rows="3" maxlength="1000" placeholder="Pace, fuel stop, what to bring…"></textarea>
+        </label>
+
+        <fieldset class="group-ride-fieldset">
+          <legend>Who can find it</legend>
+          <div class="group-ride-segmented">
+            <label><input type="radio" name="group-ride-visibility" value="invite_only" checked /><span>Invite only</span></label>
+            <label><input type="radio" name="group-ride-visibility" value="community" /><span>Community</span></label>
+          </div>
+          <p id="group-ride-visibility-note">Only riders with your link can open this ride.</p>
+        </fieldset>
+
+        <div class="group-ride-options">
+          <label class="group-ride-toggle-row">
+            <span><strong>Set meeting time</strong><small>Schedule the ride for your group</small></span>
+            <input id="group-ride-has-time" type="checkbox" role="switch" checked />
+          </label>
+          <label id="group-ride-time-field" class="group-ride-field group-ride-reveal">
+            <span>Meet</span>
+            <input id="group-ride-create-time" type="datetime-local" />
+          </label>
+          <label class="group-ride-field">
+            <span>Meeting point</span>
+            <input id="group-ride-create-point" type="text" maxlength="240" autocomplete="street-address" placeholder="Fuel station, café, or landmark" />
+          </label>
+          <div class="group-ride-divider"></div>
+          <label class="group-ride-toggle-row">
+            <span><strong>Limit group size</strong><small>Keep a confirmed place count</small></span>
+            <input id="group-ride-has-capacity" type="checkbox" role="switch" />
+          </label>
+          <label id="group-ride-capacity-field" class="group-ride-field group-ride-reveal" hidden>
+            <span>Available places</span>
+            <input id="group-ride-create-capacity" type="number" min="2" max="100" value="12" inputmode="numeric" />
+          </label>
+        </div>
+
+        <p id="group-ride-create-status" class="group-ride-create-status" role="status"></p>
+        <div class="group-ride-sheet-actions">
+          <button type="button" id="group-ride-create-cancel" class="btn-outline">Cancel</button>
+          <button type="submit" id="group-ride-create-submit" class="btn-primary"><span data-icon="user"></span>Create &amp; Share</button>
+        </div>
+      </form>
+    </dialog>
+
     <nav class="ios-tabbar app-tabbar" aria-label="App sections">
       <a href="dashboard.html"><span data-icon="play"></span><span>Ride</span></a>
       <a class="active" href="planner.html" aria-current="page"><span data-icon="route"></span><span>Routes</span></a>
@@ -256,7 +358,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="planner.js?v=90"></script>
+  <script type="module" src="planner.js?v=92"></script>
   <script type="module" src="icons.js?v=91"></script>
   <script src="theme.js?v=90"></script>
 </body>

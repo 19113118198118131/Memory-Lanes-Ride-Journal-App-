@@ -63,6 +63,29 @@ const candidateShorterBtn = document.getElementById('candidate-shorter-btn');
 const candidateLongerBtn  = document.getElementById('candidate-longer-btn');
 const candidateRegenerateBtn = document.getElementById('candidate-regenerate-btn');
 const candidateUseBtn     = document.getElementById('candidate-use-btn');
+const routeCommunityRefreshBtn = document.getElementById('routes-community-refresh');
+const myGroupsStateEl      = document.getElementById('routes-my-groups-state');
+const myGroupsListEl       = document.getElementById('routes-my-groups-list');
+const communityStateEl     = document.getElementById('routes-community-state');
+const communityListEl      = document.getElementById('routes-community-list');
+const communityMoreBtn     = document.getElementById('routes-community-more');
+const groupRideDialog      = document.getElementById('group-ride-create-dialog');
+const groupRideForm        = document.getElementById('group-ride-create-form');
+const groupRideRouteEl     = document.getElementById('group-ride-create-route');
+const groupRideNameInput   = document.getElementById('group-ride-create-name');
+const groupRideDetailsInput = document.getElementById('group-ride-create-details');
+const groupRideVisibilityNote = document.getElementById('group-ride-visibility-note');
+const groupRideHasTimeInput = document.getElementById('group-ride-has-time');
+const groupRideTimeField   = document.getElementById('group-ride-time-field');
+const groupRideTimeInput   = document.getElementById('group-ride-create-time');
+const groupRidePointInput  = document.getElementById('group-ride-create-point');
+const groupRideHasCapacityInput = document.getElementById('group-ride-has-capacity');
+const groupRideCapacityField = document.getElementById('group-ride-capacity-field');
+const groupRideCapacityInput = document.getElementById('group-ride-create-capacity');
+const groupRideStatusEl    = document.getElementById('group-ride-create-status');
+const groupRideSubmitBtn   = document.getElementById('group-ride-create-submit');
+const groupRideCloseBtn    = document.getElementById('group-ride-create-close');
+const groupRideCancelBtn   = document.getElementById('group-ride-create-cancel');
 
 // ---------- Utilities (small, duplicated per-page like the rest of the app) ----------
 function escapeHtml(str) {
@@ -124,6 +147,10 @@ let candidateAbort = null;
 let candidateOrigin = null;              // {lat, lng} the current candidate set was generated around
 let pendingCandidateOriginResolver = null; // set while waiting for a map click / search pick to supply the origin
 let recommender = null;                  // KNN over the rider's rated rides (null until loaded)
+let myGroupRides = [];
+let communityRides = [];
+let communityExpanded = false;
+let pendingGroupRideRoute = null;
 
 // ---------- Init ----------
 (async () => {
@@ -142,7 +169,7 @@ let recommender = null;                  // KNN over the rider's rated rides (nu
   // (see finishOnboarding() and loadSavedRouteIntoPlanner()).
   updateButtons();
   updateGoalHint();
-  await loadSavedRoutes();
+  await Promise.all([loadSavedRoutes(), loadRouteCommunity()]);
   loadRecommender(user); // fire-and-forget: personalises candidates once ready
 
   const loadId = new URLSearchParams(window.location.search).get('load');
@@ -160,6 +187,196 @@ if (dashboardBtn) {
 }
 if (recordBtn) {
   recordBtn.addEventListener('click', () => { window.location.href = 'ride-live.html'; });
+}
+if (routeCommunityRefreshBtn) {
+  routeCommunityRefreshBtn.addEventListener('click', loadRouteCommunity);
+}
+if (communityMoreBtn) {
+  communityMoreBtn.addEventListener('click', () => {
+    communityExpanded = !communityExpanded;
+    renderCommunityRides();
+  });
+}
+groupRideCloseBtn?.addEventListener('click', closeGroupRideDialog);
+groupRideCancelBtn?.addEventListener('click', closeGroupRideDialog);
+groupRideDialog?.addEventListener('click', event => {
+  if (event.target === groupRideDialog) closeGroupRideDialog();
+});
+groupRideDialog?.addEventListener('cancel', event => {
+  event.preventDefault();
+  closeGroupRideDialog();
+});
+groupRideHasTimeInput?.addEventListener('change', syncGroupRideOptionStates);
+groupRideHasCapacityInput?.addEventListener('change', syncGroupRideOptionStates);
+document.querySelectorAll('input[name="group-ride-visibility"]').forEach(input => {
+  input.addEventListener('change', syncGroupRideVisibilityNote);
+});
+groupRideForm?.addEventListener('submit', submitGroupRide);
+
+// ---------- Routes & community hub ----------
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function formatGroupSchedule(value) {
+  if (!value) return 'Time to be confirmed';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Time to be confirmed';
+
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const sameDay = (a, b) => a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
+  const day = sameDay(date, now)
+    ? 'Today'
+    : sameDay(date, tomorrow)
+      ? 'Tomorrow'
+      : date.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+  return `${day} · ${date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+function routeFeedError(message) {
+  return `<div class="routes-feed-message routes-feed-error">${mlIconSVG('cloud')}<span>${escapeHtml(message)}</span></div>`;
+}
+
+function renderMyGroupRides() {
+  if (!myGroupsListEl || !myGroupsStateEl) return;
+  myGroupsListEl.innerHTML = '';
+  if (!myGroupRides.length) {
+    myGroupsStateEl.innerHTML = `
+      <div class="routes-feed-message">
+        ${mlIconSVG('flag')}
+        <span><strong>No group rides yet</strong>Save a route below, then choose Group Ride to invite people.</span>
+      </div>`;
+    myGroupsStateEl.hidden = false;
+    return;
+  }
+
+  myGroupsStateEl.hidden = true;
+  myGroupsListEl.innerHTML = myGroupRides.map(ride => {
+    const role = ride.is_owner ? 'Hosting' : (ride.your_rsvp === 'maybe' ? 'Maybe' : 'Joined');
+    const memberCount = Number(ride.member_count) || 0;
+    const location = ride.meet_point ? ` · ${escapeHtml(ride.meet_point)}` : '';
+    return `
+      <a class="route-community-card" href="group.html?ride=${encodeURIComponent(ride.share_token || '')}" aria-label="Open ${escapeHtml(ride.title || 'group ride')}">
+        <span class="route-community-icon">${mlIconSVG('flag')}</span>
+        <span class="route-community-copy">
+          <span class="route-community-title-row">
+            <strong>${escapeHtml(ride.title || 'Group Ride')}</strong>
+            <span class="route-role-chip">${escapeHtml(role)}</span>
+          </span>
+          <span class="route-community-route">${escapeHtml(ride.route_title || 'Route to be confirmed')}</span>
+          <span class="route-community-meta">${mlIconSVG('clock')} ${escapeHtml(formatGroupSchedule(ride.meet_time))}${location}</span>
+          <span class="route-community-meta">${mlIconSVG('user')} ${memberCount} ${memberCount === 1 ? 'rider' : 'riders'}</span>
+        </span>
+        <span class="route-community-chevron">${mlIconSVG('chevron')}</span>
+      </a>`;
+  }).join('');
+}
+
+function communityCapacityLabel(ride) {
+  const going = Number(ride.going_count) || 0;
+  const capacity = Number(ride.capacity);
+  if (!Number.isFinite(capacity) || capacity <= 0) return `${going} riding`;
+  const remaining = Math.max(0, capacity - going);
+  if (remaining === 0) return 'Full';
+  return `${remaining} ${remaining === 1 ? 'spot' : 'spots'}`;
+}
+
+function renderCommunityRides() {
+  if (!communityListEl || !communityStateEl || !communityMoreBtn) return;
+  communityListEl.innerHTML = '';
+  if (!communityRides.length) {
+    communityStateEl.innerHTML = `
+      <div class="routes-feed-message">
+        ${mlIconSVG('user')}
+        <span><strong>No community rides nearby yet</strong>New open invitations will appear here as riders publish them.</span>
+      </div>`;
+    communityStateEl.hidden = false;
+    communityMoreBtn.hidden = true;
+    return;
+  }
+
+  communityStateEl.hidden = true;
+  const visible = communityExpanded ? communityRides : communityRides.slice(0, 3);
+  communityListEl.innerHTML = visible.map(ride => {
+    const host = ride.hosted_by || 'A Memory Lanes rider';
+    const region = ride.host_region ? ` · ${ride.host_region}` : '';
+    const distance = Number(ride.distance_km);
+    const details = ride.details
+      ? `<span class="route-community-details">${escapeHtml(ride.details)}</span>`
+      : '';
+    return `
+      <a class="route-community-card route-community-card-open" href="group.html?ride=${encodeURIComponent(ride.share_token || '')}" aria-label="View ${escapeHtml(ride.title || 'community ride')}">
+        <span class="route-community-icon">${mlIconSVG('user')}</span>
+        <span class="route-community-copy">
+          <span class="route-community-title-row"><strong>${escapeHtml(ride.title || 'Community Ride')}</strong></span>
+          <span class="route-community-host">Hosted by ${escapeHtml(host)}${escapeHtml(region)}</span>
+          ${details}
+          <span class="route-community-facts">
+            <span>${mlIconSVG('clock')} ${escapeHtml(formatGroupSchedule(ride.meet_time))}</span>
+            ${Number.isFinite(distance) ? `<span>${mlIconSVG('route')} ${distance.toFixed(1)} km</span>` : ''}
+            <span>${mlIconSVG('user')} ${escapeHtml(communityCapacityLabel(ride))}</span>
+          </span>
+        </span>
+        <span class="route-community-chevron">${mlIconSVG('chevron')}</span>
+      </a>`;
+  }).join('');
+
+  communityMoreBtn.hidden = communityRides.length <= 3;
+  communityMoreBtn.textContent = communityExpanded
+    ? 'Show fewer rides'
+    : `Show all ${communityRides.length} rides`;
+}
+
+async function loadRouteCommunity() {
+  if (!myGroupsStateEl || !communityStateEl) return;
+  if (routeCommunityRefreshBtn?.getAttribute('aria-busy') === 'true') return;
+  routeCommunityRefreshBtn?.setAttribute('aria-busy', 'true');
+  routeCommunityRefreshBtn?.classList.add('is-loading');
+  if (routeCommunityRefreshBtn) routeCommunityRefreshBtn.disabled = true;
+  myGroupsStateEl.hidden = false;
+  communityStateEl.hidden = false;
+  myGroupsStateEl.textContent = 'Loading your rides…';
+  communityStateEl.textContent = 'Finding upcoming rides…';
+  myGroupsListEl.innerHTML = '';
+  communityListEl.innerHTML = '';
+  communityMoreBtn.hidden = true;
+
+  try {
+    const [mineResult, discoveryResult] = await Promise.all([
+      supabase.rpc('get_my_group_rides'),
+      supabase.rpc('discover_group_rides', { max_results: 20 })
+    ]);
+
+    if (mineResult.error) {
+      myGroupRides = [];
+      myGroupsStateEl.innerHTML = routeFeedError('Your group rides could not be loaded. Refresh to try again.');
+    } else {
+      myGroupRides = asArray(mineResult.data);
+      renderMyGroupRides();
+    }
+
+    if (discoveryResult.error) {
+      communityRides = [];
+      communityStateEl.innerHTML = routeFeedError('Community rides could not be loaded. Refresh to try again.');
+    } else {
+      const myTokens = new Set(myGroupRides.map(ride => ride.share_token).filter(Boolean));
+      communityRides = asArray(discoveryResult.data).filter(ride => !myTokens.has(ride.share_token));
+      renderCommunityRides();
+    }
+  } catch (_error) {
+    myGroupRides = [];
+    communityRides = [];
+    myGroupsStateEl.innerHTML = routeFeedError('Your group rides could not be loaded. Refresh to try again.');
+    communityStateEl.innerHTML = routeFeedError('Community rides could not be loaded. Refresh to try again.');
+  } finally {
+    routeCommunityRefreshBtn?.removeAttribute('aria-busy');
+    routeCommunityRefreshBtn?.classList.remove('is-loading');
+    if (routeCommunityRefreshBtn) routeCommunityRefreshBtn.disabled = false;
+  }
 }
 
 // ---------- Goal-first onboarding ----------
@@ -1247,7 +1464,7 @@ function renderSavedRoutes() {
     item.querySelector('.planner-load-btn').addEventListener('click', () => loadSavedRouteIntoPlanner(route));
     item.querySelector('.planner-export-saved-btn').addEventListener('click', () => downloadGPX(route.route, route.title));
     item.querySelector('.planner-share-btn').addEventListener('click', () => shareRouteInvite(route));
-    item.querySelector('.planner-groupride-btn').addEventListener('click', () => createGroupRide(route));
+    item.querySelector('.planner-groupride-btn').addEventListener('click', () => openGroupRideDialog(route));
     const unshareBtn = item.querySelector('.planner-unshare-btn');
     if (unshareBtn) unshareBtn.addEventListener('click', () => unshareRoute(route));
     item.querySelector('.planner-delete-btn').addEventListener('click', () => deleteSavedRoute(route.id));
@@ -1313,21 +1530,105 @@ async function shareRouteInvite(route) {
 // A group ride is a single shared object: everyone who joins via its link
 // rides THIS route and lands on the same live map (unlike invite links,
 // where each saver gets an independent copy).
-async function createGroupRide(route) {
-  const title = window.prompt('Name this group ride:', `${route.title} Group Ride`);
-  if (title === null) return;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) { showToast('Please log in first.', 'info'); return; }
-  const { data, error } = await supabase
-    .from('group_rides')
-    .insert({ route_id: route.id, owner_id: user.id, title: title.trim() || `${route.title} Group Ride` })
-    .select('share_token')
-    .single();
-  if (error) { showToast('Could not create the group ride.', 'delete'); return; }
-  const link = `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}group.html?ride=${data.share_token}`;
-  await copyText(link);
-  showToast('Group ride created and link copied! Opening the group page…', 'add');
-  setTimeout(() => { window.location.href = link; }, 900);
+function localDateTimeValue(date) {
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function syncGroupRideVisibilityNote() {
+  if (!groupRideVisibilityNote) return;
+  const visibility = document.querySelector('input[name="group-ride-visibility"]:checked')?.value;
+  groupRideVisibilityNote.textContent = visibility === 'community'
+    ? 'Signed-in riders can discover this ride in Community Rides.'
+    : 'Only riders with your link can open this ride.';
+}
+
+function syncGroupRideOptionStates() {
+  if (groupRideTimeField) groupRideTimeField.hidden = !groupRideHasTimeInput?.checked;
+  if (groupRideTimeInput) groupRideTimeInput.required = !!groupRideHasTimeInput?.checked;
+  if (groupRideCapacityField) groupRideCapacityField.hidden = !groupRideHasCapacityInput?.checked;
+  if (groupRideCapacityInput) groupRideCapacityInput.required = !!groupRideHasCapacityInput?.checked;
+}
+
+function openGroupRideDialog(route) {
+  if (!groupRideDialog || !groupRideForm) return;
+  pendingGroupRideRoute = route;
+  groupRideForm.reset();
+  groupRideNameInput.value = `${route.title} Group Ride`;
+  groupRideRouteEl.textContent = route.title;
+  groupRideTimeInput.value = localDateTimeValue(new Date(Date.now() + 86_400_000));
+  groupRideCapacityInput.value = '12';
+  groupRideStatusEl.textContent = '';
+  syncGroupRideOptionStates();
+  syncGroupRideVisibilityNote();
+  groupRideDialog.showModal();
+  requestAnimationFrame(() => groupRideNameInput.focus());
+}
+
+function closeGroupRideDialog() {
+  if (!groupRideDialog?.open || groupRideSubmitBtn?.disabled) return;
+  groupRideDialog.close();
+  pendingGroupRideRoute = null;
+}
+
+async function submitGroupRide(event) {
+  event.preventDefault();
+  if (!pendingGroupRideRoute || groupRideSubmitBtn?.disabled) return;
+
+  const title = groupRideNameInput.value.trim();
+  if (!title) {
+    groupRideStatusEl.textContent = 'Give the ride a name before creating it.';
+    groupRideNameInput.focus();
+    return;
+  }
+
+  const capacity = groupRideHasCapacityInput.checked
+    ? Number.parseInt(groupRideCapacityInput.value, 10)
+    : null;
+  if (capacity !== null && (!Number.isInteger(capacity) || capacity < 2 || capacity > 100)) {
+    groupRideStatusEl.textContent = 'Group size must be between 2 and 100 riders.';
+    groupRideCapacityInput.focus();
+    return;
+  }
+
+  groupRideSubmitBtn.disabled = true;
+  groupRideSubmitBtn.setAttribute('aria-busy', 'true');
+  groupRideStatusEl.textContent = 'Creating your group ride…';
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Please log in again before creating a group ride.');
+    const visibility = document.querySelector('input[name="group-ride-visibility"]:checked')?.value || 'invite_only';
+    const meetTime = groupRideHasTimeInput.checked && groupRideTimeInput.value
+      ? new Date(groupRideTimeInput.value).toISOString()
+      : null;
+    const { data, error } = await supabase
+      .from('group_rides')
+      .insert({
+        route_id: pendingGroupRideRoute.id,
+        owner_id: user.id,
+        title,
+        details: groupRideDetailsInput.value.trim() || null,
+        visibility,
+        meet_time: meetTime,
+        meet_point: groupRidePointInput.value.trim() || null,
+        capacity
+      })
+      .select('share_token')
+      .single();
+    if (error) throw error;
+
+    const link = `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}group.html?ride=${data.share_token}`;
+    await copyText(link);
+    groupRideDialog.close();
+    pendingGroupRideRoute = null;
+    showToast('Group ride created. Invite link copied.', 'add');
+    setTimeout(() => { window.location.href = link; }, 650);
+  } catch (error) {
+    groupRideStatusEl.textContent = error?.message || 'The group ride could not be created. Try again.';
+  } finally {
+    groupRideSubmitBtn.disabled = false;
+    groupRideSubmitBtn.removeAttribute('aria-busy');
+  }
 }
 
 async function unshareRoute(route) {
