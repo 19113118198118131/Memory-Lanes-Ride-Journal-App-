@@ -338,14 +338,7 @@ private struct OfflineAreaSelectionView: View {
                 selectionMap
                 selectionSummary
                 matchedAreaList
-                PrimaryButton(
-                    title: pendingRegions.isEmpty ? "Area Already Ready" : downloadTitle,
-                    systemImage: "arrow.down.circle.fill",
-                    isLoading: isDownloading
-                ) {
-                    Task { await downloadSelection() }
-                }
-                .disabled(selectionIsTooLarge || pendingRegions.isEmpty || isDownloading)
+                selectionAction
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
@@ -353,6 +346,7 @@ private struct OfflineAreaSelectionView: View {
         .background(Color.mlBackground)
         .navigationTitle("Choose Area")
         .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await viewModel.load(forceRefresh: true) }
     }
 
     private var selectionMap: some View {
@@ -405,9 +399,9 @@ private struct OfflineAreaSelectionView: View {
     private var matchedAreaList: some View {
         if matchedRegions.isEmpty {
             EmptyState(
-                systemImage: "map",
-                title: "No road pack here yet",
-                message: "Move toward a supported area or refresh the catalog from Offline Areas."
+                systemImage: viewModel.catalogError == nil ? "map" : "wifi.exclamationmark",
+                title: viewModel.catalogError == nil ? "Road pack not published" : "Catalog unavailable",
+                message: emptySelectionMessage
             )
         } else {
             VStack(spacing: Spacing.sm) {
@@ -439,7 +433,9 @@ private struct OfflineAreaSelectionView: View {
             return "Smaller selections keep downloads practical and routing fast on your phone."
         }
         if matchedRegions.isEmpty {
-            return "Available road packs will appear as the catalog expands."
+            return viewModel.catalogError == nil
+                ? "There is no downloadable road data for this map area yet."
+                : "The road-pack catalog could not be refreshed."
         }
         let bytes = pendingRegions.reduce(Int64(0)) { $0 + $1.byteCount }
         let size = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
@@ -450,6 +446,36 @@ private struct OfflineAreaSelectionView: View {
 
     private var downloadTitle: String {
         pendingRegions.count == 1 ? "Download Area" : "Download \(pendingRegions.count) Areas"
+    }
+
+    @ViewBuilder
+    private var selectionAction: some View {
+        if matchedRegions.isEmpty {
+            SecondaryButton(
+                title: viewModel.isLoading ? "Refreshing Catalog" : "Refresh Catalog",
+                systemImage: "arrow.clockwise"
+            ) {
+                Task { await viewModel.load(forceRefresh: true) }
+            }
+            .disabled(viewModel.isLoading)
+            .accessibilityHint("Checks for newly published offline road packs")
+        } else {
+            PrimaryButton(
+                title: pendingRegions.isEmpty ? "Area Already Ready" : downloadTitle,
+                systemImage: pendingRegions.isEmpty ? "checkmark.circle.fill" : "arrow.down.circle.fill",
+                isLoading: isDownloading
+            ) {
+                Task { await downloadSelection() }
+            }
+            .disabled(selectionIsTooLarge || pendingRegions.isEmpty || isDownloading)
+        }
+    }
+
+    private var emptySelectionMessage: String {
+        if let catalogError = viewModel.catalogError {
+            return "Refresh to try again. \(catalogError)"
+        }
+        return "Move toward a supported area, or refresh to check for newly published road data."
     }
 
     private func downloadSelection() async {
