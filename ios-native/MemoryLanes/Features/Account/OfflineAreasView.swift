@@ -102,7 +102,7 @@ struct OfflineAreasView: View {
             SectionHeader(title: "Downloaded")
             if viewModel.installed.isEmpty {
                 EmptyState(
-                    systemImage: "arrow.down.map",
+                    systemImage: "map.fill",
                     title: "No areas downloaded",
                     message: "Choose roads around home or somewhere you plan to ride."
                 )

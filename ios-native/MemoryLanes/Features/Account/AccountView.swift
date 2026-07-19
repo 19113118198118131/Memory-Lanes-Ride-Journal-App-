@@ -10,6 +10,7 @@ struct AccountView: View {
     let onSignOut: () -> Void
 
     @State private var library = AccountLibrarySummary()
+    @State private var offlineLibrary = AccountOfflineLibrarySummary()
     @State private var riderProfile: RiderProfile?
     @State private var isExporting = false
     @State private var activityPayload: ActivityPayload?
@@ -26,18 +27,16 @@ struct AccountView: View {
                         .mlStaggeredReveal(index: 0)
                     libraryOverview
                         .mlStaggeredReveal(index: 1)
-                    communitySection
+                    riderAndCommunitySection
                         .mlStaggeredReveal(index: 2)
-                    notificationsSection
-                        .mlStaggeredReveal(index: 3)
                     librarySection
-                        .mlStaggeredReveal(index: 4)
+                        .mlStaggeredReveal(index: 3)
                     dataSection
-                        .mlStaggeredReveal(index: 5)
+                        .mlStaggeredReveal(index: 4)
                     appSection
-                        .mlStaggeredReveal(index: 6)
+                        .mlStaggeredReveal(index: 5)
                     sessionSection
-                        .mlStaggeredReveal(index: 7)
+                        .mlStaggeredReveal(index: 6)
                 }
                 .padding(.horizontal, Spacing.screenH)
                 .padding(.vertical, Spacing.lg)
@@ -63,6 +62,9 @@ struct AccountView: View {
             async let libraryTask: Void = loadLocalLibrary()
             async let profileTask: Void = loadRiderProfile()
             _ = await (libraryTask, profileTask)
+        }
+        .onAppear {
+            Task { await loadOfflineLibrary() }
         }
         .sheet(item: $activityPayload) { payload in
             ActivityView(items: payload.items)
@@ -128,11 +130,20 @@ struct AccountView: View {
 
             Spacer(minLength: 0)
 
-            Label("Connected", systemImage: "checkmark.circle.fill")
-                .font(MLFont.kicker)
-                .foregroundStyle(Color.mlSuccess)
-                .labelStyle(.iconOnly)
-                .accessibilityLabel("Cloud account connected")
+            ViewThatFits(in: .horizontal) {
+                Label("Connected", systemImage: "checkmark.circle.fill")
+                    .font(MLFont.kicker)
+                    .foregroundStyle(Color.mlSuccess)
+                    .padding(.horizontal, Spacing.xs)
+                    .frame(minHeight: Layout.minTouchTarget)
+                    .background(Color.mlSuccess.opacity(0.10), in: Capsule())
+
+                Image(systemName: "checkmark.circle.fill")
+                    .font(MLFont.headline)
+                    .foregroundStyle(Color.mlSuccess)
+                    .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                    .accessibilityLabel("Cloud account connected")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -145,7 +156,7 @@ struct AccountView: View {
                     Divider().overlay(Color.mlHairline)
                     libraryMetric(value: library.distanceText, label: "Distance")
                     Divider().overlay(Color.mlHairline)
-                    libraryMetric(value: "On", label: "Sync")
+                    libraryMetric(value: "\(offlineLibrary.areaCount)", label: "Offline")
                 }
             } else {
                 HStack(spacing: 0) {
@@ -153,7 +164,7 @@ struct AccountView: View {
                     metricDivider
                     libraryMetric(value: library.distanceText, label: "Distance")
                     metricDivider
-                    libraryMetric(value: "On", label: "Sync")
+                    libraryMetric(value: "\(offlineLibrary.areaCount)", label: "Offline")
                 }
             }
         }
@@ -176,6 +187,8 @@ struct AccountView: View {
             Text(value)
                 .font(MLFont.displaySmall)
                 .foregroundStyle(Color.mlTextPrimary)
+                .monospacedDigit()
+                .contentTransition(.numericText())
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label).mlKicker()
@@ -206,18 +219,19 @@ struct AccountView: View {
             } label: {
                 accountRow(
                     title: "Offline Areas",
-                    detail: "Download roads for local planning and navigation",
-                    symbol: "arrow.down.map",
-                    trailingSymbol: "chevron.right"
+                    detail: offlineLibrary.detail,
+                    symbol: "map.fill",
+                    trailingSymbol: "chevron.right",
+                    trailingText: offlineLibrary.statusText
                 )
             }
             .buttonStyle(MLPressableButtonStyle())
         }
     }
 
-    private var communitySection: some View {
+    private var riderAndCommunitySection: some View {
         accountSection(
-            title: "Community",
+            title: "Rider & Community",
             footer: "Only your display name and region appear on group rides. Your email and ride library remain private."
         ) {
             Button {
@@ -233,14 +247,7 @@ struct AccountView: View {
                 )
             }
             .buttonStyle(MLPressableButtonStyle())
-        }
-    }
-
-    private var notificationsSection: some View {
-        accountSection(
-            title: "Notifications",
-            footer: "Choose which group ride updates deserve your attention."
-        ) {
+            rowDivider
             NavigationLink {
                 NotificationSettingsView(
                     viewModel: NotificationSettingsViewModel(
@@ -250,7 +257,7 @@ struct AccountView: View {
             } label: {
                 accountRow(
                     title: "Ride notifications",
-                    detail: "Event updates, RSVPs and pre-ride reminders",
+                    detail: "Invites, RSVPs and pre-ride reminders",
                     symbol: "bell.badge",
                     trailingSymbol: "chevron.right"
                 )
@@ -268,7 +275,9 @@ struct AccountView: View {
                     title: "Export account data",
                     detail: "Create a portable copy",
                     symbol: "square.and.arrow.up",
-                    trailingSymbol: isExporting ? nil : "chevron.right"
+                    trailingSymbol: nil,
+                    trailingText: isExporting ? nil : "Export",
+                    trailingTextTint: .mlAccent
                 )
                 .overlay(alignment: .trailing) {
                     if isExporting {
@@ -372,10 +381,14 @@ struct AccountView: View {
         isDestructive: Bool = false
     ) -> some View {
         HStack(spacing: Spacing.md) {
-            Image(systemName: symbol)
-                .font(MLFont.headline)
-                .foregroundStyle(tint)
-                .frame(width: Spacing.xl)
+            ZStack {
+                RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
+                    .fill(tint.opacity(0.12))
+                Image(systemName: symbol)
+                    .font(MLFont.headline)
+                    .foregroundStyle(tint)
+            }
+            .frame(width: Spacing.xl, height: Spacing.xl)
 
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
@@ -391,16 +404,16 @@ struct AccountView: View {
 
             Spacer(minLength: Spacing.sm)
 
-            if let trailingSymbol {
-                Image(systemName: trailingSymbol)
-                    .font(MLFont.caption)
-                    .foregroundStyle(Color.mlTextTertiary)
-            }
             if let trailingText {
                 Text(trailingText)
                     .font(MLFont.callout)
                     .foregroundStyle(trailingTextTint)
                     .lineLimit(1)
+            }
+            if let trailingSymbol {
+                Image(systemName: trailingSymbol)
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextTertiary)
             }
         }
         .padding(Spacing.md)
@@ -411,7 +424,7 @@ struct AccountView: View {
     private var rowDivider: some View {
         Divider()
             .overlay(Color.mlHairline)
-            .padding(.leading, Spacing.xxl + Spacing.sm)
+            .padding(.leading, Spacing.xxl + Spacing.md)
     }
 
     @MainActor
@@ -419,6 +432,18 @@ struct AccountView: View {
         let rides = await RideLocalStore.shared.rides(for: userID)
         withAnimation(reduceMotion ? nil : Motion.springGentle) {
             library = AccountLibrarySummary(rides: rides)
+        }
+    }
+
+    @MainActor
+    private func loadOfflineLibrary() async {
+        let regions = await OfflineRegionStore.shared.installedRegions()
+        let byteCount = regions.reduce(Int64(0)) { $0 + $1.descriptor.byteCount }
+        withAnimation(reduceMotion ? nil : Motion.springGentle) {
+            offlineLibrary = AccountOfflineLibrarySummary(
+                areaCount: regions.count,
+                byteCount: byteCount
+            )
         }
     }
 
@@ -510,6 +535,23 @@ private struct AccountLibrarySummary {
         case 1: "1 ride record cached locally"
         default: "\(rideCount) ride records cached locally"
         }
+    }
+}
+
+private struct AccountOfflineLibrarySummary {
+    var areaCount = 0
+    var byteCount: Int64 = 0
+
+    var statusText: String? {
+        areaCount == 0 ? nil : "\(areaCount) ready"
+    }
+
+    var detail: String {
+        guard areaCount > 0 else {
+            return "Download roads for local planning and navigation"
+        }
+        let size = ByteCountFormatter.string(fromByteCount: byteCount, countStyle: .file)
+        return "\(size) of road data available without a connection"
     }
 }
 
