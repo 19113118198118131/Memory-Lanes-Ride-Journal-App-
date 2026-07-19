@@ -11,12 +11,12 @@ struct MomentRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: moment.symbol)
-                .font(.body.weight(.semibold))
+                .font(MLFont.bodyEmphasised)
                 .foregroundStyle(Color.mlAccent)
-                .frame(width: 40, height: 40)
+                .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
                 .background(Color.mlAccent.opacity(0.12), in: Circle())
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 if !moment.title.isEmpty {
                     Text(moment.title)
                         .font(MLFont.headline)
@@ -60,19 +60,20 @@ struct WeatherStrip: View {
     var body: some View {
         HStack(spacing: Spacing.md) {
             Image(systemName: weather.symbol)
-                .font(.largeTitle)
+                .font(MLFont.displayXL)
                 .foregroundStyle(Color.mlAccent)
                 .symbolRenderingMode(.hierarchical)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(weather.temperatureFormatted)
                     .font(MLFont.display)
+                    .monospacedDigit()
                     .foregroundStyle(Color.mlTextPrimary)
                 Text(weather.condition)
                     .mlCaption()
             }
             Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: Spacing.xxs) {
                 Label(weather.windFormatted, systemImage: "wind")
                     .font(MLFont.callout)
                     .foregroundStyle(Color.mlTextSecondary)

@@ -20,7 +20,7 @@ struct ElevationChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text("Elevation").mlKicker()
                     Text(gainText)
                         .font(MLFont.displaySmall)
@@ -28,7 +28,7 @@ struct ElevationChart: View {
                 }
                 Spacer()
                 if let selected {
-                    VStack(alignment: .trailing, spacing: 2) {
+                    VStack(alignment: .trailing, spacing: Spacing.xxs) {
                         Text(String(format: "%.0f m", selected.elevationM))
                             .font(MLFont.monoSmall)
                             .foregroundStyle(Color.mlAccent)

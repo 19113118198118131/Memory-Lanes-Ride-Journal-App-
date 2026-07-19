@@ -215,7 +215,7 @@ struct StatsView: View {
                     .frame(width: 42, height: 42)
                     .background(Color.mlAccent.opacity(0.12), in: Circle())
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(label).mlKicker()
                     Text(ride.title)
                         .font(MLFont.callout)
@@ -225,6 +225,7 @@ struct StatsView: View {
                 Spacer()
                 Text(value)
                     .font(MLFont.headline)
+                    .monospacedDigit()
                     .foregroundStyle(Color.mlTextPrimary)
             }
             .padding(Spacing.md)

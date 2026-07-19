@@ -1029,7 +1029,7 @@ private struct AnalyticsLegend: View {
         case .line:
             Capsule().fill(item.color).frame(width: 20, height: 2)
         case .dash:
-            HStack(spacing: 2) {
+            HStack(spacing: Spacing.xxs) {
                 Capsule().fill(item.color).frame(width: 7, height: 2)
                 Capsule().fill(item.color).frame(width: 7, height: 2)
             }

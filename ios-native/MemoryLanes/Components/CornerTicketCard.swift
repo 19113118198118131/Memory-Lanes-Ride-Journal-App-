@@ -7,6 +7,7 @@ import SwiftUI
 // recognition. Reads at a glance; rewards technique, never speed.
 
 struct CornerTicketCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let ticket: CornerTicket
     var onReplay: (() -> Void)? = nil
 
@@ -31,19 +32,19 @@ struct CornerTicketCard: View {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(Color.mlHairline, lineWidth: Layout.hairline)
         )
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilitySummary)
     }
 
     private var header: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: ticket.shape.symbol)
-                .font(.title3.weight(.semibold))
+                .font(MLFont.title2)
                 .foregroundStyle(Color.mlAccent)
-                .frame(width: 40, height: 40)
+                .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
                 .background(Color.mlAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text("Corner \(ticket.index)")
                     .font(MLFont.headline)
                     .foregroundStyle(Color.mlTextPrimary)
@@ -78,7 +79,7 @@ struct CornerTicketCard: View {
         ].compactMap { $0 }
 
         if !values.isEmpty {
-            HStack(spacing: Spacing.xs) {
+            LazyVGrid(columns: metadataColumns, alignment: .leading, spacing: Spacing.xs) {
                 ForEach(values, id: \.0) { item in
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text(item.1)
@@ -94,20 +95,29 @@ struct CornerTicketCard: View {
     }
 
     private var speedProgression: some View {
-        HStack(spacing: Spacing.xs) {
-            speedStop("IN", ticket.entrySpeed)
-            connector
-            speedStop("APEX", ticket.apexSpeed, emphasised: true)
-            connector
-            speedStop("OUT", ticket.exitSpeed)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Spacing.xs) {
+                speedStop("IN", ticket.entrySpeed)
+                connector
+                speedStop("APEX", ticket.apexSpeed, emphasised: true)
+                connector
+                speedStop("OUT", ticket.exitSpeed)
+            }
+
+            VStack(spacing: Spacing.xs) {
+                verticalSpeedStop("Entry", ticket.entrySpeed)
+                verticalSpeedStop("Apex", ticket.apexSpeed, emphasised: true)
+                verticalSpeedStop("Exit", ticket.exitSpeed)
+            }
         }
         .padding(.vertical, Spacing.xxs)
     }
 
     private func speedStop(_ label: String, _ value: Int, emphasised: Bool = false) -> some View {
-        VStack(spacing: 2) {
+        VStack(spacing: Spacing.xxs) {
             Text("\(value)")
                 .font(MLFont.displaySmall)
+                .monospacedDigit()
                 .foregroundStyle(emphasised ? Color.mlAccent : Color.mlTextPrimary)
             Text(label).mlKicker()
         }
@@ -116,8 +126,25 @@ struct CornerTicketCard: View {
 
     private var connector: some View {
         Image(systemName: "chevron.compact.right")
-            .font(.body)
+            .font(MLFont.body)
             .foregroundStyle(Color.mlTextTertiary)
+    }
+
+    private func verticalSpeedStop(_ label: String, _ value: Int, emphasised: Bool = false) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+            Text(label).mlKicker()
+            Spacer(minLength: Spacing.sm)
+            Text("\(value) km/h")
+                .font(MLFont.mono)
+                .monospacedDigit()
+                .foregroundStyle(emphasised ? Color.mlAccent : Color.mlTextPrimary)
+        }
+    }
+
+    private var metadataColumns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible()), GridItem(.flexible())]
     }
 
     private var accessibilitySummary: String {

@@ -16,12 +16,19 @@ options:
 
 settings:
   base:
+    ALWAYS_SEARCH_USER_PATHS: NO
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_LANGUAGE: en
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
     CODE_SIGN_STYLE: Automatic
     GENERATE_INFOPLIST_FILE: NO
+  configs:
+    Debug:
+      ENABLE_TESTABILITY: YES
+      SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
 
 targets:
   MemoryLanes:
@@ -32,6 +39,7 @@ targets:
       - path: MemoryLanes
     settings:
       base:
+        PRODUCT_NAME: MemoryLanes
         INFOPLIST_FILE: MemoryLanes/Resources/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: app.memorylanes.native
         DEVELOPMENT_TEAM: 57HZXXHCLS
@@ -52,5 +60,17 @@ targets:
       - target: MemoryLanes
     settings:
       base:
+        PRODUCT_NAME: MemoryLanesTests
         PRODUCT_BUNDLE_IDENTIFIER: app.memorylanes.native.tests
         GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  MemoryLanes:
+    build:
+      targets:
+        MemoryLanes: all
+        MemoryLanesTests: [test]
+    test:
+      targets:
+        - MemoryLanesTests

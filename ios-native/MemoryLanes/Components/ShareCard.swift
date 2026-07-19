@@ -59,8 +59,8 @@ struct ShareCard: View {
     }
 
     private func shareStat(_ value: String, _ unit: String, _ label: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
                 Text(value)
                     .font(MLFont.display)
                     .foregroundStyle(Color.mlTextPrimary)

@@ -148,12 +148,12 @@ private struct JournalMomentCard: View {
     private var header: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: entry.coordinate == nil ? "note.text" : "mappin.circle.fill")
-                .font(.body.weight(.semibold))
+                .font(MLFont.bodyEmphasised)
                 .foregroundStyle(Color.mlAccent)
-                .frame(width: 38, height: 38)
+                .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
                 .background(Color.mlAccent.opacity(0.12), in: Circle())
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(entry.displayTitle)
                     .font(MLFont.headline)
                     .foregroundStyle(Color.mlTextPrimary)
@@ -173,39 +173,51 @@ private struct JournalMomentCard: View {
     }
 
     private var metadata: some View {
-        HStack(spacing: Spacing.sm) {
-            Label(entry.relativeDate, systemImage: "calendar")
-            if let speedKmh = entry.speedKmh {
-                Label("\(Int(speedKmh.rounded())) km/h", systemImage: "speedometer")
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Spacing.sm) {
+                metadataLabels
             }
-            if let elevation = entry.elevationMeters {
-                Label("\(Int(elevation.rounded())) m", systemImage: "mountain.2.fill")
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                metadataLabels
             }
         }
         .font(MLFont.caption)
         .foregroundStyle(Color.mlTextTertiary)
-        .lineLimit(1)
+    }
+
+    @ViewBuilder
+    private var metadataLabels: some View {
+        Label(entry.relativeDate, systemImage: "calendar")
+        if let speedKmh = entry.speedKmh {
+            Label("\(Int(speedKmh.rounded())) km/h", systemImage: "speedometer")
+                .monospacedDigit()
+        }
+        if let elevation = entry.elevationMeters {
+            Label("\(Int(elevation.rounded())) m", systemImage: "mountain.2.fill")
+                .monospacedDigit()
+        }
     }
 
     private var compactArtwork: some View {
         ZStack(alignment: .bottomLeading) {
             RouteThumbnail(route: entry.ride.routePreview.isEmpty ? SampleData.ridgeRoute : entry.ride.routePreview)
                 .frame(height: 122)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 .overlay {
                     LinearGradient(
                         colors: [.clear, .black.opacity(0.68)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
 
             Text(entry.ride.source.rawValue)
                 .font(MLFont.caption)
-                .foregroundStyle(Color.white)
+                .foregroundStyle(Color.mlTextPrimary)
                 .padding(.horizontal, Spacing.sm)
-                .frame(height: 26)
+                .padding(.vertical, Spacing.xxs)
                 .background(.ultraThinMaterial, in: Capsule())
                 .padding(Spacing.sm)
         }

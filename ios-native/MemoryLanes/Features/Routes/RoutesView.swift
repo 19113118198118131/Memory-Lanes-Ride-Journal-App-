@@ -839,7 +839,7 @@ struct PlannedRouteDetailView: View {
                                 .foregroundStyle(Color.mlOnAccent)
                                 .frame(width: 30, height: 30)
                                 .background(Color.mlAccent, in: Circle())
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text(index == 0 ? "Start" : "Waypoint")
                                     .font(MLFont.callout)
                                     .foregroundStyle(Color.mlTextPrimary)
@@ -1136,7 +1136,7 @@ private struct RouteEditSheet: View {
                             Image(systemName: "plus")
                                 .font(MLFont.headline)
                                 .foregroundStyle(Color.mlAccent)
-                                .frame(width: 40, height: 40)
+                                .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
                                 .background(Color.mlSurfaceElevated, in: Circle())
                         }
                         .buttonStyle(MLPressableButtonStyle())
@@ -1175,7 +1175,7 @@ private struct RouteEditSheet: View {
                 .frame(width: 30, height: 30)
                 .background(Color.mlAccent, in: Circle())
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(index == 0 ? "Start" : (index == waypoints.count - 1 ? "Finish" : "Stop"))
                     .font(MLFont.callout)
                     .foregroundStyle(Color.mlTextPrimary)
@@ -1191,21 +1191,30 @@ private struct RouteEditSheet: View {
             } label: {
                 Image(systemName: "chevron.up")
             }
+            .buttonStyle(MLPressableButtonStyle())
+            .mlHitTarget()
             .disabled(index == 0 || isSaving)
+            .accessibilityLabel("Move waypoint up")
 
             Button {
                 moveWaypoint(from: index, offset: 1)
             } label: {
                 Image(systemName: "chevron.down")
             }
+            .buttonStyle(MLPressableButtonStyle())
+            .mlHitTarget()
             .disabled(index == waypoints.count - 1 || isSaving)
+            .accessibilityLabel("Move waypoint down")
 
             Button(role: .destructive) {
                 removeWaypoint(at: index)
             } label: {
                 Image(systemName: "trash")
             }
+            .buttonStyle(MLPressableButtonStyle())
+            .mlHitTarget()
             .disabled(waypoints.count <= 2 || isSaving)
+            .accessibilityLabel("Remove waypoint")
         }
         .font(MLFont.callout)
         .foregroundStyle(Color.mlTextPrimary)

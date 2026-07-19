@@ -219,7 +219,7 @@ private func chartHeader(
     selectedDistance: String?
 ) -> some View {
     HStack(alignment: .firstTextBaseline) {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
             Text(title).mlKicker()
             Text(primary)
                 .font(MLFont.displaySmall)
@@ -230,7 +230,7 @@ private func chartHeader(
         }
         Spacer()
         if let selectedValue, let selectedDistance {
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: Spacing.xxs) {
                 Text(selectedValue)
                     .font(MLFont.monoSmall)
                     .foregroundStyle(Color.mlAccent)

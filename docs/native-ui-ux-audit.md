@@ -1,6 +1,6 @@
 # Native UI/UX Audit
 
-Last reviewed: 15 July 2026
+Last reviewed: 19 July 2026
 
 ## Scope
 
@@ -8,7 +8,9 @@ This pass reviewed the SwiftUI feature and component tree for visual hierarchy,
 affordance, loading/empty/error states, progressive disclosure, touch targets,
 Dynamic Type structure, reduced motion, semantic tokens, tactile feedback and
 route-planning workflow continuity. It included a deeper interaction audit of
-the complete route setup, generation, recovery, selection and save flow.
+the complete route setup, generation, recovery, selection and save flow, plus
+the ride-detail replay controls, journal cards, Rider Craft corner tickets and
+stats navigation.
 
 The review used the native design system and the `make-interfaces-feel-better`
 principles. Fixed chart and map dimensions are intentional stable canvases;
@@ -42,6 +44,16 @@ arbitrary UI spacing, radii and animation values remain design-system owned.
 | Some changing numeric labels could shift as values changed. | Planner distance, segmented metrics and monthly totals use tabular numerals. |
 | Route-specific animations did not all respect Reduce Motion. | Compass selection, disclosure, loading and account transitions honour the system preference. |
 | A few feature views contained raw spacing/radius values. | Those values now resolve through semantic spacing and radius tokens. |
+| Compact replay, rename and share controls had mixed 36–44 point footprints. | Ride-detail icon actions now use the shared 44-point minimum target and press physics. |
+| Remaining journal and craft labels bypassed semantic font roles. | Moment, weather, journal and corner-ticket typography now resolves through `MLFont`; changing metrics use tabular numerals. |
+
+## Adaptive content
+
+| Before | After |
+| --- | --- |
+| Corner speed progression and four metadata values could compress into a dense horizontal strip at larger text sizes. | Speed progression falls back to a readable vertical sequence and metadata uses an adaptive grid. |
+| Journal metadata was forced to one line, which could truncate the date, speed or elevation. | Metadata uses `ViewThatFits` to retain the compact row when it fits and stack without truncation when it does not. |
+| Corner cards combined every child into one VoiceOver element, including replay. | The card is now a containing group, preserving replay as an independently reachable action. |
 
 ## Surface quality
 
@@ -50,6 +62,18 @@ arbitrary UI spacing, radii and animation values remain design-system owned.
 | Route thumbnails shared the same radius as their outer card despite inset padding. | Inner maps use the smaller button radius and a subtle semantic outline. |
 | Loading swapped the primary label entirely for a spinner. | The action label stays stable while a compact spinner communicates progress. |
 | Route scoring blocks added nested visual weight inside candidate cards. | The score is an unframed disclosure row, reducing surface nesting and visual noise. |
+| Journal artwork reused the outer card radius inside an inset surface. | Inset route artwork now uses the smaller button radius for concentric corners. |
+
+## Project reproducibility
+
+| Before | After |
+| --- | --- |
+| A regenerated project could produce an unnamed `.app`, omit Debug testability and expose an auto-created scheme without a test action. | `project.yml` now pins product names, Debug optimization/testability, the unit-test bundle loader and a shared build/test scheme. |
+| A local generated project retained a stale source reference from another branch. | Regenerating from `project.yml` now gives a clean `main` source graph and a repeatable build. |
+
+Verification on 19 July 2026: unsigned generic-device build succeeded with
+Xcode 26.5; all 106 native tests passed on an iPhone 17 Pro iOS 26.5 simulator
+with zero failures and zero skips.
 
 ## Remaining release validation
 

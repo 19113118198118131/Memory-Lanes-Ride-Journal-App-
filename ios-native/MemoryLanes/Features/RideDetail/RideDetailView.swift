@@ -184,7 +184,7 @@ struct RideDetailView: View {
                 Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
                     .font(MLFont.callout)
                     .foregroundStyle(Color.mlOnAccent)
-                    .frame(width: 38, height: 38)
+                    .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
                     .background(Color.mlAccent, in: Circle())
             }
             .buttonStyle(MLPressableButtonStyle())
@@ -200,12 +200,14 @@ struct RideDetailView: View {
             )
             .tint(.mlAccent)
 
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: Spacing.xxs) {
                 Text(viewModel.playbackProgressText)
                     .font(MLFont.monoSmall)
+                    .monospacedDigit()
                     .foregroundStyle(Color.mlTextPrimary)
                 Text(viewModel.playbackSpeedText)
                     .font(MLFont.caption)
+                    .monospacedDigit()
                     .foregroundStyle(Color.mlTextSecondary)
             }
             .frame(minWidth: 58, alignment: .trailing)
@@ -215,7 +217,7 @@ struct RideDetailView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: Layout.hairline)
+                .stroke(Color.mlTextPrimary.opacity(0.12), lineWidth: Layout.hairline)
         )
     }
 
@@ -264,7 +266,7 @@ struct RideDetailView: View {
                     Image(systemName: "pencil")
                         .font(MLFont.callout)
                         .foregroundStyle(Color.mlAccent)
-                        .frame(width: 36, height: 36)
+                        .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
                         .background(Color.mlAccent.opacity(0.12), in: Circle())
                 }
                 .buttonStyle(MLPressableButtonStyle())
@@ -426,6 +428,9 @@ struct RideDetailView: View {
                             )
                     }
                     .buttonStyle(MLPressableButtonStyle())
+                    .mlHitTarget()
+                    .accessibilityLabel("Replay speed \(Int(speed)) times")
+                    .accessibilityAddTraits(viewModel.playbackSpeed == speed ? .isSelected : [])
                 }
             }
         }
@@ -543,7 +548,7 @@ struct RideDetailView: View {
     private func routeMatchCard(route: PlannedRoute, match: RouteMatchSummary) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text("Planned route").mlKicker()
                     Text(route.title)
                         .font(MLFont.headline)
@@ -604,7 +609,7 @@ struct RideDetailView: View {
     private var publicShareCard: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text("Public link").mlKicker()
                     Text("This ride is shareable")
                         .font(MLFont.headline)
@@ -761,12 +766,13 @@ struct RideDetailView: View {
             action()
         } label: {
             Image(systemName: systemImage)
-                .font(.headline)
+                .font(MLFont.headline)
                 .foregroundStyle(Color.mlTextPrimary)
-                .frame(width: 44, height: 44)
+                .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
                 .background(.ultraThinMaterial, in: Circle())
                 .overlay(Circle().stroke(Color.mlHairline, lineWidth: Layout.hairline))
         }
+        .buttonStyle(MLPressableButtonStyle())
         .accessibilityLabel(label)
     }
 

@@ -34,7 +34,7 @@ struct RideCard: View {
                 }
 
                 VStack(alignment: .leading, spacing: Spacing.sm) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text(ride.title)
                             .font(MLFont.title2)
                             .foregroundStyle(Color.mlTextPrimary)
