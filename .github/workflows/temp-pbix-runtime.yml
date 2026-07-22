@@ -1,0 +1,34 @@
+name: Temporary PBIX Runtime
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/temp-pbix-runtime.yml'
+
+jobs:
+  build-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install PBIX runtime
+        run: |
+          python -m venv runtime
+          runtime/bin/python -m pip install --upgrade pip
+          runtime/bin/python -m pip install pbix-mcp==0.9.24
+          runtime/bin/python - <<'PY'
+          import pbix_mcp, xpress9, apsw, pydantic
+          print('pbix_mcp', pbix_mcp.__file__)
+          print('runtime import check passed')
+          PY
+      - name: Package runtime
+        run: |
+          tar -C runtime/lib/python3.13 -czf pbix-runtime-linux-py313.tar.gz site-packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pbix-runtime-linux-py313
+          path: pbix-runtime-linux-py313.tar.gz
+          retention-days: 1
