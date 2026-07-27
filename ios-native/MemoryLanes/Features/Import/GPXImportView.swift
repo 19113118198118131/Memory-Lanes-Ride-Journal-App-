@@ -13,10 +13,10 @@ struct GPXImportView: View {
     @State private var selectedFileName: String?
     @State private var gpxData: Data?
     @State private var track: GPXTrack?
+    @State private var isParsing = false
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    private let parser = GPXParser()
     private let importService = RideImportService()
 
     init(
@@ -57,6 +57,7 @@ struct GPXImportView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
+                        .disabled(isSaving)
                 }
             }
             .fileImporter(
@@ -66,6 +67,7 @@ struct GPXImportView: View {
                 onCompletion: handleImport
             )
         }
+        .interactiveDismissDisabled(isSaving)
     }
 
     private var header: some View {
@@ -97,9 +99,13 @@ struct GPXImportView: View {
                         .foregroundStyle(Color.mlTextSecondary)
                 }
             }
-            SecondaryButton(title: "Choose GPX File", systemImage: "folder") {
+            SecondaryButton(
+                title: isParsing ? "Reading GPX..." : "Choose GPX File",
+                systemImage: isParsing ? nil : "folder"
+            ) {
                 showingImporter = true
             }
+            .disabled(isParsing || isSaving)
         }
         .padding(Spacing.md)
         .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -149,7 +155,11 @@ struct GPXImportView: View {
     }
 
     private var canSave: Bool {
-        track != nil && gpxData != nil && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSaving
+        track != nil
+            && gpxData != nil
+            && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !isParsing
+            && !isSaving
     }
 
     private var metricColumns: [GridItem] {
@@ -159,23 +169,34 @@ struct GPXImportView: View {
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            Task { await loadImport(from: url) }
+        case .failure(let error):
+            guard (error as NSError).code != NSUserCancelledError else { return }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func loadImport(from url: URL) async {
+        guard !isParsing else { return }
+        isParsing = true
+        errorMessage = nil
+        selectedFileName = nil
+        gpxData = nil
+        track = nil
+        defer { isParsing = false }
+
         do {
-            guard let url = try result.get().first else { return }
-            guard url.pathExtension.lowercased() == "gpx" || url.pathExtension.lowercased() == "xml" else {
-                throw GPXImportViewError.unsupportedFile
-            }
-            let didAccess = url.startAccessingSecurityScopedResource()
-            defer {
-                if didAccess { url.stopAccessingSecurityScopedResource() }
-            }
-            let data = try Data(contentsOf: url)
-            guard data.count <= 5 * 1024 * 1024 else { throw GPXImportViewError.fileTooLarge }
-            let parsed = try parser.parse(data: data)
-            selectedFileName = url.lastPathComponent
-            title = url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
-            gpxData = data
-            track = parsed
-            errorMessage = nil
+            let imported = try await Task.detached(priority: .userInitiated) {
+                try ImportedGPX.load(from: url)
+            }.value
+            selectedFileName = imported.fileName
+            title = imported.suggestedTitle
+            gpxData = imported.data
+            track = imported.track
+        } catch is CancellationError {
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -212,7 +233,41 @@ struct GPXImportView: View {
     }
 }
 
-private enum GPXImportViewError: LocalizedError {
+struct ImportedGPX: Sendable {
+    static let maximumByteCount = 5 * 1024 * 1024
+
+    let data: Data
+    let track: GPXTrack
+    let fileName: String
+    let suggestedTitle: String
+
+    static func load(from url: URL) throws -> ImportedGPX {
+        let fileExtension = url.pathExtension.lowercased()
+        guard fileExtension == "gpx" || fileExtension == "xml" else {
+            throw GPXImportViewError.unsupportedFile
+        }
+
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess { url.stopAccessingSecurityScopedResource() }
+        }
+
+        if let fileSize = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+           fileSize > maximumByteCount {
+            throw GPXImportViewError.fileTooLarge
+        }
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
+        guard data.count <= maximumByteCount else { throw GPXImportViewError.fileTooLarge }
+        return ImportedGPX(
+            data: data,
+            track: try GPXParser().parse(data: data),
+            fileName: url.lastPathComponent,
+            suggestedTitle: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
+        )
+    }
+}
+
+enum GPXImportViewError: LocalizedError {
     case unsupportedFile
     case fileTooLarge
 

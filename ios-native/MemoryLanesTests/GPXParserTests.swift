@@ -77,4 +77,38 @@ final class GPXParserTests: XCTestCase {
         XCTAssertEqual(track.durationSeconds, 10, accuracy: 0.001)
         XCTAssertLessThan(track.distanceMeters, 200)
     }
+
+    func testImportLoaderReadsAValidFileAndSuggestsATitle() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Sunday_Morning_Ride-\(UUID().uuidString).gpx")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data(
+            """
+            <gpx version="1.1"><trk><trkseg>
+              <trkpt lat="-36.8485" lon="174.7633" />
+              <trkpt lat="-36.8485" lon="174.7643" />
+            </trkseg></trk></gpx>
+            """.utf8
+        ).write(to: url, options: .atomic)
+
+        let imported = try ImportedGPX.load(from: url)
+
+        XCTAssertEqual(imported.fileName, url.lastPathComponent)
+        XCTAssertTrue(imported.suggestedTitle.hasPrefix("Sunday Morning Ride-"))
+        XCTAssertEqual(imported.track.points.count, 2)
+    }
+
+    func testImportLoaderRejectsOversizedFilesBeforeParsing() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("oversized-\(UUID().uuidString).gpx")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data(repeating: 0, count: ImportedGPX.maximumByteCount + 1)
+            .write(to: url, options: .atomic)
+
+        XCTAssertThrowsError(try ImportedGPX.load(from: url)) { error in
+            guard case GPXImportViewError.fileTooLarge = error else {
+                return XCTFail("Expected fileTooLarge, got \(error)")
+            }
+        }
+    }
 }

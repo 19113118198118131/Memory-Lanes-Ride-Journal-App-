@@ -30,6 +30,7 @@ final class NotificationCoordinator: ObservableObject {
     }
 
     func requestPermission() async -> Bool {
+        registrationError = nil
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
             if granted {

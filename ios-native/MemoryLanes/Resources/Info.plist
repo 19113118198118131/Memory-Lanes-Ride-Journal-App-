@@ -51,6 +51,12 @@
 	<string>Dark</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Memory Lanes uses your location to record your ride and follow planned routes on the map.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Memory Lanes connects directly to nearby members of your group ride for Ride Mesh messaging.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_ml-ridemesh._tcp</string>
+	</array>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Memory Lanes records your ride in the background so you never lose a track if the screen locks.</string>
 	<key>UIBackgroundModes</key>

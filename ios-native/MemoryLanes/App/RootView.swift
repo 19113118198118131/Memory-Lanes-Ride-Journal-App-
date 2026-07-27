@@ -16,10 +16,23 @@ struct RootView: View {
         Group {
             switch authStore.state {
             case .checking:
-                ProgressView()
-                    .tint(.mlAccent)
+                VStack(spacing: Spacing.md) {
+                    Image("BrandMark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: Layout.accountAvatarSize, height: Layout.accountAvatarSize)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                        .accessibilityHidden(true)
+                    ProgressView()
+                        .tint(.mlAccent)
+                    Text("Preparing your rides")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.mlBackground)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Preparing Memory Lanes")
             case .signedOut:
                 AuthView(authStore: authStore)
             case .signedIn:
@@ -129,7 +142,11 @@ private struct MainTabShell: View {
                             showingAccount = true
                         } label: {
                             Image(systemName: "person.crop.circle")
+                                .font(MLFont.title2)
+                                .foregroundStyle(Color.mlAccent)
+                                .mlHitTarget()
                         }
+                        .buttonStyle(MLPressableButtonStyle())
                         .accessibilityLabel("Account")
                     }
                 }

@@ -23,7 +23,10 @@ testing:
   dashboard/edit/cancel/complete controls, ride-day check-in and readiness,
   host announcements, shared-route recording, and explicit per-ride live-location
   consent with throttled, expiring group-aware publishing, an independent stop control,
-  and fresh named rider markers on the live MapKit cockpit.
+  and fresh named rider markers on the live MapKit cockpit. Joined rides also
+  include Ride Mesh: explicitly activated, group-key-encrypted nearby messaging
+  with quick safety signals, bounded multi-hop relay, duplicate suppression and
+  queued delivery when another rider comes into range.
 - ✅ **Independent routing Phase 1.5** — MapKit fallback behind a provider seam,
   proprietary route-character scoring, randomized road-validated candidates,
   searchable and recent start locations, primary/secondary mood blends,

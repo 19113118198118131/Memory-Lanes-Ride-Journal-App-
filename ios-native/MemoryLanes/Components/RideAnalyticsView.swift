@@ -275,20 +275,26 @@ private struct RideProfileChart: View {
     let points: [ReplayPoint]
     let showsAxesAndGrid: Bool
     let onSelectReplayIndex: (Int) -> Void
+    private let displayPoints: [ReplayPoint]
+    private let elevationBounds: (min: Double, max: Double)
+    private let maximumSpeed: Double
 
     @State private var mode = Mode.both
     @State private var selected: ReplayPoint?
 
-    private var displayPoints: [ReplayPoint] {
-        AnalyticsDisplaySampler.sample(points, limit: 600)
-    }
-
-    private var elevationBounds: (min: Double, max: Double) {
+    init(
+        points: [ReplayPoint],
+        showsAxesAndGrid: Bool,
+        onSelectReplayIndex: @escaping (Int) -> Void
+    ) {
+        self.points = points
+        self.showsAxesAndGrid = showsAxesAndGrid
+        self.onSelectReplayIndex = onSelectReplayIndex
+        self.displayPoints = AnalyticsDisplaySampler.sample(points, limit: 600)
         let values = points.map(\.elevationMeters)
-        return (values.min() ?? 0, values.max() ?? 1)
+        self.elevationBounds = (values.min() ?? 0, values.max() ?? 1)
+        self.maximumSpeed = points.lazy.map(\.speedKmh).max() ?? 0
     }
-
-    private var maximumSpeed: Double { points.map(\.speedKmh).max() ?? 0 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -307,6 +313,14 @@ private struct RideProfileChart: View {
                 Chart {
                     if mode != .speed {
                         ForEach(displayPoints) { point in
+                            AreaMark(
+                                x: .value("Distance", point.distanceKm),
+                                yStart: .value("Elevation baseline", 0),
+                                yEnd: .value("Elevation area", normalizedElevation(point.elevationMeters))
+                            )
+                            .foregroundStyle(Color.mlAccent.opacity(0.12))
+                            .interpolationMethod(.monotone)
+
                             LineMark(
                                 x: .value("Distance", point.distanceKm),
                                 y: .value("Elevation shape", normalizedElevation(point.elevationMeters))

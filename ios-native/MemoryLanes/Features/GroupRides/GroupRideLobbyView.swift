@@ -11,6 +11,8 @@ struct GroupRideLobbyView: View {
     @State private var showAllAnnouncements = false
     @State private var showingAnnouncementComposer = false
     @State private var pendingStartRide: GroupRide?
+    @State private var showingRideMesh = false
+    @State private var rideMeshSession: RideMeshSession?
 
     let onStartRoute: (PlannedRoute, GroupRideRecordingContext) -> Void
     let onEnded: () -> Void
@@ -95,6 +97,13 @@ struct GroupRideLobbyView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showingRideMesh) {
+            if let rideMeshSession {
+                RideMeshView(session: rideMeshSession)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
         .confirmationDialog(
             pendingStatus == .completed ? "Mark this ride complete?" : "Cancel this group ride?",
             isPresented: Binding(
@@ -140,6 +149,9 @@ struct GroupRideLobbyView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Your RSVP is removed. You can join again later with the invitation while the ride is still open.")
+        }
+        .onDisappear {
+            rideMeshSession?.stop()
         }
     }
 
@@ -187,22 +199,26 @@ struct GroupRideLobbyView: View {
                     rideDayCard(groupRide)
                         .mlStaggeredReveal(index: 4)
                 }
+                if groupRide.isOwner || groupRide.isMember {
+                    rideMeshCard(groupRide)
+                        .mlStaggeredReveal(index: 5)
+                }
                 if groupRide.isOwner {
                     organiserDashboard(groupRide)
-                        .mlStaggeredReveal(index: 5)
+                        .mlStaggeredReveal(index: 6)
                 }
                 if !groupRide.announcements.isEmpty {
                     announcements(groupRide)
-                        .mlStaggeredReveal(index: 6)
+                        .mlStaggeredReveal(index: 7)
                 }
                 if !groupRide.isOwner {
                     rsvpCard(groupRide)
-                        .mlStaggeredReveal(index: 7)
+                        .mlStaggeredReveal(index: 8)
                 }
                 attendees(groupRide)
-                    .mlStaggeredReveal(index: 8)
-                actions(groupRide)
                     .mlStaggeredReveal(index: 9)
+                actions(groupRide)
+                    .mlStaggeredReveal(index: 10)
 
                 if let errorMessage = viewModel.errorMessage {
                     HStack(spacing: Spacing.sm) {
@@ -330,6 +346,79 @@ struct GroupRideLobbyView: View {
         groupRide.status == .scheduled && (
             groupRide.isOwner || groupRide.yourRSVP == .going || groupRide.yourRSVP == .maybe
         )
+    }
+
+    private func rideMeshCard(_ groupRide: GroupRide) -> some View {
+        Button {
+            if rideMeshSession == nil {
+                rideMeshSession = RideMeshSession(
+                    shareToken: groupRide.shareToken,
+                    senderName: currentRiderName(groupRide)
+                )
+            }
+            rideMeshSession?.start()
+            showingRideMesh = true
+            Haptics.selection()
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: rideMeshSession?.state.symbol ?? "antenna.radiowaves.left.and.right")
+                    .font(MLFont.title2)
+                    .foregroundStyle(rideMeshTint)
+                    .contentTransition(.symbolEffect(.replace))
+                    .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                    .background(rideMeshTint.opacity(0.12), in: Circle())
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    HStack(spacing: Spacing.xs) {
+                        Text("Ride Mesh")
+                            .font(MLFont.headline)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text("NEARBY")
+                            .font(MLFont.kicker)
+                            .foregroundStyle(Color.mlAccent)
+                            .padding(.horizontal, Spacing.xs)
+                            .padding(.vertical, Spacing.xxs)
+                            .background(Color.mlAccent.opacity(0.12), in: Capsule())
+                    }
+                    Text(rideMeshSession?.state.title ?? "Message this group without mobile data")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .contentTransition(.numericText())
+                }
+
+                Spacer(minLength: Spacing.xs)
+
+                Image(systemName: "chevron.right")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextTertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(Spacing.md)
+            .contentShape(Rectangle())
+            .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(rideMeshTint.opacity(0.26), lineWidth: Layout.hairline)
+            }
+        }
+        .buttonStyle(MLPressableButtonStyle())
+        .accessibilityHint("Opens encrypted nearby chat for this group ride")
+        .animation(reduceMotion ? nil : Motion.springSnappy, value: rideMeshSession?.state)
+    }
+
+    private func currentRiderName(_ groupRide: GroupRide) -> String {
+        groupRide.members.first(where: \.isYou)?.name
+            ?? (groupRide.isOwner ? groupRide.hostedBy : nil)
+            ?? "Rider"
+    }
+
+    private var rideMeshTint: Color {
+        switch rideMeshSession?.state {
+        case .connected: .mlSuccess
+        case .unavailable: .mlDanger
+        case .scanning: .mlWarning
+        case .idle, nil: .mlAccent
+        }
     }
 
     private func rideDayCard(_ groupRide: GroupRide) -> some View {

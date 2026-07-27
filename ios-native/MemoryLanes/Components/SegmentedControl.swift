@@ -18,11 +18,12 @@ struct MLSegmentedControl<Item: Hashable>: View {
 
     var body: some View {
         Group {
-            if compact && dynamicTypeSize.isAccessibilitySize {
+            if shouldScroll {
                 ScrollView(.horizontal) {
                     segments(equalWidth: false)
                 }
                 .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
             } else {
                 segments(equalWidth: true)
             }
@@ -30,6 +31,10 @@ struct MLSegmentedControl<Item: Hashable>: View {
         .padding(Spacing.xxs)
         .background(Color.mlSurface, in: Capsule())
         .overlay(Capsule().stroke(Color.mlHairline, lineWidth: Layout.hairline))
+    }
+
+    private var shouldScroll: Bool {
+        compact && (dynamicTypeSize.isAccessibilitySize || items.count > 4)
     }
 
     private func segments(equalWidth: Bool) -> some View {

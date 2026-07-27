@@ -23,6 +23,7 @@ final class NotificationSettingsViewModel {
 
     func load() async {
         isLoading = true
+        errorMessage = nil
         async let state = coordinator.permissionState()
         async let stored = service.fetchPreferences()
         permissionState = await state
@@ -40,13 +41,26 @@ final class NotificationSettingsViewModel {
     }
 
     func requestPermission() async {
+        guard !isSaving else { return }
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+
         let granted = await coordinator.requestPermission()
         permissionState = await coordinator.permissionState()
+        if let registrationError = coordinator.registrationError {
+            errorMessage = registrationError
+            return
+        }
         if granted, let token = coordinator.deviceToken {
-            try? await service.registerDevice(
-                token: token,
-                environment: NotificationCoordinator.pushEnvironment
-            )
+            do {
+                try await service.registerDevice(
+                    token: token,
+                    environment: NotificationCoordinator.pushEnvironment
+                )
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -179,6 +193,7 @@ struct NotificationSettingsView: View {
                 .foregroundStyle(Color.mlAccent)
                 .frame(minHeight: Layout.minTouchTarget)
                 .buttonStyle(MLPressableButtonStyle())
+                .disabled(viewModel.isSaving)
             }
         }
         .padding(Spacing.md)

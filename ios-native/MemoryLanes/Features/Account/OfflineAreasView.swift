@@ -148,6 +148,12 @@ struct OfflineAreasView: View {
                     title: "Catalog unavailable",
                     message: catalogError
                 )
+            } else if viewModel.available.isEmpty {
+                EmptyState(
+                    systemImage: "map",
+                    title: "No road packs published",
+                    message: "Pull to refresh or check again after offline coverage expands."
+                )
             } else {
                 LazyVStack(spacing: Spacing.sm) {
                     ForEach(viewModel.available.filter { !viewModel.isCurrent($0) }) { region in

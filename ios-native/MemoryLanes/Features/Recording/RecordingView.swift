@@ -624,24 +624,25 @@ private struct RecordingFinishedSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("Ride recorded").mlKicker()
-                Text("Save to Journal")
-                    .font(MLFont.display)
-                    .foregroundStyle(Color.mlTextPrimary)
-                Text(isRecovered
-                    ? "This completed ride was recovered from your device. Save it now to finish syncing it to Memory Lanes."
-                    : "Your GPX backup is ready. Save it now to sync this ride across Memory Lanes.")
-                    .font(MLFont.body)
-                    .foregroundStyle(Color.mlTextSecondary)
-                if let plannedRoute {
-                    Label(plannedRoute.title, systemImage: "map.fill")
-                        .font(MLFont.callout)
-                        .foregroundStyle(Color.mlAccent)
-                        .lineLimit(1)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: Spacing.lg) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Ride recorded").mlKicker()
+                    Text("Save to Journal")
+                        .font(MLFont.display)
+                        .foregroundStyle(Color.mlTextPrimary)
+                    Text(isRecovered
+                        ? "This completed ride was recovered from your device. Save it now to finish syncing it to Memory Lanes."
+                        : "Your GPX backup is ready. Save it now to sync this ride across Memory Lanes.")
+                        .font(MLFont.body)
+                        .foregroundStyle(Color.mlTextSecondary)
+                    if let plannedRoute {
+                        Label(plannedRoute.title, systemImage: "map.fill")
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlAccent)
+                            .lineLimit(1)
+                    }
                 }
-            }
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("Ride title").mlKicker()
@@ -679,12 +680,11 @@ private struct RecordingFinishedSheet: View {
             }
             .disabled(!canSave)
 
-            SecondaryButton(title: "Not Now", systemImage: "clock") {
+            SecondaryButton(title: "Keep for Later", systemImage: "clock") {
                 onDone()
             }
             .disabled(isSaving)
 
-            if isRecovered {
                 Button(role: .destructive) {
                     Haptics.warning()
                     showingDiscardConfirmation = true
@@ -697,12 +697,13 @@ private struct RecordingFinishedSheet: View {
                 .buttonStyle(MLPressableButtonStyle())
                 .disabled(isSaving)
             }
+            .padding(Spacing.lg)
         }
-        .padding(Spacing.lg)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.mlBackground)
+        .interactiveDismissDisabled()
         .confirmationDialog(
-            "Discard this recovered ride?",
+            isRecovered ? "Discard this recovered ride?" : "Discard this ride?",
             isPresented: $showingDiscardConfirmation,
             titleVisibility: .visible
         ) {
