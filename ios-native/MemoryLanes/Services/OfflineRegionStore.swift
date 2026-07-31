@@ -54,7 +54,8 @@ actor OfflineRegionStore: OfflineRegionServing {
     static let supportedGraphFormatVersion = 1
 
     static let productionManifestKeys: [String: Data] = [
-        "release-2026-07": Data(base64Encoded: "TLp0ED02bf81xYkeUIWNv3m/sJJ6F/9JW9egtAwFq5o=") ?? Data()
+        "release-2026-07": Data(base64Encoded: "TLp0ED02bf81xYkeUIWNv3m/sJJ6F/9JW9egtAwFq5o=") ?? Data(),
+        "release-2026-08": Data(base64Encoded: "76JI2ZZbwSfCvJveVE6hYZwgtnL/OvNXM0ffdV7t1nY=") ?? Data()
     ]
 
     private struct InstalledArchive: Codable {

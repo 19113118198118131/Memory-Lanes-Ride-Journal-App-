@@ -26,8 +26,8 @@ jobs:
     env:
       REGION_ID: ${{ inputs.region_id || 'nz-auckland-north' }}
       REGIONS_FILE: tools/offline_graph/regions.json
-      PUBLIC_KEY: TLp0ED02bf81xYkeUIWNv3m/sJJ6F/9JW9egtAwFq5o=
-      KEY_ID: release-2026-07
+      PUBLIC_KEY: 76JI2ZZbwSfCvJveVE6hYZwgtnL/OvNXM0ffdV7t1nY=
+      KEY_ID: release-2026-08
       SUPABASE_S3_ENDPOINT: https://ubuhaxnuhaacvxzezabd.storage.supabase.co/storage/v1/s3
       AWS_DEFAULT_REGION: ap-southeast-2
 

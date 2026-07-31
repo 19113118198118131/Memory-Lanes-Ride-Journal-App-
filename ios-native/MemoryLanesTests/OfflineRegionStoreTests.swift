@@ -4,6 +4,12 @@ import Testing
 @testable import MemoryLanes
 
 struct OfflineRegionStoreTests {
+    @Test func productionManifestKeyRingContainsOnlyValidEd25519Keys() {
+        #expect(OfflineRegionStore.productionManifestKeys["release-2026-07"]?.count == 32)
+        #expect(OfflineRegionStore.productionManifestKeys["release-2026-08"]?.count == 32)
+        #expect(OfflineRegionStore.productionManifestKeys.values.allSatisfy { $0.count == 32 })
+    }
+
     @Test func validPackIsVerifiedInstalledAndDiscoverableByCoverage() async throws {
         let harness = try Harness(packData: Data("connected-road-graph".utf8))
         let manifest = harness.manifest()

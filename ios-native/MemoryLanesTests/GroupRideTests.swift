@@ -16,7 +16,7 @@ final class GroupRideTests: XCTestCase {
           "meet_point": "Harbour car park",
           "hosted_by": "Samar",
           "member_count": 2,
-          "is_owner": true,
+          "is_owner": false,
           "is_member": true,
           "your_rsvp": "going",
           "members": [
@@ -51,6 +51,7 @@ final class GroupRideTests: XCTestCase {
         XCTAssertEqual(groupRide.checkedInCount, 0)
         XCTAssertFalse(groupRide.isCheckedIn)
         XCTAssertFalse(groupRide.checkInAvailable)
+        XCTAssertFalse(groupRide.isOwner)
         XCTAssertTrue(groupRide.announcements.isEmpty)
         XCTAssertTrue(groupRide.inviteURL?.absoluteString.contains(token.uuidString) == true)
         XCTAssertTrue(groupRide.canUseRideMesh)
