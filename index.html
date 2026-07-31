@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=91" />
+  <link rel="stylesheet" href="style.css?v=94" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -121,13 +121,13 @@
       <h2>Welcome back</h2>
       <p class="section-sub">Sign in to your ride journal or create a new account.</p>
       <div class="auth-form">
-        <input type="email" id="auth-email" placeholder="Email" />
-        <input type="password" id="auth-password" placeholder="Password" />
-        <button id="login-btn">Login</button>
-        <button id="signup-btn">Sign Up</button>
+        <input type="email" id="auth-email" placeholder="Email" aria-label="Email" autocomplete="email" inputmode="email" />
+        <input type="password" id="auth-password" placeholder="Password" aria-label="Password" autocomplete="current-password" />
+        <button type="button" id="login-btn">Login</button>
+        <button type="button" id="signup-btn">Sign Up</button>
       </div>
     </section>
-    <p id="auth-status"></p>
+    <p id="auth-status" role="status" aria-live="polite"></p>
 
     <!-- ========================
          EDIT CONTROLS
@@ -395,7 +395,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/leaflet-editable@1.2.0/src/Leaflet.Editable.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="script.js?v=91"></script>
+  <script type="module" src="script.js?v=94"></script>
   <script type="module" src="icons.js?v=91"></script>
   <script src="theme.js?v=90"></script>
   <!-- analytics.js removed: its code was duplicated inside script.js (window.Analytics), which always overwrote it -->

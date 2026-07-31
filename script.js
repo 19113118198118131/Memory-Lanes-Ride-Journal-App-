@@ -32,10 +32,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const uploadSection     = document.getElementById('upload-section');
   const saveForm          = document.getElementById('save-ride-form');
   const authSection       = document.getElementById('auth-section');
+  const authStatusEl      = document.getElementById('auth-status');
+  const loginBtn          = document.getElementById('login-btn');
+  const signupBtn         = document.getElementById('signup-btn');
   // True only when the login prompt was opened DURING a save (an uploaded ride
   // is waiting to be logged). Logging in from the header has no ride pending,
   // so the "Log this Ride" form must not appear then.
   let pendingSaveAfterLogin = false;
+  let authNavigationStarted = false;
   const headerAuthControls    = document.getElementById('header-auth-controls');
   const headerLoginBtn        = document.getElementById('header-login-btn');
   const iosGetStartedBtn      = document.getElementById('ios-get-started-btn');
@@ -2266,51 +2270,113 @@ function chartThemeColors() {
   });
 
   // ========== AUTH / SAVE LOGIC ==========
-document.getElementById('login-btn').addEventListener('click', async () => {
-  const email = document.getElementById('auth-email').value;
-  const pass = document.getElementById('auth-password').value;
-  const statusEl = document.getElementById('auth-status');
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+function setAuthStatus(message, state = 'info') {
+  authStatusEl.textContent = message;
+  authStatusEl.className = message ? `auth-status auth-status-${state}` : '';
+}
 
-  if (error) {
-    statusEl.textContent = `Login failed: ${error.message}`;
+function setAuthControlsBusy(isBusy, activeAction = null) {
+  loginBtn.disabled = isBusy;
+  signupBtn.disabled = isBusy;
+  loginBtn.textContent = isBusy && activeAction === 'login' ? 'Signing In...' : 'Login';
+  signupBtn.textContent = isBusy && activeAction === 'signup' ? 'Creating Account...' : 'Sign Up';
+}
+
+function continueAfterAuthentication(session) {
+  if (!session?.user || authNavigationStarted) return false;
+
+  headerLoginBtn.style.display = 'none';
+  headerAccountControls.style.display = '';
+  authSection.style.display = 'none';
+
+  if (consumePendingInvite()) {
+    authNavigationStarted = true;
+    return true;
+  }
+
+  if (pendingSaveAfterLogin) {
+    saveForm.style.display = 'block';
+    pendingSaveAfterLogin = false;
+    return false;
+  }
+
+  if (shouldOpenDashboardOnLaunch()) {
+    authNavigationStarted = true;
+    window.location.replace('dashboard.html');
+    return true;
+  }
+
+  return false;
+}
+
+loginBtn.addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-password').value;
+  if (!email || !pass) {
+    setAuthStatus('Enter your email and password.', 'error');
     return;
   }
 
-  // Clear old messages
-  document.getElementById('save-status').textContent = '';
-  statusEl.textContent = 'Login successful!';
-  statusEl.classList.add('status-fade');
-  statusEl.style.display = 'block';
-  statusEl.style.color = '#64ffda';
-  statusEl.style.padding = '0.75rem';
-  statusEl.style.fontWeight = 'bold';
-  statusEl.style.border = '1px solid #64ffda';
-  statusEl.style.background = '#112240';
-  statusEl.style.borderRadius = '5px';
-  statusEl.style.marginTop = '1rem';
+  setAuthControlsBusy(true, 'login');
+  setAuthStatus('Signing you in...', 'info');
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      setAuthStatus(`Login failed: ${error.message}`, 'error');
+      return;
+    }
 
-  // Hide login. Only reveal the save form if a ride was actually waiting to be
-  // saved (i.e. login was part of the save flow, not a header sign-in).
-  setTimeout(() => {
-    authSection.style.display = 'none';
-    if (pendingSaveAfterLogin) saveForm.style.display = 'block';
-    pendingSaveAfterLogin = false;
-  }, 50);
-
-  // Optional: flash visual feedback (login success only)
-  statusEl.textContent = 'Login successful!';
+    document.getElementById('save-status').textContent = '';
+    setAuthStatus('Signed in. Opening your rides...', 'success');
+    continueAfterAuthentication(data.session);
+  } catch (_) {
+    setAuthStatus('Login failed. Check your connection and try again.', 'error');
+  } finally {
+    setAuthControlsBusy(false);
+  }
 });
 
 
-  document.getElementById('signup-btn').addEventListener('click', async () => {
-    const email = document.getElementById('auth-email').value;
+  signupBtn.addEventListener('click', async () => {
+    const email = document.getElementById('auth-email').value.trim();
     const pass = document.getElementById('auth-password').value;
-    const { data, error } = await supabase.auth.signUp({ email, password: pass });
-    document.getElementById('auth-status').textContent = error
-      ? 'Signup failed: ' + error.message
-      : 'Signup OK! Check your email, then login above.';
+    if (!email || !pass) {
+      setAuthStatus('Enter an email and password to create your account.', 'error');
+      return;
+    }
+
+    setAuthControlsBusy(true, 'signup');
+    setAuthStatus('Creating your account...', 'info');
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password: pass });
+      if (error) {
+        setAuthStatus(`Signup failed: ${error.message}`, 'error');
+        return;
+      }
+
+      if (data.session) {
+        setAuthStatus('Account created. Opening your rides...', 'success');
+        continueAfterAuthentication(data.session);
+        return;
+      }
+
+      document.getElementById('auth-password').value = '';
+      setAuthStatus(
+        'Account created. Check your email to confirm it, then return here to sign in.',
+        'success'
+      );
+    } catch (_) {
+      setAuthStatus('Signup failed. Check your connection and try again.', 'error');
+    } finally {
+      setAuthControlsBusy(false);
+    }
   });
+
+document.getElementById('auth-password').addEventListener('keydown', event => {
+  if (event.key !== 'Enter' || loginBtn.disabled) return;
+  event.preventDefault();
+  loginBtn.click();
+});
 
 saveBtn.addEventListener('click', async () => {
   if (saveBtn.disabled) return;
@@ -2540,7 +2606,7 @@ function consumePendingInvite() {
   } catch (_) { return false; }
 }
 
-supabase.auth.onAuthStateChange((_event, session) => {
+supabase.auth.onAuthStateChange((event, session) => {
   const loggedIn = !!session?.user;
   headerLoginBtn.style.display = loggedIn ? 'none' : '';
   headerAccountControls.style.display = loggedIn ? '' : 'none';
@@ -2548,7 +2614,9 @@ supabase.auth.onAuthStateChange((_event, session) => {
     authSection.style.display = 'none';
     // Covers both logging in right now and arriving already-authenticated
     // (e.g. back from an email confirmation link).
-    consumePendingInvite();
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+      continueAfterAuthentication(session);
+    }
   }
 });
 

@@ -6527,6 +6527,7 @@ body.ios-app-page .best-card,
   --ml-app-tertiary: #6a6a70;
   --ml-app-success: #30d158;
   --ml-app-danger: #ff453a;
+  --ml-app-danger-soft: rgba(255, 69, 58, 0.12);
   --ml-app-radius-card: 16px;
   --ml-app-radius-button: 12px;
   --ml-app-spring: cubic-bezier(0.16, 1, 0.3, 1);
@@ -6694,6 +6695,38 @@ body.ios-welcome-page main {
   border: 1px solid var(--ml-app-hairline);
   background: transparent;
   color: var(--ml-app-text);
+}
+
+.ios-welcome-page #auth-status:empty { display: none; }
+.ios-welcome-page #auth-status.auth-status {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-button);
+  background: var(--ml-app-elevated);
+  color: var(--ml-app-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-wrap: pretty;
+  transition-property: opacity, transform, border-color, background-color;
+  transition-duration: 260ms;
+  transition-timing-function: var(--ml-app-spring);
+}
+.ios-welcome-page #auth-status.auth-status-success {
+  border-color: var(--ml-app-accent);
+  background: var(--ml-app-accent-soft);
+  color: var(--ml-app-accent);
+}
+.ios-welcome-page #auth-status.auth-status-error {
+  border-color: var(--ml-app-danger);
+  background: var(--ml-app-danger-soft);
+  color: var(--ml-app-danger);
+}
+.ios-welcome-page .auth-form button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+  transform: none;
 }
 
 .premium-home-page {
