@@ -13,16 +13,21 @@ struct GroupRideLobbyView: View {
     @State private var pendingStartRide: GroupRide?
     @State private var showingRideMesh = false
     @State private var rideMeshSession: RideMeshSession?
+    @State private var shouldOpenRequestedRideMesh: Bool
 
     let onStartRoute: (PlannedRoute, GroupRideRecordingContext) -> Void
     let onEnded: () -> Void
 
     init(
         viewModel: GroupRideViewModel,
+        initialDestination: GroupRideInviteDestination = .lobby,
         onStartRoute: @escaping (PlannedRoute, GroupRideRecordingContext) -> Void = { _, _ in },
         onEnded: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
+        _shouldOpenRequestedRideMesh = State(
+            initialValue: initialDestination == .rideMesh
+        )
         self.onStartRoute = onStartRoute
         self.onEnded = onEnded
     }
@@ -51,7 +56,17 @@ struct GroupRideLobbyView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.load()
+            openRequestedRideMeshIfEligible()
             await viewModel.observeChanges()
+        }
+        .onChange(of: viewModel.groupRide?.isMember) { _, _ in
+            openRequestedRideMeshIfEligible()
+        }
+        .onChange(of: viewModel.groupRide?.isOwner) { _, _ in
+            openRequestedRideMeshIfEligible()
+        }
+        .onChange(of: viewModel.groupRide?.yourRSVP) { _, _ in
+            openRequestedRideMeshIfEligible()
         }
         .sheet(item: $activityPayload) { payload in
             ActivityView(items: payload.items)
@@ -199,7 +214,7 @@ struct GroupRideLobbyView: View {
                     rideDayCard(groupRide)
                         .mlStaggeredReveal(index: 4)
                 }
-                if groupRide.isOwner || groupRide.isMember {
+                if groupRide.canUseRideMesh {
                     rideMeshCard(groupRide)
                         .mlStaggeredReveal(index: 5)
                 }
@@ -350,14 +365,7 @@ struct GroupRideLobbyView: View {
 
     private func rideMeshCard(_ groupRide: GroupRide) -> some View {
         Button {
-            if rideMeshSession == nil {
-                rideMeshSession = RideMeshSession(
-                    shareToken: groupRide.shareToken,
-                    senderName: currentRiderName(groupRide)
-                )
-            }
-            rideMeshSession?.start()
-            showingRideMesh = true
+            openRideMesh(groupRide)
             Haptics.selection()
         } label: {
             HStack(spacing: Spacing.md) {
@@ -404,6 +412,25 @@ struct GroupRideLobbyView: View {
         .buttonStyle(MLPressableButtonStyle())
         .accessibilityHint("Opens encrypted nearby chat for this group ride")
         .animation(reduceMotion ? nil : Motion.springSnappy, value: rideMeshSession?.state)
+    }
+
+    private func openRequestedRideMeshIfEligible() {
+        guard shouldOpenRequestedRideMesh,
+              let groupRide = viewModel.groupRide,
+              groupRide.canUseRideMesh else { return }
+        shouldOpenRequestedRideMesh = false
+        openRideMesh(groupRide)
+    }
+
+    private func openRideMesh(_ groupRide: GroupRide) {
+        if rideMeshSession == nil {
+            rideMeshSession = RideMeshSession(
+                shareToken: groupRide.shareToken,
+                senderName: currentRiderName(groupRide)
+            )
+        }
+        rideMeshSession?.start()
+        showingRideMesh = true
     }
 
     private func currentRiderName(_ groupRide: GroupRide) -> String {

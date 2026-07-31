@@ -32,14 +32,30 @@ const attendeesEl = document.getElementById('group-attendees');
 const attendeeListEl = document.getElementById('group-attendee-list');
 const openAppRowEl = document.getElementById('group-open-app-row');
 const openAppBtn = document.getElementById('group-open-app-btn');
+const checkInSectionEl = document.getElementById('group-check-in-section');
+const checkInDetailEl = document.getElementById('group-check-in-detail');
+const checkInBtn = document.getElementById('group-check-in-btn');
+const meshSectionEl = document.getElementById('group-mesh-section');
+const meshDetailEl = document.getElementById('group-mesh-detail');
+const meshBtn = document.getElementById('group-mesh-btn');
+const announcementsEl = document.getElementById('group-announcements');
+const announcementListEl = document.getElementById('group-announcement-list');
+const announcementComposerEl = document.getElementById('group-announcement-composer');
+const announcementInput = document.getElementById('group-announcement-input');
+const announcementBtn = document.getElementById('group-announcement-btn');
+const announcementStatusEl = document.getElementById('group-announcement-status');
+const leaveBtn = document.getElementById('group-leave-btn');
 
 const LIVE_POLL_MS = 15000;
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 let groupToken = null;
 let groupRide = null;
+let currentUser = null;
 let groupMap = null;
 let riderMarkers = [];
 let liveTimer = null;
+let liveVisibilityListenerInstalled = false;
 
 function showError() {
   loadingEl.style.display = 'none';
@@ -76,7 +92,10 @@ function renderAttendees() {
   attendeesEl.style.display = '';
   attendeeListEl.innerHTML = members.map(m => `
     <div class="group-attendee">
-      <span class="group-attendee-name">${escapeHtml(m.name)}${m.is_you ? ' (you)' : ''}</span>
+      <span class="group-attendee-name">
+        ${escapeHtml(m.name)}${m.is_you ? ' (you)' : ''}
+        ${m.checked_in_at ? '<small class="group-arrival-state">Checked in</small>' : ''}
+      </span>
       <span class="status-chip ${m.rsvp === 'going' ? 'status-chip-completed' : m.rsvp === 'maybe' ? 'status-chip-planned' : 'status-chip-shared'}">${RSVP_LABELS[m.rsvp] || m.rsvp}</span>
     </div>
   `).join('');
@@ -89,13 +108,165 @@ function renderRsvpButtons() {
   });
 }
 
+function canUseMemberFeatures() {
+  return Boolean(currentUser && (groupRide?.is_owner || groupRide?.is_member));
+}
+
+function canUseRideMesh() {
+  return Boolean(
+    currentUser
+      && groupRide?.status === 'scheduled'
+      && groupRide?.is_active
+      && (
+        groupRide?.is_owner
+        || (groupRide?.is_member && ['going', 'maybe'].includes(groupRide?.your_rsvp))
+      )
+  );
+}
+
+function canViewLiveRiders() {
+  return Boolean(currentUser && (groupRide?.is_owner || groupRide?.your_rsvp === 'going'));
+}
+
+function rideMeshAppURL() {
+  return `memorylanes://group/${groupToken}?open=mesh`;
+}
+
+function rideMeshWebURL() {
+  const url = new URL(window.location.href);
+  url.searchParams.set('ride', groupToken);
+  url.searchParams.set('open', 'mesh');
+  return url.href;
+}
+
+function renderRideMesh() {
+  const available = canUseRideMesh();
+  meshSectionEl.hidden = !available;
+  if (!available) return;
+
+  if (IS_IOS) {
+    meshBtn.textContent = 'Open Ride Mesh';
+    meshDetailEl.textContent = 'Open encrypted nearby messaging for this ride. Every nearby rider needs this group open in the iPhone app.';
+  } else {
+    meshBtn.textContent = 'Copy iPhone Link';
+    meshDetailEl.textContent = 'Ride Mesh uses direct iPhone-to-iPhone links and cannot run inside a desktop browser. Send this link to each rider’s iPhone.';
+  }
+}
+
+function renderCheckIn() {
+  const visible = canUseMemberFeatures() && Boolean(groupRide.check_in_available);
+  checkInSectionEl.hidden = !visible;
+  if (!visible) return;
+
+  const checkedIn = Boolean(groupRide.your_checked_in_at);
+  checkInBtn.textContent = checkedIn ? 'Checked In' : "I'm Here";
+  checkInBtn.classList.toggle('group-operation-active', checkedIn);
+  checkInBtn.setAttribute('aria-pressed', String(checkedIn));
+  checkInDetailEl.textContent = checkedIn
+    ? 'The organiser can see that you have arrived.'
+    : 'Check in when you reach the meeting point. This does not share your live location.';
+}
+
+function renderAnnouncements() {
+  const announcements = Array.isArray(groupRide.announcements) ? groupRide.announcements : [];
+  announcementsEl.hidden = !canUseMemberFeatures() || announcements.length === 0;
+  announcementComposerEl.hidden = !currentUser || !groupRide.is_owner;
+
+  announcementListEl.innerHTML = announcements.map(item => {
+    const created = item.created_at ? new Date(item.created_at) : null;
+    const time = created && !Number.isNaN(created.getTime())
+      ? created.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+      : '';
+    return `
+      <article class="group-update">
+        <div class="group-update-meta">
+          <strong>${escapeHtml(item.author_name || 'Ride organiser')}</strong>
+          <time>${escapeHtml(time)}</time>
+        </div>
+        <p>${escapeHtml(item.message)}</p>
+      </article>
+    `;
+  }).join('');
+}
+
+function renderMemberOperations() {
+  renderRideMesh();
+  renderCheckIn();
+  renderAnnouncements();
+  leaveBtn.style.display = currentUser && groupRide.is_member && !groupRide.is_owner ? '' : 'none';
+}
+
+function renderAuthenticatedControls(syncEditor = false) {
+  if (!currentUser) {
+    joinBtn.style.display = 'none';
+    rsvpRowEl.style.display = 'none';
+    endBtn.style.display = 'none';
+    meetEditorEl.style.display = 'none';
+    renderMemberOperations();
+    return;
+  }
+
+  joinBtn.style.display = '';
+  joinBtn.textContent = groupRide.is_owner || groupRide.is_member
+    ? 'Start Riding'
+    : 'Join & Start Riding';
+
+  // Hosts coordinate the ride; they are not also counted as an attendee RSVP.
+  rsvpRowEl.style.display = groupRide.is_owner ? 'none' : '';
+  renderRsvpButtons();
+
+  if (groupRide.is_owner) {
+    endBtn.style.display = '';
+    meetEditorEl.style.display = '';
+    if (syncEditor) {
+      if (groupRide.meet_time) {
+        const t = new Date(groupRide.meet_time);
+        const pad = n => String(n).padStart(2, '0');
+        meetTimeInput.value = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:${pad(t.getMinutes())}`;
+      } else {
+        meetTimeInput.value = '';
+      }
+      meetPointInput.value = groupRide.meet_point || '';
+    }
+  } else {
+    endBtn.style.display = 'none';
+    meetEditorEl.style.display = 'none';
+  }
+
+  renderMemberOperations();
+}
+
+async function refreshGroupRideState() {
+  if (!groupToken) return false;
+  try {
+    const rpcName = currentUser ? 'get_group_ride_operations' : 'get_group_ride';
+    const { data, error } = await supabase.rpc(rpcName, { token: groupToken });
+    if (error || !data) return false;
+    groupRide = data;
+    renderMeetLine();
+    renderAttendees();
+    renderAuthenticatedControls();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 (async () => {
   groupToken = new URLSearchParams(window.location.search).get('ride');
   if (!groupToken) { showError(); return; }
 
+  try {
+    const { data } = await supabase.auth.getUser();
+    currentUser = data?.user || null;
+  } catch (_) {
+    currentUser = null;
+  }
+
   let gr = null;
   try {
-    const { data, error } = await supabase.rpc('get_group_ride', { token: groupToken });
+    const rpcName = currentUser ? 'get_group_ride_operations' : 'get_group_ride';
+    const { data, error } = await supabase.rpc(rpcName, { token: groupToken });
     if (error) throw error;
     gr = data;
   } catch (_) {
@@ -108,10 +279,13 @@ function renderRsvpButtons() {
   loadingEl.style.display = 'none';
   bodyEl.style.display = '';
 
-  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+  if (IS_IOS) {
     openAppRowEl.style.display = '';
     openAppBtn.addEventListener('click', () => {
-      window.location.href = `memorylanes://group/${groupToken}`;
+      const destination = new URLSearchParams(window.location.search).get('open') === 'mesh'
+        ? rideMeshAppURL()
+        : `memorylanes://group/${groupToken}`;
+      window.location.href = destination;
     });
   }
 
@@ -135,24 +309,10 @@ function renderRsvpButtons() {
 
   renderMeetLine();
   renderAttendees();
+  renderAuthenticatedControls(true);
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    joinBtn.style.display = '';
-    joinBtn.textContent = gr.is_member ? 'Start Riding' : 'Join & Start Riding';
-    rsvpRowEl.style.display = '';
-    renderRsvpButtons();
-    if (gr.is_owner) {
-      endBtn.style.display = '';
-      meetEditorEl.style.display = '';
-      if (gr.meet_time) {
-        // datetime-local wants local time without the timezone suffix
-        const t = new Date(gr.meet_time);
-        const pad = n => String(n).padStart(2, '0');
-        meetTimeInput.value = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:${pad(t.getMinutes())}`;
-      }
-      meetPointInput.value = gr.meet_point || '';
-    }
+  if (currentUser) {
+    loginNoteEl.style.display = 'none';
   } else {
     loginNoteEl.style.display = '';
     // Remember this invite so logging in on the main page brings the rider
@@ -162,8 +322,76 @@ function renderRsvpButtons() {
     } catch (_) {}
   }
 
-  if (user && gr.is_member) startLivePolling();
+  if (canViewLiveRiders()) startLivePolling();
 })();
+
+meshBtn.addEventListener('click', async () => {
+  if (!canUseRideMesh()) return;
+  if (IS_IOS) {
+    window.location.href = rideMeshAppURL();
+    return;
+  }
+
+  const link = rideMeshWebURL();
+  try {
+    await navigator.clipboard.writeText(link);
+    meshBtn.textContent = 'iPhone Link Copied';
+    setTimeout(() => renderRideMesh(), 2000);
+  } catch (_) {
+    window.prompt('Open this link on each rider’s iPhone:', link);
+  }
+});
+
+checkInBtn.addEventListener('click', async () => {
+  if (!canUseMemberFeatures() || !groupRide.check_in_available || checkInBtn.disabled) return;
+  checkInBtn.disabled = true;
+  const checkedIn = !groupRide.your_checked_in_at;
+  const { data, error } = await supabase.rpc('set_group_ride_check_in', {
+    token: groupToken,
+    checked_in: checkedIn
+  });
+  checkInBtn.disabled = false;
+  if (error || !data) {
+    checkInDetailEl.textContent = error?.message || 'Check-in could not be updated. Try again.';
+    return;
+  }
+  groupRide = data;
+  renderAttendees();
+  renderCheckIn();
+});
+
+announcementBtn.addEventListener('click', async () => {
+  const message = announcementInput.value.trim();
+  if (!groupRide?.is_owner || !message || announcementBtn.disabled) return;
+  announcementBtn.disabled = true;
+  announcementStatusEl.textContent = 'Posting update...';
+  const { data, error } = await supabase.rpc('post_group_ride_announcement', {
+    token: groupToken,
+    message
+  });
+  announcementBtn.disabled = false;
+  if (error || !data) {
+    announcementStatusEl.textContent = error?.message || 'The update could not be posted.';
+    return;
+  }
+  groupRide = data;
+  announcementInput.value = '';
+  announcementStatusEl.textContent = 'Update posted.';
+  renderAnnouncements();
+});
+
+leaveBtn.addEventListener('click', async () => {
+  if (!groupRide?.is_member || groupRide?.is_owner || leaveBtn.disabled) return;
+  if (!confirm('Leave this group ride? You can join again later while the invitation is open.')) return;
+  leaveBtn.disabled = true;
+  const { data, error } = await supabase.rpc('leave_group_ride', { token: groupToken });
+  leaveBtn.disabled = false;
+  if (error || !data) {
+    alert(error?.message || 'The group ride could not be left. Try again.');
+    return;
+  }
+  window.location.href = 'planner.html';
+});
 
 meetSaveBtn.addEventListener('click', async () => {
   meetSaveBtn.disabled = true;
@@ -187,17 +415,20 @@ meetSaveBtn.addEventListener('click', async () => {
 
 rsvpRowEl.querySelectorAll('.group-rsvp-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
+    if (btn.disabled) return;
     const answer = btn.dataset.rsvp;
+    const buttons = Array.from(rsvpRowEl.querySelectorAll('.group-rsvp-btn'));
+    buttons.forEach(button => { button.disabled = true; });
     const { data, error } = await supabase.rpc('rsvp_group_ride', { token: groupToken, answer });
+    buttons.forEach(button => { button.disabled = false; });
     if (error || !data) {
       alert('Could not save your answer. Are you logged in?');
       return;
     }
     groupRide = data;
-    renderMeetLine();
-    renderAttendees();
-    renderRsvpButtons();
-    joinBtn.textContent = 'Start Riding'; // rsvp created the membership if it didn't exist
+    await refreshGroupRideState();
+    if (canViewLiveRiders()) startLivePolling();
+    else stopLivePolling();
   });
 });
 
@@ -208,7 +439,10 @@ joinBtn.addEventListener('click', () => {
 });
 
 copyBtn.addEventListener('click', async () => {
-  const link = window.location.href;
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.searchParams.set('ride', groupToken);
+  const link = url.href;
   try {
     await navigator.clipboard.writeText(link);
     copyBtn.textContent = 'Link Copied!';
@@ -220,12 +454,17 @@ copyBtn.addEventListener('click', async () => {
 
 endBtn.addEventListener('click', async () => {
   if (!confirm('End this group ride? The link will stop working and live positions will disappear.')) return;
-  const { error } = await supabase
-    .from('group_rides')
-    .update({ is_active: false })
-    .eq('id', groupRide.id);
-  if (error) { alert('Could not end the group ride: ' + error.message); return; }
-  window.location.href = 'dashboard.html';
+  endBtn.disabled = true;
+  const { data, error } = await supabase.rpc('set_group_ride_status', {
+    token: groupToken,
+    new_status: 'cancelled'
+  });
+  endBtn.disabled = false;
+  if (error || !data) {
+    alert('Could not end the group ride: ' + (error?.message || 'Try again.'));
+    return;
+  }
+  window.location.href = 'planner.html';
 });
 
 // ---------- Live refresh (rider markers + RSVPs) ----------
@@ -234,23 +473,16 @@ endBtn.addEventListener('click', async () => {
 // a manual refresh. Display-only fields are updated; the host's meeting
 // editor inputs are left alone so typing is never clobbered.
 async function refreshAttendees() {
-  try {
-    const { data, error } = await supabase.rpc('get_group_ride', { token: groupToken });
-    if (error || !data) return;
-    groupRide.members = data.members;
-    groupRide.member_count = data.member_count;
-    groupRide.meet_time = data.meet_time;
-    groupRide.meet_point = data.meet_point;
-    groupRide.your_rsvp = data.your_rsvp;
-    renderMeetLine();
-    renderAttendees();
-    renderRsvpButtons();
-  } catch (_) { /* transient failure - retry next tick */ }
+  await refreshGroupRideState();
 }
 
 async function refreshLiveRiders() {
   if (!groupToken || !groupMap) return;
-  refreshAttendees();
+  await refreshAttendees();
+  if (!canViewLiveRiders()) {
+    stopLivePolling();
+    return;
+  }
   let riders = [];
   try {
     const { data, error } = await supabase.rpc('get_group_live_riders', { token: groupToken });
@@ -281,17 +513,30 @@ async function refreshLiveRiders() {
 }
 
 function startLivePolling() {
+  if (liveTimer || !canViewLiveRiders()) return;
   refreshLiveRiders();
   liveTimer = setInterval(refreshLiveRiders, LIVE_POLL_MS);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      clearInterval(liveTimer);
-      liveTimer = null;
-    } else if (!liveTimer) {
-      refreshLiveRiders();
-      liveTimer = setInterval(refreshLiveRiders, LIVE_POLL_MS);
-    }
-  });
+
+  if (!liveVisibilityListenerInstalled) {
+    liveVisibilityListenerInstalled = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        clearInterval(liveTimer);
+        liveTimer = null;
+      } else if (!liveTimer && canViewLiveRiders()) {
+        refreshLiveRiders();
+        liveTimer = setInterval(refreshLiveRiders, LIVE_POLL_MS);
+      }
+    });
+  }
+}
+
+function stopLivePolling() {
+  if (liveTimer) clearInterval(liveTimer);
+  liveTimer = null;
+  riderMarkers.forEach(marker => groupMap?.removeLayer(marker));
+  riderMarkers = [];
+  liveBannerEl.style.display = 'none';
 }
 
 // ---------- PWA: register the service worker ----------

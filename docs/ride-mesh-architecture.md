@@ -16,6 +16,28 @@ unavailable:
 It is not an emergency service, a general public chat room or a replacement
 for the server-backed event invitation and announcement workflow.
 
+## Lobby And Web Handoff
+
+The Supabase-backed group lobby is the cross-platform coordination layer.
+Organisers and members can RSVP, check in, read host announcements and open the
+shared route from either the web or native app.
+
+Ride Mesh itself is an iPhone transport and cannot run in a desktop browser.
+For eligible scheduled rides, the web lobby therefore exposes an explicit
+iPhone handoff:
+
+- on iPhone, `Open Ride Mesh` opens
+  `memorylanes://group/{share-token}?open=mesh`;
+- on desktop, `Copy iPhone Link` copies the universal web invite with
+  `open=mesh`, ready to send to a rider's iPhone;
+- the native app validates the group membership and RSVP state before opening
+  the mesh screen;
+- both nearby riders must open Ride Mesh for the same group while the app is
+  active before peer discovery begins.
+
+The browser remains useful when Ride Mesh is unavailable: host announcements
+and ride-day check-in are server-backed and work across platforms.
+
 ## Transport
 
 Phase 1 uses Apple's `MultipeerConnectivity` framework. Each device advertises

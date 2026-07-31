@@ -192,7 +192,10 @@ private struct MainTabShell: View {
                     groupRideLobby(shareToken: groupRide.shareToken)
                 }
                 .navigationDestination(for: GroupRideInvite.self) { invite in
-                    groupRideLobby(shareToken: invite.shareToken)
+                    groupRideLobby(
+                        shareToken: invite.shareToken,
+                        initialDestination: invite.destination
+                    )
                 }
             }
             .tabItem { Label("Routes", systemImage: "map") }
@@ -277,12 +280,16 @@ private struct MainTabShell: View {
         }
     }
 
-    private func groupRideLobby(shareToken: UUID) -> some View {
+    private func groupRideLobby(
+        shareToken: UUID,
+        initialDestination: GroupRideInviteDestination = .lobby
+    ) -> some View {
         GroupRideLobbyView(
             viewModel: GroupRideViewModel(
                 shareToken: shareToken,
                 service: groupRideService
             ),
+            initialDestination: initialDestination,
             onStartRoute: { route, context in
                 recorderRoute = route
                 recorderGroupContext = context

@@ -26,7 +26,10 @@ testing:
   and fresh named rider markers on the live MapKit cockpit. Joined rides also
   include Ride Mesh: explicitly activated, group-key-encrypted nearby messaging
   with quick safety signals, bounded multi-hop relay, duplicate suppression and
-  queued delivery when another rider comes into range.
+  queued delivery when another rider comes into range. The matching web lobby
+  now supports member check-in and announcements plus a direct iPhone Ride Mesh
+  handoff, while explaining that desktop browsers cannot join the nearby radio
+  session.
 - ✅ **Independent routing Phase 1.5** — MapKit fallback behind a provider seam,
   proprietary route-character scoring, randomized road-validated candidates,
   searchable and recent start locations, primary/secondary mood blends,

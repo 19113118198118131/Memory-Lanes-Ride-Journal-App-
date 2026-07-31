@@ -3763,6 +3763,162 @@ header:not(.main-header) .dashboard-header {
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
+.group-operation-band {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 4px;
+  border-top: 1px solid var(--ml-app-hairline);
+  border-bottom: 1px solid var(--ml-app-hairline);
+  margin-bottom: 18px;
+  transition-property: opacity, transform;
+  transition-duration: 260ms;
+  transition-timing-function: var(--ml-app-spring);
+}
+.group-operation-band[hidden],
+.group-updates[hidden],
+.group-announcement-composer[hidden] { display: none; }
+.group-operation-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ml-app-accent-soft);
+  color: var(--ml-app-accent);
+}
+.group-operation-icon .ml-icon { width: 21px; height: 21px; }
+.group-operation-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.group-operation-copy strong {
+  color: var(--ml-app-text);
+  font-size: 15px;
+  font-weight: 650;
+}
+.group-operation-copy small {
+  color: var(--ml-app-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+.group-operation-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.group-operation-badge {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--ml-app-accent-soft);
+  color: var(--ml-app-accent);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.group-operation-band button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+.group-operation-band button:active { transform: scale(0.96); }
+.group-operation-band button.group-operation-active {
+  border-color: var(--ml-app-success);
+  color: var(--ml-app-success);
+}
+.group-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.group-section-heading .premium-kicker { margin: 0 0 4px; }
+.group-section-heading h3 {
+  margin: 0;
+  color: var(--ml-app-text);
+  font-size: 19px;
+  text-wrap: balance;
+}
+.group-updates { margin: 4px 0 22px; }
+.group-update-list { display: grid; }
+.group-update {
+  padding: 13px 4px;
+  border-bottom: 1px solid var(--ml-app-hairline);
+}
+.group-update:first-child { border-top: 1px solid var(--ml-app-hairline); }
+.group-update-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ml-app-tertiary);
+  font-size: 11px;
+}
+.group-update-meta strong {
+  color: var(--ml-app-accent);
+  font-size: 12px;
+}
+.group-update p {
+  margin: 7px 0 0;
+  color: var(--ml-app-text);
+  font-size: 14px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+.group-announcement-composer {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 22px;
+}
+.group-announcement-composer label {
+  color: var(--ml-app-text);
+  font-size: 14px;
+  font-weight: 650;
+}
+.group-announcement-composer textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 88px;
+  padding: 12px 14px;
+  resize: vertical;
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-button);
+  outline: none;
+  background: var(--ml-app-elevated);
+  color: var(--ml-app-text);
+  font: inherit;
+  transition-property: border-color, box-shadow;
+  transition-duration: 240ms;
+  transition-timing-function: var(--ml-app-spring);
+}
+.group-announcement-composer textarea:focus {
+  border-color: var(--ml-app-accent);
+  box-shadow: 0 0 0 3px var(--ml-app-accent-soft);
+}
+.group-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.group-composer-footer .chart-desc {
+  min-width: 0;
+  margin: 0;
+  text-wrap: pretty;
+}
+.group-composer-footer button { min-height: 44px; flex: 0 0 auto; }
+.group-arrival-state {
+  display: block;
+  margin-top: 2px;
+  color: var(--ml-app-success);
+  font-size: 10px;
+  font-weight: 650;
+}
 .group-ride-row {
   display: flex;
   align-items: center;
@@ -3786,6 +3942,16 @@ header:not(.main-header) .dashboard-header {
 .group-ride-meta {
   font-size: 0.85rem;
   color: var(--color-text-muted);
+}
+
+@media (max-width: 520px) {
+  .group-operation-band {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .group-operation-band button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
 }
 
 /* ---------- LIVE RIDE: broadcast toggle + Riding With You panel ---------- */
@@ -6355,6 +6521,7 @@ body.ios-app-page .best-card,
   --ml-app-elevated: #1c1c1c;
   --ml-app-hairline: #2a2a2a;
   --ml-app-accent: #2ee6c0;
+  --ml-app-accent-soft: rgba(46, 230, 192, 0.12);
   --ml-app-text: #f5f5f7;
   --ml-app-secondary: #9a9aa0;
   --ml-app-tertiary: #6a6a70;

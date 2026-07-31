@@ -9,6 +9,14 @@
           {
             "/": "/group.html",
             "?": {
+              "ride": "*",
+              "open": "mesh"
+            },
+            "comment": "Open a joined group ride directly in Ride Mesh."
+          },
+          {
+            "/": "/group.html",
+            "?": {
               "ride": "*"
             },
             "comment": "Open Memory Lanes group ride invitations in the native app."

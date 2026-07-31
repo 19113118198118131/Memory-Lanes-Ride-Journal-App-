@@ -53,6 +53,18 @@ final class GroupRideTests: XCTestCase {
         XCTAssertFalse(groupRide.checkInAvailable)
         XCTAssertTrue(groupRide.announcements.isEmpty)
         XCTAssertTrue(groupRide.inviteURL?.absoluteString.contains(token.uuidString) == true)
+        XCTAssertTrue(groupRide.canUseRideMesh)
+
+        var declinedRide = groupRide
+        declinedRide.isMember = true
+        declinedRide.yourRSVP = .no
+        declinedRide.status = .scheduled
+        XCTAssertFalse(declinedRide.canUseRideMesh)
+
+        var completedRide = groupRide
+        completedRide.status = .completed
+        completedRide.isActive = false
+        XCTAssertFalse(completedRide.canUseRideMesh)
     }
 
     func testMyGroupRideSummaryDecodesMeetingAndOwnership() throws {
@@ -151,6 +163,7 @@ final class GroupRideTests: XCTestCase {
         XCTAssertNotNil(ride.members.first?.checkedInAt)
         XCTAssertEqual(ride.announcements.first?.message, "Meet beside the northern entrance.")
         XCTAssertTrue(ride.announcements.first?.isHost == true)
+        XCTAssertTrue(ride.canUseRideMesh)
     }
 
     func testCommunitySummaryCalculatesCapacity() throws {
@@ -193,6 +206,21 @@ final class GroupRideTests: XCTestCase {
 
         XCTAssertEqual(GroupRideInvite.parse(universal)?.shareToken, token)
         XCTAssertEqual(GroupRideInvite.parse(custom)?.shareToken, token)
+        XCTAssertEqual(GroupRideInvite.parse(universal)?.destination, .lobby)
+        XCTAssertEqual(GroupRideInvite.parse(custom)?.destination, .lobby)
+    }
+
+    func testGroupRideInviteParsesRideMeshDestination() throws {
+        let token = UUID()
+        let universal = try XCTUnwrap(URL(
+            string: "https://memory-lanes-ride-journal-app.vercel.app/group.html?ride=\(token.uuidString)&open=mesh"
+        ))
+        let custom = try XCTUnwrap(URL(
+            string: "memorylanes://group/\(token.uuidString)?open=mesh"
+        ))
+
+        XCTAssertEqual(GroupRideInvite.parse(universal)?.destination, .rideMesh)
+        XCTAssertEqual(GroupRideInvite.parse(custom)?.destination, .rideMesh)
     }
 
     func testGroupRideInviteRejectsUntrustedOrMalformedLinks() throws {

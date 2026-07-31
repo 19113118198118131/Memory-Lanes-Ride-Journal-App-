@@ -262,6 +262,11 @@ struct GroupRide: Identifiable, Hashable, Sendable {
     var spotsRemaining: Int? { capacity.map { max($0 - goingCount, 0) } }
     var isFull: Bool { spotsRemaining == 0 }
     var isCheckedIn: Bool { yourCheckedInAt != nil }
+    var canUseRideMesh: Bool {
+        status == .scheduled
+            && isActive
+            && (isOwner || (isMember && (yourRSVP == .going || yourRSVP == .maybe)))
+    }
 
     var withoutMembership: GroupRide {
         var copy = self
@@ -289,8 +294,22 @@ struct GroupRide: Identifiable, Hashable, Sendable {
     }
 }
 
+enum GroupRideInviteDestination: String, Hashable, Sendable {
+    case lobby
+    case rideMesh = "mesh"
+}
+
 struct GroupRideInvite: Hashable, Sendable {
     let shareToken: UUID
+    let destination: GroupRideInviteDestination
+
+    init(
+        shareToken: UUID,
+        destination: GroupRideInviteDestination = .lobby
+    ) {
+        self.shareToken = shareToken
+        self.destination = destination
+    }
 
     static func parse(_ url: URL) -> GroupRideInvite? {
         if url.scheme?.lowercased() == "memorylanes" {
@@ -298,7 +317,10 @@ struct GroupRideInvite: Hashable, Sendable {
                 ? url.pathComponents.dropFirst().first
                 : nil
             guard let tokenText, let token = UUID(uuidString: tokenText) else { return nil }
-            return GroupRideInvite(shareToken: token)
+            return GroupRideInvite(
+                shareToken: token,
+                destination: destination(from: url)
+            )
         }
 
         guard url.host?.lowercased() == "memory-lanes-ride-journal-app.vercel.app",
@@ -308,7 +330,19 @@ struct GroupRideInvite: Hashable, Sendable {
               let token = UUID(uuidString: tokenText) else {
             return nil
         }
-        return GroupRideInvite(shareToken: token)
+        return GroupRideInvite(
+            shareToken: token,
+            destination: destination(from: url)
+        )
+    }
+
+    private static func destination(from url: URL) -> GroupRideInviteDestination {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let value = components.queryItems?.first(where: { $0.name == "open" })?.value,
+              value.lowercased() == GroupRideInviteDestination.rideMesh.rawValue else {
+            return .lobby
+        }
+        return .rideMesh
     }
 }
 

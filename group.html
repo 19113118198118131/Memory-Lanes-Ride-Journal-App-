@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=91" />
+  <link rel="stylesheet" href="style.css?v=93" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -95,6 +95,46 @@
         <button type="button" class="btn-outline group-rsvp-btn" data-rsvp="no">Can't make it</button>
       </div>
 
+      <section id="group-check-in-section" class="group-operation-band" hidden aria-labelledby="group-check-in-title">
+        <span class="group-operation-icon" data-icon="pin"></span>
+        <span class="group-operation-copy">
+          <strong id="group-check-in-title">Ride-day check-in</strong>
+          <small id="group-check-in-detail">Let the organiser know when you arrive.</small>
+        </span>
+        <button type="button" id="group-check-in-btn" class="btn-outline">I'm Here</button>
+      </section>
+
+      <section id="group-mesh-section" class="group-operation-band group-mesh-band" hidden aria-labelledby="group-mesh-title">
+        <span class="group-operation-icon" data-icon="share"></span>
+        <span class="group-operation-copy">
+          <span class="group-operation-heading">
+            <strong id="group-mesh-title">Ride Mesh</strong>
+            <span class="group-operation-badge">Nearby</span>
+          </span>
+          <small id="group-mesh-detail">Encrypted nearby messaging between members' iPhones, even without mobile data.</small>
+        </span>
+        <button type="button" id="group-mesh-btn" class="btn-primary">Open Ride Mesh</button>
+      </section>
+
+      <section id="group-announcements" class="group-updates" hidden aria-labelledby="group-announcements-title">
+        <div class="group-section-heading">
+          <div>
+            <p class="premium-kicker">Ride updates</p>
+            <h3 id="group-announcements-title">From the organiser</h3>
+          </div>
+        </div>
+        <div id="group-announcement-list" class="group-update-list"></div>
+      </section>
+
+      <section id="group-announcement-composer" class="group-announcement-composer" hidden aria-labelledby="group-announcement-composer-title">
+        <label id="group-announcement-composer-title" for="group-announcement-input">Post a ride update</label>
+        <textarea id="group-announcement-input" maxlength="500" rows="3" placeholder="Meeting point change, weather note, or a quick reminder"></textarea>
+        <div class="group-composer-footer">
+          <span id="group-announcement-status" class="chart-desc" role="status"></span>
+          <button type="button" id="group-announcement-btn" class="btn-outline">Post Update</button>
+        </div>
+      </section>
+
       <div id="group-attendees" class="profile-card" style="display:none;">
         <h3 style="margin-top:0;">Who's coming</h3>
         <div id="group-attendee-list"></div>
@@ -122,6 +162,7 @@
       <div class="planner-toolbar-actions">
         <button type="button" id="group-join-btn" class="btn-primary" style="display:none;">Join &amp; Start Riding</button>
         <button type="button" id="group-copy-btn" class="btn-outline">Copy Group Link</button>
+        <button type="button" id="group-leave-btn" class="btn-plain-danger" style="display:none;">Leave Group Ride</button>
         <button type="button" id="group-end-btn" class="btn-plain-danger" style="display:none;">End Group Ride</button>
       </div>
       <p id="group-login-note" class="chart-desc" style="display:none;">
@@ -134,7 +175,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
-  <script type="module" src="group.js?v=90"></script>
+  <script type="module" src="group.js?v=93"></script>
   <script type="module" src="icons.js?v=91"></script>
   <script src="theme.js?v=90"></script>
 </body>

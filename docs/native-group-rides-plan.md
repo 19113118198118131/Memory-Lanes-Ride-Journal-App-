@@ -12,6 +12,9 @@ The native app preserves the original web flow:
 - Set a description, meeting time, meeting point, visibility, and optional capacity.
 - Share a web-compatible invite with a native app handoff. Release builds support
   universal links; Personal Team debug builds use the lobby's custom app-link action.
+- Open Ride Mesh directly from an eligible web lobby: iPhone members hand off to
+  the matching native mesh room, while desktop members can copy the iPhone link
+  and receive an honest explanation of the native-only nearby transport.
 - Recover every active hosted or joined ride under Routes.
 - Discover opt-in community rides without exposing invite-only events.
 - Review the route, host, meeting details, capacity, attendees, and RSVP state.
