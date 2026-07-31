@@ -64,7 +64,7 @@ Missing inputs remain missing. The UI labels geometry-only assessments as
 - [x] publish immutable packs before the catalog through Supabase Storage S3
 - [x] block releases on archive integrity, mainland connectivity and route probes
 - [x] bound compressed and decoded pack size before publication
-- [ ] configure production release secrets and publish the first Auckland pack
+- [x] configure production release secrets and publish the first Auckland pack
 - retain OSM attribution and ODbL notices
 - [x] add installed graph-version and routing-fallback telemetry
 

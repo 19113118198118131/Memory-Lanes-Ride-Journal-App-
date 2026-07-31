@@ -4,6 +4,33 @@ import Testing
 @testable import MemoryLanes
 
 struct OfflineRegionStoreTests {
+    @Test func selectedAreaUsesRequestedPhysicalSizeAroundMapCenter() {
+        let center = Coordinate(latitude: -36.65, longitude: 174.785)
+        let bounds = OfflineRegionBounds.centered(at: center, sideKilometers: 60)
+
+        #expect(bounds.isValid)
+        #expect(abs(bounds.center.latitude - center.latitude) < 0.001)
+        #expect(abs(bounds.center.longitude - center.longitude) < 0.001)
+        #expect(bounds.contains(center))
+    }
+
+    @Test func selectedAreaCoverageMergesOverlappingPublishedPacks() {
+        let selection = OfflineRegionBounds(south: 0, west: 0, north: 10, east: 10)
+        let west = OfflineRegionBounds(south: 0, west: 0, north: 10, east: 6)
+        let east = OfflineRegionBounds(south: 0, west: 4, north: 10, east: 10)
+
+        #expect(selection.coverageFraction(by: [west, east]) == 1)
+    }
+
+    @Test func selectedAreaReportsPartialAndMissingCoverage() {
+        let selection = OfflineRegionBounds(south: 0, west: 0, north: 10, east: 10)
+        let quarter = OfflineRegionBounds(south: 0, west: 0, north: 5, east: 5)
+        let elsewhere = OfflineRegionBounds(south: 20, west: 20, north: 30, east: 30)
+
+        #expect(selection.coverageFraction(by: [quarter]) == 0.25)
+        #expect(selection.coverageFraction(by: [elsewhere]) == 0)
+    }
+
     @Test func productionManifestKeyRingContainsOnlyValidEd25519Keys() {
         #expect(OfflineRegionStore.productionManifestKeys["release-2026-07"]?.count == 32)
         #expect(OfflineRegionStore.productionManifestKeys["release-2026-08"]?.count == 32)

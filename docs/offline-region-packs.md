@@ -3,13 +3,18 @@
 ## Product contract
 
 Riders manage downloaded road coverage from **Account → Offline Areas**. The
-map selector resolves its visible bounds against the published catalog and
-downloads intersecting packs. MapKit remains the online fallback until an
-installed graph covers the planning start.
+map selector offers 25 km, 60 km and 120 km selections centred under the map
+crosshair. It outlines published and installed coverage, reports full or
+partial coverage before download, and installs every signed pack intersecting
+the selection. When no pack intersects, the rider can jump to the nearest
+published area instead of reaching a dead end. MapKit remains the online
+fallback until an installed graph covers every route waypoint.
 
 The first release downloads routing data only. Apple Maps remains the visual
-basemap while online. Offline raster/vector tiles can be layered in a later
-navigation phase without changing the graph-pack lifecycle.
+basemap while online. The selection rectangle therefore represents offline
+road and navigation coverage, not a promise that Apple basemap tiles will be
+available without a network connection. Offline raster/vector tiles can be
+layered in a later navigation phase without changing the graph-pack lifecycle.
 
 ## Storage layout
 
@@ -35,7 +40,7 @@ and validates the manifest. Unverified network or cached catalogs are rejected.
 ```json
 {
   "schemaVersion": 1,
-  "keyID": "release-2026-07",
+  "keyID": "release-2026-08",
   "payload": "<base64 canonical manifest JSON>",
   "signature": "<base64 Ed25519 signature>"
 }

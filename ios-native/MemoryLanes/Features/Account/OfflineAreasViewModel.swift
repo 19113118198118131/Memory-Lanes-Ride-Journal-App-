@@ -149,6 +149,21 @@ final class OfflineAreasViewModel {
         available.filter { $0.bounds.intersects(bounds) }
     }
 
+    func coverageFraction(for bounds: OfflineRegionBounds) -> Double {
+        bounds.coverageFraction(by: regions(intersecting: bounds).map(\.bounds))
+    }
+
+    func installedCoverageFraction(for bounds: OfflineRegionBounds) -> Double {
+        bounds.coverageFraction(by: installed.map(\.descriptor.bounds))
+    }
+
+    func nearestAvailableRegion(to coordinate: Coordinate) -> OfflineRegionDescriptor? {
+        available.min { first, second in
+            squaredDistance(from: coordinate, to: first.bounds.center)
+                < squaredDistance(from: coordinate, to: second.bounds.center)
+        }
+    }
+
     func resetRoutingDiagnostics() async {
         await routingTelemetry.reset()
         routingDiagnostics = await routingTelemetry.diagnostics()
@@ -163,5 +178,13 @@ final class OfflineAreasViewModel {
 
     private func setInstallPhase(_ phase: OfflineRegionInstallPhase, for regionID: String) {
         installPhases[regionID] = phase
+    }
+
+    private func squaredDistance(from first: Coordinate, to second: Coordinate) -> Double {
+        let latitude = (first.latitude + second.latitude) * .pi / 360
+        let longitudeScale = cos(latitude)
+        let latitudeDelta = first.latitude - second.latitude
+        let longitudeDelta = (first.longitude - second.longitude) * longitudeScale
+        return latitudeDelta * latitudeDelta + longitudeDelta * longitudeDelta
     }
 }

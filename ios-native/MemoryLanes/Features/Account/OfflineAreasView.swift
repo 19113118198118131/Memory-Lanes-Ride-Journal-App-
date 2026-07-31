@@ -310,18 +310,19 @@ struct OfflineAreasView: View {
 
 private struct OfflineAreaSelectionView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var viewModel: OfflineAreasViewModel
     @State private var position = MapCameraPosition.region(Self.initialRegion)
-    @State private var selectedBounds = OfflineRegionBounds(
-        south: -36.95,
-        west: 174.52,
-        north: -36.35,
-        east: 175.05
+    @State private var areaSize = OfflineAreaSize.nearby
+    @State private var selectedBounds = OfflineRegionBounds.centered(
+        at: Self.initialCenter,
+        sideKilometers: OfflineAreaSize.nearby.sideKilometers
     )
     @State private var isDownloading = false
 
+    private static let initialCenter = Coordinate(latitude: -36.65, longitude: 174.785)
     private static let initialRegion = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: -36.65, longitude: 174.785),
+        center: initialCenter.clCoordinate,
         span: MKCoordinateSpan(latitudeDelta: 0.60, longitudeDelta: 0.53)
     )
 
@@ -333,14 +334,29 @@ private struct OfflineAreaSelectionView: View {
         matchedRegions.filter { !viewModel.isCurrent($0) }
     }
 
-    private var selectionIsTooLarge: Bool {
-        selectedBounds.north - selectedBounds.south > 1.6
-            || selectedBounds.east - selectedBounds.west > 1.6
+    private var coverageFraction: Double {
+        viewModel.coverageFraction(for: selectedBounds)
+    }
+
+    private var installedCoverageFraction: Double {
+        viewModel.installedCoverageFraction(for: selectedBounds)
+    }
+
+    private var coveragePercentage: Int {
+        Int((coverageFraction * 100).rounded())
+    }
+
+    private var selectionTint: Color {
+        if installedCoverageFraction >= 0.995 { return .mlSuccess }
+        if coverageFraction >= 0.995 { return .mlAccent }
+        if coverageFraction > 0 { return .mlWarning }
+        return .mlTextTertiary
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
+                areaSizeControl
                 selectionMap
                 selectionSummary
                 matchedAreaList
@@ -355,60 +371,136 @@ private struct OfflineAreaSelectionView: View {
         .refreshable { await viewModel.load(forceRefresh: true) }
     }
 
+    private var areaSizeControl: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Area size").mlKicker()
+                Spacer()
+                Text(areaSize.detail)
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
+            }
+            MLSegmentedControl(
+                items: OfflineAreaSize.allCases,
+                title: { $0.title },
+                selection: $areaSize,
+                compact: true
+            )
+        }
+        .onChange(of: areaSize) { _, newValue in
+            let bounds = OfflineRegionBounds.centered(
+                at: selectedBounds.center,
+                sideKilometers: newValue.sideKilometers
+            )
+            withAnimation(reduceMotion ? nil : Motion.spring) {
+                selectedBounds = bounds
+                position = .region(bounds.mapRegion(padding: 1.55))
+            }
+        }
+    }
+
     private var selectionMap: some View {
         Map(position: $position, interactionModes: .all) {
+            ForEach(viewModel.available) { region in
+                MapPolygon(coordinates: region.bounds.mapCoordinates)
+                    .foregroundStyle(
+                        (viewModel.isCurrent(region) ? Color.mlSuccess : Color.mlAccent).opacity(0.10)
+                    )
+                    .stroke(
+                        viewModel.isCurrent(region) ? Color.mlSuccess : Color.mlAccent,
+                        lineWidth: Layout.hairline * 2
+                    )
+            }
+            MapPolygon(coordinates: selectedBounds.mapCoordinates)
+                .foregroundStyle(selectionTint.opacity(0.10))
+                .stroke(selectionTint, lineWidth: Layout.hairline * 3)
             UserAnnotation()
         }
         .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
         .frame(height: 330)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
-                .stroke(selectionIsTooLarge ? Color.mlWarning : Color.mlAccent, lineWidth: Layout.hairline * 2)
-                .padding(Spacing.xl)
-                .allowsHitTesting(false)
-        }
         .overlay(alignment: .top) {
-            Text("Move and zoom the map")
-                .font(MLFont.caption)
-                .foregroundStyle(Color.mlTextPrimary)
-                .padding(.horizontal, Spacing.sm)
-                .frame(minHeight: Layout.minTouchTarget)
-                .background(.ultraThinMaterial, in: Capsule())
-                .padding(Spacing.sm)
+            HStack(spacing: Spacing.xs) {
+                Label("Drag to choose", systemImage: "hand.draw.fill")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextPrimary)
+                    .padding(.horizontal, Spacing.sm)
+                    .frame(minHeight: Layout.minTouchTarget)
+                    .background(.ultraThinMaterial, in: Capsule())
+                Spacer()
+                Button {
+                    Haptics.selection()
+                    position = .userLocation(followsHeading: false, fallback: .region(Self.initialRegion))
+                } label: {
+                    Image(systemName: "location.fill")
+                        .font(MLFont.bodyEmphasised)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .accessibilityLabel("Choose area around my location")
+            }
+            .padding(Spacing.sm)
         }
         .overlay {
-            Image(systemName: "plus")
+            Image(systemName: "scope")
                 .font(MLFont.headline)
                 .foregroundStyle(Color.mlTextPrimary)
                 .allowsHitTesting(false)
         }
         .onMapCameraChange(frequency: .onEnd) { context in
-            selectedBounds = OfflineRegionBounds(region: context.region)
+            selectedBounds = OfflineRegionBounds.centered(
+                at: Coordinate(
+                    latitude: context.region.center.latitude,
+                    longitude: context.region.center.longitude
+                ),
+                sideKilometers: areaSize.sideKilometers
+            )
         }
         .accessibilityLabel("Map for choosing offline road coverage")
     }
 
     private var selectionSummary: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text(selectionIsTooLarge ? "Zoom in to continue" : "Road packs in view")
-                .font(MLFont.title2)
-                .foregroundStyle(Color.mlTextPrimary)
-            Text(selectionDescription)
-                .font(MLFont.callout)
-                .foregroundStyle(Color.mlTextSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .top, spacing: Spacing.md) {
+            ZStack {
+                Circle().fill(selectionTint.opacity(0.14))
+                Image(systemName: coverageFraction > 0 ? "map.fill" : "map")
+                    .font(MLFont.headline)
+                    .foregroundStyle(selectionTint)
+            }
+            .frame(width: Spacing.xxl, height: Spacing.xxl)
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(selectionTitle)
+                    .font(MLFont.title2)
+                    .foregroundStyle(Color.mlTextPrimary)
+                Text(selectionDescription)
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
     @ViewBuilder
     private var matchedAreaList: some View {
         if matchedRegions.isEmpty {
-            EmptyState(
-                systemImage: viewModel.catalogError == nil ? "map" : "wifi.exclamationmark",
-                title: viewModel.catalogError == nil ? "Road pack not published" : "Catalog unavailable",
-                message: emptySelectionMessage
-            )
+            VStack(spacing: Spacing.sm) {
+                EmptyState(
+                    systemImage: viewModel.catalogError == nil ? "map" : "wifi.exclamationmark",
+                    title: viewModel.catalogError == nil ? "Not available here yet" : "Catalog unavailable",
+                    message: emptySelectionMessage
+                )
+                if let nearest = viewModel.nearestAvailableRegion(to: selectedBounds.center) {
+                    SecondaryButton(
+                        title: "Show \(nearest.name)",
+                        systemImage: "location.viewfinder"
+                    ) {
+                        focus(on: nearest)
+                    }
+                }
+            }
         } else {
             VStack(spacing: Spacing.sm) {
                 ForEach(matchedRegions) { region in
@@ -435,19 +527,28 @@ private struct OfflineAreaSelectionView: View {
     }
 
     private var selectionDescription: String {
-        if selectionIsTooLarge {
-            return "Smaller selections keep downloads practical and routing fast on your phone."
-        }
         if matchedRegions.isEmpty {
             return viewModel.catalogError == nil
-                ? "There is no downloadable road data for this map area yet."
+                ? "Move the map to published coverage. More regions can be added without updating the app."
                 : "The road-pack catalog could not be refreshed."
         }
         let bytes = pendingRegions.reduce(Int64(0)) { $0 + $1.byteCount }
         let size = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
-        return pendingRegions.isEmpty
-            ? "Every road pack intersecting this selection is installed."
-            : "\(pendingRegions.count) download\(pendingRegions.count == 1 ? "" : "s") · \(size)"
+        if installedCoverageFraction >= 0.995 {
+            return "This selection is ready for offline route planning and guidance."
+        }
+        if pendingRegions.isEmpty {
+            return "Installed roads cover \(coveragePercentage)% of this selection."
+        }
+        let coverage = coverageFraction >= 0.995 ? "Full coverage" : "\(coveragePercentage)% coverage"
+        return "\(coverage) · \(pendingRegions.count) pack\(pendingRegions.count == 1 ? "" : "s") · \(size)"
+    }
+
+    private var selectionTitle: String {
+        if installedCoverageFraction >= 0.995 { return "Ready offline" }
+        if coverageFraction >= 0.995 { return "Full coverage available" }
+        if coverageFraction > 0 { return "Partial coverage available" }
+        return "Choose a covered area"
     }
 
     private var downloadTitle: String {
@@ -467,13 +568,13 @@ private struct OfflineAreaSelectionView: View {
             .accessibilityHint("Checks for newly published offline road packs")
         } else {
             PrimaryButton(
-                title: pendingRegions.isEmpty ? "Area Already Ready" : downloadTitle,
+                title: pendingRegions.isEmpty ? "Available Roads Ready" : downloadTitle,
                 systemImage: pendingRegions.isEmpty ? "checkmark.circle.fill" : "arrow.down.circle.fill",
                 isLoading: isDownloading
             ) {
                 Task { await downloadSelection() }
             }
-            .disabled(selectionIsTooLarge || pendingRegions.isEmpty || isDownloading)
+            .disabled(pendingRegions.isEmpty || isDownloading)
         }
     }
 
@@ -481,7 +582,20 @@ private struct OfflineAreaSelectionView: View {
         if let catalogError = viewModel.catalogError {
             return "Refresh to try again. \(catalogError)"
         }
-        return "Move toward a supported area, or refresh to check for newly published road data."
+        return "Published coverage is outlined on the map. Move there, or refresh to check for new areas."
+    }
+
+    private func focus(on region: OfflineRegionDescriptor) {
+        Haptics.selection()
+        let bounds = OfflineRegionBounds.centered(
+            at: region.bounds.center,
+            sideKilometers: min(areaSize.sideKilometers, 25)
+        )
+        if areaSize != .nearby { areaSize = .nearby }
+        selectedBounds = bounds
+        withAnimation(reduceMotion ? nil : Motion.spring) {
+            position = .region(region.bounds.mapRegion(padding: 1.18))
+        }
     }
 
     private func downloadSelection() async {
@@ -581,14 +695,22 @@ private struct OfflineRegionCard: View {
 }
 
 private extension OfflineRegionBounds {
-    init(region: MKCoordinateRegion) {
-        let latitudeHalf = region.span.latitudeDelta / 2
-        let longitudeHalf = region.span.longitudeDelta / 2
-        self.init(
-            south: max(region.center.latitude - latitudeHalf, -90),
-            west: max(region.center.longitude - longitudeHalf, -180),
-            north: min(region.center.latitude + latitudeHalf, 90),
-            east: min(region.center.longitude + longitudeHalf, 180)
+    var mapCoordinates: [CLLocationCoordinate2D] {
+        [
+            CLLocationCoordinate2D(latitude: north, longitude: west),
+            CLLocationCoordinate2D(latitude: north, longitude: east),
+            CLLocationCoordinate2D(latitude: south, longitude: east),
+            CLLocationCoordinate2D(latitude: south, longitude: west)
+        ]
+    }
+
+    func mapRegion(padding: Double) -> MKCoordinateRegion {
+        MKCoordinateRegion(
+            center: center.clCoordinate,
+            span: MKCoordinateSpan(
+                latitudeDelta: (north - south) * padding,
+                longitudeDelta: (east - west) * padding
+            )
         )
     }
 }

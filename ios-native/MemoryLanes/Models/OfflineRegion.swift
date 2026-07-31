@@ -33,6 +33,96 @@ struct OfflineRegionBounds: Codable, Hashable, Sendable {
             && west <= other.east
             && east >= other.west
     }
+
+    func intersection(with other: OfflineRegionBounds) -> OfflineRegionBounds? {
+        let overlap = OfflineRegionBounds(
+            south: max(south, other.south),
+            west: max(west, other.west),
+            north: min(north, other.north),
+            east: min(east, other.east)
+        )
+        return overlap.isValid ? overlap : nil
+    }
+
+    static func centered(at coordinate: Coordinate, sideKilometers: Double) -> OfflineRegionBounds {
+        let halfSide = max(sideKilometers, 1) / 2
+        let north = coordinate.projected(distanceKm: halfSide, bearingDegrees: 0)
+        let east = coordinate.projected(distanceKm: halfSide, bearingDegrees: 90)
+        let south = coordinate.projected(distanceKm: halfSide, bearingDegrees: 180)
+        let west = coordinate.projected(distanceKm: halfSide, bearingDegrees: 270)
+        return OfflineRegionBounds(
+            south: max(south.latitude, -90),
+            west: max(west.longitude, -180),
+            north: min(north.latitude, 90),
+            east: min(east.longitude, 180)
+        )
+    }
+
+    func coverageFraction(by coverage: [OfflineRegionBounds]) -> Double {
+        let intersections = coverage.compactMap { intersection(with: $0) }
+        guard !intersections.isEmpty else { return 0 }
+
+        let longitudeBreaks = Set(
+            [west, east] + intersections.flatMap { [$0.west, $0.east] }
+        ).sorted()
+        var coveredArea = 0.0
+        for index in longitudeBreaks.indices.dropLast() {
+            let slabWest = longitudeBreaks[index]
+            let slabEast = longitudeBreaks[index + 1]
+            guard slabEast > slabWest else { continue }
+            let midpoint = (slabWest + slabEast) / 2
+            let intervals = intersections
+                .filter { $0.west <= midpoint && $0.east >= midpoint }
+                .map { ($0.south, $0.north) }
+                .sorted { $0.0 < $1.0 }
+            guard var merged = intervals.first else { continue }
+            var latitudeCoverage = 0.0
+            for interval in intervals.dropFirst() {
+                if interval.0 <= merged.1 {
+                    merged.1 = max(merged.1, interval.1)
+                } else {
+                    latitudeCoverage += merged.1 - merged.0
+                    merged = interval
+                }
+            }
+            latitudeCoverage += merged.1 - merged.0
+            coveredArea += (slabEast - slabWest) * latitudeCoverage
+        }
+
+        let selectedArea = (east - west) * (north - south)
+        guard selectedArea > 0 else { return 0 }
+        return min(max(coveredArea / selectedArea, 0), 1)
+    }
+}
+
+enum OfflineAreaSize: String, CaseIterable, Hashable, Sendable {
+    case nearby
+    case dayRide
+    case touring
+
+    var title: String {
+        switch self {
+        case .nearby: "25 km"
+        case .dayRide: "60 km"
+        case .touring: "120 km"
+        }
+    }
+
+    var sideKilometers: Double {
+        switch self {
+        case .nearby: 25
+        case .dayRide: 60
+        case .touring: 120
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .nearby: "Local roads and short escapes"
+        case .dayRide: "A broad day-ride area"
+        case .touring: "Long-distance coverage"
+        }
+    }
 }
 
 struct OfflineRegionDescriptor: Codable, Hashable, Identifiable, Sendable {
