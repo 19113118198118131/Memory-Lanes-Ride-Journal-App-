@@ -2,210 +2,96 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-  <meta name="theme-color" content="#0a0a0a">
-  <meta name="description" content="Flow is a calm one-thumb riding game from Memory Lanes. Find your line and settle your mind.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#02080b">
+  <meta name="description" content="Flow is a quiet post-ride breathing ritual from Memory Lanes.">
   <title>Flow | Memory Lanes</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="assets/logo/favicon.png">
-  <link rel="stylesheet" href="flow.css?v=98">
+  <link rel="stylesheet" href="flow-breath.css?v=1">
 </head>
-<body class="flow-page">
-  <main id="flow-root" class="flow-root" data-phase="intro">
-    <canvas id="flow-canvas" aria-label="Flow motorcycle line game">
-      Flow requires a browser with Canvas support.
-    </canvas>
+<body>
+  <main class="flow-shell">
+    <canvas id="flow-canvas" class="flow-canvas" aria-label="Abstract breathing landscape"></canvas>
+    <div class="flow-shade" aria-hidden="true"></div>
 
-    <div class="flow-vignette" aria-hidden="true"></div>
-    <div class="flow-scanlines" aria-hidden="true"></div>
-
-    <header class="flow-topbar">
-      <button id="flow-close" class="flow-icon-button" type="button" aria-label="Return to Memory Lanes">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    <header class="flow-top">
+      <button id="close" class="icon-btn" type="button" aria-label="Return to Memory Lanes">
+        <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
-      <div class="flow-brand" aria-label="Memory Lanes Flow">
-        <span class="flow-brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 28 28"><path d="M3 18c5-12 9-12 13 0s7 11 9-2"/></svg>
-        </span>
-        <span><small>Memory Lanes</small>Flow</span>
+      <div class="flow-brand">
+        <span class="flow-brand-mark" aria-hidden="true"><svg viewBox="0 0 28 18"><path d="M2 16 8 3l6 10L20 3l6 13"/></svg></span>
+        Memory Lanes · Flow
       </div>
-      <button id="flow-settings-button" class="flow-icon-button" type="button" aria-label="Flow settings">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 9 19.37a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.08A1.7 1.7 0 0 0 4.63 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.03-1.56V3h4v.08A1.7 1.7 0 0 0 15 4.63a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.03H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+      <button id="settings-open" class="icon-btn" type="button" aria-label="Open Flow settings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
       </button>
     </header>
 
-    <section id="flow-intro" class="flow-intro" aria-labelledby="flow-title">
-      <div class="flow-intro-copy">
-        <div class="flow-system-label"><span aria-hidden="true"></span>Between rides</div>
-        <h1 id="flow-title">Flow</h1>
-        <p class="flow-tagline">Find your line. Settle your mind.</p>
-        <p class="flow-intro-body">One breath. One corner. One smooth decision.</p>
-      </div>
-
-      <div class="flow-mode-panel" aria-label="Choose a Flow mode">
-        <div class="flow-mode-heading"><span>Select session</span><small>Technique, never speed</small></div>
-        <button class="flow-mode-button flow-mode-primary" type="button" data-mode="quick">
-          <span class="flow-mode-code" aria-hidden="true">01</span>
-          <span class="flow-mode-copy"><small>Recommended</small><strong>Quick Reset</strong><span>Arrive, follow, flow, land.</span></span>
-          <span class="flow-mode-duration" aria-hidden="true">90<small>s</small></span>
-        </button>
-        <button class="flow-mode-button" type="button" data-mode="endless">
-          <span class="flow-mode-code" aria-hidden="true">02</span>
-          <span class="flow-mode-copy"><small>Endless</small><strong>Open Road</strong><span>Settle in. Stay as long as it flows.</span></span>
-          <span class="flow-mode-duration flow-mode-infinity" aria-hidden="true">&#8734;</span>
-        </button>
-        <div class="flow-mode-footer">
-          <button id="flow-how-to-play" class="flow-text-button" type="button">
-            <span class="flow-how-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M8 9a4 4 0 1 1 7.4 2.1c-1.4 1.5-3.4 1.7-3.4 3.9M12 19h.01"/></svg>
-            </span>
-            How it flows
-          </button>
-          <p class="flow-parked-note"><span aria-hidden="true"></span>Play only while safely parked</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="flow-safety-gate" class="flow-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="flow-safety-title">
-      <div class="flow-overlay-panel flow-safety-panel">
-        <p class="flow-eyebrow">Before the road opens</p>
-        <h2 id="flow-safety-title">Parked safely?</h2>
-        <p>Flow is for the quiet moment after the bike is switched off, away from active traffic.</p>
-        <div class="flow-pace-preview" aria-labelledby="flow-pace-title">
-          <div><strong id="flow-pace-title">Choose a comfortable rhythm</strong><small>You can change this any time</small></div>
-          <div class="flow-pace-options" role="radiogroup" aria-label="Breathing pace">
-            <button type="button" data-breath-pace="balanced" role="radio" aria-checked="false"><strong>Balanced</strong><span>5 in · 5 out</span></button>
-            <button type="button" data-breath-pace="settle" role="radio" aria-checked="true"><strong>Settle</strong><span>4 in · 6 out</span></button>
-            <button type="button" data-breath-pace="gentle" role="radio" aria-checked="false"><strong>Gentle</strong><span>5 in · 6 out</span></button>
-          </div>
-        </div>
-        <p class="flow-comfort-note">Breathe comfortably. Do not force or hold your breath. Stop if you feel light-headed or uncomfortable.</p>
-        <div class="flow-overlay-actions">
-          <button id="flow-safety-begin" class="flow-primary-button" type="button">Yes, begin reset</button>
-          <button id="flow-safety-cancel" class="flow-text-button" type="button">Not now</button>
-        </div>
-      </div>
-    </section>
-
-    <section id="flow-game" class="flow-game" hidden aria-label="Flow session">
-      <div class="flow-hud">
-        <div class="flow-hud-stat">
-          <span id="flow-time-label">Time</span>
-          <strong id="flow-time">1:00</strong>
-        </div>
-        <div class="flow-hud-center">
-          <div class="flow-core-label"><span>Flow</span><strong id="flow-value">68</strong></div>
-          <div class="flow-meter-track" role="progressbar" aria-label="Session Flow" aria-valuemin="0" aria-valuemax="100" aria-valuenow="68">
-            <span id="flow-meter-fill"></span>
-          </div>
-          <span id="flow-rhythm">Settle in</span>
-        </div>
-        <div class="flow-hud-stat flow-hud-stat-right">
-          <span>Score</span>
-          <strong id="flow-score">0</strong>
-        </div>
-      </div>
-      <div id="flow-chain" class="flow-chain" aria-label="Corner chain">
-        <span>Chain</span><strong id="flow-chain-value">0</strong>
-      </div>
-      <div id="flow-breath-guide" class="flow-breath-guide" aria-live="polite">
-        <span id="flow-stage-label">Arrive</span>
-        <strong id="flow-breath-phase">Let the ride settle.</strong>
-        <small id="flow-breath-detail">Breathe normally for a moment</small>
-      </div>
-      <button id="flow-pause" class="flow-pause-button" type="button" aria-label="Pause Flow">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
-      </button>
-      <div id="flow-apex-callout" class="flow-apex-callout" aria-hidden="true"></div>
-      <p id="flow-controls-hint" class="flow-controls-hint">Breathe. Follow the glow.</p>
-    </section>
-
-    <section id="flow-results" class="flow-results" hidden aria-labelledby="flow-result-title">
-      <div class="flow-result-hero">
-        <div class="flow-result-score" aria-label="Session Flow score">
-          <span class="flow-result-ring" aria-hidden="true"></span>
-          <span>Flow</span>
-          <strong id="flow-result-flow">0</strong>
-        </div>
-        <div class="flow-results-copy">
-          <p class="flow-eyebrow">Session complete</p>
-          <h2 id="flow-result-title">In the rhythm</h2>
-          <p id="flow-result-subtitle">Reset complete.</p>
-          <small id="flow-personal-best" hidden>New personal best</small>
-        </div>
-      </div>
-      <dl class="flow-result-grid">
-        <div><dt>Smoothness</dt><dd id="flow-result-smoothness">0%</dd></div>
-        <div><dt>Clean lines</dt><dd id="flow-result-apex">0%</dd></div>
-        <div><dt>Corners</dt><dd id="flow-result-corners">0</dd></div>
-        <div><dt>Longest rhythm</dt><dd id="flow-result-streak">0</dd></div>
-      </dl>
-      <div class="flow-result-actions">
-        <button id="flow-return" class="flow-primary-button" type="button">Finish</button>
-        <button id="flow-play-again" class="flow-secondary-button" type="button">Continue on the open road</button>
-        <div class="flow-result-links">
-          <a href="journal.html">Add a ride reflection</a>
-          <a href="dashboard.html">Review today's rides</a>
-        </div>
-      </div>
-      <button id="flow-about" class="flow-text-button flow-about-button" type="button">About Flow</button>
-      <p class="flow-safety-copy">Play only while safely parked.</p>
-    </section>
-
-    <section id="flow-pause-overlay" class="flow-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="flow-pause-title">
-      <div class="flow-overlay-panel">
-        <p class="flow-eyebrow">Roadside pause</p>
-        <h2 id="flow-pause-title">Take your time.</h2>
-        <div class="flow-overlay-actions">
-          <button id="flow-continue" class="flow-primary-button" type="button">Continue</button>
-          <button id="flow-restart" class="flow-secondary-button" type="button">Restart</button>
-          <button id="flow-leave" class="flow-text-button" type="button">Leave Flow</button>
-        </div>
-      </div>
-    </section>
-
-    <section id="flow-settings" class="flow-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="flow-settings-title">
-      <div class="flow-overlay-panel flow-settings-panel">
-        <div class="flow-overlay-title-row">
-          <h2 id="flow-settings-title">Flow settings</h2>
-          <button id="flow-settings-close" class="flow-icon-button" type="button" aria-label="Close settings">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    <section id="intro" class="screen">
+      <div class="intro-card">
+        <p class="eyebrow">Between rides</p>
+        <h1>Flow</h1>
+        <p class="lead">Let the ride leave your body before you carry it into the rest of your day.</p>
+        <p class="muted">A quiet five-minute breathing rhythm. No scores, no failure, no performance.</p>
+        <div class="mode-grid">
+          <button class="mode-btn" type="button" data-start>
+            <strong>Begin five-minute reset</strong>
+            <span>Arrive naturally, then settle into a longer exhale.</span>
           </button>
         </div>
-        <label class="flow-setting-row"><span><strong>Sound</strong><small>Quiet wind and tonal cues</small></span><input id="flow-sound" type="checkbox"></label>
-        <label class="flow-setting-row"><span><strong>Haptics</strong><small>Subtle clean-line feedback</small></span><input id="flow-haptics" type="checkbox"></label>
-        <label class="flow-setting-select"><span>Steering feel</span><select id="flow-sensitivity"><option value="gentle">Gentle</option><option value="balanced">Balanced</option><option value="responsive">Responsive</option></select></label>
-        <label class="flow-setting-select"><span>Line guide</span><select id="flow-line-guide"><option value="full">Full</option><option value="subtle">Subtle</option><option value="off">Off</option></select></label>
-        <label class="flow-setting-select"><span>Visual quality</span><select id="flow-quality"><option value="low">Low</option><option value="balanced">Balanced</option><option value="high">High</option></select></label>
-        <label class="flow-setting-select"><span>Motorcycle</span><select id="flow-motorcycle"><option value="sport">Sport</option><option value="adventure">Adventure</option><option value="naked">Naked</option><option value="cruiser">Cruiser</option><option value="touring">Touring</option><option value="classic">Classic</option></select></label>
-        <label class="flow-setting-select"><span>Breathing guide</span><select id="flow-breathing-guide"><option value="guided">Guided</option><option value="subtle">Subtle</option><option value="off">Off</option></select></label>
-        <label class="flow-setting-select"><span>Breathing pace</span><select id="flow-breathing-pace"><option value="settle">Settle · 4 in, 6 out</option><option value="balanced">Balanced · 5 in, 5 out</option><option value="gentle">Gentle · 5 in, 6 out</option></select></label>
-        <label class="flow-setting-row"><span><strong>Voice guidance</strong><small>Only during the first two cycles</small></span><input id="flow-voice-guidance" type="checkbox"></label>
-        <label class="flow-setting-row"><span><strong>Breath haptics</strong><small>One quiet cue when each phase changes</small></span><input id="flow-breath-haptics" type="checkbox"></label>
-        <label class="flow-setting-row"><span><strong>Reduced effects</strong><small>Quieter particles and camera motion</small></span><input id="flow-reduced-effects" type="checkbox"></label>
+        <p class="safety">Use only while safely parked. Breathe comfortably and stop if you feel unwell.</p>
       </div>
     </section>
 
-    <section id="flow-instructions" class="flow-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="flow-instructions-title">
-      <div class="flow-overlay-panel">
-        <div class="flow-overlay-title-row">
-          <div><p class="flow-eyebrow">How to play</p><h2 id="flow-instructions-title">Smooth is the skill.</h2></div>
-          <button id="flow-instructions-close" class="flow-icon-button" type="button" aria-label="Close instructions">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
+    <section id="session" class="session-ui" hidden aria-label="Flow breathing session">
+      <div class="session-head" aria-live="polite">
+        <span id="phase" class="phase">Arrive</span>
+        <strong id="cue" class="cue">Let the ride settle.</strong>
+        <span id="detail" class="detail">Breathe normally for a moment</span>
+      </div>
+      <div id="breath-orbit" class="breath-orbit" aria-hidden="true"></div>
+      <div class="progress-wrap">
+        <button id="finish" class="text-btn finish-btn" type="button">Finish</button>
+        <div class="progress" aria-label="Session progress"><span id="progress-fill"></span></div>
+        <span id="time" class="time">5:00</span>
+      </div>
+    </section>
+
+    <section id="results" class="screen" hidden>
+      <div class="result-card">
+        <p class="eyebrow">Session complete</p>
+        <h2>Ready when you are.</h2>
+        <div class="result-score" aria-hidden="true">M</div>
+        <p id="session-count" class="muted">Reset complete.</p>
+        <p class="muted">Flow provided the rhythm; it did not measure or score your breathing.</p>
+        <div class="checkin" aria-label="Optional self check-in">
+          <button type="button">A little quieter</button>
+          <button type="button">About the same</button>
         </div>
-        <ol class="flow-instruction-list">
-          <li><span>1</span><p><strong>Drag gently</strong>Move left or right anywhere in the lower screen.</p></li>
-          <li><span>2</span><p><strong>Follow the glow</strong>Meet the quiet line through each abstract bend.</p></li>
-          <li><span>3</span><p><strong>Settle corrections</strong>Consistency builds Session Flow; speed never does.</p></li>
-        </ol>
-        <p class="flow-about-copy">Flow is an abstract relaxation game, not road-riding instruction. Always ride to the conditions, within your ability and within the law.</p>
-        <button id="flow-instructions-done" class="flow-primary-button" type="button">Got it</button>
+        <div class="actions">
+          <button id="journal" class="primary" type="button">Add a ride reflection</button>
+          <button id="again" class="secondary" type="button">Breathe again</button>
+          <button id="home" class="text-btn" type="button">Return to rides</button>
+        </div>
       </div>
     </section>
 
-    <div id="flow-live-region" class="flow-sr-only" aria-live="polite"></div>
+    <section id="settings" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="modal-card">
+        <p class="eyebrow">Comfort first</p>
+        <h2 id="settings-title">Choose your rhythm</h2>
+        <p class="muted">These are visual pacing options, not a test. Never force or hold your breath.</p>
+        <div class="pace-list" role="radiogroup" aria-label="Breathing pace">
+          <button type="button" data-pace="settle" role="radio"><strong>Settle</strong><br><span>4 seconds in · 6 seconds out</span></button>
+          <button type="button" data-pace="balanced" role="radio"><strong>Balanced</strong><br><span>5 seconds in · 5 seconds out</span></button>
+          <button type="button" data-pace="gentle" role="radio"><strong>Gentle</strong><br><span>5 seconds in · 6 seconds out</span></button>
+        </div>
+        <p class="muted">Current: <span id="pace-label">Settle · 4 in, 6 out</span></p>
+        <button id="settings-close" class="primary" type="button">Done</button>
+      </div>
+    </section>
   </main>
-  <script type="module" src="flow.js?v=99"></script>
+  <script type="module" src="flow-breath.js?v=1"></script>
 </body>
 </html>
