@@ -1,6 +1,6 @@
 // Memory Lanes service worker: app-shell caching (stale-while-revalidate).
 // Bump CACHE on each deploy so clients pick up fresh files.
-const CACHE = 'memory-lanes-v99';
+const CACHE = 'memory-lanes-v100';
 const CORE = [
   './',
   './index.html',
@@ -14,7 +14,8 @@ const CORE = [
   './group.html',
   './flow.html',
   './style.css?v=96',
-  './flow.css?v=98',
+  './flow-breath.css?v=1',
+  './flow-breath.js?v=1',
   './script.js?v=94',
   './insights.js?v=90',
   './icons.js?v=95',
@@ -29,15 +30,6 @@ const CORE = [
   './route.js?v=90',
   './group.js?v=93',
   './ride-live.js?v=90',
-  './flow.js?v=99',
-  './flow-engine.js',
-  './flow-storage.js',
-  './flow-audio.js',
-  './flow-renderer.js',
-  './flow-playcanvas-renderer.js',
-  './vendor/playcanvas/playcanvas.min.mjs',
-  './flow-assets.js',
-  './flow-effects.js',
   './ai/feature-schema.js?v=90',
   './ai/feature-extractor.js?v=90',
   './ai/recommender.js?v=90',
@@ -69,11 +61,8 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return; // CDN/API traffic goes straight to network
+  if (url.origin !== self.location.origin) return;
 
-  // HTML pages: NETWORK FIRST. The pages reference versioned assets (style.css?v=N),
-  // so a stale page would keep asking for the old asset URLs and a deploy would never
-  // appear. Always try the network for documents, and fall back to cache only offline.
   const isDoc = req.mode === 'navigate' ||
                 (req.headers.get('accept') || '').includes('text/html');
   if (isDoc) {
@@ -91,7 +80,6 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Versioned assets: cache first, refresh in the background.
   event.respondWith(
     caches.match(req).then(cached => {
       const fresh = fetch(req).then(res => {
