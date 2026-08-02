@@ -31,6 +31,7 @@ struct JournalView: View {
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
+            .mlTabBarContentClearance()
         }
         .background(Color.mlBackground)
         .navigationTitle("Journal")
@@ -40,15 +41,11 @@ struct JournalView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text("Ride memories").mlKicker()
-            Text("Moments worth keeping")
-                .font(MLFont.displayXL)
-                .foregroundStyle(Color.mlTextPrimary)
-            Text("Pinned notes and favourite stops from your saved rides.")
-                .font(MLFont.body)
-                .foregroundStyle(Color.mlTextSecondary)
-        }
+        ScreenIntro(
+            kicker: "Ride memories",
+            title: "Moments worth keeping",
+            message: "Pinned notes and favourite stops from your saved rides."
+        )
     }
 
     @ViewBuilder

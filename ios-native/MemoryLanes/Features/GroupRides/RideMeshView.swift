@@ -65,8 +65,6 @@ struct RideMeshView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 session.start()
-            } else {
-                session.stop()
             }
         }
         .onDisappear {
@@ -297,9 +295,9 @@ struct RideMeshView: View {
     private var connectionDetail: String {
         switch session.state {
         case .idle: "Nearby messaging is off."
-        case .scanning: "Keep Ride Mesh open while finding group members."
+        case .scanning: "Bluetooth mesh and direct Wi-Fi are looking for this ride nearby."
         case .connected: "Encrypted messages can hop through nearby group members."
-        case .unavailable: "Check Local Network access in Settings, then retry."
+        case .unavailable: "Check Bluetooth and Local Network access in Settings, then retry."
         }
     }
 
@@ -322,7 +320,7 @@ private struct RideMeshPrivacyView: View {
                     privacyRow(
                         symbol: "wifi.slash",
                         title: "No mobile data required",
-                        detail: "Ride Mesh uses direct nearby links between iPhones."
+                        detail: "Ride Mesh uses Bluetooth LE first and direct local Wi-Fi when available. Airplane mode works when Bluetooth remains on."
                     )
                     privacyRow(
                         symbol: "lock.fill",

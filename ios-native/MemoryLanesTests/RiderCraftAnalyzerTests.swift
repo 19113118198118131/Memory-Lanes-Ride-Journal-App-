@@ -4,7 +4,7 @@ import XCTest
 final class RiderCraftAnalyzerTests: XCTestCase {
     func testDetectsEachSupportedSurvivalReactionWithReplayEvidence() throws {
         let corners = [
-            signal(index: 1, start: 10, apex: 15, end: 20, drive: 0.05, apexPosition: 0.25, brakeDepth: 0.75),
+            signal(index: 1, start: 10, apex: 15, end: 20, drive: -0.05, apexPosition: 0.25, brakeDepth: 0.75),
             signal(index: 2, start: 30, apex: 35, end: 40, drive: 0.50, apexPosition: 0.55, brakeDepth: 0.20),
             signal(index: 3, start: 50, apex: 55, end: 60, drive: 0.50, apexPosition: 0.55, brakeDepth: 0.20)
         ]
@@ -12,13 +12,33 @@ final class RiderCraftAnalyzerTests: XCTestCase {
 
         let analysis = RiderCraftAnalyzer().analyze(corners: corners, brakingZones: braking)
 
-        XCTAssertEqual(try XCTUnwrap(analysis.eventsPerCorner), 4.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(analysis.eventsPerCorner), 1.0, accuracy: 0.001)
         XCTAssertEqual(analysis.categoryCounts[.brakeAfterTurnIn], 1)
         XCTAssertEqual(analysis.categoryCounts[.flatExit], 1)
-        XCTAssertEqual(analysis.categoryCounts[.earlyApex], 1)
+        XCTAssertNil(analysis.categoryCounts[.earlyApex])
         XCTAssertEqual(analysis.categoryCounts[.brakedDeep], 1)
         XCTAssertEqual(try XCTUnwrap(analysis.events.first(where: { $0.kind == .brakeAfterTurnIn })).replayIndex, 12)
         XCTAssertTrue(analysis.events.allSatisfy { $0.cornerIndex > 0 && $0.replayIndex > 0 })
+    }
+
+    func testCurrentModelNeverPublishesRejectedEarlyApexProxy() {
+        let corners = (1...3).map { index in
+            signal(
+                index: index,
+                start: index * 20,
+                apex: index * 20 + 5,
+                end: index * 20 + 10,
+                drive: 0.4,
+                apexPosition: 0.05,
+                brakeDepth: 0.2
+            )
+        }
+
+        let analysis = RiderCraftAnalyzer().analyze(corners: corners, brakingZones: [])
+
+        XCTAssertEqual(analysis.thresholdVersion, 2)
+        XCTAssertTrue(analysis.events.isEmpty)
+        XCTAssertEqual(analysis.eventsPerCorner, 0)
     }
 
     func testSettledSignalsDoNotCreateFalseEvents() {
@@ -38,19 +58,19 @@ final class RiderCraftAnalyzerTests: XCTestCase {
 
     func testInsufficientCornersRetainCalibrationEvidenceWithoutPublishingRate() {
         let analysis = RiderCraftAnalyzer().analyze(
-            corners: [signal(index: 1, start: 10, apex: 15, end: 20, drive: 0, apexPosition: 0.2, brakeDepth: 0.8)],
+            corners: [signal(index: 1, start: 10, apex: 15, end: 20, drive: -0.1, apexPosition: 0.2, brakeDepth: 0.8)],
             brakingZones: []
         )
 
         XCTAssertNil(analysis.eventsPerCorner)
         XCTAssertNotNil(analysis.unavailableReason)
-        XCTAssertEqual(analysis.events.count, 3)
+        XCTAssertEqual(analysis.events.count, 2)
         XCTAssertNil(analysis.calibrationDebriefLine)
     }
 
     func testCalibrationDebriefNamesOnlyDominantSupportedSignal() throws {
         let corners = (1...3).map { index in
-            signal(index: index, start: index * 20, apex: index * 20 + 5, end: index * 20 + 10, drive: 0, apexPosition: 0.5, brakeDepth: 0.2)
+            signal(index: index, start: index * 20, apex: index * 20 + 5, end: index * 20 + 10, drive: -0.1, apexPosition: 0.5, brakeDepth: 0.2)
         }
 
         let analysis = RiderCraftAnalyzer().analyze(corners: corners, brakingZones: [])
@@ -84,12 +104,30 @@ final class RiderCraftAnalyzerTests: XCTestCase {
         XCTAssertEqual(report.drive.count, 4)
         XCTAssertEqual(try XCTUnwrap(report.drive.median), 0.275, accuracy: 0.001)
         XCTAssertEqual(report.brakeAfterTurnInProgress.count, 1)
-        XCTAssertEqual(report.categoryCounts[RiderCraftEvent.Kind.flatExit.rawValue], 1)
+        XCTAssertEqual(report.categoryCounts[RiderCraftEvent.Kind.flatExit.rawValue], 0)
         XCTAssertEqual(try XCTUnwrap(report.eventsPerCorner), Double(report.eventCount) / 4, accuracy: 0.001)
         XCTAssertEqual(report.flatExitSensitivity.first(where: { $0.threshold == 0.10 })?.eventCount, 1)
         XCTAssertEqual(report.earlyApexSensitivity.first(where: { $0.threshold == 0.20 })?.eventCount, 1)
         XCTAssertEqual(report.deepBrakingSensitivity.first(where: { $0.threshold == 0.60 })?.eventCount, 1)
         XCTAssertEqual(report.brakeAfterTurnInSensitivity.first(where: { $0.threshold == 0.10 })?.eventCount, 1)
+    }
+
+    func testLegacyEarlyApexEventsDoNotAffectCurrentRateOrReviewQueue() throws {
+        let analysis = RiderCraftAnalysis(
+            thresholdVersion: 1,
+            detectedCornerCount: 3,
+            events: [
+                RiderCraftEvent(kind: .earlyApex, cornerIndex: 1, replayIndex: 10, measuredValue: 0.1, threshold: 0.2),
+                RiderCraftEvent(kind: .flatExit, cornerIndex: 2, replayIndex: 20, measuredValue: -0.1, threshold: 0)
+            ],
+            calibrationSamples: [],
+            eventsPerCorner: 2.0 / 3.0,
+            unavailableReason: nil
+        )
+
+        XCTAssertEqual(try XCTUnwrap(analysis.currentModelEventsPerCorner), 1.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(analysis.calibrationReviewTargets.count, 1)
+        XCTAssertEqual(analysis.calibrationReviewTargets.first?.candidateKind, .flatExit)
     }
 
     private func signal(

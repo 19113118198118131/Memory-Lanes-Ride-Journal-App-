@@ -46,9 +46,13 @@ final class RideDetailViewModel {
     var isPlaying = false
     var playbackSpeed: Double = 1
     private(set) var calibrationReviews: [String: RiderCraftCalibrationReview] = [:]
+    private(set) var riderCraftPersonalization = RiderCraftPersonalization.empty
     var calibrationReviewErrorMessage: String?
     var isExportingCalibrationReviews = false
     var isResettingCalibrationReviews = false
+    private(set) var limitPointReviews: [Int: LimitPointCalibrationReview] = [:]
+    private(set) var limitPointPersonalization = LimitPointPersonalization.empty
+    var limitPointReviewErrorMessage: String?
 
     @ObservationIgnored private var playbackTask: Task<Void, Never>?
     @ObservationIgnored private var feedbackSaveTask: Task<Void, Never>?
@@ -56,16 +60,19 @@ final class RideDetailViewModel {
 
     private let rideService: RideServing
     private let calibrationReviewStore: any RiderCraftCalibrationReviewStoring
+    private let limitPointReviewStore: any LimitPointCalibrationReviewStoring
 
     init(
         ride: Ride,
         rideService: RideServing,
-        calibrationReviewStore: any RiderCraftCalibrationReviewStoring = RiderCraftCalibrationReviewStore.shared
+        calibrationReviewStore: any RiderCraftCalibrationReviewStoring = RiderCraftCalibrationReviewStore.shared,
+        limitPointReviewStore: any LimitPointCalibrationReviewStoring = LimitPointCalibrationReviewStore.shared
     ) {
         self.ride = ride
         self.mapDisplayRoute = ride.routePreview
         self.rideService = rideService
         self.calibrationReviewStore = calibrationReviewStore
+        self.limitPointReviewStore = limitPointReviewStore
     }
 
     var detail: RideDetail? {
@@ -105,6 +112,14 @@ final class RideDetailViewModel {
 
     var calibrationReviewSummary: RiderCraftCalibrationReviewSummary {
         RiderCraftCalibrationReviewSummary(reviews: Array(calibrationReviews.values))
+    }
+
+    var limitPointReviewedCount: Int {
+        detail?.limitPointAnalysis?.corners.filter { limitPointReviews[$0.id] != nil }.count ?? 0
+    }
+
+    func limitPointDecision(for corner: LimitPointCorner) -> LimitPointCalibrationReview.Decision? {
+        limitPointReviews[corner.id]?.decision
     }
 
     var currentReplayPoint: ReplayPoint? {
@@ -187,6 +202,7 @@ final class RideDetailViewModel {
                 ? detail.replayPoints[playbackIndex].elapsedSeconds
                 : 0
             await loadCalibrationReviews(for: detail.riderCraft)
+            await loadLimitPointReviews(for: detail.limitPointAnalysis)
         } catch is CancellationError {
         } catch {
             state = .failed(error.localizedDescription)
@@ -311,6 +327,7 @@ final class RideDetailViewModel {
         do {
             try await calibrationReviewStore.save(review)
             calibrationReviews[target.id] = review
+            await refreshRiderCraftPersonalization(thresholdVersion: analysis.thresholdVersion)
             calibrationReviewErrorMessage = nil
             return true
         } catch {
@@ -328,6 +345,7 @@ final class RideDetailViewModel {
                 targetID: target.id
             )
             calibrationReviews[target.id] = nil
+            await refreshRiderCraftPersonalization(thresholdVersion: analysis.thresholdVersion)
             calibrationReviewErrorMessage = nil
             return true
         } catch {
@@ -347,9 +365,54 @@ final class RideDetailViewModel {
                 thresholdVersion: analysis.thresholdVersion
             )
             calibrationReviews = [:]
+            await refreshRiderCraftPersonalization(thresholdVersion: analysis.thresholdVersion)
             return true
         } catch {
             calibrationReviewErrorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func saveLimitPointDecision(
+        _ decision: LimitPointCalibrationReview.Decision,
+        for corner: LimitPointCorner
+    ) async -> Bool {
+        guard let analysis = detail?.limitPointAnalysis else { return false }
+        let review = LimitPointCalibrationReview(
+            rideID: ride.id,
+            modelVersion: analysis.modelVersion,
+            cornerID: corner.id,
+            replayIndex: corner.replayIndex,
+            severity: corner.severity,
+            decision: decision,
+            reviewedAt: Date()
+        )
+        do {
+            try await limitPointReviewStore.save(review)
+            limitPointReviews[corner.id] = review
+            await refreshLimitPointPersonalization(modelVersion: analysis.modelVersion)
+            limitPointReviewErrorMessage = nil
+            return true
+        } catch {
+            limitPointReviewErrorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func clearLimitPointDecision(for corner: LimitPointCorner) async -> Bool {
+        guard let analysis = detail?.limitPointAnalysis else { return false }
+        do {
+            try await limitPointReviewStore.removeReview(
+                for: ride.id,
+                modelVersion: analysis.modelVersion,
+                cornerID: corner.id
+            )
+            limitPointReviews[corner.id] = nil
+            await refreshLimitPointPersonalization(modelVersion: analysis.modelVersion)
+            limitPointReviewErrorMessage = nil
+            return true
+        } catch {
+            limitPointReviewErrorMessage = error.localizedDescription
             return false
         }
     }
@@ -439,6 +502,7 @@ final class RideDetailViewModel {
     private func loadCalibrationReviews(for analysis: RiderCraftAnalysis?) async {
         guard let analysis else {
             calibrationReviews = [:]
+            riderCraftPersonalization = .empty
             return
         }
         do {
@@ -447,11 +511,44 @@ final class RideDetailViewModel {
                 thresholdVersion: analysis.thresholdVersion
             )
             calibrationReviews = Dictionary(uniqueKeysWithValues: reviews.map { ($0.targetID, $0) })
+            await refreshRiderCraftPersonalization(thresholdVersion: analysis.thresholdVersion)
             calibrationReviewErrorMessage = nil
         } catch {
             calibrationReviews = [:]
+            riderCraftPersonalization = .empty
             calibrationReviewErrorMessage = error.localizedDescription
         }
+    }
+
+    private func refreshRiderCraftPersonalization(thresholdVersion: Int) async {
+        let reviews = try? await calibrationReviewStore.allReviews(thresholdVersion: thresholdVersion)
+        riderCraftPersonalization = RiderCraftPersonalization(reviews: reviews ?? [])
+    }
+
+    private func loadLimitPointReviews(for analysis: LimitPointAnalysis?) async {
+        guard let analysis else {
+            limitPointReviews = [:]
+            limitPointPersonalization = .empty
+            return
+        }
+        do {
+            let reviews = try await limitPointReviewStore.reviews(
+                for: ride.id,
+                modelVersion: analysis.modelVersion
+            )
+            limitPointReviews = Dictionary(uniqueKeysWithValues: reviews.map { ($0.cornerID, $0) })
+            await refreshLimitPointPersonalization(modelVersion: analysis.modelVersion)
+            limitPointReviewErrorMessage = nil
+        } catch {
+            limitPointReviews = [:]
+            limitPointPersonalization = .empty
+            limitPointReviewErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func refreshLimitPointPersonalization(modelVersion: Int) async {
+        let reviews = try? await limitPointReviewStore.allReviews(modelVersion: modelVersion)
+        limitPointPersonalization = LimitPointPersonalization(reviews: reviews ?? [])
     }
 
     private func formatElapsed(_ seconds: TimeInterval) -> String {

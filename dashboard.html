@@ -15,7 +15,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Ride Journal Dashboard</title>
-  <link rel="stylesheet" href="style.css?v=91" />
+  <link rel="stylesheet" href="style.css?v=96" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -47,6 +47,8 @@
       <a class="nav-link" href="stats.html" data-nav="stats.html">Journeys</a>
       <span class="nav-sep">|</span>
       <a class="nav-link" href="planner.html" data-nav="planner.html">Plan</a>
+      <span class="nav-sep">|</span>
+      <a class="nav-link" href="flow.html" data-nav="flow.html">Flow</a>
     </nav>
   </header>
 
@@ -88,6 +90,16 @@
       </button>
     </section>
 
+    <a class="premium-flow-launcher" href="flow.html" aria-label="Open Flow, a 90 second reset between rides">
+      <span class="premium-flow-symbol" data-icon="flow" aria-hidden="true"></span>
+      <span class="premium-flow-copy">
+        <span class="premium-flow-kicker">Between rides</span>
+        <strong>Flow</strong>
+        <small>One breath. One corner. One smooth decision.</small>
+      </span>
+      <span class="premium-flow-arrow" aria-hidden="true">&#8594;</span>
+    </a>
+
     <div class="premium-section-head premium-recent-head">
       <span>Recent Rides</span>
       <button id="stats-btn" class="premium-link-button" type="button">View Stats</button>
@@ -104,7 +116,7 @@
 
   <!-- ========== JS for dashboard ========= -->
   <script type="module" src="dashboard.js?v=90"></script>
-  <script type="module" src="icons.js?v=91"></script>
+  <script type="module" src="icons.js?v=95"></script>
   <script src="theme.js?v=90"></script>
 </body>
 </html>

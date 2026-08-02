@@ -189,6 +189,7 @@ struct GroupRideLobbyView: View {
                     MLMapView(route: groupRide.route, fadeColor: .mlBackground)
                         .frame(height: 300)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                        .mlMediaOutline()
                         .mlStaggeredReveal(index: 0, distance: 8)
                 }
 
@@ -260,6 +261,7 @@ struct GroupRideLobbyView: View {
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
+            .mlTabBarContentClearance()
         }
         .refreshable { await viewModel.refresh() }
         .animation(reduceMotion ? nil : Motion.spring, value: viewModel.errorMessage)
@@ -268,17 +270,17 @@ struct GroupRideLobbyView: View {
     private func header(_ groupRide: GroupRide) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(groupRide.isOwner ? "Hosting" : "Group route").mlKicker()
-            HStack(alignment: .top, spacing: Spacing.sm) {
-                Text(groupRide.title)
-                    .font(MLFont.displayXL)
-                    .foregroundStyle(Color.mlTextPrimary)
-                Spacer(minLength: Spacing.xs)
-                Label(groupRide.status.title, systemImage: groupRide.status.symbol)
-                    .font(MLFont.caption)
-                    .foregroundStyle(statusTint(groupRide.status))
-                    .padding(.horizontal, Spacing.sm)
-                    .padding(.vertical, Spacing.xs)
-                    .background(statusTint(groupRide.status).opacity(0.12), in: Capsule())
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: Spacing.sm) {
+                    groupRideTitle(groupRide)
+                    Spacer(minLength: Spacing.xs)
+                    statusChip(groupRide)
+                }
+
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    groupRideTitle(groupRide)
+                    statusChip(groupRide)
+                }
             }
             Text(hostLine(groupRide))
                 .font(MLFont.body)
@@ -290,6 +292,24 @@ struct GroupRideLobbyView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private func groupRideTitle(_ groupRide: GroupRide) -> some View {
+        Text(groupRide.title)
+            .font(MLFont.displayXL)
+            .foregroundStyle(Color.mlTextPrimary)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private func statusChip(_ groupRide: GroupRide) -> some View {
+        Label(groupRide.status.title, systemImage: groupRide.status.symbol)
+            .font(MLFont.caption)
+            .foregroundStyle(statusTint(groupRide.status))
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, Spacing.xs)
+            .background(statusTint(groupRide.status).opacity(0.12), in: Capsule())
+            .fixedSize()
     }
 
     private func statusTint(_ status: GroupRideStatus) -> Color {
@@ -865,7 +885,7 @@ private struct GroupRideStartSheet: View {
                     Text(groupRide.title)
                         .font(MLFont.title2)
                         .foregroundStyle(Color.mlTextPrimary)
-                    Text("Your ride records normally whether live sharing is on or off.")
+                    Text("Voice guidance and recording start together. Live sharing remains optional.")
                         .font(MLFont.callout)
                         .foregroundStyle(Color.mlTextSecondary)
                 }
@@ -912,7 +932,7 @@ private struct GroupRideStartSheet: View {
                 Spacer(minLength: 0)
 
                 PrimaryButton(
-                    title: shareLiveLocation ? "Start & Share" : "Start Ride",
+                    title: shareLiveLocation ? "Navigate & Share" : "Start & Navigate",
                     systemImage: "location.north.line.fill",
                     isLoading: isStarting
                 ) {
@@ -951,64 +971,109 @@ private struct GroupRideAnnouncementComposer: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: Spacing.lg) {
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("Ride-day update").mlKicker()
-                    Text("Tell everyone at once")
-                        .font(MLFont.displaySmall)
-                        .foregroundStyle(Color.mlTextPrimary)
-                    Text("Riders will see this in the lobby. Push delivery follows each rider's notification settings.")
-                        .font(MLFont.callout)
-                        .foregroundStyle(Color.mlTextSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+        VStack(spacing: 0) {
+            sheetHeader
 
-                TextField("Fuel stop changed, running ten minutes late...", text: $message, axis: .vertical)
-                    .lineLimit(4...7)
-                    .textFieldStyle(MLTextFieldStyle())
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Ride-day update").mlKicker()
+                        Text("Tell everyone at once")
+                            .font(MLFont.displaySmall)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text("Riders will see this in the lobby. Push delivery follows each rider's notification settings.")
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    ZStack(alignment: .topLeading) {
+                        if message.isEmpty {
+                            Text("Fuel stop changed, running ten minutes late...")
+                                .font(MLFont.body)
+                                .foregroundStyle(Color.mlTextTertiary)
+                                .padding(.horizontal, Spacing.md)
+                                .padding(.vertical, Spacing.md)
+                                .allowsHitTesting(false)
+                        }
+
+                        TextEditor(text: $message)
+                            .font(MLFont.body)
+                            .foregroundStyle(Color.mlTextPrimary)
+                            .scrollContentBackground(.hidden)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, Spacing.sm)
+                            .accessibilityLabel("Ride-day update")
+                    }
+                    .frame(minHeight: 132, maxHeight: 168)
+                    .background(
+                        Color.mlSurface,
+                        in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+                    )
                     .onChange(of: message) { _, newValue in
                         if newValue.count > 500 {
                             message = String(newValue.prefix(500))
                         }
                     }
 
-                HStack {
-                    if let errorMessage {
-                        Label(errorMessage, systemImage: "exclamationmark.circle.fill")
+                    HStack {
+                        if let errorMessage {
+                            Label(errorMessage, systemImage: "exclamationmark.circle.fill")
+                                .font(MLFont.caption)
+                                .foregroundStyle(Color.mlDanger)
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+                        Spacer()
+                        Text("\(message.count)/500")
                             .font(MLFont.caption)
-                            .foregroundStyle(Color.mlDanger)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .foregroundStyle(Color.mlTextTertiary)
+                            .monospacedDigit()
                     }
-                    Spacer()
-                    Text("\(message.count)/500")
-                        .font(MLFont.caption)
-                        .foregroundStyle(Color.mlTextTertiary)
-                        .monospacedDigit()
-                }
 
-                PrimaryButton(title: "Send Update", systemImage: "paperplane.fill", isLoading: isSending) {
-                    Task { await send() }
+                    PrimaryButton(title: "Send Update", systemImage: "paperplane.fill", isLoading: isSending) {
+                        Task { await send() }
+                    }
+                    .disabled(cleanMessage.isEmpty || isSending)
                 }
-                .disabled(cleanMessage.isEmpty || isSending)
-
-                Spacer(minLength: 0)
+                .padding(.vertical, Spacing.lg)
+                .mlScreenPadding()
             }
-            .padding(.vertical, Spacing.lg)
-            .mlScreenPadding()
-            .background(Color.mlBackground)
-            .navigationTitle("Rider Update")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .disabled(isSending)
-                }
-            }
-            .animation(reduceMotion ? nil : Motion.spring, value: errorMessage)
+            .scrollDismissesKeyboard(.interactively)
         }
+        .background(Color.mlBackground)
+        .animation(reduceMotion ? nil : Motion.spring, value: errorMessage)
         .preferredColorScheme(.dark)
         .interactiveDismissDisabled(isSending)
+    }
+
+    private var sheetHeader: some View {
+        HStack(spacing: Spacing.sm) {
+            Button("Cancel") { dismiss() }
+                .font(MLFont.callout)
+                .foregroundStyle(Color.mlAccent)
+                .frame(width: 88, alignment: .leading)
+                .frame(minHeight: 44)
+                .buttonStyle(.plain)
+                .disabled(isSending)
+
+            Text("Rider Update")
+                .font(MLFont.headline)
+                .foregroundStyle(Color.mlTextPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+
+            Color.clear
+                .frame(width: 88, height: 44)
+                .accessibilityHidden(true)
+        }
+        .frame(minHeight: 56)
+        .mlScreenPadding()
+        .background(Color.mlBackground)
     }
 
     private var cleanMessage: String {

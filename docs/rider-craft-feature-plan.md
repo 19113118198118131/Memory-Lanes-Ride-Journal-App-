@@ -1,6 +1,6 @@
 # Rider Craft: Safety-First Skill Progression
 
-Status: Full research preview implemented in Debug; production rollout remains calibration-gated
+Status: Version-two research preview and private online learning implemented in Debug; production rollout remains calibration-gated
 Owner surface: Native SwiftUI app
 Depends on: Ride Coach analytics, corner replay, weather, persisted skill history
 
@@ -12,13 +12,13 @@ Rider Craft rewards error reduction, smooth inputs, predictability, and reflecti
 
 ## Supported Signals
 
-The current deterministic engine can support four candidate survival-reaction detectors:
+The version-two deterministic engine publishes three candidate survival-reaction detectors. The version-one early-apex proxy remains archive-decodable but failed calibration and cannot affect current output:
 
 | Detector | Existing signal | Initial threshold | Calibration note |
 |---|---|---:|---|
 | Braking after turn-in | Braking zone begins inside detected corner | Event overlap | Validate turn-in boundary |
-| Flat exit | `corner.drive` | `< 0.10` | Likely too strict; calibrate first |
-| Early apex | `corner.apexPosition` | `<= 0.35` | May reflect road geometry |
+| Unsettled exit | `corner.drive` | `< 0.00` | Continue reality validation |
+| Early apex | Retired archive field | Disabled | Failed GPS-proxy calibration |
 | Braked deep | `corner.brakeDepth` | `> 0.60` | Validate across varied roads |
 
 Each event must retain its corner and replay index so the rider can inspect the evidence on the map.
@@ -134,7 +134,7 @@ Build Phase 1 only: four detectors, event models with replay indices, synthetic 
 
 Completed in native SwiftUI:
 
-- Versioned thresholds and four deterministic detectors.
+- Version-two thresholds and three active deterministic detectors; the failed early-apex proxy is excluded from current metrics, progress, review targets and coaching.
 - Replay-linked event evidence with measured values and thresholds.
 - Honest insufficient-corner state; the event rate requires at least three detected corners.
 - Versioned storage inside the existing `skills.craft` payload with `calibrated: false`.
@@ -142,22 +142,22 @@ Completed in native SwiftUI:
 - A rollout gate that keeps calibration copy out of production UI.
 - A development-only replay review surface for candidate and unflagged control corners.
 - Local, versioned calibration labels with per-detector JSON summaries; control misses require a named detector, and review data does not alter rider coaching or Supabase records.
+- A conservative Bayesian reliability learner uses local labels to personalise confidence language by detector. Sparse evidence remains labelled Learning, model-version changes start fresh evidence, and the learner cannot alter thresholds or riding targets.
 
 Still required before Phase 1 can surface publicly:
 
 - Expand beyond the first nine-ride, same-rider calibration batch to varied riders, roads, devices, and weather.
 - Label a balanced sample of candidate and control corners using the replay review surface.
 - Turn confirmed false positives and misses into versioned detector regression fixtures.
-- Replace or remove the early-apex proxy; threshold sensitivity remained too noisy for production.
 - Review a zero-drive flat-exit candidate against replay evidence.
-- Resolve the failed Phase 1 perverse-incentive audit recorded in `rider-craft-phase1-calibration.md`.
+- Repeat the version-two perverse-incentive audit across varied riders, roads, devices and weather.
 - Change the stored calibration status only through a versioned threshold release.
 
 ## Research Preview Status
 
 The native Debug build now includes the end-to-end Rider Craft research experience:
 
-- Four deterministic, replay-linked detector categories persisted in `skills.craft`.
+- Three active deterministic, replay-linked detector categories persisted in `skills.craft`, with version-one archive compatibility.
 - Per-ride evidence, category counts, and survival reactions per corner.
 - A personal-only recent trend and one calm practice focus.
 - Safety-positive badge infrastructure with unvalidated badges kept locked.

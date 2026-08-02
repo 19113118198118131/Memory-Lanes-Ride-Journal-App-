@@ -3,18 +3,18 @@ import Foundation
 struct RiderCraftProgressAnalyzer: Sendable {
     func analyze(rides: [Ride]) -> RiderCraftProgress {
         let eligible = rides
-            .filter { $0.riderCraftSummary?.eventsPerCorner != nil }
+            .filter { $0.riderCraftSummary?.currentModelEventsPerCorner != nil }
             .sorted { $0.date > $1.date }
         let recent = Array(eligible.prefix(5))
-        let current = eligible.first?.riderCraftSummary?.eventsPerCorner
-        let comparisonValues = eligible.dropFirst().prefix(5).compactMap { $0.riderCraftSummary?.eventsPerCorner }
+        let current = eligible.first?.riderCraftSummary?.currentModelEventsPerCorner
+        let comparisonValues = eligible.dropFirst().prefix(5).compactMap { $0.riderCraftSummary?.currentModelEventsPerCorner }
         let comparison = comparisonValues.isEmpty ? nil : comparisonValues.reduce(0, +) / Double(comparisonValues.count)
         let chronological = eligible.prefix(8).reversed().compactMap { ride -> RiderCraftTrendPoint? in
-            guard let rate = ride.riderCraftSummary?.eventsPerCorner else { return nil }
+            guard let rate = ride.riderCraftSummary?.currentModelEventsPerCorner else { return nil }
             return RiderCraftTrendPoint(rideID: ride.id, date: ride.date, rate: rate)
         }
         let totalCorners = recent.compactMap { $0.riderCraftSummary?.cornerCount }.reduce(0, +)
-        let totalEvents = recent.compactMap { $0.riderCraftSummary?.eventCount }.reduce(0, +)
+        let totalEvents = recent.compactMap { $0.riderCraftSummary?.currentModelEventCount }.reduce(0, +)
 
         return RiderCraftProgress(
             eligibleRideCount: eligible.count,
@@ -115,20 +115,6 @@ struct RiderCraftProgressAnalyzer: Sendable {
                 symbol: "repeat.circle.fill",
                 isEarned: (scores[RideCoachScore.Kind.consistency.storageKey] ?? 0) >= 70
             ),
-            RiderCraftBadge(
-                kind: .lateApexHabit,
-                title: "Late Apex Habit",
-                detail: "Awaiting validated blind-corner matching before this can be earned.",
-                symbol: "arrow.turn.up.right",
-                isEarned: false
-            ),
-            RiderCraftBadge(
-                kind: .wetDiscipline,
-                title: "Wet Discipline",
-                detail: "Awaiting enough wet and dry rides for a fair personal comparison.",
-                symbol: "cloud.rain.fill",
-                isEarned: false
-            )
         ]
     }
 }

@@ -1,3 +1,4 @@
+import CoreLocation
 import XCTest
 @testable import MemoryLanes
 
@@ -176,6 +177,59 @@ final class TurnByTurnNavigationTests: XCTestCase {
         XCTAssertEqual(route, expected)
     }
 
+    @MainActor
+    func testControllerWaitsForFirstGPSFixBeforePreparingDirections() async throws {
+        let expected = navigationRoute()
+        let provider = ScriptedTurnByTurnProvider(results: [.success(expected)])
+        let controller = TurnByTurnNavigationController(
+            plannedRoute: plannedRoute(),
+            provider: provider,
+            speaker: SilentNavigationSpeaker()
+        )
+
+        controller.prepare(startingAt: nil)
+
+        XCTAssertEqual(controller.state, .loading)
+        let callsBeforeGPS = await provider.callCount
+        XCTAssertEqual(callsBeforeGPS, 0)
+
+        let current = Coordinate(latitude: -36.852, longitude: 174.758)
+        controller.update(recordingPoint(at: current))
+        try await waitForState(.navigating, controller: controller)
+
+        let waypoints = await provider.lastWaypoints
+        XCTAssertEqual(waypoints?.first, current)
+        let callsAfterGPS = await provider.callCount
+        XCTAssertEqual(callsAfterGPS, 1)
+    }
+
+    @MainActor
+    func testUnavailableGuidanceOnlyRetriesAfterExplicitRequest() async throws {
+        let expected = navigationRoute()
+        let provider = ScriptedTurnByTurnProvider(results: [
+            .failure(TurnByTurnNavigationError.noRoute),
+            .success(expected)
+        ])
+        let controller = TurnByTurnNavigationController(
+            plannedRoute: plannedRoute(),
+            provider: provider,
+            speaker: SilentNavigationSpeaker()
+        )
+        let current = Coordinate(latitude: -36.852, longitude: 174.758)
+
+        controller.prepare(startingAt: current)
+        try await waitForUnavailable(controller)
+        controller.update(recordingPoint(at: current))
+        try await Task.sleep(for: .milliseconds(50))
+        let callsBeforeRetry = await provider.callCount
+        XCTAssertEqual(callsBeforeRetry, 1)
+
+        controller.retry(startingAt: current)
+        try await waitForState(.navigating, controller: controller)
+        let callsAfterRetry = await provider.callCount
+        XCTAssertEqual(callsAfterRetry, 2)
+    }
+
     func testVoicePolicyAnnouncesEachDistanceThresholdOnce() {
         var policy = NavigationAnnouncementPolicy()
         let first = snapshot(distance: 950)
@@ -266,6 +320,41 @@ final class TurnByTurnNavigationTests: XCTestCase {
             maximumSpeedKPH: 80
         )
     }
+
+    private func recordingPoint(at coordinate: Coordinate) -> RecordingPoint {
+        RecordingPoint(
+            location: CLLocation(
+                coordinate: coordinate.clCoordinate,
+                altitude: 10,
+                horizontalAccuracy: 5,
+                verticalAccuracy: 5,
+                course: 0,
+                speed: 0,
+                timestamp: Date()
+            )
+        )
+    }
+
+    @MainActor
+    private func waitForState(
+        _ expected: TurnByTurnSessionState,
+        controller: TurnByTurnNavigationController
+    ) async throws {
+        for _ in 0..<50 {
+            if controller.state == expected { return }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTFail("Navigation controller did not reach \(expected)")
+    }
+
+    @MainActor
+    private func waitForUnavailable(_ controller: TurnByTurnNavigationController) async throws {
+        for _ in 0..<50 {
+            if case .unavailable = controller.state { return }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTFail("Navigation controller did not report unavailable guidance")
+    }
 }
 
 private struct ThrowingTurnByTurnProvider: TurnByTurnRouteProviding {
@@ -278,4 +367,27 @@ private struct FixedTurnByTurnProvider: TurnByTurnRouteProviding {
     let route: TurnByTurnRoute
 
     func route(through _: [Coordinate]) async throws -> TurnByTurnRoute { route }
+}
+
+private actor ScriptedTurnByTurnProvider: TurnByTurnRouteProviding {
+    private var results: [Result<TurnByTurnRoute, Error>]
+    private(set) var callCount = 0
+    private(set) var lastWaypoints: [Coordinate]?
+
+    init(results: [Result<TurnByTurnRoute, Error>]) {
+        self.results = results
+    }
+
+    func route(through waypoints: [Coordinate]) async throws -> TurnByTurnRoute {
+        callCount += 1
+        lastWaypoints = waypoints
+        guard !results.isEmpty else { throw TurnByTurnNavigationError.noRoute }
+        return try results.removeFirst().get()
+    }
+}
+
+@MainActor
+private final class SilentNavigationSpeaker: NavigationSpeaking {
+    func speak(_ message: String) {}
+    func stop() {}
 }

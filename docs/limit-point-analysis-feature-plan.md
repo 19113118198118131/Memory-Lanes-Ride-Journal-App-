@@ -1,6 +1,6 @@
 # Limit Point Analysis: Development Plan
 
-Status: Phase 0 model and Debug research preview implemented; reality validation remains required
+Status: Phase 0 model, replay review and private online learning implemented in Debug; reality validation remains required
 Owner surfaces: Native route planner, planned-route detail, ride replay
 Depends on: high-resolution route geometry, corner detection, weather scenarios, replay evidence, versioned analysis storage
 
@@ -198,6 +198,8 @@ The native Debug build now includes:
 - A planned-route study map with selectable legal reference-speed scenarios.
 - A post-ride review using recorded entry speed and replay-linked bend evidence.
 - Dry and conservative wet stopping scenarios, with limitations shown beside the result.
+- A bend-by-bend match, mismatch, or unsure review loop stored locally by ride and model version.
+- A conservative Bayesian learner that personalises confidence language by reviewed severity without changing geometry, hiding detections, or recommending speed.
 
 The preview deliberately uses the fixed five-metre obstruction assumption from Phase 0 and is therefore gated by `LimitPointFeature.isResearchPreviewEnabled`. It is visible in Debug builds for controlled evaluation and hidden in Release builds. It is not a production safety system.
 

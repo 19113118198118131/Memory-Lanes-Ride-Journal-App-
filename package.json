@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build:web": "node scripts/prepare-capacitor-web.mjs",
+    "test:flow": "node --test flow.test.js",
     "cap:add:ios": "pnpm run build:web && pnpm exec cap add ios",
     "cap:sync": "pnpm run build:web && pnpm exec cap sync ios",
     "ios:open": "pnpm exec cap open ios",
@@ -15,7 +16,8 @@
     "@capacitor/background-runner": "^3.0.0",
     "@capacitor/core": "^8.4.1",
     "@capacitor/geolocation": "^8.0.1",
-    "@capacitor/ios": "^8.4.1"
+    "@capacitor/ios": "^8.4.1",
+    "playcanvas": "^2.21.3"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.1",

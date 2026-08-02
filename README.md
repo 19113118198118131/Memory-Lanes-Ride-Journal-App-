@@ -37,6 +37,12 @@ New here? Click **"Try a sample ride"** on the landing page to explore every fea
 - Installable PWA with offline app-shell caching
 - Experimental route editor (drag, bulk add/delete points, multi-segment GPX export)
 
+**Flow**
+- A calm one-thumb Canvas game for signed-in riders between rides
+- A 90-second breathing-guided Quick Reset moves through Arrive, Follow, Flow and Land; Open Road offers an untimed session
+- Rhythm rewards line quality, smooth inputs and consistency — never breathing compliance or speed
+- Local personal bests, accessibility settings, reduced-motion support, optional audio/haptics and offline PWA play
+
 ## Setup
 
 This is a static app (no build step) backed by Supabase.
@@ -61,10 +67,18 @@ This is a static app (no build step) backed by Supabase.
 | `journal.html/js` | Rider's Journal (moments flipbook/gallery) |
 | `planner.html/js` | Route Planner: click-to-plan routes snapped to roads, save/export GPX |
 | `ride-live.html/js` | Start Ride: live GPS follow of a planned route, records and saves the actual ride |
+| `flow.html`, `flow.js`, `flow-engine.js` | Flow mini-game UI, controller, and deterministic pure simulation |
+| `flow-playcanvas-renderer.js` | PlayCanvas 3D presentation layer with chase camera, PBR road, lighting, motorcycle and layered environment |
+| `flow-renderer.js`, `flow-assets.js`, `flow-effects.js` | Layered cinematic renderer, procedural art library, pooled particles, and quality modes |
+| `flow-storage.js`, `flow-audio.js`, `flow.test.js` | Local progression, best-effort procedural audio, and logic tests |
 | `supabaseClient.js` | Supabase client singleton |
 | `sw.js`, `manifest.webmanifest` | PWA |
 
 Cache-busting: all HTML pages reference CSS/JS with `?v=N` query strings. Bump `N` (and the `CACHE` name in `sw.js`) when deploying changes.
+
+Run the Flow engine tests with `npm run test:flow` (Node 20+). Flow is launched from the signed-in rider experience and stores only settings, bests and the latest 20 sessions in local storage; it does not use location or GPX data.
+
+Flow loads a locally vendored PlayCanvas runtime so the 3D experience remains available in the PWA and native iOS wrapper without a CDN. Gameplay, breathing cadence and scoring remain renderer-independent; devices without WebGL retain the Canvas 2D fallback.
 
 ## Data and attribution
 

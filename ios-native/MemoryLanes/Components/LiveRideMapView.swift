@@ -25,8 +25,8 @@ struct LiveRideMapView: UIViewRepresentable {
         mapView.showsScale = false
         mapView.pointOfInterestFilter = .excludingAll
         mapView.cameraZoomRange = MKMapView.CameraZoomRange(
-            minCenterCoordinateDistance: 180,
-            maxCenterCoordinateDistance: 3_000
+            minCenterCoordinateDistance: 140,
+            maxCenterCoordinateDistance: 4_500
         )
         context.coordinator.configureMap(mapView, colorScheme: colorScheme)
         context.coordinator.updateOverlays(on: mapView, recorded: recordedRoute, guide: guideRoute)
@@ -70,8 +70,8 @@ struct LiveRideMapView: UIViewRepresentable {
             mapView.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
             let configuration = MKStandardMapConfiguration(elevationStyle: .realistic)
             configuration.pointOfInterestFilter = .excludingAll
-            configuration.showsTraffic = false
-            configuration.emphasisStyle = .default
+            configuration.showsTraffic = true
+            configuration.emphasisStyle = .muted
             mapView.preferredConfiguration = configuration
         }
 
@@ -109,6 +109,9 @@ struct LiveRideMapView: UIViewRepresentable {
                 renderedOverlays.append(overlay)
             }
             if guide.count > 1 {
+                let casing = MKPolyline(coordinates: guide.clCoordinates, count: guide.count)
+                casing.title = OverlayKind.guideCasing.rawValue
+                renderedOverlays.append(casing)
                 let overlay = MKPolyline(coordinates: guide.clCoordinates, count: guide.count)
                 overlay.title = OverlayKind.guide.rawValue
                 renderedOverlays.append(overlay)
@@ -138,6 +141,7 @@ struct LiveRideMapView: UIViewRepresentable {
                         speedAccuracyMetersPerSecond: point.speedAccuracyMetersPerSecond,
                         courseDegrees: point.courseDegrees,
                         courseAccuracyDegrees: point.courseAccuracyDegrees,
+                        fallbackBearingDegrees: guideBearing,
                         viewportHeightPoints: mapView.bounds.height,
                         mode: parent.cameraMode,
                         reduceMotion: parent.reduceMotion
@@ -152,6 +156,12 @@ struct LiveRideMapView: UIViewRepresentable {
             updatePuckHeading(cameraState, on: mapView)
             guard parent.followsCamera else { return }
             apply(cameraState, to: mapView)
+        }
+
+        private var guideBearing: Double? {
+            guard let start = parent.guideRoute.first,
+                  let end = parent.guideRoute.dropFirst().first else { return nil }
+            return LiveRideCameraController.bearing(from: start, to: end)
         }
 
         func updateGroupRiders(_ riders: [GroupLiveRider], on mapView: MKMapView) {
@@ -176,12 +186,16 @@ struct LiveRideMapView: UIViewRepresentable {
             let renderer = MKPolylineRenderer(polyline: polyline)
             renderer.lineCap = .round
             renderer.lineJoin = .round
-            if polyline.title == OverlayKind.guide.rawValue {
-                renderer.strokeColor = UIColor(Color.mlInfo)
-                renderer.lineWidth = 7
-            } else {
-                renderer.strokeColor = UIColor(Color.mlAccent).withAlphaComponent(0.68)
-                renderer.lineWidth = 4
+            switch polyline.title {
+            case OverlayKind.guideCasing.rawValue:
+                renderer.strokeColor = UIColor.black.withAlphaComponent(0.72)
+                renderer.lineWidth = 13
+            case OverlayKind.guide.rawValue:
+                renderer.strokeColor = UIColor(Color.mlAccent)
+                renderer.lineWidth = 8
+            default:
+                renderer.strokeColor = UIColor(Color.mlTextSecondary).withAlphaComponent(0.58)
+                renderer.lineWidth = 5
             }
             return renderer
         }
@@ -259,6 +273,7 @@ struct LiveRideMapView: UIViewRepresentable {
 
 private enum OverlayKind: String {
     case guide
+    case guideCasing
     case recorded
 }
 

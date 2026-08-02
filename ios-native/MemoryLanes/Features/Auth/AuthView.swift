@@ -2,13 +2,20 @@ import SwiftUI
 
 struct AuthView: View {
     @ObservedObject var authStore: AuthStore
+    let onOpenFlow: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @FocusState private var focusedField: AuthField?
     @State private var email = ""
     @State private var password = ""
     @State private var mode: AuthMode = .signIn
     @State private var presentation: AuthPresentation = .welcome
     @State private var revealsPassword = false
+
+    init(authStore: AuthStore, onOpenFlow: @escaping () -> Void = {}) {
+        self.authStore = authStore
+        self.onOpenFlow = onOpenFlow
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -38,11 +45,12 @@ struct AuthView: View {
             Image("BrandMark")
                 .resizable()
                 .scaledToFit()
-                .frame(maxWidth: Layout.welcomeBrandMarkMaxWidth)
-                .mask {
-                    RoundedRectangle(cornerRadius: Radius.card * 2, style: .continuous)
-                        .blur(radius: Spacing.md)
-                }
+                .frame(maxWidth: dynamicTypeSize.isAccessibilitySize
+                    ? Layout.welcomeBrandMarkAccessibilityWidth
+                    : Layout.welcomeBrandMarkMaxWidth)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.sheet, style: .continuous))
+                .mlMediaOutline(cornerRadius: Radius.sheet)
+                .shadow(color: Color.mlAccent.opacity(0.10), radius: Spacing.xl, y: Spacing.sm)
                 .padding(.top, Spacing.lg)
                 .accessibilityHidden(true)
                 .mlStaggeredReveal(index: 0, distance: Spacing.lg)
@@ -69,6 +77,37 @@ struct AuthView: View {
                 SecondaryButton(title: "Sign In", systemImage: "person.crop.circle") {
                     showCredentials(for: .signIn)
                 }
+
+                Button {
+                    Haptics.selection()
+                    onOpenFlow()
+                } label: {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "waveform.path")
+                            .foregroundStyle(Color.mlAccent)
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text("Try Flow")
+                                .font(MLFont.headline)
+                                .foregroundStyle(Color.mlTextPrimary)
+                            Text("A quiet 60-second reset between rides")
+                                .font(MLFont.caption)
+                                .foregroundStyle(Color.mlTextSecondary)
+                        }
+                        Spacer(minLength: Spacing.xs)
+                        Image(systemName: "chevron.right")
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextTertiary)
+                    }
+                    .padding(Spacing.md)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                            .stroke(Color.mlAccent.opacity(0.18), lineWidth: Layout.hairline)
+                    }
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .accessibilityLabel("Try Flow. A quiet 60-second reset between rides")
             }
             .mlStaggeredReveal(index: 2)
         }

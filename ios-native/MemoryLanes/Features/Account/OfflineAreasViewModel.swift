@@ -1,9 +1,71 @@
 import Foundation
 import Observation
 
+enum OfflineAreaDownloadStage: Equatable {
+    case map
+    case routing(String)
+    case finalizing
+
+    var title: String {
+        switch self {
+        case .map: "Downloading map"
+        case .routing: "Adding offline routes"
+        case .finalizing: "Finishing offline area"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .map: "Map detail, labels and places"
+        case .routing(let name): "Route planning and turn-by-turn for \(name)"
+        case .finalizing: "Checking everything is ready"
+        }
+    }
+}
+
+struct OfflineAreaCapability: Equatable {
+    enum Level: Equatable {
+        case mapOnly
+        case setupAvailable
+        case partial
+        case complete
+    }
+
+    let level: Level
+    let installedCoverage: Double
+    let publishedCoverage: Double
+
+    var title: String {
+        switch level {
+        case .mapOnly: "Map ready offline"
+        case .setupAvailable: "Routes ready to add"
+        case .partial: "Map + local routes ready"
+        case .complete: "Map + navigation ready"
+        }
+    }
+
+    var detail: String {
+        switch level {
+        case .mapOnly:
+            "The map works offline. Route data has not been published here yet."
+        case .setupAvailable:
+            "Finish setup to add local route planning and turn-by-turn."
+        case .partial:
+            "Route planning and navigation work inside the downloaded road coverage."
+        case .complete:
+            "Generate routes and navigate without reception throughout this area."
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class OfflineAreasViewModel {
+    private(set) var mapAreas: [OfflineMapArea] = []
+    private(set) var mapDownloadProgress: OfflineMapDownloadProgress?
+    private(set) var isDownloadingMap = false
+    private(set) var downloadStage: OfflineAreaDownloadStage = .map
+    private(set) var areasCompletingSetup: Set<UUID> = []
     private(set) var catalog: [OfflineRegionDescriptor] = []
     private(set) var installed: [InstalledOfflineRegion] = []
     private(set) var installPhases: [String: OfflineRegionInstallPhase] = [:]
@@ -17,16 +79,19 @@ final class OfflineAreasViewModel {
     var toast: Toast?
 
     private let store: any OfflineRegionServing
+    private let mapStore: any OfflineMapServing
     private let routingTelemetry: any OfflineRoutingTelemetryServing
     private let defaults: UserDefaults
     private static let wifiOnlyKey = "offlineAreas.wifiOnly"
 
     init(
         store: any OfflineRegionServing = OfflineRegionStore.shared,
+        mapStore: any OfflineMapServing = MapLibreOfflineMapStore.shared,
         routingTelemetry: any OfflineRoutingTelemetryServing = OfflineRoutingTelemetryStore.shared,
         defaults: UserDefaults = .standard
     ) {
         self.store = store
+        self.mapStore = mapStore
         self.routingTelemetry = routingTelemetry
         self.defaults = defaults
         self.wifiOnly = defaults.object(forKey: Self.wifiOnlyKey) as? Bool ?? true
@@ -37,15 +102,21 @@ final class OfflineAreasViewModel {
     }
 
     var storageText: String {
-        ByteCountFormatter.string(fromByteCount: storageByteCount, countStyle: .file)
+        let mapBytes = mapAreas.reduce(Int64(0)) { $0 + $1.bytesDownloaded }
+        return ByteCountFormatter.string(fromByteCount: mapBytes + storageByteCount, countStyle: .file)
     }
 
     var readinessText: String {
-        switch installed.count {
+        let readyCount = mapAreas.filter { $0.status == .complete }.count
+        return switch readyCount {
         case 0: "No offline areas"
         case 1: "1 area ready"
-        default: "\(installed.count) areas ready"
+        default: "\(readyCount) areas ready"
         }
+    }
+
+    var activeMapDownloadCount: Int {
+        mapAreas.filter { $0.status == .downloading || $0.status == .preparing }.count
     }
 
     var routingDiagnosticsSummary: String {
@@ -89,10 +160,164 @@ final class OfflineAreasViewModel {
         installed = await installedRegions
         storageByteCount = await storage
         routingDiagnostics = await diagnostics
+        mapAreas = await mapStore.areas()
         isLoading = false
     }
 
-    func install(_ region: OfflineRegionDescriptor) async -> Bool {
+    func downloadMap(name: String, draft: OfflineMapAreaDraft) async -> Bool {
+        guard !isDownloadingMap else { return false }
+        isDownloadingMap = true
+        downloadStage = .map
+        mapDownloadProgress = OfflineMapDownloadProgress(fractionCompleted: 0, bytesCompleted: 0)
+        do {
+            _ = try await mapStore.download(name: name, draft: draft) { [weak self] progress in
+                self?.mapDownloadProgress = progress
+            }
+            mapAreas = await mapStore.areas()
+            let routingRegions = regions(intersecting: draft.bounds)
+            var routingReady = true
+            for region in routingRegions where !isCurrent(region) {
+                downloadStage = .routing(region.name)
+                if !(await installRegion(region, presentsFeedback: false)) {
+                    routingReady = false
+                }
+            }
+            downloadStage = .finalizing
+            await refreshInstalled()
+            mapDownloadProgress = nil
+            isDownloadingMap = false
+            let normalizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if routingRegions.isEmpty {
+                Haptics.warning()
+                toast = .info("\(normalizedName) map is ready. Offline routes are not published there yet.")
+            } else if routingReady {
+                Haptics.success()
+                toast = .success("\(normalizedName) is ready for maps, routes and navigation")
+            } else {
+                Haptics.warning()
+                toast = .info("\(normalizedName) map is ready. Finish offline route setup when connected.")
+            }
+            return true
+        } catch is CancellationError {
+            mapAreas = await mapStore.areas()
+            mapDownloadProgress = nil
+            isDownloadingMap = false
+            return false
+        } catch {
+            mapAreas = await mapStore.areas()
+            mapDownloadProgress = nil
+            isDownloadingMap = false
+            Haptics.error()
+            toast = .error(error.localizedDescription)
+            return false
+        }
+    }
+
+    func resumeMapArea(_ area: OfflineMapArea) async {
+        do {
+            try await mapStore.resume(areaID: area.id)
+            mapAreas = await mapStore.areas()
+            toast = .success("\(area.name) download resumed")
+        } catch {
+            Haptics.error()
+            toast = .error(error.localizedDescription)
+        }
+    }
+
+    func refreshMapAreas() async {
+        mapAreas = await mapStore.areas()
+    }
+
+    func renameMapArea(_ area: OfflineMapArea, to name: String) async {
+        do {
+            try await mapStore.rename(areaID: area.id, name: name)
+            mapAreas = await mapStore.areas()
+            Haptics.success()
+            toast = .success("Offline area renamed")
+        } catch {
+            Haptics.error()
+            toast = .error(error.localizedDescription)
+        }
+    }
+
+    func removeMapArea(_ area: OfflineMapArea) async {
+        do {
+            try await mapStore.remove(areaID: area.id)
+            mapAreas = await mapStore.areas()
+            await removeUnreferencedRoutingData(associatedWith: area)
+            Haptics.success()
+            toast = .success("\(area.name) removed")
+        } catch {
+            Haptics.error()
+            toast = .error(error.localizedDescription)
+        }
+    }
+
+    func completeOfflineSetup(for area: OfflineMapArea) async {
+        guard !areasCompletingSetup.contains(area.id) else { return }
+        let regions = regions(intersecting: area.bounds).filter { !isCurrent($0) }
+        guard !regions.isEmpty else {
+            toast = .info("No additional offline route data is available for this area yet.")
+            return
+        }
+        areasCompletingSetup.insert(area.id)
+        var completed = true
+        for region in regions {
+            if !(await installRegion(region, presentsFeedback: false)) { completed = false }
+        }
+        areasCompletingSetup.remove(area.id)
+        await refreshInstalled()
+        if completed {
+            Haptics.success()
+            toast = .success("\(area.name) is ready for offline route planning and navigation")
+        } else {
+            Haptics.error()
+            toast = .error("Some route data could not be downloaded. Try again when connected.")
+        }
+    }
+
+    func isCompletingSetup(for area: OfflineMapArea) -> Bool {
+        areasCompletingSetup.contains(area.id)
+    }
+
+    func needsRoutingSetup(for area: OfflineMapArea) -> Bool {
+        regions(intersecting: area.bounds).contains { !isCurrent($0) }
+    }
+
+    func capability(for area: OfflineMapArea) -> OfflineAreaCapability {
+        let published = coverageFraction(for: area.bounds)
+        let installed = installedCoverageFraction(for: area.bounds)
+        let level: OfflineAreaCapability.Level
+        if installed >= 0.9 {
+            level = .complete
+        } else if installed > 0.001 {
+            level = .partial
+        } else if published > 0.001 {
+            level = .setupAvailable
+        } else {
+            level = .mapOnly
+        }
+        return OfflineAreaCapability(
+            level: level,
+            installedCoverage: installed,
+            publishedCoverage: published
+        )
+    }
+
+    func estimatedDownloadSizeText(for draft: OfflineMapAreaDraft) -> String {
+        let routingBytes = regions(intersecting: draft.bounds)
+            .filter { !isCurrent($0) }
+            .reduce(Int64(0)) { $0 + $1.byteCount }
+        return ByteCountFormatter.string(
+            fromByteCount: draft.estimatedByteCount + routingBytes,
+            countStyle: .file
+        )
+    }
+
+    private func installRegion(
+        _ region: OfflineRegionDescriptor,
+        presentsFeedback: Bool
+    ) async -> Bool {
         guard installPhases[region.id] == nil else { return false }
         installPhases[region.id] = .downloading
         do {
@@ -101,38 +326,21 @@ final class OfflineAreasViewModel {
             }
             installPhases[region.id] = nil
             await refreshInstalled()
-            Haptics.success()
-            toast = .success("\(region.name) is ready offline")
+            if presentsFeedback {
+                Haptics.success()
+                toast = .success("\(region.name) is ready offline")
+            }
             return true
         } catch is CancellationError {
             installPhases[region.id] = nil
             return false
         } catch {
             installPhases[region.id] = nil
-            Haptics.error()
-            toast = .error(error.localizedDescription)
+            if presentsFeedback {
+                Haptics.error()
+                toast = .error(error.localizedDescription)
+            }
             return false
-        }
-    }
-
-    func install(_ regions: [OfflineRegionDescriptor]) async -> Bool {
-        var installedEveryRegion = true
-        for region in regions where !isCurrent(region) {
-            guard !Task.isCancelled else { return false }
-            if !(await install(region)) { installedEveryRegion = false }
-        }
-        return installedEveryRegion
-    }
-
-    func remove(_ region: InstalledOfflineRegion) async {
-        do {
-            try await store.remove(regionID: region.id)
-            await refreshInstalled()
-            Haptics.success()
-            toast = .success("\(region.descriptor.name) removed")
-        } catch {
-            Haptics.error()
-            toast = .error(error.localizedDescription)
         }
     }
 
@@ -174,6 +382,17 @@ final class OfflineAreasViewModel {
     private func refreshInstalled() async {
         installed = await store.installedRegions()
         storageByteCount = await store.storageByteCount()
+    }
+
+    private func removeUnreferencedRoutingData(associatedWith removedArea: OfflineMapArea) async {
+        let candidates = installed.filter { $0.descriptor.bounds.intersects(removedArea.bounds) }
+        for region in candidates {
+            let isStillUsed = mapAreas.contains { $0.bounds.intersects(region.descriptor.bounds) }
+            if !isStillUsed {
+                try? await store.remove(regionID: region.id)
+            }
+        }
+        await refreshInstalled()
     }
 
     private func setInstallPhase(_ phase: OfflineRegionInstallPhase, for regionID: String) {

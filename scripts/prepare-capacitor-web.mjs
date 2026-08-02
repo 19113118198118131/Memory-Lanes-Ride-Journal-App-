@@ -6,7 +6,7 @@ const outDir = join(root, 'www');
 
 const rootFileExtensions = new Set(['.html', '.js', '.css', '.webmanifest']);
 const rootFiles = new Set(['favicon.ico']);
-const runtimeDirs = ['assets', 'ai'];
+const runtimeDirs = ['assets', 'ai', 'vendor'];
 const excludedNames = new Set([
   '.git',
   '.github',

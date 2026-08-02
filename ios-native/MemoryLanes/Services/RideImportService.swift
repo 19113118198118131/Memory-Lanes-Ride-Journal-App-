@@ -1,8 +1,18 @@
 import Foundation
 
-struct RideImportService {
-    private var client = SupabaseHTTPClient()
-    private var localStore: any RideLocalStoring = RideLocalStore.shared
+protocol RecordedRideUploading: Sendable {
+    func saveRecordedRide(
+        title: String,
+        result: RecordedRideResult,
+        plannedRouteID: UUID?,
+        userID: UUID,
+        accessToken: String
+    ) async throws -> Ride
+}
+
+struct RideImportService: RecordedRideUploading, Sendable {
+    private let client = SupabaseHTTPClient()
+    private let localStore: any RideLocalStoring = RideLocalStore.shared
 
     func saveImportedRide(
         title: String,
@@ -11,7 +21,8 @@ struct RideImportService {
         userID: UUID,
         accessToken: String
     ) async throws -> Ride {
-        let filePath = "\(userID.uuidString.lowercased())/\(Int(Date().timeIntervalSince1970 * 1000)).gpx"
+        let rideID = UUID()
+        let filePath = "\(userID.uuidString.lowercased())/imported-\(rideID.uuidString.lowercased()).gpx"
         try await client.upload(
             path: "storage/v1/object/gpx-files/\(filePath)",
             data: gpxData,
@@ -20,6 +31,7 @@ struct RideImportService {
         )
 
         let payload = RideInsertPayload(
+            id: rideID,
             title: title,
             userID: userID,
             distanceKm: track.distanceMeters / 1000,
@@ -33,10 +45,13 @@ struct RideImportService {
         do {
             let rows: [RideInsertResponse] = try await client.post(
                 path: "rest/v1/ride_logs",
-                queryItems: [URLQueryItem(name: "select", value: "*")],
+                queryItems: [
+                    URLQueryItem(name: "select", value: "*"),
+                    URLQueryItem(name: "on_conflict", value: "id")
+                ],
                 body: payload,
                 accessToken: accessToken,
-                prefer: "return=representation"
+                prefer: "resolution=merge-duplicates,return=representation"
             )
             guard let row = rows.first else { throw RideImportError.missingInsertedRide }
             let ride = row.ride(routePreview: track.routePreview)
@@ -56,15 +71,17 @@ struct RideImportService {
         accessToken: String
     ) async throws -> Ride {
         let gpxData = Data(result.gpxText.utf8)
-        let filePath = "\(userID.uuidString.lowercased())/recorded-\(Int(Date().timeIntervalSince1970 * 1000)).gpx"
+        let filePath = "\(userID.uuidString.lowercased())/recorded-\(result.id.uuidString.lowercased()).gpx"
         try await client.upload(
             path: "storage/v1/object/gpx-files/\(filePath)",
             data: gpxData,
             contentType: "application/gpx+xml",
-            accessToken: accessToken
+            accessToken: accessToken,
+            upsert: true
         )
 
         let payload = RideInsertPayload(
+            id: result.id,
             title: title,
             userID: userID,
             distanceKm: result.distanceMeters / 1000,
@@ -78,17 +95,21 @@ struct RideImportService {
         do {
             let rows: [RideInsertResponse] = try await client.post(
                 path: "rest/v1/ride_logs",
-                queryItems: [URLQueryItem(name: "select", value: "*")],
+                queryItems: [
+                    URLQueryItem(name: "select", value: "*"),
+                    URLQueryItem(name: "on_conflict", value: "id")
+                ],
                 body: payload,
                 accessToken: accessToken,
-                prefer: "return=representation"
+                prefer: "resolution=merge-duplicates,return=representation"
             )
             guard let row = rows.first else { throw RideImportError.missingInsertedRide }
             let ride = row.ride(routePreview: result.points.routePreview, source: .live)
             try? await localStore.upsert(ride, gpxData: gpxData, for: userID)
             return ride
         } catch {
-            try? await deleteUploadedGPX(path: filePath, accessToken: accessToken)
+            // Retain the deterministic object for the durable retry queue. A
+            // later attempt safely upserts both this file and the ride row.
             throw error
         }
     }
@@ -118,6 +139,7 @@ enum RideImportError: LocalizedError {
 }
 
 private struct RideInsertPayload: Encodable {
+    let id: UUID
     let title: String
     let userID: UUID
     let distanceKm: Double
@@ -128,6 +150,7 @@ private struct RideInsertPayload: Encodable {
     let plannedRouteID: UUID?
 
     enum CodingKeys: String, CodingKey {
+        case id
         case title
         case userID = "user_id"
         case distanceKm = "distance_km"

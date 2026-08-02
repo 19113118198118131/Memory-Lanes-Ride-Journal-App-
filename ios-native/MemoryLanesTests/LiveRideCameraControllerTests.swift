@@ -27,26 +27,84 @@ struct LiveRideCameraControllerTests {
         let slow = slowController.update(sample(timestamp: date, speed: 0, course: -1))
         let fast = fastController.update(sample(timestamp: date, speed: 27.78, course: 40))
 
-        #expect(slow.lookaheadMeters == 120)
-        #expect(fast.lookaheadMeters > 490 && fast.lookaheadMeters < 510)
+        #expect(slow.lookaheadMeters == 110)
+        #expect(fast.lookaheadMeters > 550 && fast.lookaheadMeters < 570)
         #expect(fast.cameraDistanceMeters > slow.cameraDistanceMeters)
-        #expect(slow.cameraDistanceMeters >= 240)
-        #expect(fast.cameraDistanceMeters <= 1_600)
+        #expect(slow.cameraDistanceMeters >= 150)
+        #expect(fast.cameraDistanceMeters <= 1_200)
     }
 
-    @Test func reducedMotionForcesAFlatNorthUpCamera() {
+    @Test func immersiveCameraLooksFurtherAheadAndPitchesBelowTheHorizon() {
+        let date = Date(timeIntervalSince1970: 2_500)
+        var immersiveController = LiveRideCameraController()
+        var headingController = LiveRideCameraController()
+
+        let immersive = immersiveController.update(
+            sample(timestamp: date, speed: 20, course: 45, mode: .immersive)
+        )
+        let headingUp = headingController.update(
+            sample(timestamp: date, speed: 20, course: 45, mode: .headingUp)
+        )
+
+        #expect(immersive.pitchDegrees > headingUp.pitchDegrees)
+        #expect(immersive.pitchDegrees >= 54)
+        #expect(immersive.cameraDistanceMeters < headingUp.cameraDistanceMeters)
+        #expect(immersive.center != sampleCoordinate)
+        #expect(immersive.bearingDegrees == headingUp.bearingDegrees)
+    }
+
+    @Test func immersiveCameraKeepsRiderPerspectiveAtRest() {
+        var controller = LiveRideCameraController()
+        let resting = controller.update(
+            sample(
+                timestamp: Date(timeIntervalSince1970: 2_750),
+                speed: 0,
+                course: -1,
+                mode: .immersive
+            )
+        )
+
+        #expect(resting.pitchDegrees >= 56)
+        #expect(resting.center != sampleCoordinate)
+        #expect(resting.cameraDistanceMeters >= 150)
+    }
+
+    @Test func plannedRouteOrientsImmersiveCameraBeforeMotionIsReliable() {
+        var controller = LiveRideCameraController()
+        let resting = controller.update(
+            sample(
+                timestamp: Date(timeIntervalSince1970: 2_800),
+                speed: 0,
+                course: -1,
+                mode: .immersive,
+                fallbackBearing: 132
+            )
+        )
+
+        #expect(resting.bearingDegrees == 132)
+        #expect(resting.travelBearingDegrees == 132)
+    }
+
+    @Test func cameraModesCycleBackToImmersive() {
+        #expect(LiveRideCameraMode.immersive.next == .headingUp)
+        #expect(LiveRideCameraMode.headingUp.next == .northUp)
+        #expect(LiveRideCameraMode.northUp.next == .immersive)
+    }
+
+    @Test func reducedMotionKeepsRiderPerspectiveWithoutAnimatedCameraTravel() {
         var controller = LiveRideCameraController()
         let result = controller.update(
             sample(
                 timestamp: Date(timeIntervalSince1970: 3_000),
                 speed: 20,
                 course: 145,
+                mode: .immersive,
                 reduceMotion: true
             )
         )
 
-        #expect(result.bearingDegrees == 0)
-        #expect(result.pitchDegrees == 0)
+        #expect(result.bearingDegrees == 28)
+        #expect(result.pitchDegrees >= 54)
         #expect(result.animationDuration == 0)
     }
 
@@ -54,6 +112,13 @@ struct LiveRideCameraControllerTests {
         #expect(!LiveRideCockpitPolicy.showsActions(status: .recording, speedMetersPerSecond: 10))
         #expect(LiveRideCockpitPolicy.showsActions(status: .recording, speedMetersPerSecond: 1))
         #expect(LiveRideCockpitPolicy.showsActions(status: .paused, speedMetersPerSecond: 10))
+    }
+
+    @Test func activeRideWithPointsOffersFinishAndSaveBeforeClosing() {
+        #expect(LiveRideCockpitPolicy.requiresEndRideDecision(status: .recording, pointCount: 12))
+        #expect(LiveRideCockpitPolicy.requiresEndRideDecision(status: .paused, pointCount: 12))
+        #expect(!LiveRideCockpitPolicy.requiresEndRideDecision(status: .recording, pointCount: 0))
+        #expect(!LiveRideCockpitPolicy.requiresEndRideDecision(status: .finished, pointCount: 12))
     }
 
     @Test func demoRideReplayKeepsCameraMotionBounded() throws {
@@ -91,6 +156,7 @@ struct LiveRideCameraControllerTests {
                     speedAccuracyMetersPerSecond: 1,
                     courseDegrees: course,
                     courseAccuracyDegrees: course >= 0 ? 5 : nil,
+                    fallbackBearingDegrees: nil,
                     viewportHeightPoints: 800,
                     mode: .headingUp,
                     reduceMotion: false
@@ -114,8 +180,8 @@ struct LiveRideCameraControllerTests {
             previousState = state
         }
 
-        #expect(minimumCameraDistance >= 240)
-        #expect(maximumCameraDistance <= 1_600)
+        #expect(minimumCameraDistance >= 150)
+        #expect(maximumCameraDistance <= 1_200)
         #expect(minimumPitch >= 0)
         #expect(maximumPitch <= 50)
         #expect(largestBearingStep <= 28.01)
@@ -126,19 +192,26 @@ struct LiveRideCameraControllerTests {
         timestamp: Date,
         speed: Double,
         course: Double,
-        reduceMotion: Bool = false
+        mode: LiveRideCameraMode = .headingUp,
+        reduceMotion: Bool = false,
+        fallbackBearing: Double? = nil
     ) -> LiveRideCameraSample {
         LiveRideCameraSample(
-            coordinate: Coordinate(latitude: -36.85, longitude: 174.76),
+            coordinate: sampleCoordinate,
             timestamp: timestamp,
             speedMetersPerSecond: speed,
             speedAccuracyMetersPerSecond: 1,
             courseDegrees: course,
             courseAccuracyDegrees: course >= 0 ? 5 : nil,
+            fallbackBearingDegrees: fallbackBearing,
             viewportHeightPoints: 800,
-            mode: .headingUp,
+            mode: mode,
             reduceMotion: reduceMotion
         )
+    }
+
+    private var sampleCoordinate: Coordinate {
+        Coordinate(latitude: -36.85, longitude: 174.76)
     }
 
     private func distanceMeters(_ from: Coordinate, _ to: Coordinate) -> Double {

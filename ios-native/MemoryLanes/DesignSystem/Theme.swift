@@ -92,6 +92,9 @@ extension Color {
     static let mlWarning = Color(hex: Palette.warning)
     static let mlDanger  = Color(hex: Palette.danger)
     static let mlInfo    = Color(hex: Palette.info)
+
+    /// Keeps bright offline cartography subordinate to the live cockpit.
+    static let mlMapCockpitTint = Color.black.opacity(0.22)
 }
 
 // MARK: - Gradients & effects

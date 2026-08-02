@@ -38,7 +38,8 @@ struct RideCard: View {
                         Text(ride.title)
                             .font(MLFont.title2)
                             .foregroundStyle(Color.mlTextPrimary)
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                         Text(cardSubtitle)
                             .mlCaption()
                     }
@@ -80,7 +81,7 @@ private struct EmptyRouteArtwork: View {
                 Image(systemName: "map")
                     .font(MLFont.displaySmall)
                     .foregroundStyle(Color.mlTextTertiary)
-                Text("Route loading")
+                Text("No route preview")
                     .font(MLFont.caption)
                     .foregroundStyle(Color.mlTextSecondary)
             }

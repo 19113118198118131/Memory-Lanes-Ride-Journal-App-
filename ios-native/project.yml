@@ -30,6 +30,11 @@ settings:
     Release:
       SWIFT_OPTIMIZATION_LEVEL: "-O"
 
+packages:
+  MapLibre:
+    url: https://github.com/maplibre/maplibre-gl-native-distribution
+    exactVersion: 6.26.0
+
 targets:
   MemoryLanes:
     type: application
@@ -37,13 +42,40 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: MemoryLanes
+      - path: ../flow.html
+        buildPhase: resources
+      - path: ../flow.css
+        buildPhase: resources
+      - path: ../flow.js
+        buildPhase: resources
+      - path: ../flow-engine.js
+        buildPhase: resources
+      - path: ../flow-storage.js
+        buildPhase: resources
+      - path: ../flow-audio.js
+        buildPhase: resources
+      - path: ../flow-renderer.js
+        buildPhase: resources
+      - path: ../flow-playcanvas-renderer.js
+        buildPhase: resources
+      - path: ../vendor/playcanvas/playcanvas.min.mjs
+        buildPhase: resources
+      - path: ../flow-assets.js
+        buildPhase: resources
+      - path: ../flow-effects.js
+        buildPhase: resources
+    dependencies:
+      - package: MapLibre
     settings:
       base:
         PRODUCT_NAME: MemoryLanes
         INFOPLIST_FILE: MemoryLanes/Resources/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: app.memorylanes.native
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
         DEVELOPMENT_TEAM: 57HZXXHCLS
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
         TARGETED_DEVICE_FAMILY: "1"   # iPhone
         SUPPORTS_MACCATALYST: NO
       configs:

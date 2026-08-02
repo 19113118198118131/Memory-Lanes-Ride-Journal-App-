@@ -7086,3 +7086,95 @@ body.ios-account-page { padding-bottom: 48px; }
   }
   .routes-show-more:hover { opacity: 0.78; }
 }
+
+/* Flow launcher --------------------------------------------------------- */
+.premium-flow-launcher {
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.premium-flow-launcher {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 14px;
+  min-height: 88px;
+  padding: 16px;
+  border: 1px solid rgba(46, 230, 192, 0.2);
+  border-radius: var(--ml-app-card-radius);
+  background: linear-gradient(145deg, rgba(46, 230, 192, 0.09), rgba(17, 17, 17, 0.96) 58%);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  transition: transform 340ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 340ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 340ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.premium-flow-symbol {
+  display: grid;
+  place-items: center;
+  color: var(--ml-app-accent);
+  background: rgba(46, 230, 192, 0.11);
+  border: 1px solid rgba(46, 230, 192, 0.16);
+}
+
+.premium-flow-symbol {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.premium-flow-symbol .ml-icon { width: 24px; height: 24px; }
+
+.premium-flow-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.premium-flow-copy strong {
+  color: var(--ml-app-primary);
+  font-size: 19px;
+  line-height: 1.15;
+}
+
+.premium-flow-copy small {
+  color: var(--ml-app-secondary);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.premium-flow-kicker {
+  color: var(--ml-app-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.premium-flow-arrow {
+  color: var(--ml-app-accent);
+  font-size: 24px;
+  transition: transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.premium-flow-launcher:active { transform: scale(0.96); }
+
+@media (hover: hover) and (pointer: fine) {
+  .premium-flow-launcher:hover {
+    transform: scale(1.015);
+    border-color: rgba(46, 230, 192, 0.42);
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.26);
+  }
+  .premium-flow-launcher:hover .premium-flow-arrow { transform: translateX(3px); }
+}
+
+@media (max-width: 420px) {
+  .premium-flow-launcher { grid-template-columns: 44px minmax(0, 1fr) 22px; gap: 12px; }
+  .premium-flow-symbol { width: 44px; height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-flow-launcher,
+  .premium-flow-arrow { transition-duration: 0.01ms; }
+}

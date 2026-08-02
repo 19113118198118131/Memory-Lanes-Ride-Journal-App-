@@ -38,7 +38,7 @@ extension View {
                 .presentationDetents(detents)
                 .presentationDragIndicator(.hidden) // we draw our own handle
                 .presentationBackground(Color.mlSurface)
-                .presentationCornerRadius(28)
+                .presentationCornerRadius(Radius.sheet)
         }
     }
 }

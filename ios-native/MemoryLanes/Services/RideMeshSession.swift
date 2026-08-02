@@ -20,7 +20,7 @@ final class RideMeshSession: RideMeshTransportDelegate {
     init(
         shareToken: UUID,
         senderName: String,
-        transport: any RideMeshTransporting = NearbyRideMeshTransport()
+        transport: any RideMeshTransporting = HybridRideMeshTransport()
     ) {
         self.senderName = String(senderName.prefix(40))
         self.codec = RideMeshCodec(shareToken: shareToken)

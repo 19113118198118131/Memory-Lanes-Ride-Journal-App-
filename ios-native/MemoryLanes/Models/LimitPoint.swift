@@ -15,12 +15,12 @@ struct LimitPointSample: Sendable {
 }
 
 struct LimitPointCorner: Codable, Identifiable, Hashable, Sendable {
-    enum Direction: String, Codable, Sendable {
+    enum Direction: String, Codable, Hashable, Sendable {
         case left = "Left"
         case right = "Right"
     }
 
-    enum Severity: Int, Codable, Comparable, Sendable {
+    enum Severity: Int, CaseIterable, Codable, Comparable, Hashable, Sendable {
         case room
         case thin
         case beyondView
@@ -30,10 +30,10 @@ struct LimitPointCorner: Codable, Identifiable, Hashable, Sendable {
 
         var title: String {
             switch self {
-            case .room: "No model deficit"
-            case .thin: "Thin margin"
-            case .beyondView: "Beyond view"
-            case .severe: "Severe deficit"
+            case .room: "Study"
+            case .thin: "Tighter estimate"
+            case .beyondView: "Restricted estimate"
+            case .severe: "Strong restriction estimate"
             }
         }
     }
@@ -54,6 +54,32 @@ struct LimitPointCorner: Codable, Identifiable, Hashable, Sendable {
     let severity: Severity
 
     var id: Int { apexIndex }
+}
+
+struct LimitPointCalibrationReview: Identifiable, Codable, Equatable, Sendable {
+    enum Decision: String, Codable, CaseIterable, Hashable, Sendable {
+        case match
+        case mismatch
+        case unsure
+
+        var title: String {
+            switch self {
+            case .match: "Matched"
+            case .mismatch: "Did not match"
+            case .unsure: "Not sure"
+            }
+        }
+    }
+
+    let rideID: UUID
+    let modelVersion: Int
+    let cornerID: Int
+    let replayIndex: Int
+    let severity: LimitPointCorner.Severity
+    let decision: Decision
+    let reviewedAt: Date
+
+    var id: String { "\(rideID.uuidString)-v\(modelVersion)-corner-\(cornerID)" }
 }
 
 struct LimitPointAnalysis: Codable, Sendable {

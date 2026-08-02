@@ -32,6 +32,8 @@ struct EmptyState: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(title). \(message)")
 
             if let actionTitle, let action {
                 PrimaryButton(title: actionTitle, action: action)
@@ -41,8 +43,7 @@ struct EmptyState: View {
         }
         .padding(Spacing.xl)
         .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title). \(message)")
+        .accessibilityElement(children: action == nil ? .combine : .contain)
     }
 }
 

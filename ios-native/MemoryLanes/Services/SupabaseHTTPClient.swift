@@ -83,12 +83,13 @@ struct SupabaseHTTPClient: Sendable {
         path: String,
         data: Data,
         contentType: String,
-        accessToken: String
+        accessToken: String,
+        upsert: Bool = false
     ) async throws {
         let url = baseURL.appendingPathComponent(path)
         var request = request(url: url, method: "POST", accessToken: accessToken)
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
-        request.setValue("false", forHTTPHeaderField: "x-upsert")
+        request.setValue(upsert ? "true" : "false", forHTTPHeaderField: "x-upsert")
         request.httpBody = data
         try await sendWithoutDecoding(request)
     }

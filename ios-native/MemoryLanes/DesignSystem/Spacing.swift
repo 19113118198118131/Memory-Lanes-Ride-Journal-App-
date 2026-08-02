@@ -38,6 +38,8 @@ enum Radius {
     static let chip: CGFloat = 8
     /// Pill CTAs and filters.
     static let pill: CGFloat = 999
+    /// Native sheets and full-height drawers.
+    static let sheet: CGFloat = 28
 }
 
 // MARK: - Layout constants
@@ -49,16 +51,27 @@ enum Layout {
     static let hairline: CGFloat = 1
     /// Maximum width of controls docked beside content on a compact-height screen.
     static let compactPanelMaxWidth: CGFloat = 360
-    /// Speed-first live recorder instrument in landscape.
-    static let liveCockpitMaxWidth: CGFloat = 300
+    /// Speed-first live recorder instrument in landscape. Wide enough for an
+    /// arrival time and remaining distance without truncating either value.
+    static let liveCockpitMaxWidth: CGFloat = 360
+    /// Stable maneuver symbol in the live navigation banner.
+    static let navigationManeuverSize: CGFloat = 64
+    /// Keeps downloaded-area map framing clear of its bottom readiness panel.
+    static let offlineMapDetailBottomInset: CGFloat = 144
     /// Brand mark width on the signed-out welcome experience.
-    static let welcomeBrandMarkMaxWidth: CGFloat = 320
+    static let welcomeBrandMarkMaxWidth: CGFloat = 280
+    /// Decorative mark yields space to content at accessibility text sizes.
+    static let welcomeBrandMarkAccessibilityWidth: CGFloat = 220
     /// Rider identity mark on the account screen.
     static let accountAvatarSize: CGFloat = 72
     /// Prominent symbol used when a screen has no content yet.
     static let emptyStateIconSize: CGFloat = 72
     /// Stable circular target in the route direction compass.
     static let routeCompassButtonSize: CGFloat = 56
+    /// Keeps the final scroll item comfortably above the floating tab bar.
+    static let floatingTabBarClearance: CGFloat = 96
+    /// Raises transient feedback above the floating tab bar.
+    static let floatingTabBarToastInset: CGFloat = 72
 }
 
 extension View {
@@ -71,5 +84,19 @@ extension View {
     func mlHitTarget() -> some View {
         self.frame(minWidth: Layout.minTouchTarget, minHeight: Layout.minTouchTarget)
             .contentShape(Rectangle())
+    }
+
+    /// Give scroll content a deliberate resting position above the tab shell.
+    func mlTabBarContentClearance() -> some View {
+        self.padding(.bottom, Layout.floatingTabBarClearance)
+    }
+
+    /// A subtle edge keeps maps and imagery crisp against true-dark surfaces.
+    func mlMediaOutline(cornerRadius: CGFloat = Radius.card) -> some View {
+        self.overlay {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(Color.mlTextPrimary.opacity(0.10), lineWidth: Layout.hairline)
+                .allowsHitTesting(false)
+        }
     }
 }

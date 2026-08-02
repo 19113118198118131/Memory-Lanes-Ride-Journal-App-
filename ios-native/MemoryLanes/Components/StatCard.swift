@@ -53,6 +53,9 @@ struct StatCard: View {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
                 Text(value)
                     .font(MLFont.display)
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.72)
+                    .lineLimit(1)
                     .foregroundStyle(Color.mlTextPrimary)
                     .contentTransition(.numericText())
                 if let unit {

@@ -37,7 +37,13 @@ The polygon compares corner entry, exit drive, braking feel, throttle feel, and 
 
 ### Rider Craft
 
-Detections per corner is a normalised count of four GPS-supported patterns, not a score. Detector tiles show category counts. Every event links to replay because geometry, traffic, sampling, and GPS noise can explain a detection. While the feature is marked Calibrating, all output is a research prompt rather than proof of rider error.
+Detections per corner is a normalised count of three GPS-supported patterns, not a score. Detector tiles show category counts and the state of the rider's private confidence model. Every event links to replay because geometry, traffic, sampling, and GPS noise can explain a detection. While the feature is marked Calibrating, all output is a research prompt rather than proof of rider error.
+
+Replay labels feed a versioned Bayesian learner stored only on the iPhone. It estimates how often each detector matched the rider's review. It does not change detector thresholds, invent a target, reward speed, or make a safety decision. The rejected version-one early-apex GPS proxy remains decodable for old archives but is excluded from current metrics, progress, and calibration.
+
+### Limit Point Review
+
+Limit Point starts with relative study categories and keeps exact geometry assumptions inside **Model details**. Select a bend to inspect it, replay the same moment, then label whether the estimate matched the view you remember. Those labels train a separate on-device confidence estimate for each model severity. They never hide bends, change the raw geometry, or recommend a speed.
 
 ## Interaction
 

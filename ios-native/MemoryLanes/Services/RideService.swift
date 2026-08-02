@@ -128,7 +128,7 @@ struct PreviewRideService: RideServing {
 
 struct RideService: RideServing {
     // Bump whenever a change makes persisted replay/analytics output obsolete.
-    private static let analysisCacheVersion = 1
+    private static let analysisCacheVersion = 2
 
     let accessToken: @Sendable () async -> String?
     let userID: UUID?

@@ -57,11 +57,15 @@
 	<array>
 		<string>_ml-ridemesh._tcp</string>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Memory Lanes uses Bluetooth to exchange encrypted Ride Mesh messages with nearby members of your group ride, including without mobile reception.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Memory Lanes records your ride in the background so you never lose a track if the screen locks.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
+		<string>bluetooth-central</string>
+		<string>bluetooth-peripheral</string>
 		<string>location</string>
 	</array>
 </dict>

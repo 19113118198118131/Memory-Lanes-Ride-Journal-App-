@@ -14,17 +14,19 @@ struct RecordingView: View {
     let plannedRoute: PlannedRoute?
     let groupRideContext: GroupRideRecordingContext?
     let accessToken: @Sendable () async -> String?
-    let onSaved: (Ride) -> Void
+    @ObservedObject var uploadQueue: PendingRideUploadCoordinator
+    let onQueued: () -> Void
 
     @StateObject private var recorder = LiveRideRecorder()
     @StateObject private var liveSharing: GroupLiveSharingController
     @StateObject private var navigation: TurnByTurnNavigationController
     @State private var showingFinishConfirmation = false
-    @State private var showingDiscardConfirmation = false
+    @State private var showingEndRideOptions = false
     @State private var finishedRide: RecordedRideResult?
     @State private var recoveredFinishedRide = false
-    @State private var cameraMode: LiveRideCameraMode = .headingUp
+    @State private var cameraMode: LiveRideCameraMode = .immersive
     @State private var followsRideCamera = true
+    @State private var activeOfflineMapArea: OfflineMapArea?
     private let routeFollowAnalyzer = RouteFollowAnalyzer()
 
     init(
@@ -32,13 +34,15 @@ struct RecordingView: View {
         plannedRoute: PlannedRoute?,
         groupRideContext: GroupRideRecordingContext? = nil,
         accessToken: @escaping @Sendable () async -> String?,
-        onSaved: @escaping (Ride) -> Void
+        uploadQueue: PendingRideUploadCoordinator,
+        onQueued: @escaping () -> Void = {}
     ) {
         self.session = session
         self.plannedRoute = plannedRoute
         self.groupRideContext = groupRideContext
         self.accessToken = accessToken
-        self.onSaved = onSaved
+        self.uploadQueue = uploadQueue
+        self.onQueued = onQueued
         _liveSharing = StateObject(wrappedValue: GroupLiveSharingController(
             context: groupRideContext,
             service: GroupLiveLocationService(accessToken: accessToken)
@@ -55,13 +59,6 @@ struct RecordingView: View {
         .overlay(alignment: .top) {
             recorderHeader
         }
-        .overlay(alignment: .topTrailing) {
-            if recorder.points.last != nil {
-                cameraControls
-                    .padding(.top, usesCompactHeightLayout ? Spacing.xxl + Spacing.sm : Spacing.xxl * 2)
-                    .padding(.trailing, Spacing.screenH)
-            }
-        }
         .background(Color.mlBackground)
         .task {
             if let recovered = await recorder.prepareForPresentation() {
@@ -72,11 +69,23 @@ struct RecordingView: View {
                 navigation.prepare(startingAt: recorder.points.last?.coordinate)
             }
         }
+        .task {
+            let areas = await MapLibreOfflineMapStore.shared.areas()
+                .filter { $0.status == .complete }
+            activateDownloadedMap(from: areas, near: recorder.points.last?.coordinate)
+        }
         .task(id: groupRideContext?.shareToken) {
             await liveSharing.observeRiders()
         }
         .onChange(of: recorder.pointCount) { _, _ in
             guard let point = recorder.points.last else { return }
+            if activeOfflineMapArea == nil {
+                Task {
+                    let areas = await MapLibreOfflineMapStore.shared.areas()
+                        .filter { $0.status == .complete }
+                    activateDownloadedMap(from: areas, near: point.coordinate)
+                }
+            }
             navigation.update(point)
             Task { await liveSharing.offer(point) }
         }
@@ -101,30 +110,24 @@ struct RecordingView: View {
         } message: {
             Text("Memory Lanes will stop recording, export a GPX backup, and let you save it to your journal.")
         }
-        .alert("Discard ride?", isPresented: $showingDiscardConfirmation) {
+        .alert("Finish this ride?", isPresented: $showingEndRideOptions) {
             Button("Keep Riding", role: .cancel) {}
-            Button("Discard", role: .destructive) {
-                Haptics.warning()
-                Task {
-                    await liveSharing.endSession()
-                    recorder.discard()
-                    dismiss()
-                }
-            }
+            Button("Finish & Save") { finishRide() }
+            Button("Discard Ride", role: .destructive) { discardActiveRide() }
         } message: {
-            Text("This deletes the active recording draft from this device.")
+            Text("Finish opens Save to Journal. Discard permanently deletes this recording from this iPhone.")
         }
         .sheet(item: $finishedRide) { result in
             RecordingFinishedSheet(
                 result: result,
                 session: session,
                 plannedRoute: plannedRoute,
-                accessToken: accessToken,
+                uploadQueue: uploadQueue,
                 isRecovered: recoveredFinishedRide,
-                onSaved: { ride in
+                onSecured: {
                     await recorder.markCompletedRideSaved(result)
-                    onSaved(ride)
                 },
+                onQueued: onQueued,
                 onDiscard: {
                     await recorder.discardCompletedRide(result)
                 }
@@ -140,17 +143,34 @@ struct RecordingView: View {
         let latestPoint = recorder.points.last
         return Group {
             if latestPoint != nil || (plannedRoute?.route.count ?? 0) > 1 {
-                LiveRideMapView(
-                    recordedRoute: recorder.routePreview,
-                    guideRoute: navigation.routeCoordinates.isEmpty
-                        ? plannedRoute?.route ?? []
-                        : navigation.routeCoordinates,
-                    latestPoint: latestPoint,
-                    liveRiders: liveSharing.riders,
-                    cameraMode: cameraMode,
-                    reduceMotion: reduceMotion,
-                    followsCamera: $followsRideCamera
-                )
+                if activeOfflineMapArea != nil {
+                    OfflineLiveRideMapView(
+                        recordedRoute: recorder.routePreview,
+                        guideRoute: navigation.routeCoordinates.isEmpty
+                            ? plannedRoute?.route ?? []
+                            : navigation.routeCoordinates,
+                        latestPoint: latestPoint,
+                        liveRiders: liveSharing.riders,
+                        cameraMode: cameraMode,
+                        reduceMotion: reduceMotion,
+                        followsCamera: $followsRideCamera
+                    )
+                    .overlay(Color.mlMapCockpitTint.allowsHitTesting(false))
+                    .transition(.opacity)
+                } else {
+                    LiveRideMapView(
+                        recordedRoute: recorder.routePreview,
+                        guideRoute: navigation.routeCoordinates.isEmpty
+                            ? plannedRoute?.route ?? []
+                            : navigation.routeCoordinates,
+                        latestPoint: latestPoint,
+                        liveRiders: liveSharing.riders,
+                        cameraMode: cameraMode,
+                        reduceMotion: reduceMotion,
+                        followsCamera: $followsRideCamera
+                    )
+                    .transition(.opacity)
+                }
             } else {
                 MLMapView(route: SampleData.ridgeRoute, fadeColor: .mlBackground)
                     .overlay(Color.black.opacity(0.42))
@@ -159,24 +179,22 @@ struct RecordingView: View {
     }
 
     private var cameraControls: some View {
-        VStack(spacing: Spacing.sm) {
+        HStack(spacing: Spacing.xs) {
             mapControlButton(
                 symbol: cameraMode.symbol,
-                label: cameraMode == .headingUp ? "Switch to north-up map" : "Switch to heading-up map"
+                label: "Map camera: \(cameraMode.title). Switch to \(cameraMode.next.title.lowercased())"
             ) {
                 Haptics.selection()
-                cameraMode = cameraMode == .headingUp ? .northUp : .headingUp
+                cameraMode = cameraMode.next
                 followsRideCamera = true
             }
 
-            if showsTurnByTurnBanner {
-                mapControlButton(
-                    symbol: navigation.isVoiceEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill",
-                    label: navigation.isVoiceEnabled ? "Mute navigation voice" : "Enable navigation voice"
-                ) {
-                    Haptics.selection()
-                    navigation.isVoiceEnabled.toggle()
-                }
+            mapControlButton(
+                symbol: navigation.isVoiceEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill",
+                label: navigation.isVoiceEnabled ? "Mute spoken ride guidance" : "Enable spoken ride guidance"
+            ) {
+                Haptics.selection()
+                navigation.isVoiceEnabled.toggle()
             }
 
             if !followsRideCamera {
@@ -188,6 +206,7 @@ struct RecordingView: View {
             }
         }
         .animation(reduceMotion ? nil : Motion.springSnappy, value: followsRideCamera)
+        .animation(reduceMotion ? nil : Motion.springSnappy, value: navigation.isVoiceEnabled)
     }
 
     private func mapControlButton(symbol: String, label: String, action: @escaping () -> Void) -> some View {
@@ -196,8 +215,10 @@ struct RecordingView: View {
                 .font(MLFont.headline)
                 .foregroundStyle(Color.mlTextPrimary)
                 .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                .background(Color.mlSurface.opacity(0.82), in: Circle())
                 .background(.ultraThinMaterial, in: Circle())
                 .overlay(Circle().stroke(Color.mlTextPrimary.opacity(0.12), lineWidth: Layout.hairline))
+                .shadow(color: .black.opacity(0.2), radius: Spacing.sm, y: Spacing.xxs)
         }
         .buttonStyle(MLPressableButtonStyle())
         .accessibilityLabel(label)
@@ -206,6 +227,19 @@ struct RecordingView: View {
     private var recorderHeader: some View {
         VStack(spacing: Spacing.sm) {
             topBar
+            if showsTurnByTurnBanner {
+                TurnByTurnGuidanceBanner(
+                    state: navigation.state,
+                    snapshot: navigation.snapshot,
+                    onRetry: navigation.state.isUnavailable ? {
+                        Haptics.selection()
+                        navigation.retry(startingAt: recorder.points.last?.coordinate)
+                    } : nil
+                )
+                    .frame(maxWidth: usesCompactHeightLayout ? Layout.compactPanelMaxWidth : .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
             if liveSharing.isVisible {
                 liveSharingPill
                     .transition(.move(edge: .top).combined(with: .opacity))
@@ -216,6 +250,7 @@ struct RecordingView: View {
         }
         .animation(reduceMotion ? nil : Motion.springSnappy, value: liveSharing.status)
         .animation(reduceMotion ? nil : Motion.springSnappy, value: liveSharing.riders.count)
+        .animation(reduceMotion ? nil : Motion.spring, value: navigation.state)
         .padding(.horizontal, Spacing.screenH)
         .padding(.top, Spacing.sm)
     }
@@ -224,7 +259,7 @@ struct RecordingView: View {
         HStack {
             Button {
                 Haptics.selection()
-                showingDiscardConfirmation = true
+                handleClose()
             } label: {
                 Image(systemName: "xmark")
                     .font(MLFont.headline)
@@ -374,13 +409,20 @@ struct RecordingView: View {
 
     private var controlPanel: some View {
         VStack(spacing: Spacing.sm) {
-            if showsTurnByTurnBanner {
-                TurnByTurnGuidanceBanner(state: navigation.state, snapshot: navigation.snapshot)
-            } else if let followSnapshot {
+            if !showsTurnByTurnBanner, let followSnapshot {
                 compactRouteGuidance(followSnapshot)
             }
 
             rideHUD
+                .overlay(alignment: .topTrailing) {
+                    if recorder.points.last != nil {
+                        cameraControls
+                            .offset(
+                                x: -Spacing.sm,
+                                y: -(Layout.minTouchTarget / 2)
+                            )
+                    }
+                }
             if showsRideActions {
                 actionButtons
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -407,36 +449,67 @@ struct RecordingView: View {
         )
     }
 
+    private func handleClose() {
+        guard LiveRideCockpitPolicy.requiresEndRideDecision(
+            status: recorder.status,
+            pointCount: recorder.pointCount
+        ) else {
+            if recorder.status != .finished {
+                recorder.discard()
+            }
+            dismiss()
+            return
+        }
+        showingEndRideOptions = true
+    }
+
+    private func finishRide() {
+        Haptics.success()
+        Task {
+            await liveSharing.endSession()
+            recoveredFinishedRide = false
+            finishedRide = await recorder.finish()
+        }
+    }
+
+    private func discardActiveRide() {
+        Haptics.warning()
+        Task {
+            await liveSharing.endSession()
+            recorder.discard()
+            dismiss()
+        }
+    }
+
     private var rideHUD: some View {
-        HStack(alignment: .center, spacing: Spacing.lg) {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text("Speed").mlKicker()
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
-                    Text(speedText(recorder.currentSpeedMetersPerSecond))
-                        .font(MLFont.displayXL)
-                        .foregroundStyle(Color.mlTextPrimary)
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-                    Text("km/h")
-                        .font(MLFont.caption)
-                        .foregroundStyle(Color.mlTextSecondary)
-                }
-            }
+        HStack(alignment: .center, spacing: Spacing.sm) {
+            cockpitMetric(
+                label: "Speed",
+                value: speedText(recorder.currentSpeedMetersPerSecond),
+                detail: "km/h",
+                emphasis: true
+            )
 
-            Spacer(minLength: Spacing.sm)
+            cockpitDivider
 
-            VStack(alignment: .trailing, spacing: Spacing.xs) {
-                Label(formattedDuration(recorder.elapsed), systemImage: "clock")
-                    .font(MLFont.mono)
-                    .foregroundStyle(Color.mlTextPrimary)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                Label(String(format: "%.2f km", recorder.distanceKm), systemImage: "road.lanes")
-                    .font(MLFont.caption)
-                    .foregroundStyle(Color.mlTextSecondary)
-            }
+            cockpitMetric(
+                label: navigation.snapshot == nil ? "Time" : "Arrival",
+                value: navigation.snapshot.map { arrivalTimeText($0.remainingTravelTime) }
+                    ?? formattedDuration(recorder.elapsed),
+                detail: navigation.snapshot == nil ? "elapsed" : navigation.snapshot?.etaText ?? ""
+            )
+
+            cockpitDivider
+
+            cockpitMetric(
+                label: navigation.snapshot == nil ? "Ride" : "Left",
+                value: navigation.snapshot?.remainingDistanceText
+                    ?? String(format: "%.2f", recorder.distanceKm),
+                detail: navigation.snapshot == nil ? "km" : "remaining"
+            )
         }
         .padding(Spacing.md)
+        .background(Color.mlSurface.opacity(0.9), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
@@ -444,7 +517,39 @@ struct RecordingView: View {
         )
         .shadow(color: .black.opacity(0.24), radius: Spacing.md, y: Spacing.xs)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Current speed \(speedText(recorder.currentSpeedMetersPerSecond)) kilometres per hour, elapsed \(formattedDuration(recorder.elapsed)), distance \(String(format: "%.2f", recorder.distanceKm)) kilometres")
+        .accessibilityLabel(cockpitAccessibilityLabel)
+    }
+
+    private func cockpitMetric(label: String, value: String, detail: String, emphasis: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(label).mlKicker()
+            Text(value)
+                .font(emphasis ? MLFont.displayXL : MLFont.displaySmall)
+                .foregroundStyle(Color.mlTextPrimary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .contentTransition(.numericText())
+            Text(detail)
+                .font(MLFont.caption)
+                .foregroundStyle(Color.mlTextSecondary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var cockpitDivider: some View {
+        Rectangle()
+            .fill(Color.mlHairline)
+            .frame(width: Layout.hairline, height: Spacing.xl)
+    }
+
+    private var cockpitAccessibilityLabel: String {
+        let speed = "Current speed \(speedText(recorder.currentSpeedMetersPerSecond)) kilometres per hour"
+        guard let snapshot = navigation.snapshot else {
+            return "\(speed), elapsed \(formattedDuration(recorder.elapsed)), distance \(String(format: "%.2f", recorder.distanceKm)) kilometres"
+        }
+        return "\(speed), arrival \(arrivalTimeText(snapshot.remainingTravelTime)), \(snapshot.remainingDistanceText) remaining"
     }
 
     private var followSnapshot: RouteFollowSnapshot? {
@@ -459,9 +564,9 @@ struct RecordingView: View {
     private var showsTurnByTurnBanner: Bool {
         guard plannedRoute != nil else { return false }
         switch navigation.state {
-        case .loading, .navigating, .rerouting, .arrived:
+        case .loading, .navigating, .rerouting, .unavailable, .arrived:
             return true
-        case .inactive, .unavailable:
+        case .inactive:
             return false
         }
     }
@@ -470,11 +575,15 @@ struct RecordingView: View {
     private var actionButtons: some View {
         switch recorder.status {
         case .permissionDenied:
-            PrimaryButton(title: "Try Again", systemImage: "location.fill") {
-                recorder.start()
+            PrimaryButton(title: "Open Location Settings", systemImage: "gear") {
+                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                UIApplication.shared.open(url)
             }
         case .idle:
-            PrimaryButton(title: "Start", systemImage: "location.fill") {
+            PrimaryButton(
+                title: plannedRoute == nil ? "Start Recording" : "Start & Navigate",
+                systemImage: "location.fill"
+            ) {
                 recorder.start()
             }
         case .recording, .paused:
@@ -499,8 +608,8 @@ struct RecordingView: View {
 
     private var statusTitle: String {
         switch recorder.status {
-        case .idle: "Starting"
-        case .recording: "Recording"
+        case .idle: plannedRoute == nil ? "Starting Recorder" : "Preparing Navigation"
+        case .recording: activeOfflineMapArea == nil ? "Recording" : "Recording · Offline"
         case .paused: "Paused"
         case .permissionDenied: "Permission Needed"
         case .finished: "Finished"
@@ -576,11 +685,63 @@ struct RecordingView: View {
         }
         return String(format: "%02d:%02d", minutes, secs)
     }
+
+    private func arrivalTimeText(_ remainingTravelTime: TimeInterval) -> String {
+        Date.now
+            .addingTimeInterval(max(remainingTravelTime, 0))
+            .formatted(date: .omitted, time: .shortened)
+    }
+
+    private func activateDownloadedMap(from areas: [OfflineMapArea], near coordinate: Coordinate?) {
+        guard activeOfflineMapArea == nil else { return }
+        if let coordinate,
+           let area = areas.first(where: { $0.bounds.contains(coordinate) }) {
+            activeOfflineMapArea = area
+            return
+        }
+        guard let plannedRoute else { return }
+        activeOfflineMapArea = areas.max { first, second in
+            offlineCoverageScore(first, route: plannedRoute.route)
+                < offlineCoverageScore(second, route: plannedRoute.route)
+        }.flatMap { area in
+            let sampledCount = offlineRouteSampleCount(plannedRoute.route)
+            let coveredCount = offlineCoverageScore(area, route: plannedRoute.route)
+            return sampledCount > 0 && Double(coveredCount) / Double(sampledCount) >= 0.8
+                ? area
+                : nil
+        }
+    }
+
+    private func offlineCoverageScore(_ area: OfflineMapArea, route: [Coordinate]) -> Int {
+        guard !route.isEmpty else { return 0 }
+        let stride = max(route.count / 40, 1)
+        return Swift.stride(from: 0, to: route.count, by: stride)
+            .reduce(0) { score, index in
+                score + (area.bounds.contains(route[index]) ? 1 : 0)
+            }
+    }
+
+    private func offlineRouteSampleCount(_ route: [Coordinate]) -> Int {
+        guard !route.isEmpty else { return 0 }
+        let stride = max(route.count / 40, 1)
+        return (route.count + stride - 1) / stride
+    }
+}
+
+private extension TurnByTurnSessionState {
+    var isUnavailable: Bool {
+        if case .unavailable = self { return true }
+        return false
+    }
 }
 
 enum LiveRideCockpitPolicy {
     static func showsActions(status: RecordingStatus, speedMetersPerSecond: Double) -> Bool {
         status != .recording || speedMetersPerSecond * 3.6 < 8
+    }
+
+    static func requiresEndRideDecision(status: RecordingStatus, pointCount: Int) -> Bool {
+        pointCount > 0 && (status == .recording || status == .paused)
     }
 }
 
@@ -589,9 +750,10 @@ private struct RecordingFinishedSheet: View {
     let result: RecordedRideResult
     let session: AuthSession
     let plannedRoute: PlannedRoute?
-    let accessToken: @Sendable () async -> String?
+    @ObservedObject var uploadQueue: PendingRideUploadCoordinator
     let isRecovered: Bool
-    let onSaved: (Ride) async -> Void
+    let onSecured: () async -> Void
+    let onQueued: () -> Void
     let onDiscard: () async -> Void
     let onDone: () -> Void
 
@@ -600,24 +762,24 @@ private struct RecordingFinishedSheet: View {
     @State private var errorMessage: String?
     @State private var showingDiscardConfirmation = false
 
-    private let importService = RideImportService()
-
     init(
         result: RecordedRideResult,
         session: AuthSession,
         plannedRoute: PlannedRoute? = nil,
-        accessToken: @escaping @Sendable () async -> String?,
+        uploadQueue: PendingRideUploadCoordinator,
         isRecovered: Bool = false,
-        onSaved: @escaping (Ride) async -> Void,
+        onSecured: @escaping () async -> Void,
+        onQueued: @escaping () -> Void,
         onDiscard: @escaping () async -> Void,
         onDone: @escaping () -> Void
     ) {
         self.result = result
         self.session = session
         self.plannedRoute = plannedRoute
-        self.accessToken = accessToken
+        self.uploadQueue = uploadQueue
         self.isRecovered = isRecovered
-        self.onSaved = onSaved
+        self.onSecured = onSecured
+        self.onQueued = onQueued
         self.onDiscard = onDiscard
         self.onDone = onDone
         _title = State(initialValue: Self.defaultTitle(for: result.startedAt))
@@ -681,7 +843,7 @@ private struct RecordingFinishedSheet: View {
             .disabled(!canSave)
 
             SecondaryButton(title: "Keep for Later", systemImage: "clock") {
-                onDone()
+                Task { await keepForLater() }
             }
             .disabled(isSaving)
 
@@ -738,20 +900,45 @@ private struct RecordingFinishedSheet: View {
         isSaving = true
         errorMessage = nil
         do {
-            guard let token = await accessToken() else { throw RideImportError.notAuthenticated }
-            let saved = try await importService.saveRecordedRide(
+            let outcome = try await uploadQueue.submit(
                 title: cleanTitle,
                 result: result,
                 plannedRouteID: plannedRoute?.id,
-                userID: session.userID,
-                accessToken: token
+                userID: session.userID
             )
-            Haptics.success()
-            await onSaved(saved)
+            await onSecured()
+            if outcome == .queued {
+                Haptics.warning()
+                onQueued()
+            } else {
+                Haptics.success()
+            }
             onDone()
         } catch {
             Haptics.error()
             errorMessage = error.localizedDescription
+        }
+        isSaving = false
+    }
+
+    private func keepForLater() async {
+        guard canSave else { return }
+        isSaving = true
+        errorMessage = nil
+        do {
+            try await uploadQueue.keepForLater(
+                title: cleanTitle,
+                result: result,
+                plannedRouteID: plannedRoute?.id,
+                userID: session.userID
+            )
+            await onSecured()
+            Haptics.success()
+            onQueued()
+            onDone()
+        } catch {
+            Haptics.error()
+            errorMessage = "This ride is still protected by recovery, but it could not be added to the sync queue. Try again before leaving."
         }
         isSaving = false
     }
@@ -776,7 +963,7 @@ private struct RecordingFinishedSheet: View {
         session: AuthSession(accessToken: "", refreshToken: "", expiresAt: Date().addingTimeInterval(3600), userID: UUID(), email: "preview@example.com"),
         plannedRoute: nil,
         accessToken: { "" },
-        onSaved: { _ in }
+        uploadQueue: PendingRideUploadCoordinator(monitorsNetwork: false)
     )
         .preferredColorScheme(.dark)
 }

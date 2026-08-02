@@ -32,29 +32,41 @@ iPhone handoff:
   `open=mesh`, ready to send to a rider's iPhone;
 - the native app validates the group membership and RSVP state before opening
   the mesh screen;
-- both nearby riders must open Ride Mesh for the same group while the app is
-  active before peer discovery begins.
+- both nearby riders must open Ride Mesh for the same group before peer
+  discovery begins. Discovery remains available while iOS backgrounds the
+  visible mesh screen, subject to the normal CoreBluetooth execution budget.
 
 The browser remains useful when Ride Mesh is unavailable: host announcements
 and ride-day check-in are server-backed and work across platforms.
 
 ## Transport
 
-Phase 1 uses Apple's `MultipeerConnectivity` framework. Each device advertises
-and browses the `_ml-ridemesh._tcp` Bonjour service and connects only when the
-advertised channel ID matches the active ride.
+Ride Mesh now runs two nearby transports concurrently behind
+`RideMeshTransporting`:
 
-Discovery runs only while the Ride Mesh screen is visible and the app is
-active. Leaving the screen or backgrounding the app stops advertising and
-browsing; returning to the visible screen resumes the same in-memory session.
+1. `BluetoothRideMeshTransport` makes every iPhone a CoreBluetooth central and
+   peripheral. It scans and advertises the same service, exchanges a
+   ride-channel handshake, fragments encrypted packets to the negotiated BLE
+   MTU, reassembles them with strict memory/time bounds and supports iOS
+   central/peripheral background modes. This is the reception-independent path
+   used when Airplane Mode is enabled but Bluetooth is turned back on.
+2. `NearbyRideMeshTransport` uses MultipeerConnectivity over local Wi-Fi/AWDL
+   as a faster opportunistic path when it is available.
 
-`RideMeshTransporting` isolates the framework from the session and UI. A later
-CoreBluetooth transport can replace it without changing message models or
-screens if physical ride testing shows that background discovery or denser
-mesh topologies justify the additional radio complexity.
+`HybridRideMeshTransport` fans packets across both paths. The protocol-level
+duplicate cache makes receiving the same packet over BLE and Wi-Fi harmless,
+and transport-tagged ingress identities preserve split-horizon relay exclusion.
+The UI reports the largest connected-path count rather than summing both paths,
+so one rider visible on both radios is not shown twice.
+
+Leaving the Ride Mesh screen stops both transports. Locking the screen or
+temporarily backgrounding the app no longer stops the session explicitly;
+CoreBluetooth may continue under iOS background rules. Force-quitting the app
+still ends the active session.
 
 Multipeer links use Apple's required transport encryption. Ride Mesh also
-encrypts every application packet because transport peers may relay packets.
+encrypts every application packet because Bluetooth and relay peers must be
+treated as untrusted transports.
 
 ## Channel And Encryption
 
@@ -90,26 +102,36 @@ the radio packet.
 The transport and protocol design was informed by the public-domain
 `permissionlesstech/bitchat` project, inspected at commit
 `0152196ac2648ef3f6a1bbab4f24f1a88e11b3b2`. Memory Lanes does not mirror or
-embed the complete bitchat application; it implements a smaller,
-group-ride-specific protocol behind its own transport seam.
+embed the complete bitchat application or claim wire compatibility. It mirrors
+the architecture where it fits a private group ride: a BLE store-and-forward
+mesh, an additional higher-throughput path, encrypted application packets and
+a transport-independent session.
 
 Relevant design ideas retained:
 
-- simultaneous nearby discovery and relay;
+- simultaneous BLE central/peripheral discovery and relay;
+- fragmentation and bounded out-of-order reassembly;
+- concurrent transport fan-out with protocol-level deduplication;
 - authenticated encryption above the radio transport;
 - TTL-bounded forwarding;
 - bounded duplicate suppression;
 - honest delivery and privacy states.
 
-Deferred ideas include persistent sealed outboxes, courier carry-and-forward,
-background CoreBluetooth restoration, per-member key verification, media,
-internet relay fallback and cross-platform protocol compatibility.
+Unlike bitchat's BLE + Nostr design, Memory Lanes currently uses BLE + local
+Wi-Fi/AWDL for live mesh traffic. Supabase remains the internet-backed group
+lobby, RSVP, announcement and live-location layer; mesh chat is intentionally
+ephemeral and nearby-only. Full bitchat parity would additionally require a
+persistent sealed outbox, courier carry-and-forward, state restoration after
+process termination, relay jitter/fan-out control, per-member Noise identity,
+an internet relay transport and cross-platform protocol compatibility.
 
 ## Release Gate
 
-Simulator tests cover encryption, expiry, queue flush, duplicate suppression
-and relay exclusion. Before enabling Ride Mesh in a production release, test
-with at least two physical iPhones for Local Network permission handling,
-discovery recovery, practical range, screen-lock behavior and battery impact.
-Use a third iPhone to validate a real two-hop relay before describing the
-feature as mesh-capable in release copy.
+Simulator tests cover encryption, expiry, queue flush, duplicate suppression,
+relay exclusion, BLE fragmentation, out-of-order reassembly, peer isolation and
+malformed/oversized frame rejection. Before enabling Ride Mesh in a production
+release, test with at least two physical iPhones in Airplane Mode with Bluetooth
+re-enabled, then repeat with screen lock and Local Network denied. Validate
+reconnection, practical range, battery impact and permission recovery. Use a
+third iPhone to validate a real two-hop BLE relay before describing the feature
+as production mesh in release copy.

@@ -53,6 +53,7 @@ struct RoutesView: View {
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
+            .mlTabBarContentClearance()
         }
         .background(Color.mlBackground)
         .navigationTitle("Routes")
@@ -63,20 +64,15 @@ struct RoutesView: View {
         .onChange(of: startLocation.coordinate) { _, _ in clearGeneratedCandidates() }
         .onDisappear { viewModel.cancelCandidateGeneration() }
         .animation(reduceMotion ? nil : Motion.springGentle, value: viewModel.isGeneratingCandidates)
-        .mlToast($toast)
+        .mlToast($toast, bottomInset: Layout.floatingTabBarToastInset)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text("Routes & community").mlKicker()
-            Text("The next ride starts here")
-                .font(MLFont.displayXL)
-                .foregroundStyle(Color.mlTextPrimary)
-            Text("Meet your group, discover a community ride, or shape a route of your own.")
-                .font(MLFont.body)
-                .foregroundStyle(Color.mlTextSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        ScreenIntro(
+            kicker: "Routes & community",
+            title: "The next ride starts here",
+            message: "Meet your group, discover a community ride, or shape a route of your own."
+        )
     }
 
     private var communityRidesSection: some View {
@@ -792,6 +788,7 @@ struct PlannedRouteDetailView: View {
                     MLMapView(route: route.route, fadeColor: .mlBackground)
                         .frame(height: 320)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                        .mlMediaOutline()
                 }
 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -856,6 +853,7 @@ struct PlannedRouteDetailView: View {
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
+            .mlTabBarContentClearance()
         }
         .background(Color.mlBackground)
         .navigationTitle("Route")
@@ -900,9 +898,14 @@ struct PlannedRouteDetailView: View {
 
     private var actionPanel: some View {
         VStack(spacing: Spacing.md) {
-            PrimaryButton(title: "Start Ride", systemImage: "location.north.line.fill") {
-                Haptics.impact(.medium)
-                onStartRide(route)
+            VStack(spacing: Spacing.xs) {
+                PrimaryButton(title: "Start & Navigate", systemImage: "location.north.line.fill") {
+                    Haptics.impact(.medium)
+                    onStartRide(route)
+                }
+                Label("Records the ride with voice-guided directions", systemImage: "waveform.and.location.fill")
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextSecondary)
             }
 
             SecondaryButton(title: "Edit Route", systemImage: "pencil") {
@@ -1125,6 +1128,7 @@ private struct RouteEditSheet: View {
                 }
                     .frame(height: 170)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    .mlMediaOutline()
 
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     HStack {

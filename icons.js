@@ -22,6 +22,7 @@ const ML_ICONS = {
   gallery:     '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
   book:        '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
   play:        '<polygon points="6 4 20 12 6 20 6 4"/>',
+  flow:        '<path d="M3 15c4.5-10 8-10 11.5 0s5.5 9 7.5-1"/><path d="M4 19c4-5 7-5 10 0s5 4 7-1" opacity=".5"/>',
   pin:         '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
   sparkle:     '<path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17l-1.9-5.1L4.5 10l5.6-1.4L12 3Z"/>',
   edit:        '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
@@ -122,7 +123,7 @@ function applyIcons() {
   });
 
   // Header nav: Logs | Moments | Journeys -> icon + text
-  const navMap = { 'dashboard.html': 'route', 'journal.html': 'pin', 'stats.html': 'trending', 'planner.html': 'flag' };
+  const navMap = { 'dashboard.html': 'route', 'journal.html': 'pin', 'stats.html': 'trending', 'planner.html': 'flag', 'flow.html': 'flow' };
   document.querySelectorAll('.vibe-nav [data-nav]').forEach(el => {
     const icon = navMap[el.dataset.nav];
     if (icon && !el.querySelector('svg')) {

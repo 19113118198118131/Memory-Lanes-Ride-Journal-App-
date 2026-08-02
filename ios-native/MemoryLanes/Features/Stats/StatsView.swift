@@ -30,6 +30,7 @@ struct StatsView: View {
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
+            .mlTabBarContentClearance()
         }
         .background(Color.mlBackground)
         .navigationTitle("Stats")
@@ -39,15 +40,11 @@ struct StatsView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text("Lifetime stats").mlKicker()
-            Text("Every ride adds up")
-                .font(MLFont.displayXL)
-                .foregroundStyle(Color.mlTextPrimary)
-            Text("Distance, riding time, standout rides, and everywhere you have ridden.")
-                .font(MLFont.body)
-                .foregroundStyle(Color.mlTextSecondary)
-        }
+        ScreenIntro(
+            kicker: "Lifetime stats",
+            title: "Every ride adds up",
+            message: "Distance, riding time, standout rides, and everywhere you have ridden."
+        )
     }
 
     @ViewBuilder
@@ -193,6 +190,7 @@ struct StatsView: View {
                 StatsRoutesMap(routes: viewModel.routePreviews)
                     .frame(height: 220)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    .mlMediaOutline()
                     .allowsHitTesting(false)
             }
         }
@@ -212,7 +210,7 @@ struct StatsView: View {
             HStack(spacing: Spacing.md) {
                 Image(systemName: symbol)
                     .foregroundStyle(Color.mlAccent)
-                    .frame(width: 42, height: 42)
+                    .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
                     .background(Color.mlAccent.opacity(0.12), in: Circle())
 
                 VStack(alignment: .leading, spacing: Spacing.xxs) {

@@ -152,12 +152,15 @@ final class TurnByTurnNavigationController: ObservableObject {
             state = .unavailable(TurnByTurnNavigationError.invalidRoute.localizedDescription)
             return
         }
+        state = .loading
+        // A saved route must be joined from the rider's real position. Waiting
+        // for the first GPS fix avoids calculating a route from stale metadata.
+        guard let coordinate else { return }
         var waypoints = base
-        if let coordinate, let first = waypoints.first,
+        if let first = waypoints.first,
            Self.distanceMeters(coordinate, first) > 150 {
             waypoints.insert(coordinate, at: 0)
         }
-        state = .loading
         preparationTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -175,6 +178,7 @@ final class TurnByTurnNavigationController: ObservableObject {
 
     func update(_ point: RecordingPoint) {
         if engine == nil {
+            if case .unavailable = state { return }
             prepare(startingAt: point.coordinate)
             return
         }
@@ -193,6 +197,18 @@ final class TurnByTurnNavigationController: ObservableObject {
         preparationTask?.cancel()
         rerouteTask?.cancel()
         speaker.stop()
+    }
+
+    func retry(startingAt coordinate: Coordinate?) {
+        preparationTask?.cancel()
+        rerouteTask?.cancel()
+        preparationTask = nil
+        rerouteTask = nil
+        engine = nil
+        snapshot = nil
+        routeCoordinates = plannedRoute?.route ?? []
+        state = .inactive
+        prepare(startingAt: coordinate)
     }
 
     private func activate(_ route: TurnByTurnRoute) {

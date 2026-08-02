@@ -10,10 +10,11 @@ camera presentation.
 
 ## Behaviour
 
-- heading-up while reliable movement is detected
-- north-up option at any time
+- immersive, heading-up and north-up modes, cycling from one map control
+- immersive mode uses a stronger speed-aware pitch and keeps the rider low in
+  the viewport so more of the approaching road remains visible
 - flat north-up presentation when Reduce Motion is enabled
-- 18-second forward time horizon with a 120-metre minimum
+- 20-second forward time horizon with a 140-metre minimum
 - speed-smoothed camera distance and pitch
 - low-speed bearing freeze with engage and release hysteresis
 - shortest-arc bearing interpolation across north
@@ -26,11 +27,21 @@ camera presentation.
   released after each instruction
 - a 12-second off-route hold before recalculation, avoiding noisy-GPS reroutes
 - automatic road recalculation with a 45-second retry cooldown
-- geometric saved-route guidance when road directions are unavailable
+- route preparation waits for the first real GPS fix before joining the plan
+- visible geometric saved-route guidance when road directions are unavailable,
+  with recording continuity and an explicit retry action
+- downloaded MapLibre areas become the live visual map automatically; Apple
+  Maps remains the enhanced fallback outside downloaded coverage
+- next-maneuver guidance in the forward focal area, with the following maneuver
+  progressively disclosed below it
+- a compact lower cockpit for speed, arrival and remaining distance; pause,
+  finish and discard actions remain hidden while the rider is moving
 
-`LiveRideCameraController` is deterministic and has no MapKit dependency.
-`LiveRideMapView` translates its output into `MKMapCamera` updates. This keeps
-camera calibration testable without a live GPS session or rendered map.
+`LiveRideCameraController` is deterministic and has no renderer dependency.
+`LiveRideMapView` translates its output into `MKMapCamera` updates, while
+`OfflineLiveRideMapView` applies the same state to MapLibre's camera over the
+downloaded cache. This keeps camera calibration testable without a live GPS
+session or rendered map.
 
 `TurnByTurnNavigationEngine` is also deterministic and MapKit-independent. It
 matches GPS fixes to route geometry, keeps progress monotonic through noisy
@@ -45,7 +56,7 @@ outside downloaded coverage or when a local graph cannot serve the whole route.
 The camera suite includes the repository's 550-point coast-and-hills GPX. It
 derives speed and course from each timed segment and verifies:
 
-- camera distance stays between 240 and 1,600 metres
+- camera distance stays between 220 and 1,600 metres
 - pitch stays between 0 and 50 degrees
 - bearing never changes by more than 28.01 degrees per update
 - pitch does not pump by 12 degrees or more per update
@@ -57,7 +68,8 @@ derives speed and course from each timed segment and verifies:
 Test with the phone securely mounted and do not operate controls while moving.
 
 1. Start stationary in several orientations. The map should remain calm.
-2. Pull away slowly. Heading-up should engage progressively, without a snap.
+2. Pull away slowly. The immersive camera should engage progressively, without
+   a snap, and keep the rider below the centre of the useful map area.
 3. Cross north in both directions. The map should take the short rotation.
 4. Stop at lights. Bearing should remain stable and pitch should settle flat.
 5. Ride at urban and open-road speeds. The visible road horizon should expand
@@ -67,14 +79,18 @@ Test with the phone securely mounted and do not operate controls while moving.
 7. Repeat in landscape and portrait. The rider should stay in the lower part of
    the useful map area without being obscured by the ride HUD.
 8. Enable Reduce Motion. The map should remain flat, north-up and unanimated.
-9. Start a saved route and verify each maneuver card and spoken prompt agrees
-   with the road ahead. Voice can be muted from the map control.
+9. Start a saved route and verify the next maneuver, quieter following maneuver
+   and spoken prompt agree with the road ahead. Voice can be muted from the map
+   control, and the lower cockpit should show arrival and distance remaining.
 10. Deliberately miss a safe turn. Guidance should wait through brief GPS drift,
     then show recalculation and return to road instructions without interrupting
     recording.
 11. Disable network access after guidance has loaded. Recording must continue;
     a failed recalculation must retain the saved-route fallback rather than end
     the ride.
+12. Repeat a saved route inside a completed Offline Map. The header should show
+    `Recording · Offline`, the route and rider puck must remain visible without
+    reception, and maneuvers should continue from installed road data.
 
 The MapKit camera-distance multiplier is an empirical starting point. Adjust it
 only after comparing these scenarios on a mounted physical device.

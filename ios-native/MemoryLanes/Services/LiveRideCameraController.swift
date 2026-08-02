@@ -1,13 +1,31 @@
 import Foundation
 
 enum LiveRideCameraMode: String, CaseIterable, Sendable {
+    case immersive
     case headingUp
     case northUp
 
     var symbol: String {
         switch self {
+        case .immersive: "view.3d"
         case .headingUp: "location.north.fill"
         case .northUp: "safari.fill"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .immersive: "Immersive"
+        case .headingUp: "Heading up"
+        case .northUp: "North up"
+        }
+    }
+
+    var next: LiveRideCameraMode {
+        switch self {
+        case .immersive: .headingUp
+        case .headingUp: .northUp
+        case .northUp: .immersive
         }
     }
 }
@@ -19,6 +37,7 @@ struct LiveRideCameraSample: Equatable, Sendable {
     let speedAccuracyMetersPerSecond: Double?
     let courseDegrees: Double
     let courseAccuracyDegrees: Double?
+    let fallbackBearingDegrees: Double?
     let viewportHeightPoints: Double
     let mode: LiveRideCameraMode
     let reduceMotion: Bool
@@ -38,10 +57,10 @@ struct LiveRideCameraState: Equatable, Sendable {
 
 struct LiveRideCameraController: Sendable {
     struct Configuration: Equatable, Sendable {
-        var horizonSeconds = 18.0
-        var minimumLookaheadMeters = 120.0
-        var minimumCameraDistanceMeters = 240.0
-        var maximumCameraDistanceMeters = 1_600.0
+        var horizonSeconds = 20.0
+        var minimumLookaheadMeters = 110.0
+        var minimumCameraDistanceMeters = 150.0
+        var maximumCameraDistanceMeters = 1_200.0
         var bearingEngageSpeedKmh = 5.0
         var bearingReleaseSpeedKmh = 3.5
         var maximumBearingStepDegrees = 28.0
@@ -72,6 +91,9 @@ struct LiveRideCameraController: Sendable {
 
         updateBearingTracking(speedMetersPerSecond: filteredSpeed ?? 0)
         let measuredBearing = reliableBearing(sample, derivedBearing: derivedMotion.bearing)
+        if lastTravelBearing == nil, let fallbackBearing = sample.fallbackBearingDegrees {
+            lastTravelBearing = Self.normalizedBearing(fallbackBearing)
+        }
         if bearingTrackingActive, let measuredBearing {
             // Enter heading-up progressively as motion becomes trustworthy.
             // Snapping straight to the first valid course can rotate the map
@@ -91,20 +113,31 @@ struct LiveRideCameraController: Sendable {
         let speed = filteredSpeed ?? 0
         let speedKmh = speed * 3.6
         let lookahead = max(speed * configuration.horizonSeconds, configuration.minimumLookaheadMeters)
-        let pitch = sample.reduceMotion ? 0 : min(max((speedKmh - 8) * 1.1, 0), 50)
+        let pitch = cameraPitch(speedKmh: speedKmh, mode: sample.mode)
         let viewportScale = min(max(800 / max(sample.viewportHeightPoints, 320), 0.82), 1.48)
         let pitchScale = 1 - pitch / 220
+        let distanceMultiplier = sample.mode == .immersive ? 1.38 : 2.0
         let cameraDistance = min(
-            max(lookahead * 2.2 * viewportScale * pitchScale, configuration.minimumCameraDistanceMeters),
+            max(lookahead * distanceMultiplier * viewportScale * pitchScale, configuration.minimumCameraDistanceMeters),
             configuration.maximumCameraDistanceMeters
         )
-        let offsetProgress = min(max(speedKmh / 18, 0), 1)
+        let movingOffsetProgress = min(max(speedKmh / 18, 0), 1)
+        let offsetProgress: Double = switch sample.mode {
+        case .immersive: max(movingOffsetProgress, 0.58)
+        case .headingUp: movingOffsetProgress
+        case .northUp: 0
+        }
+        let offsetMultiplier: Double = switch sample.mode {
+        case .immersive: 0.72
+        case .headingUp: 0.42
+        case .northUp: 0.0
+        }
         let center = Self.project(
             sample.coordinate,
-            distanceMeters: lookahead * 0.34 * offsetProgress,
+            distanceMeters: lookahead * offsetMultiplier * offsetProgress,
             bearingDegrees: travelBearing
         )
-        let bearing = sample.reduceMotion || sample.mode == .northUp ? 0 : travelBearing
+        let bearing = sample.mode == .northUp ? 0 : travelBearing
 
         lastCoordinate = sample.coordinate
         lastTimestamp = sample.timestamp
@@ -175,6 +208,21 @@ struct LiveRideCameraController: Sendable {
 
     private func smoothingAlpha(elapsed: TimeInterval, timeConstant: TimeInterval) -> Double {
         1 - exp(-elapsed / max(timeConstant, 0.01))
+    }
+
+    private func cameraPitch(speedKmh: Double, mode: LiveRideCameraMode) -> Double {
+        switch mode {
+        case .immersive:
+            // Immersive is a persistent rider-eye camera, including while
+            // waiting at lights. Speed adds a little more road horizon rather
+            // than dropping the map back to a top-down view at rest.
+            return min(56 + 16 * (1 - exp(-max(speedKmh, 0) / 28)), 72)
+        case .headingUp:
+            guard speedKmh >= 1.5 else { return 0 }
+            return min(46 * (1 - exp(-speedKmh / 24)), 46)
+        case .northUp:
+            return 0
+        }
     }
 
     private static func project(_ coordinate: Coordinate, distanceMeters: Double, bearingDegrees: Double) -> Coordinate {

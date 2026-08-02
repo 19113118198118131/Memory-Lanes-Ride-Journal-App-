@@ -30,7 +30,7 @@ final class RiderCraftProgressAnalyzerTests: XCTestCase {
 
         XCTAssertEqual(progress.eligibleRideCount, 2)
         XCTAssertEqual(progress.currentRate ?? -1, 0.2, accuracy: 0.001)
-        XCTAssertEqual(progress.comparisonRate ?? -1, 0.3, accuracy: 0.001)
+        XCTAssertEqual(progress.comparisonRate ?? -1, 0.2, accuracy: 0.001)
         XCTAssertEqual(progress.focus?.kind, .exitDrive)
         XCTAssertEqual(progress.trend.count, 2)
         XCTAssertFalse(progress.hasTrendLine)
@@ -81,7 +81,7 @@ final class RiderCraftProgressAnalyzerTests: XCTestCase {
                 startIndex: index * 10,
                 apexIndex: index * 10 + 4,
                 endIndex: index * 10 + 8,
-                drive: events.contains(.flatExit) && index < events.filter({ $0 == .flatExit }).count ? 0 : 0.4,
+                drive: events.contains(.flatExit) && index < events.filter({ $0 == .flatExit }).count ? -0.1 : 0.4,
                 apexPosition: events.contains(.earlyApex) && index == 2 ? 0.2 : 0.5,
                 brakeDepth: events.contains(.brakedDeep) && index == 1 ? 0.8 : 0.2
             )

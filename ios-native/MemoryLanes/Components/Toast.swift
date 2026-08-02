@@ -48,8 +48,15 @@ private struct ToastView: View {
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().stroke(Color.mlHairline, lineWidth: Layout.hairline))
+        .frame(maxWidth: Layout.compactPanelMaxWidth)
+        .background(
+            .ultraThinMaterial,
+            in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        }
         .shadow(color: .black.opacity(0.3), radius: 12, y: 6)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(toast.message)
@@ -62,12 +69,14 @@ private struct ToastModifier: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var toast: Toast?
     var duration: TimeInterval = 2.5
+    var bottomInset: CGFloat = 0
 
     func body(content: Content) -> some View {
         content.overlay(alignment: .bottom) {
             if let toast {
                 ToastView(toast: toast)
-                    .padding(.bottom, Spacing.xl)
+                    .padding(.horizontal, Spacing.screenH)
+                    .padding(.bottom, Spacing.xl + bottomInset)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .task(id: toast.id) {
                         try? await Task.sleep(for: .seconds(duration))
@@ -81,8 +90,8 @@ private struct ToastModifier: ViewModifier {
 
 extension View {
     /// Present auto-dismissing toasts bound to an optional `Toast`.
-    func mlToast(_ toast: Binding<Toast?>) -> some View {
-        modifier(ToastModifier(toast: toast))
+    func mlToast(_ toast: Binding<Toast?>, bottomInset: CGFloat = 0) -> some View {
+        modifier(ToastModifier(toast: toast, bottomInset: bottomInset))
     }
 }
 

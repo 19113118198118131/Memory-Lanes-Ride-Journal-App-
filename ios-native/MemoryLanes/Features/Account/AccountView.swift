@@ -96,6 +96,24 @@ struct AccountView: View {
     }
 
     private var profileHeader: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    profileIdentity
+                    connectionStatus
+                }
+            } else {
+                HStack(spacing: Spacing.md) {
+                    profileIdentity
+                    Spacer(minLength: 0)
+                    connectionStatus
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var profileIdentity: some View {
         HStack(spacing: Spacing.md) {
             ZStack {
                 Circle()
@@ -114,38 +132,29 @@ struct AccountView: View {
                 Text(displayName)
                     .font(MLFont.title2)
                     .foregroundStyle(Color.mlTextPrimary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(email ?? "Signed-in rider")
                     .font(MLFont.caption)
                     .foregroundStyle(Color.mlTextSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .lineLimit(2)
                 if let region = riderProfile?.region, !region.isEmpty {
                     Label(region, systemImage: "mappin.and.ellipse")
                         .font(MLFont.caption)
                         .foregroundStyle(Color.mlTextTertiary)
-                        .lineLimit(1)
+                    .lineLimit(1)
                 }
             }
-
-            Spacer(minLength: 0)
-
-            ViewThatFits(in: .horizontal) {
-                Label("Connected", systemImage: "checkmark.circle.fill")
-                    .font(MLFont.kicker)
-                    .foregroundStyle(Color.mlSuccess)
-                    .padding(.horizontal, Spacing.xs)
-                    .frame(minHeight: Layout.minTouchTarget)
-                    .background(Color.mlSuccess.opacity(0.10), in: Capsule())
-
-                Image(systemName: "checkmark.circle.fill")
-                    .font(MLFont.headline)
-                    .foregroundStyle(Color.mlSuccess)
-                    .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
-                    .accessibilityLabel("Cloud account connected")
-            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var connectionStatus: some View {
+        Label("Connected", systemImage: "checkmark.circle.fill")
+            .font(MLFont.kicker)
+            .foregroundStyle(Color.mlSuccess)
+            .padding(.horizontal, Spacing.xs)
+            .frame(minHeight: Layout.minTouchTarget)
+            .background(Color.mlSuccess.opacity(0.10), in: Capsule())
+            .accessibilityLabel("Cloud account connected")
     }
 
     private var libraryOverview: some View {

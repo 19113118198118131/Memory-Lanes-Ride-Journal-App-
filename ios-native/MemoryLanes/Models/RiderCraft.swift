@@ -9,7 +9,7 @@ enum RiderCraftFeature {
 }
 
 struct RiderCraftEvent: Codable, Identifiable, Hashable, Sendable {
-    enum Kind: String, CaseIterable, Codable, Sendable {
+    enum Kind: String, CaseIterable, Codable, Hashable, Sendable {
         case brakeAfterTurnIn
         case flatExit
         case earlyApex
@@ -18,11 +18,19 @@ struct RiderCraftEvent: Codable, Identifiable, Hashable, Sendable {
         var title: String {
             switch self {
             case .brakeAfterTurnIn: "Braking after turn-in"
-            case .flatExit: "Flat exit"
+            case .flatExit: "Unsettled exit"
             case .earlyApex: "Early-apex pattern"
             case .brakedDeep: "Braked deep"
             }
         }
+
+        /// Early-apex remains decodable for version-one archives, but the
+        /// phone-GPS proxy failed calibration and cannot affect current output.
+        static let currentModelKinds: [Self] = [
+            .brakeAfterTurnIn,
+            .flatExit,
+            .brakedDeep
+        ]
 
         static let calibrationControlKinds: [Self] = [
             .brakeAfterTurnIn,
@@ -61,7 +69,7 @@ struct RiderCraftCalibrationReviewTarget: Identifiable, Hashable, Sendable {
 }
 
 struct RiderCraftCalibrationReview: Identifiable, Codable, Equatable, Sendable {
-    enum Decision: String, Codable, CaseIterable, Sendable {
+    enum Decision: String, Codable, CaseIterable, Hashable, Sendable {
         case match
         case mismatch
         case unsure
@@ -204,8 +212,17 @@ struct RiderCraftAnalysis: Codable, Sendable {
         Dictionary(grouping: events, by: \.kind).mapValues(\.count)
     }
 
+    var currentModelEvents: [RiderCraftEvent] {
+        events.filter { RiderCraftEvent.Kind.currentModelKinds.contains($0.kind) }
+    }
+
+    var currentModelEventsPerCorner: Double? {
+        guard detectedCornerCount > 0, eventsPerCorner != nil else { return nil }
+        return Double(currentModelEvents.count) / Double(detectedCornerCount)
+    }
+
     var calibrationReviewTargets: [RiderCraftCalibrationReviewTarget] {
-        let candidateTargets = events.map { event in
+        let candidateTargets = currentModelEvents.map { event in
             RiderCraftCalibrationReviewTarget(
                 id: event.id,
                 candidateKind: event.kind,
@@ -215,7 +232,7 @@ struct RiderCraftAnalysis: Codable, Sendable {
                 threshold: event.threshold
             )
         }
-        let candidateCorners = Set(events.map(\.cornerIndex))
+        let candidateCorners = Set(currentModelEvents.map(\.cornerIndex))
         let controls = calibrationSamples
             .filter { !candidateCorners.contains($0.cornerIndex) }
             .map { sample in
@@ -235,8 +252,8 @@ struct RiderCraftAnalysis: Codable, Sendable {
     }
 
     var calibrationDebriefLine: String? {
-        guard eventsPerCorner != nil,
-              let dominant = RiderCraftEvent.Kind.allCases.max(by: {
+        guard currentModelEventsPerCorner != nil,
+              let dominant = RiderCraftEvent.Kind.currentModelKinds.max(by: {
                   categoryCounts[$0, default: 0] < categoryCounts[$1, default: 0]
               }),
               categoryCounts[dominant, default: 0] > 0 else { return nil }
@@ -383,9 +400,9 @@ struct RiderCraftThresholds: Sendable {
     let deepBrakingDepth: Double
 
     static let current = RiderCraftThresholds(
-        version: 1,
-        flatExitDrive: 0.10,
-        earlyApexPosition: 0.35,
+        version: 2,
+        flatExitDrive: 0,
+        earlyApexPosition: -1,
         deepBrakingDepth: 0.60
     )
 }

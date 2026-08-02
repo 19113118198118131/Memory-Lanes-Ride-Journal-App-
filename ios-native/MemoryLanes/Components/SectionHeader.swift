@@ -11,26 +11,43 @@ struct SectionHeader: View {
     var action: (() -> Void)? = nil
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .font(MLFont.title2)
-                .foregroundStyle(Color.mlTextPrimary)
-            Spacer(minLength: Spacing.sm)
-            if let actionTitle, let action {
-                Button {
-                    Haptics.selection()
-                    action()
-                } label: {
-                    Text(actionTitle)
-                        .font(MLFont.callout)
-                        .foregroundStyle(Color.mlAccent)
-                }
-                .mlHitTarget()
-                .accessibilityLabel("\(actionTitle), \(title)")
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline) {
+                titleLabel
+                Spacer(minLength: Spacing.sm)
+                actionButton
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                titleLabel
+                actionButton
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityAddTraits(.isHeader)
+    }
+
+    private var titleLabel: some View {
+        Text(title)
+            .font(MLFont.title2)
+            .foregroundStyle(Color.mlTextPrimary)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    @ViewBuilder
+    private var actionButton: some View {
+        if let actionTitle, let action {
+            Button {
+                Haptics.selection()
+                action()
+            } label: {
+                Text(actionTitle)
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlAccent)
+            }
+            .mlHitTarget()
+            .accessibilityLabel("\(actionTitle), \(title)")
+        }
     }
 }
 

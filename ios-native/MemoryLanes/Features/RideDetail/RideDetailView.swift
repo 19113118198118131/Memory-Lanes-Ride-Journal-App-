@@ -135,7 +135,7 @@ struct RideDetailView: View {
             .presentationDragIndicator(.visible)
             .interactiveDismissDisabled(viewModel.isRenamingRide)
         }
-        .mlToast($toast)
+        .mlToast($toast, bottomInset: Layout.floatingTabBarToastInset)
     }
 
     // MARK: Scrolling content
@@ -242,7 +242,7 @@ struct RideDetailView: View {
         }
         .padding(.top, Spacing.lg)
         .mlScreenPadding()
-        .padding(.bottom, Spacing.xxl)
+        .mlTabBarContentClearance()
     }
 
     private var titleBlock: some View {
@@ -458,7 +458,10 @@ struct RideDetailView: View {
             VStack(spacing: Spacing.md) {
                 if RiderCraftFeature.isResearchPreviewEnabled,
                    let riderCraft = detail.riderCraft {
-                    RiderCraftRideView(analysis: riderCraft) { index in
+                    RiderCraftRideView(
+                        analysis: riderCraft,
+                        personalization: viewModel.riderCraftPersonalization
+                    ) { index in
                         focusReplayOnMap(index)
                     }
                 }
@@ -466,9 +469,25 @@ struct RideDetailView: View {
                 if LimitPointFeature.isResearchPreviewEnabled,
                    let limitPointAnalysis = detail.limitPointAnalysis,
                    !limitPointAnalysis.corners.isEmpty {
-                    LimitPointRideView(analysis: limitPointAnalysis) { index in
-                        focusReplayOnMap(index)
-                    }
+                    LimitPointRideView(
+                        analysis: limitPointAnalysis,
+                        reviewedCount: viewModel.limitPointReviewedCount,
+                        personalization: viewModel.limitPointPersonalization,
+                        decisionFor: { viewModel.limitPointDecision(for: $0) },
+                        onReview: { corner, decision in
+                            Task {
+                                if await viewModel.saveLimitPointDecision(decision, for: corner) {
+                                    Haptics.success()
+                                } else {
+                                    Haptics.error()
+                                }
+                            }
+                        },
+                        onClearReview: { corner in
+                            Task { _ = await viewModel.clearLimitPointDecision(for: corner) }
+                        },
+                        onReplay: { index in focusReplayOnMap(index) }
+                    )
                 }
 
                 if RiderCraftFeature.isResearchPreviewEnabled,

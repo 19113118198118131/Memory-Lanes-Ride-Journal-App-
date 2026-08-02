@@ -11,6 +11,7 @@ struct RootView: View {
     @StateObject private var authStore = AuthStore()
     @StateObject private var notificationCoordinator = NotificationCoordinator.shared
     @State private var pendingGroupInvite: GroupRideInvite?
+    @State private var showingFlow = false
 
     var body: some View {
         Group {
@@ -34,10 +35,17 @@ struct RootView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Preparing Memory Lanes")
             case .signedOut:
-                AuthView(authStore: authStore)
+                AuthView(authStore: authStore, onOpenFlow: { showingFlow = true })
             case .signedIn:
-                MainTabShell(authStore: authStore, pendingGroupInvite: $pendingGroupInvite)
+                MainTabShell(
+                    authStore: authStore,
+                    pendingGroupInvite: $pendingGroupInvite,
+                    onOpenFlow: { showingFlow = true }
+                )
             }
+        }
+        .fullScreenCover(isPresented: $showingFlow) {
+            FlowView(onClose: { showingFlow = false })
         }
         .onOpenURL { url in
             if let invite = GroupRideInvite.parse(url) {
@@ -79,7 +87,10 @@ private struct MainTabShell: View {
     }
 
     @ObservedObject var authStore: AuthStore
+    @Environment(\.scenePhase) private var scenePhase
     @Binding var pendingGroupInvite: GroupRideInvite?
+    let onOpenFlow: () -> Void
+    @StateObject private var uploadQueue = PendingRideUploadCoordinator()
     @State private var selectedTab: MainTab = .ride
     @State private var ridePath = NavigationPath()
     @State private var routesPath = NavigationPath()
@@ -119,6 +130,7 @@ private struct MainTabShell: View {
             NavigationStack(path: $ridePath) {
                 DashboardView(
                     viewModel: DashboardViewModel(rideService: rideService),
+                    uploadQueue: uploadQueue,
                     refreshTrigger: refreshTrigger,
                     onSelectRide: { ridePath.append($0) },
                     onStartRide: {
@@ -127,7 +139,8 @@ private struct MainTabShell: View {
                         showingRecorder = true
                     },
                     onImportRide: { showingImporter = true },
-                    onShowStats: { selectedTab = .stats }
+                    onShowStats: { selectedTab = .stats },
+                    onOpenFlow: onOpenFlow
                 )
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: Ride.self) { ride in
@@ -137,7 +150,19 @@ private struct MainTabShell: View {
                     )
                 }
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        Button {
+                            Haptics.selection()
+                            onOpenFlow()
+                        } label: {
+                            Image(systemName: "waveform.path")
+                                .font(MLFont.title2)
+                                .foregroundStyle(Color.mlAccent)
+                                .mlHitTarget()
+                        }
+                        .buttonStyle(MLPressableButtonStyle())
+                        .accessibilityLabel("Open Flow")
+
                         Button {
                             showingAccount = true
                         } label: {
@@ -245,17 +270,33 @@ private struct MainTabShell: View {
             routesPath.append(invite)
             pendingGroupInvite = nil
         }
-        .mlToast($toast)
+        .task(id: authStore.session?.userID) {
+            await uploadQueue.configure(
+                userID: authStore.session?.userID,
+                accessToken: { await authStore.validAccessToken() },
+                onUploaded: { ride in
+                    presentSavedRide(ride, message: "Ride synced to journal")
+                }
+            )
+            await uploadQueue.sync()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await uploadQueue.sync() }
+        }
+        .mlToast($toast, bottomInset: Layout.floatingTabBarToastInset)
         .fullScreenCover(isPresented: $showingRecorder) {
             if let session = authStore.session {
                 RecordingView(
                     session: session,
                     plannedRoute: recorderRoute,
                     groupRideContext: recorderGroupContext,
-                    accessToken: { await authStore.validAccessToken() }
-                ) { ride in
-                    presentSavedRide(ride, message: "Ride saved to journal")
-                }
+                    accessToken: { await authStore.validAccessToken() },
+                    uploadQueue: uploadQueue,
+                    onQueued: {
+                        toast = .success("Ride is safe on this iPhone and will sync automatically")
+                    }
+                )
             }
         }
         .sheet(isPresented: $showingImporter) {

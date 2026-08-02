@@ -1,20 +1,39 @@
-# Offline Region Packs
+# Offline Areas
 
 ## Product contract
 
-Riders manage downloaded road coverage from **Account → Offline Areas**. The
-map selector offers 25 km, 60 km and 120 km selections centred under the map
-crosshair. It outlines published and installed coverage, reports full or
-partial coverage before download, and installs every signed pack intersecting
-the selection. When no pack intersects, the rider can jump to the nearest
-published area instead of reaching a dead end. MapKit remains the online
-fallback until an installed graph covers every route waypoint.
+Riders manage one offline-area product from **Account -> Offline Maps**. The map
+selector offers 25 km, 60 km and 120 km starting sizes. The rider moves and
+zooms the map, names the selection, and downloads the highlighted bounds once.
+The app then stores the visual map and automatically installs every published
+routing pack intersecting that selection. The separate file formats and release
+catalog are implementation details and are not exposed as another download.
 
-The first release downloads routing data only. Apple Maps remains the visual
-basemap while online. The selection rectangle therefore represents offline
-road and navigation coverage, not a promise that Apple basemap tiles will be
-available without a network connection. Offline raster/vector tiles can be
-layered in a later navigation phase without changing the graph-pack lifecycle.
+Visual maps use MapLibre Native offline packs. Each pack stores its bounds,
+name, zoom range, progress and downloaded resources in MapLibre's local
+database. Downloads survive relaunch, can be resumed, renamed and removed, and
+render from the local database when the network is unavailable. The initial
+style endpoint is OpenFreeMap's Liberty style. `OfflineMapServing` keeps that
+provider replaceable so production hosting can move to Memory Lanes
+infrastructure without changing feature UI or stored metadata.
+
+The live recording cockpit selects that MapLibre surface automatically when
+the rider or planned route is inside a completed downloaded area. It retains
+the same forward-looking camera, route casing, rider puck and live group-rider
+markers. Outside downloaded map coverage the cockpit uses Apple Maps. This
+keeps the user contract simple: one downloaded area supplies the visible map
+and, where published, the road graph used for planning, maneuvers and rerouting.
+
+Signed `.mlgraph` road graphs calculate routes and turn-by-turn guidance without
+reception where graph coverage exists. Existing map-only downloads offer a
+single **Finish Setup** action when matching route data is available. An area
+card reports whether the entire area or only part of it has offline routing;
+map-only selections remain usable and explain when routing data has not yet
+been published. MapKit remains the automatic online fallback until an installed
+graph covers every route waypoint.
+
+Removing an offline area also removes intersecting road data when no other
+downloaded area still uses it. Saved routes and recorded rides are unaffected.
 
 ## Storage layout
 
@@ -111,14 +130,14 @@ until the runtime can evaluate its schedule or vehicle expression.
 Route planning uses a downloaded graph only when every waypoint is covered by
 the same installed pack. Missing coverage, failed snapping, disconnected roads
 or invalid packs fall back to the replaceable MapKit provider. Cross-pack
-routing, offline in-ride rerouting and production-pack performance validation
-remain later milestones.
+routing and in-ride rerouting both use the local provider within one installed
+pack. Cross-pack routing and production-pack physical-device performance
+validation remain later milestones.
 
-Account → Offline Areas exposes progressively disclosed local diagnostics for
-real-device validation: aggregate local route and fallback counts, last pack
-version, last fallback reason and calculation duration. This data is stored
-only on-device and can be reset by the rider; no coordinates or route geometry
-are retained.
+Account -> Offline Maps exposes private routing diagnostics only inside Download
+Settings: aggregate local route and fallback counts, last pack version, last
+fallback reason and calculation duration. This data is stored only on-device
+and can be reset by the rider; no coordinates or route geometry are retained.
 
 ## Release workflow
 

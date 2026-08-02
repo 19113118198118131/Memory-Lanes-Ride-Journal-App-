@@ -8,28 +8,34 @@ import SwiftUI
 
 struct DashboardView: View {
     @State private var viewModel: DashboardViewModel
-    @State private var toast: Toast?
+    @ObservedObject var uploadQueue: PendingRideUploadCoordinator
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let refreshTrigger: UUID
     let onSelectRide: (Ride) -> Void
     let onStartRide: () -> Void
     let onImportRide: () -> Void
     let onShowStats: () -> Void
+    let onOpenFlow: () -> Void
 
     init(
         viewModel: DashboardViewModel,
+        uploadQueue: PendingRideUploadCoordinator,
         refreshTrigger: UUID = UUID(),
         onSelectRide: @escaping (Ride) -> Void = { _ in },
         onStartRide: @escaping () -> Void = {},
         onImportRide: @escaping () -> Void = {},
-        onShowStats: @escaping () -> Void = {}
+        onShowStats: @escaping () -> Void = {},
+        onOpenFlow: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
+        self.uploadQueue = uploadQueue
         self.refreshTrigger = refreshTrigger
         self.onSelectRide = onSelectRide
         self.onStartRide = onStartRide
         self.onImportRide = onImportRide
         self.onShowStats = onShowStats
+        self.onOpenFlow = onOpenFlow
     }
 
     var body: some View {
@@ -38,6 +44,11 @@ struct DashboardView: View {
                 header
                 heroMetrics
                 startTile
+                flowLauncher
+                if uploadQueue.pendingCount > 0 {
+                    pendingSyncNotice
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
 
                 SectionHeader(title: "Recent Rides",
                               actionTitle: viewModel.rides.isEmpty ? nil : "Stats",
@@ -47,22 +58,18 @@ struct DashboardView: View {
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
+            .mlTabBarContentClearance()
         }
         .background(Color.mlBackground)
         .refreshable { await viewModel.refresh() }
         .task(id: refreshTrigger) { await viewModel.load() }
-        .mlToast($toast)
+        .animation(reduceMotion ? nil : Motion.springSnappy, value: uploadQueue.pendingCount)
     }
 
     // MARK: Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text("Ride Journal").mlKicker()
-            Text("Memory Lanes")
-                .font(MLFont.displayXL)
-                .foregroundStyle(Color.mlTextPrimary)
-        }
+        ScreenIntro(kicker: "Ride Journal", title: "Memory Lanes")
         .padding(.top, Spacing.xs)
     }
 
@@ -106,6 +113,124 @@ struct DashboardView: View {
                 onImportRide()
             }
         }
+    }
+
+    private var flowLauncher: some View {
+        Button {
+            Haptics.selection()
+            onOpenFlow()
+        } label: {
+            HStack(spacing: Spacing.md) {
+                ZStack {
+                    Circle()
+                        .fill(Color.mlAccent.opacity(0.12))
+                    Image(systemName: "waveform.path")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlAccent)
+                }
+                .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("Between rides")
+                        .mlKicker()
+                        .foregroundStyle(Color.mlAccent)
+                    Text("Flow")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                    Text("Find your line in a quiet 60-second reset")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer(minLength: Spacing.xs)
+
+                Image(systemName: "chevron.right")
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlTextTertiary)
+            }
+            .padding(Spacing.md)
+            .background(
+                LinearGradient(
+                    colors: [Color.mlAccent.opacity(0.09), Color.mlSurface],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.mlAccent.opacity(0.20), lineWidth: Layout.hairline)
+            }
+        }
+        .buttonStyle(MLPressableButtonStyle())
+        .accessibilityLabel("Flow. A quiet 60-second reset between rides")
+    }
+
+    private var pendingSyncNotice: some View {
+        Button {
+            Haptics.selection()
+            Task { await uploadQueue.sync() }
+        } label: {
+            HStack(spacing: Spacing.md) {
+                ZStack {
+                    Circle()
+                        .fill(Color.mlAccent.opacity(0.14))
+                        .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                    if uploadQueue.phase == .syncing {
+                        ProgressView()
+                            .tint(Color.mlAccent)
+                    } else {
+                        Image(systemName: "icloud.and.arrow.up")
+                            .font(MLFont.headline)
+                            .foregroundStyle(Color.mlAccent)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(syncTitle)
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                    Text(syncDetail)
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer(minLength: Spacing.xs)
+
+                if uploadQueue.phase != .syncing {
+                    Image(systemName: "arrow.clockwise")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
+                }
+            }
+            .padding(Spacing.md)
+            .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.mlAccent.opacity(0.18), lineWidth: Layout.hairline)
+            )
+        }
+        .buttonStyle(MLPressableButtonStyle())
+        .disabled(uploadQueue.phase == .syncing)
+        .accessibilityLabel("\(syncTitle). \(syncDetail)")
+        .accessibilityHint(uploadQueue.phase == .syncing ? "" : "Retries the upload")
+    }
+
+    private var syncTitle: String {
+        let noun = uploadQueue.pendingCount == 1 ? "ride" : "rides"
+        if uploadQueue.phase == .syncing {
+            return "Syncing \(uploadQueue.pendingCount) \(noun)"
+        }
+        return "\(uploadQueue.pendingCount) \(noun) safe on this iPhone"
+    }
+
+    private var syncDetail: String {
+        uploadQueue.phase == .syncing
+            ? "Uploading securely to your journal"
+            : "Waiting to sync. Tap to try again."
     }
 
     // MARK: List content — every state handled
@@ -154,20 +279,23 @@ struct DashboardView: View {
 // MARK: - Previews
 
 #Preview("Dashboard — populated") {
-    DashboardView(viewModel: DashboardViewModel(rideService: PreviewRideService()))
+    DashboardView(
+        viewModel: DashboardViewModel(rideService: PreviewRideService()),
+        uploadQueue: PendingRideUploadCoordinator(monitorsNetwork: false)
+    )
         .preferredColorScheme(.dark)
 }
 
 #Preview("Dashboard — empty") {
     DashboardView(viewModel: DashboardViewModel(
         rideService: PreviewRideService(rides: [])
-    ))
+    ), uploadQueue: PendingRideUploadCoordinator(monitorsNetwork: false))
     .preferredColorScheme(.dark)
 }
 
 #Preview("Dashboard — error") {
     DashboardView(viewModel: DashboardViewModel(
         rideService: PreviewRideService(failure: .notImplemented)
-    ))
+    ), uploadQueue: PendingRideUploadCoordinator(monitorsNetwork: false))
     .preferredColorScheme(.dark)
 }

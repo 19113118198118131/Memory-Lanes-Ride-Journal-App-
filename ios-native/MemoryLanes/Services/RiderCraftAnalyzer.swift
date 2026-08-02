@@ -49,7 +49,8 @@ struct RiderCraftAnalyzer: Sendable {
             if corner.drive < thresholds.flatExitDrive {
                 events.append(event(.flatExit, corner: corner, replayIndex: corner.apexIndex, value: corner.drive, threshold: thresholds.flatExitDrive))
             }
-            if corner.apexPosition <= thresholds.earlyApexPosition {
+            if thresholds.earlyApexPosition >= 0,
+               corner.apexPosition <= thresholds.earlyApexPosition {
                 events.append(event(.earlyApex, corner: corner, replayIndex: corner.apexIndex, value: corner.apexPosition, threshold: thresholds.earlyApexPosition))
             }
             if corner.brakeDepth > thresholds.deepBrakingDepth {
@@ -107,6 +108,16 @@ struct RiderCraftStorageSummary: Codable, Sendable {
         Dictionary(uniqueKeysWithValues: RiderCraftEvent.Kind.allCases.map {
             ($0, counts[$0.rawValue, default: 0])
         })
+    }
+    var currentModelEventCount: Int {
+        RiderCraftEvent.Kind.currentModelKinds.reduce(0) { partial, kind in
+            partial + counts[kind.rawValue, default: 0]
+        }
+    }
+
+    var currentModelEventsPerCorner: Double? {
+        guard cornerCount > 0, eventsPerCorner != nil else { return nil }
+        return Double(currentModelEventCount) / Double(cornerCount)
     }
 
     init(analysis: RiderCraftAnalysis) {

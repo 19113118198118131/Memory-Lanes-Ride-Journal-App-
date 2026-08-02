@@ -3,6 +3,7 @@ import SwiftUI
 
 struct RiderCraftRideView: View {
     let analysis: RiderCraftAnalysis
+    let personalization: RiderCraftPersonalization
     let onReplay: (Int) -> Void
 
     @State private var showAllEvents = false
@@ -10,7 +11,7 @@ struct RiderCraftRideView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var orderedEvents: [RiderCraftEvent] {
-        analysis.events.sorted { $0.replayIndex < $1.replayIndex }
+        analysis.currentModelEvents.sorted { $0.replayIndex < $1.replayIndex }
     }
 
     private var visibleEvents: [RiderCraftEvent] {
@@ -36,6 +37,7 @@ struct RiderCraftRideView: View {
             }
 
             headline
+            learningSummary
             RiderCraftReadingGuide()
 
             if let line = analysis.calibrationDebriefLine {
@@ -88,7 +90,7 @@ struct RiderCraftRideView: View {
     private var headline: some View {
         HStack(alignment: .center, spacing: Spacing.lg) {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(analysis.eventsPerCorner.map { String(format: "%.2f", $0) } ?? "--")
+                Text(analysis.currentModelEventsPerCorner.map { String(format: "%.2f", $0) } ?? "--")
                     .font(MLFont.display)
                     .foregroundStyle(Color.mlTextPrimary)
                 Text("DETECTIONS / CORNER").mlKicker()
@@ -114,7 +116,7 @@ struct RiderCraftRideView: View {
             columns: detectorColumns,
             spacing: Spacing.sm
         ) {
-            ForEach(RiderCraftEvent.Kind.allCases, id: \.self) { kind in
+            ForEach(RiderCraftEvent.Kind.currentModelKinds, id: \.self) { kind in
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text("\(analysis.categoryCounts[kind, default: 0])")
                         .font(MLFont.mono)
@@ -123,12 +125,33 @@ struct RiderCraftRideView: View {
                         .font(MLFont.caption)
                         .foregroundStyle(Color.mlTextSecondary)
                         .lineLimit(2)
+                    Text(personalization.reliability(for: kind).statusText)
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                        .lineLimit(2)
                 }
                 .padding(Spacing.sm)
                 .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
                 .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
             }
         }
+    }
+
+    private var learningSummary: some View {
+        let reviewed = RiderCraftEvent.Kind.currentModelKinds.reduce(0) {
+            $0 + personalization.reliability(for: $1).reviewedCount
+        }
+        return Label(
+            reviewed == 0
+                ? "Personal calibration starts when you review replay evidence."
+                : "On-device learning has \(reviewed) labelled examples. It adjusts confidence, never riding targets.",
+            systemImage: "brain.head.profile"
+        )
+        .font(MLFont.callout)
+        .foregroundStyle(Color.mlTextSecondary)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(Spacing.sm)
+        .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
     }
 
     private var detectorColumns: [GridItem] {
@@ -212,10 +235,10 @@ private struct RiderCraftReadingGuide: View {
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    guideRow("Detections per corner", "This is a normalised count of four GPS-supported patterns, not a score. Lower can mean fewer detected patterns, but one ride is never a verdict.")
-                    guideRow("Detector tiles", "Each tile counts where the model saw braking after turn-in, a flat-exit proxy, an early-apex proxy, or braking deep into a detected bend.")
+                    guideRow("Detections per corner", "This is a normalised count of three GPS-supported patterns, not a score. Lower can mean fewer detected patterns, but one ride is never a verdict.")
+                    guideRow("Detector tiles", "Each tile counts where the model saw braking after turn-in, continued deceleration on exit, or braking deep into a detected bend.")
                     guideRow("Replay evidence", "Tap Replay to inspect the road shape and moment yourself. Geometry, traffic, GPS noise, and one-second sampling can explain a detection.")
-                    guideRow("Why calibrate", "GPS can misread traffic, road shape, or signal noise. Checking a few replay moments helps tune future Rider Craft detection so its prompts become more accurate and less noisy.")
+                    guideRow("Personal learning", "Your replay labels train an explainable model stored on this iPhone. It learns confidence for each detector without changing thresholds or rewarding speed.")
                 }
                 .padding(.top, Spacing.xs)
                 .transition(.opacity.combined(with: .move(edge: .top)))

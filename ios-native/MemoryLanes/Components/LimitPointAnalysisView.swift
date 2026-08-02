@@ -76,6 +76,11 @@ struct LimitPointPlannerView: View {
 
 struct LimitPointRideView: View {
     let analysis: LimitPointAnalysis
+    let reviewedCount: Int
+    let personalization: LimitPointPersonalization
+    let decisionFor: (LimitPointCorner) -> LimitPointCalibrationReview.Decision?
+    let onReview: (LimitPointCorner, LimitPointCalibrationReview.Decision) -> Void
+    let onClearReview: (LimitPointCorner) -> Void
     let onReplay: (Int) -> Void
 
     var body: some View {
@@ -90,7 +95,17 @@ struct LimitPointRideView: View {
                     .foregroundStyle(Color.mlTextSecondary)
             }
 
-            LimitPointAnalysisContent(analysis: analysis, onReplay: onReplay)
+            LimitPointReadingGuide()
+
+            LimitPointAnalysisContent(
+                analysis: analysis,
+                reviewedCount: reviewedCount,
+                personalization: personalization,
+                decisionFor: decisionFor,
+                onReview: onReview,
+                onClearReview: onClearReview,
+                onReplay: onReplay
+            )
 
             Label(
                 analysis.wetModel
@@ -109,6 +124,11 @@ private struct LimitPointAnalysisContent: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let analysis: LimitPointAnalysis
+    var reviewedCount = 0
+    var personalization = LimitPointPersonalization.empty
+    var decisionFor: ((LimitPointCorner) -> LimitPointCalibrationReview.Decision?)? = nil
+    var onReview: ((LimitPointCorner, LimitPointCalibrationReview.Decision) -> Void)? = nil
+    var onClearReview: ((LimitPointCorner) -> Void)? = nil
     var onReplay: ((Int) -> Void)? = nil
 
     @State private var showAll = false
@@ -120,6 +140,10 @@ private struct LimitPointAnalysisContent: View {
 
     private var visibleCorners: [LimitPointCorner] {
         showAll ? orderedCorners : Array(orderedCorners.prefix(3))
+    }
+
+    private var selectedCorner: LimitPointCorner? {
+        analysis.corners.first { $0.id == selectedCornerID }
     }
 
     var body: some View {
@@ -160,7 +184,15 @@ private struct LimitPointAnalysisContent: View {
                     }
                     .buttonStyle(MLPressableButtonStyle())
                 }
+
+                if let selectedCorner {
+                    cornerInspector(selectedCorner)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
             }
+        }
+        .task(id: analysis.modelVersion) {
+            if selectedCornerID == nil { selectedCornerID = orderedCorners.first?.id }
         }
     }
 
@@ -181,16 +213,14 @@ private struct LimitPointAnalysisContent: View {
                 .foregroundStyle(Color.mlTextPrimary)
             Text(label).mlKicker()
         }
-        .padding(Spacing.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget, alignment: .leading)
     }
 
     private var legend: some View {
         HStack(spacing: Spacing.md) {
-            legendItem("No model deficit", color: .mlAccent)
-            legendItem("Thin", color: .mlWarning)
-            legendItem("Deficit", color: .mlDanger)
+            legendItem("Study", color: .mlTextSecondary)
+            legendItem("Tighter", color: .mlWarning)
+            legendItem("Restricted", color: .mlDanger)
         }
     }
 
@@ -208,7 +238,6 @@ private struct LimitPointAnalysisContent: View {
         Button {
             Haptics.selection()
             withAnimation(reduceMotion ? nil : Motion.spring) { selectedCornerID = corner.id }
-            onReplay?(corner.replayIndex)
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: corner.direction == .left ? "arrow.turn.up.left" : "arrow.turn.up.right")
@@ -220,17 +249,18 @@ private struct LimitPointAnalysisContent: View {
                     Text("Bend \(corner.index) · \(corner.direction.rawValue)")
                         .font(MLFont.bodyEmphasised)
                         .foregroundStyle(Color.mlTextPrimary)
-                    Text("r≈\(Int(corner.radiusMeters.rounded())) m · view \(Int(corner.sightDistanceMeters.rounded())) m · stop \(Int(corner.stoppingDistanceMeters.rounded())) m")
+                    Text("\(corner.severity.title) · \(Int(corner.sweepDegrees.rounded()))° sweep")
                         .font(MLFont.caption)
                         .foregroundStyle(Color.mlTextSecondary)
                         .lineLimit(2)
                 }
                 Spacer(minLength: Spacing.xs)
                 VStack(alignment: .trailing, spacing: Spacing.xxs) {
-                    Text(String(format: "%+.0f m", corner.marginMeters))
-                        .font(MLFont.monoSmall)
-                        .foregroundStyle(tint(corner.severity))
-                    Text(onReplay == nil ? "Inspect" : "Replay").mlKicker()
+                    if let decision = decisionFor?(corner) {
+                        Image(systemName: decision == .match ? "checkmark.circle.fill" : "checkmark.circle")
+                            .foregroundStyle(Color.mlAccent)
+                    }
+                    Text("Inspect").mlKicker()
                 }
             }
             .padding(Spacing.sm)
@@ -248,19 +278,202 @@ private struct LimitPointAnalysisContent: View {
 
     @ViewBuilder
     private var summaryMetrics: some View {
-        limitMetric(value: "\(analysis.corners.count)", label: "Bends")
-        limitMetric(value: "\(analysis.beyondViewCount)", label: "Below zero")
+        limitMetric(value: "\(analysis.corners.count)", label: "Study bends")
+        limitMetric(value: "\(analysis.beyondViewCount)", label: "Restricted")
         limitMetric(
-            value: analysis.worstCorner.map { String(format: "%.0f m", $0.marginMeters) } ?? "--",
-            label: "Thinnest"
+            value: decisionFor == nil ? "V\(analysis.modelVersion)" : "\(reviewedCount)/\(analysis.corners.count)",
+            label: decisionFor == nil ? "Model" : "Reviewed"
         )
+    }
+
+    private func cornerInspector(_ corner: LimitPointCorner) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(alignment: .top, spacing: Spacing.sm) {
+                Image(systemName: "eye.trianglebadge.exclamationmark")
+                    .foregroundStyle(tint(corner.severity))
+                    .frame(width: 40, height: 40)
+                    .background(tint(corner.severity).opacity(0.12), in: Circle())
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("Bend \(corner.index) · \(corner.direction.rawValue)")
+                        .font(MLFont.headline)
+                        .foregroundStyle(Color.mlTextPrimary)
+                    Text("Geometry suggests this bend is worth studying. Read the road yourself.")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    detailRow("Radius estimate", "\(Int(corner.radiusMeters.rounded())) m")
+                    detailRow("Modelled view", "\(Int(corner.sightDistanceMeters.rounded())) m")
+                    detailRow("Stopping scenario", "\(Int(corner.stoppingDistanceMeters.rounded())) m")
+                    detailRow("Research difference", String(format: "%+.0f m", corner.marginMeters))
+                    Text("Fixed \(Int(analysis.obstructionOffsetMeters)) m obstruction · \(analysis.confidence.rawValue.lowercased())")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextTertiary)
+                }
+                .padding(.top, Spacing.xs)
+            } label: {
+                Label("Model details", systemImage: "function")
+                    .font(MLFont.callout)
+                    .foregroundStyle(Color.mlTextPrimary)
+            }
+            .tint(.mlAccent)
+
+            if let onReplay {
+                Button {
+                    Haptics.selection()
+                    onReplay(corner.replayIndex)
+                } label: {
+                    Label("Replay This Bend", systemImage: "play.fill")
+                        .font(MLFont.bodyEmphasised)
+                        .foregroundStyle(Color.mlAccent)
+                        .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget)
+                }
+                .buttonStyle(MLPressableButtonStyle())
+            }
+
+            if let onReview {
+                Divider().overlay(Color.mlHairline)
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("Did this estimate match the view you remember?")
+                        .font(MLFont.bodyEmphasised)
+                        .foregroundStyle(Color.mlTextPrimary)
+                    Text("Review after the ride. Your answer trains confidence on this iPhone; it never creates a speed recommendation.")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: Spacing.xs) {
+                        ForEach(LimitPointCalibrationReview.Decision.allCases, id: \.self) { decision in
+                            reviewButton(decision, corner: corner, onReview: onReview)
+                        }
+                    }
+
+                    Label(
+                        personalization.reliability(for: corner.severity).statusText,
+                        systemImage: "brain.head.profile"
+                    )
+                    .font(MLFont.caption)
+                    .foregroundStyle(Color.mlTextTertiary)
+                }
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                .stroke(tint(corner.severity).opacity(0.35), lineWidth: Layout.hairline)
+        )
+    }
+
+    private func reviewButton(
+        _ decision: LimitPointCalibrationReview.Decision,
+        corner: LimitPointCorner,
+        onReview: @escaping (LimitPointCorner, LimitPointCalibrationReview.Decision) -> Void
+    ) -> some View {
+        let isSelected = decisionFor?(corner) == decision
+        return Button {
+            Haptics.selection()
+            if isSelected {
+                onClearReview?(corner)
+            } else {
+                onReview(corner, decision)
+            }
+        } label: {
+            Text(decision.title)
+                .font(MLFont.caption)
+                .foregroundStyle(isSelected ? Color.mlOnAccent : Color.mlTextPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget)
+                .background(
+                    isSelected ? Color.mlAccent : Color.mlBackground,
+                    in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
+                )
+        }
+        .buttonStyle(MLPressableButtonStyle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func detailRow(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title).foregroundStyle(Color.mlTextSecondary)
+            Spacer()
+            Text(value)
+                .font(MLFont.monoSmall)
+                .foregroundStyle(Color.mlTextPrimary)
+        }
+        .font(MLFont.caption)
     }
 
     private func tint(_ severity: LimitPointCorner.Severity) -> Color {
         switch severity {
-        case .room: .mlAccent
+        case .room: .mlTextSecondary
         case .thin: .mlWarning
         case .beyondView, .severe: .mlDanger
+        }
+    }
+}
+
+private struct LimitPointReadingGuide: View {
+    @State private var isExpanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Button {
+                Haptics.selection()
+                withAnimation(reduceMotion ? nil : Motion.spring) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "book.closed.fill").foregroundStyle(Color.mlAccent)
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("How to read Limit Point")
+                            .font(MLFont.bodyEmphasised)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text("Geometry, assumptions, and personal learning")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(MLFont.caption)
+                        .foregroundStyle(Color.mlTextSecondary)
+                }
+                .frame(minHeight: Layout.minTouchTarget)
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    guideRow("Study, not instruction", "Highlighted bends are places to inspect before or after a ride. They never mean safe, clear, or a speed to carry.")
+                    guideRow("Relative first", "The map uses restrained relative categories. Exact research assumptions stay inside Model details.")
+                    guideRow("Replay evidence", "Choose a bend, then replay it on the map to compare the estimate with the road you remember.")
+                    guideRow("Personal learning", "Your post-ride labels update confidence by bend category. Raw geometry and safety boundaries never change silently.")
+                }
+                .padding(.top, Spacing.xs)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.xs)
+        .background(Color.mlSurfaceElevated, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+        )
+    }
+
+    private func guideRow(_ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(title).font(MLFont.headline).foregroundStyle(Color.mlTextPrimary)
+            Text(detail)
+                .font(MLFont.callout)
+                .foregroundStyle(Color.mlTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -307,7 +520,7 @@ private struct LimitPointMap: View {
 
     private func tint(_ severity: LimitPointCorner.Severity) -> Color {
         switch severity {
-        case .room: .mlAccent
+        case .room: .mlTextSecondary
         case .thin: .mlWarning
         case .beyondView, .severe: .mlDanger
         }

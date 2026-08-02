@@ -89,6 +89,109 @@ final class RideMeshCodecTests: XCTestCase {
     }
 }
 
+final class RideMeshBLEFramingTests: XCTestCase {
+    func testFragmentedPacketReassemblesOutOfOrder() throws {
+        let source = Data((0..<2_048).map { UInt8($0 % 251) })
+        let fragments = RideMeshBLEFrame.fragments(
+            for: source,
+            kind: .packet,
+            maximumFrameByteCount: 96,
+            transferID: 42
+        )
+        var reassembler = RideMeshBLEReassembler()
+        var result: RideMeshBLEAssembly?
+
+        for fragment in fragments.reversed() {
+            result = reassembler.ingest(fragment, from: "rider-a") ?? result
+        }
+
+        XCTAssertEqual(result, RideMeshBLEAssembly(kind: .packet, data: source))
+    }
+
+    func testAssembliesFromDifferentPeersDoNotCollide() throws {
+        let first = Data("first rider".utf8)
+        let second = Data("second rider".utf8)
+        let firstFrames = RideMeshBLEFrame.fragments(
+            for: first,
+            kind: .packet,
+            maximumFrameByteCount: 18,
+            transferID: 7
+        )
+        let secondFrames = RideMeshBLEFrame.fragments(
+            for: second,
+            kind: .packet,
+            maximumFrameByteCount: 18,
+            transferID: 7
+        )
+        var reassembler = RideMeshBLEReassembler()
+        var firstResult: RideMeshBLEAssembly?
+        var secondResult: RideMeshBLEAssembly?
+
+        for index in 0..<max(firstFrames.count, secondFrames.count) {
+            if index < firstFrames.count {
+                firstResult = reassembler.ingest(firstFrames[index], from: "first") ?? firstResult
+            }
+            if index < secondFrames.count {
+                secondResult = reassembler.ingest(secondFrames[index], from: "second") ?? secondResult
+            }
+        }
+
+        XCTAssertEqual(firstResult?.data, first)
+        XCTAssertEqual(secondResult?.data, second)
+    }
+
+    func testMalformedAndOversizedAssembliesAreRejected() throws {
+        var reassembler = RideMeshBLEReassembler(maximumAssemblyByteCount: 4)
+        XCTAssertNil(reassembler.ingest(Data([0, 1, 2]), from: "rider"))
+
+        let frames = RideMeshBLEFrame.fragments(
+            for: Data("too large".utf8),
+            kind: .packet,
+            maximumFrameByteCount: 18,
+            transferID: 8
+        )
+        var result: RideMeshBLEAssembly?
+        for frame in frames {
+            result = reassembler.ingest(frame, from: "rider") ?? result
+        }
+        XCTAssertNil(result)
+    }
+}
+
+@MainActor
+final class HybridRideMeshTransportTests: XCTestCase {
+    func testSendFansOutWithoutDoubleCountingTheSameNearbyRider() {
+        let bluetooth = FakeRideMeshTransport()
+        let localNetwork = FakeRideMeshTransport()
+        let hybrid = HybridRideMeshTransport(transports: [bluetooth, localNetwork])
+        hybrid.start(channelID: "ride")
+        bluetooth.connect(peerCount: 1)
+        localNetwork.connect(peerCount: 1)
+
+        let recipientCount = hybrid.send(Data("hello".utf8), excludingPeerNamed: nil)
+
+        XCTAssertEqual(recipientCount, 1)
+        XCTAssertEqual(hybrid.connectedPeerCount, 1)
+        XCTAssertEqual(bluetooth.sentPackets.count, 1)
+        XCTAssertEqual(localNetwork.sentPackets.count, 1)
+    }
+
+    func testOneUnavailableRadioDoesNotTakeDownTheHybridSession() {
+        let bluetooth = FakeRideMeshTransport()
+        let localNetwork = FakeRideMeshTransport()
+        let delegate = RideMeshTransportDelegateSpy()
+        let hybrid = HybridRideMeshTransport(transports: [bluetooth, localNetwork])
+        hybrid.delegate = delegate
+        hybrid.start(channelID: "ride")
+
+        bluetooth.fail("Bluetooth unavailable")
+        XCTAssertTrue(delegate.failures.isEmpty)
+
+        localNetwork.fail("Local network unavailable")
+        XCTAssertEqual(delegate.failures, ["Local network unavailable"])
+    }
+}
+
 @MainActor
 final class RideMeshSessionTests: XCTestCase {
     func testQueuedMessageFlushesWhenARiderConnects() throws {
@@ -181,5 +284,32 @@ private final class FakeRideMeshTransport: RideMeshTransporting {
 
     func receive(_ data: Data, from peerName: String) {
         delegate?.rideMeshTransport(self, didReceive: data, from: peerName)
+    }
+
+    func fail(_ message: String) {
+        delegate?.rideMeshTransport(self, didFail: message)
+    }
+}
+
+@MainActor
+private final class RideMeshTransportDelegateSpy: RideMeshTransportDelegate {
+    private(set) var failures: [String] = []
+
+    func rideMeshTransport(
+        _ transport: any RideMeshTransporting,
+        didReceive data: Data,
+        from peerName: String
+    ) {}
+
+    func rideMeshTransport(
+        _ transport: any RideMeshTransporting,
+        didUpdatePeerCount peerCount: Int
+    ) {}
+
+    func rideMeshTransport(
+        _ transport: any RideMeshTransporting,
+        didFail message: String
+    ) {
+        failures.append(message)
     }
 }
