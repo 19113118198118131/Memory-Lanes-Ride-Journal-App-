@@ -9,10 +9,10 @@ repository root still contains the existing Capacitor web app during migration.
 The native app is functional end to end and is being hardened through real-road
 testing:
 
-- ✅ **Flow between rides** — the native app bundles the same deterministic,
-  offline-capable Canvas experience as the web PWA. Quick Reset and Open Road
-  are available before sign-in and from the ride dashboard; game scores remain
-  separate from real-world Ride Coach analytics.
+- ✅ **Flow after a ride** — the native app bundles an offline-capable,
+  five-minute paced breathing ritual launched from a saved ride. It stores
+  local self-reports only, returns riders to the originating ride, and is
+  intentionally separate from Ride Coach analytics.
 - ✅ **Identity and design system** — premium welcome/auth, rider account,
   semantic colour/type/spacing, spring motion, haptics and reusable components.
 - ✅ **Ride library** — Supabase sync with an on-device local-first ride index,

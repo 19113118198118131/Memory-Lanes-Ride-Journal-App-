@@ -1,95 +1,79 @@
-# Memory Lanes 🏍️
+# Memory Lanes
 
-**Journal your ride.** Upload a GPX track from any motorcycle GPS or phone app and Memory Lanes turns it into a map replay, a technique debrief, and a journal entry worth keeping.
+Memory Lanes is a motorcycle ride journal for recording, revisiting and reflecting on the roads that matter. It is built around dependable ride capture, calm post-ride storytelling and technique-led insight, not speed competition.
 
-Live app: deployed on Vercel. Replace this line with your production URL (for example `https://memory-lanes-ride-journal-app.vercel.app`).
+**Ride with presence. Remember the roads that mattered.**
 
-New here? Click **"Try a sample ride"** on the landing page to explore every feature with a bundled demo GPX before uploading your own.
+## First Beta
 
-## Features
+The active beta product is the native SwiftUI iPhone app in [`ios-native/`](ios-native/). The repository root retains the original static web PWA and shared assets while the native product matures.
 
-**Replay and analytics**
-- Upload GPX, replay the ride on a Leaflet map with scrubbing, playback speeds, and live telemetry
-- Elevation and speed profile, corner speed vs radius with constant-grip reference curves, acceleration profile with braking and drive zones shaded, and a g-g grip-usage diagram
-- Historical weather at ride time (temperature, conditions, wind) via Open-Meteo
-- Speed-range highlighting on the map
-
-**Ride Coach**
-- GPS-based technique feedback computed on a high-resolution point stream: corner entry, exit drive, braking feel, throttle feel, and consistency, each scored 0 to 100
-- A plain-English debrief with one thing to practise next ride, plus a trend line comparing against your recent rides
-- Corner tickets: geometry glyph, IN › APEX › OUT speeds, verdict chips, a coaching tip, and repeat-corner recognition ("You have ridden this corner 4 times, apex today 52 km/h, a new best!")
-- Design principle: scores reward smoothness, technique and consistency, never speed or lean angle
-
-**Journal and sharing**
-- Pin up to five moments per ride with notes; browse them in the Rider's Journal (flipbook and gallery views)
-- Lifetime stats page: totals, rides per month, personal bests, skill trends over time, and a map of everywhere you have ridden
-- Shareable ride card PNG and replay video exports, drawn over real map tiles
-- Public read-only share links per ride (token-based, revocable)
-- One-click export of all your data (rides.json plus every GPX) as a zip
-
-**Route Planner**
-- Plan a route from scratch on the map: click to drop waypoints, the route snaps to real roads automatically (OSRM), drag pins to adjust, click the line to insert a stop
-- Live distance and elevation-gain preview, undo/redo, place search (Photon)
-- Save planned routes to your account, or export any of them as a GPX file for your GPS/phone
-- **Start Ride**: follow a saved route live on the map (GPS position vs. the plan, on/off-route distance), record the actual track, and save it as a normal ride log linked back to the plan — the saved ride then overlays the planned line against your actual line with a rough "route match" score
-
-**App**
-- Installable PWA with offline app-shell caching
-- Experimental route editor (drag, bulk add/delete points, multi-segment GPX export)
-
-**Flow**
-- A calm one-thumb Canvas game for signed-in riders between rides
-- A 90-second breathing-guided Quick Reset moves through Arrive, Follow, Flow and Land; Open Road offers an untimed session
-- Rhythm rewards line quality, smooth inputs and consistency — never breathing compliance or speed
-- Local personal bests, accessibility settings, reduced-motion support, optional audio/haptics and offline PWA play
-
-## Setup
-
-This is a static app (no build step) backed by Supabase.
-
-1. **Supabase project**: create one, then create a `ride_logs` table (columns used: `id`, `user_id`, `title`, `distance_km`, `duration_min`, `elevation_m`, `ride_date`, `gpx_path`, `moments jsonb`) and a public storage bucket named `gpx-files`. Enable Row Level Security so users can only read/write their own rows and their own storage folder.
-2. **Migrations** (Supabase Dashboard → SQL Editor):
-   - `supabase-share-setup.sql` - enables public share links (adds `is_public`, `share_token`, and a `get_shared_ride(token)` function)
-   - `supabase-skills-setup.sql` - enables skill trends and repeat-corner recognition (adds a `skills jsonb` column)
-   - `supabase-routeplanner-setup.sql` - enables the Route Planner (creates a `planned_routes` table, owner-only RLS)
-   - `supabase-liveride-setup.sql` - enables Start Ride (adds `ride_logs.planned_route_id`, linking a recorded ride back to the plan it followed)
-3. **Keys**: put your project URL and anon key in `supabaseClient.js`. The anon key is public by design, but only safe with RLS enabled.
-4. **Deploy**: serve the repository root from any static host. GitHub Pages (main branch, root) is what the live app uses.
-
-## Architecture
-
-| File | Role |
+| Area | What riders can do in beta |
 |---|---|
-| `index.html` + `script.js` | Landing, upload, replay, charts, moments, edit mode, sharing, exports |
-| `riderskills.js` | Ride Coach engine: corner/braking detection, scores, debrief, storage summaries |
-| `dashboard.html/js` | Ride list, filters, delete, data export |
-| `stats.html/js` | Lifetime totals, monthly chart, personal bests, skill trends, all-routes map, backfill |
-| `journal.html/js` | Rider's Journal (moments flipbook/gallery) |
-| `planner.html/js` | Route Planner: click-to-plan routes snapped to roads, save/export GPX |
-| `ride-live.html/js` | Start Ride: live GPS follow of a planned route, records and saves the actual ride |
-| `flow.html`, `flow.js`, `flow-engine.js` | Flow mini-game UI, controller, and deterministic pure simulation |
-| `flow-playcanvas-renderer.js` | PlayCanvas 3D presentation layer with chase camera, PBR road, lighting, motorcycle and layered environment |
-| `flow-renderer.js`, `flow-assets.js`, `flow-effects.js` | Layered cinematic renderer, procedural art library, pooled particles, and quality modes |
-| `flow-storage.js`, `flow-audio.js`, `flow.test.js` | Local progression, best-effort procedural audio, and logic tests |
-| `supabaseClient.js` | Supabase client singleton |
-| `sw.js`, `manifest.webmanifest` | PWA |
+| Record | Capture rides in the background, recover an unfinished recording, import GPX and save to a local-first ride library that syncs with Supabase. |
+| Revisit | Replay a ride, scrub through the route, add and edit moments, journal the experience, export GPX and share a ride. |
+| Reflect | Explore elevation, speed, acceleration, grip and explainable Rider Craft insights designed around smoothness and consistency. |
+| Plan | Generate route candidates, save routes, export GPX, follow a planned route and compare planned versus actual. |
+| Coordinate | Create or join private group rides, RSVP, check in, share ride-day updates and opt into live location or nearby Ride Mesh. |
+| Stay useful offline | Download map areas and regional road packs for offline map and routing coverage where available. |
+| Reset | Launch Flow from a saved ride for a five-minute, parked-only post-ride breathing ritual before journaling. |
 
-Cache-busting: all HTML pages reference CSS/JS with `?v=N` query strings. Bump `N` (and the `CACHE` name in `sw.js`) when deploying changes.
+Read the complete [product blueprint](docs/product-blueprint.md) and [beta release preflight](docs/beta-release-preflight.md) before inviting testers.
 
-Run the Flow engine tests with `npm run test:flow` (Node 20+). Flow is launched from the signed-in rider experience and stores only settings, bests and the latest 20 sessions in local storage; it does not use location or GPX data.
+## Product Boundaries
 
-Flow loads a locally vendored PlayCanvas runtime so the 3D experience remains available in the PWA and native iOS wrapper without a CDN. Gameplay, breathing cadence and scoring remain renderer-independent; devices without WebGL retain the Canvas 2D fallback.
+- Coaching, analytics and Limit Point research are GPS-derived reflection, not professional instruction or safety telemetry.
+- Offline navigation is limited to installed supported areas. It does not promise universal coverage.
+- Ride Mesh is opt-in nearby coordination, not an emergency service or a guaranteed delivery channel.
+- Flow is a paced ritual for when safely parked. It does not sense breathing or make medical claims.
+- Group riding is currently best suited to small, trusted beta groups. Public-community moderation controls are release work.
 
-## Data and attribution
+## Repository Layout
 
-- Map tiles: © OpenStreetMap contributors; dark basemap for exports © CARTO
-- Weather: Open-Meteo (no API key, non-commercial use)
-- All skill analysis is derived from GPS positions and is approximate. It is feedback for reflection, not telemetry. Ride within your limits and the law.
+| Path | Role |
+|---|---|
+| [`ios-native/`](ios-native/) | Native SwiftUI iPhone application and tests. |
+| `index.html`, `dashboard.html`, `journal.html`, `planner.html` | Original static web PWA surfaces. |
+| `flow.html`, `flow.js`, `flow-engine.js` | Shared Flow ritual experience bundled by the web PWA and native wrapper. |
+| `docs/` | Product decisions, architecture and release documentation. |
+| `.design/` | Design reviews and captured visual QA evidence. |
 
-## Roadmap ideas
+## Native Build
 
-Password reset flow, reverse-geocoded ride locations, weather caching, trend-aware coaching refinements, and a proper tile-source upgrade (MapTiler/Stadia) if traffic grows.
+Requirements: macOS, Xcode 15 or later, XcodeGen, and a configured Apple development team for device builds.
 
-The native roadmap now also includes safety-gated Limit Point Analysis: pre-ride study of geometry that may restrict sight distance, followed by replay-linked post-ride reflection. Fixed-clearance estimates remain research-only, and live audio is explicitly deferred until reality validation, human-factors testing, and legal review pass. See `docs/limit-point-analysis-feature-plan.md`.
+```bash
+cd ios-native
+xcodegen generate
+open MemoryLanes.xcodeproj
+```
 
-The native Analytics and Rider Craft reading model is documented in `docs/native-analytics-reading-guide.md`.
+The project is generated from `ios-native/project.yml`. Regenerate after adding source files.
+
+## Internal Beta Readiness
+
+Current native version: `0.1.0 (1)`.
+
+Before uploading to TestFlight:
+
+1. Resolve the blocking items in [`docs/beta-release-preflight.md`](docs/beta-release-preflight.md).
+2. Enable the Apple account for App Store Connect and authenticate `asc` using `asc auth login`.
+3. Archive a signed Release build in Xcode.
+4. Upload it to App Store Connect, add an internal tester group and attach concise What to Test notes.
+
+## Web PWA Development
+
+The root web app is static HTML, CSS and ES modules backed by Supabase. It has no frontend build step.
+
+```bash
+pnpm run test:flow
+```
+
+Node 20 or later is required for the Flow logic tests. The Supabase anon key is public by design, but Row Level Security must be enabled for every table and storage bucket.
+
+## Data and Safety
+
+- Map data and tiles require their respective attributions.
+- Weather data is sourced from Open-Meteo where configured.
+- Ride data belongs to the rider. Sharing and live location require explicit consent.
+- Always ride within your ability, the conditions and the law.
