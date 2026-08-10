@@ -66,6 +66,9 @@ Date: 2026-08-11
   manual simulator checks once the service is healthy. Physical iPhone testing
   remains the higher-value beta gate for location, background recording,
   Bluetooth and offline behavior.
+- The web Flow logic suite could not run because `node` is not installed or not
+  on this Mac's `PATH`. Install Node 20 or later, then run
+  `pnpm run test:flow` from the repository root.
 
 ## Internal Tester Charter
 
