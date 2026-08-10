@@ -38,8 +38,16 @@ enum Motion {
         initialVelocity: 0
     ).repeatForever(autoreverses: true)
 
+    // Semantic aliases describe why something moves. Keeping the physical
+    // values above centralised prevents each feature from inventing a cadence.
+    static let response = springSnappy
+    static let settle = spring
+    static let arrival = springGentle
+
     static func reveal(index: Int) -> Animation {
-        springGentle.delay(Double(index) * 0.02)
+        // Long lists should feel progressive, never slow. Cap the waterfall so
+        // later rows do not wait behind content that may already be off-screen.
+        springGentle.delay(Double(min(index, 8)) * 0.02)
     }
 }
 

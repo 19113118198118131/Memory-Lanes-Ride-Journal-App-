@@ -90,15 +90,23 @@ function renderAttendees() {
   const members = Array.isArray(groupRide.members) ? groupRide.members : [];
   if (!members.length) { attendeesEl.style.display = 'none'; return; }
   attendeesEl.style.display = '';
-  attendeeListEl.innerHTML = members.map(m => `
-    <div class="group-attendee">
-      <span class="group-attendee-name">
-        ${escapeHtml(m.name)}${m.is_you ? ' (you)' : ''}
-        ${m.checked_in_at ? '<small class="group-arrival-state">Checked in</small>' : ''}
+  attendeeListEl.innerHTML = members.map(m => {
+    const name = String(m.name || 'Rider').trim();
+    const initial = name.charAt(0).toUpperCase() || 'R';
+    const presenceLabel = m.checked_in_at
+      ? 'Checked in'
+      : m.rsvp === 'going' ? 'Planning to ride' : m.rsvp === 'maybe' ? 'Still deciding' : 'Not attending';
+    return `
+    <div class="group-attendee ${m.checked_in_at ? 'is-checked-in' : ''}">
+      <span class="group-attendee-avatar" aria-hidden="true">${escapeHtml(initial)}</span>
+      <span class="group-attendee-copy">
+        <span class="group-attendee-name">${escapeHtml(name)}${m.is_you ? ' (you)' : ''}</span>
+        <small class="group-presence-line"><i aria-hidden="true"></i>${presenceLabel}</small>
       </span>
       <span class="status-chip ${m.rsvp === 'going' ? 'status-chip-completed' : m.rsvp === 'maybe' ? 'status-chip-planned' : 'status-chip-shared'}">${RSVP_LABELS[m.rsvp] || m.rsvp}</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
   membersEl.textContent = String(members.filter(m => m.rsvp !== 'no').length);
 }
 

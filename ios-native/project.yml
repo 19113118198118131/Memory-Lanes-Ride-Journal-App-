@@ -48,6 +48,10 @@ targets:
         buildPhase: resources
       - path: ../flow.js
         buildPhase: resources
+      - path: ../style.css
+        buildPhase: resources
+      - path: ../icons.js
+        buildPhase: resources
       - path: ../flow-engine.js
         buildPhase: resources
       - path: ../flow-storage.js

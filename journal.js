@@ -27,7 +27,15 @@ function renderError(message) {
   if (flipbookContainer) flipbookContainer.innerHTML = `<div class="error-message">${message}</div>`;
 }
 function renderLoading() {
-  if (momentsList) momentsList.innerHTML = `<div class="loading-message">Loading your moments...</div>`;
+  if (momentsList) momentsList.innerHTML = `
+    <div class="ml-list-skeleton" role="status" aria-label="Loading your moments">
+      ${Array.from({ length: 3 }, () => `
+        <div class="ml-skeleton-list-row" aria-hidden="true">
+          <span class="ml-skeleton-thumb"></span>
+          <span class="ml-skeleton-copy"><i></i><i></i></span>
+        </div>
+      `).join('')}
+    </div>`;
 }
 
 // Core rendering: Moments as list/grid

@@ -16,7 +16,6 @@ struct DashboardView: View {
     let onStartRide: () -> Void
     let onImportRide: () -> Void
     let onShowStats: () -> Void
-    let onOpenFlow: () -> Void
 
     init(
         viewModel: DashboardViewModel,
@@ -25,8 +24,7 @@ struct DashboardView: View {
         onSelectRide: @escaping (Ride) -> Void = { _ in },
         onStartRide: @escaping () -> Void = {},
         onImportRide: @escaping () -> Void = {},
-        onShowStats: @escaping () -> Void = {},
-        onOpenFlow: @escaping () -> Void = {}
+        onShowStats: @escaping () -> Void = {}
     ) {
         _viewModel = State(initialValue: viewModel)
         self.uploadQueue = uploadQueue
@@ -35,24 +33,24 @@ struct DashboardView: View {
         self.onStartRide = onStartRide
         self.onImportRide = onImportRide
         self.onShowStats = onShowStats
-        self.onOpenFlow = onOpenFlow
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.lg) {
                 header
-                heroMetrics
-                startTile
-                flowLauncher
+                heroMetrics.mlStaggeredReveal(index: 3)
+                startTile.mlStaggeredReveal(index: 4)
                 if uploadQueue.pendingCount > 0 {
                     pendingSyncNotice
                         .transition(.move(edge: .top).combined(with: .opacity))
+                        .mlStaggeredReveal(index: 5)
                 }
 
                 SectionHeader(title: "Recent Rides",
                               actionTitle: viewModel.rides.isEmpty ? nil : "Stats",
                               action: viewModel.rides.isEmpty ? nil : onShowStats)
+                    .mlStaggeredReveal(index: 6)
 
                 content
             }
@@ -113,58 +111,6 @@ struct DashboardView: View {
                 onImportRide()
             }
         }
-    }
-
-    private var flowLauncher: some View {
-        Button {
-            Haptics.selection()
-            onOpenFlow()
-        } label: {
-            HStack(spacing: Spacing.md) {
-                ZStack {
-                    Circle()
-                        .fill(Color.mlAccent.opacity(0.12))
-                    Image(systemName: "waveform.path")
-                        .font(MLFont.headline)
-                        .foregroundStyle(Color.mlAccent)
-                }
-                .frame(width: Layout.minTouchTarget, height: Layout.minTouchTarget)
-
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("Between rides")
-                        .mlKicker()
-                        .foregroundStyle(Color.mlAccent)
-                    Text("Flow")
-                        .font(MLFont.headline)
-                        .foregroundStyle(Color.mlTextPrimary)
-                    Text("Find your line in a quiet 60-second reset")
-                        .font(MLFont.callout)
-                        .foregroundStyle(Color.mlTextSecondary)
-                        .multilineTextAlignment(.leading)
-                }
-
-                Spacer(minLength: Spacing.xs)
-
-                Image(systemName: "chevron.right")
-                    .font(MLFont.callout)
-                    .foregroundStyle(Color.mlTextTertiary)
-            }
-            .padding(Spacing.md)
-            .background(
-                LinearGradient(
-                    colors: [Color.mlAccent.opacity(0.09), Color.mlSurface],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Color.mlAccent.opacity(0.20), lineWidth: Layout.hairline)
-            }
-        }
-        .buttonStyle(MLPressableButtonStyle())
-        .accessibilityLabel("Flow. A quiet 60-second reset between rides")
     }
 
     private var pendingSyncNotice: some View {
@@ -245,8 +191,9 @@ struct DashboardView: View {
             }
         case .loaded(let rides):
             LazyVStack(spacing: Spacing.md) {
-                ForEach(rides) { ride in
+                ForEach(Array(rides.enumerated()), id: \.element.id) { index, ride in
                     RideCard(ride: ride) { onSelectRide(ride) }
+                        .mlStaggeredReveal(index: index)
                 }
             }
         case .empty:

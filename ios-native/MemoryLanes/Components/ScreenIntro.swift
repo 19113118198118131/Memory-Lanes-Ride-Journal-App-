@@ -9,13 +9,16 @@ struct ScreenIntro: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text(kicker).mlKicker()
+            Text(kicker)
+                .mlKicker()
+                .mlStaggeredReveal(index: 0, distance: Spacing.xs)
 
             Text(title)
                 .font(MLFont.displayXL)
                 .foregroundStyle(Color.mlTextPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
+                .mlStaggeredReveal(index: 1, distance: Spacing.sm)
 
             if let message {
                 Text(message)
@@ -23,6 +26,7 @@ struct ScreenIntro: View {
                     .foregroundStyle(Color.mlTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, Spacing.xxs)
+                    .mlStaggeredReveal(index: 2, distance: Spacing.sm)
             }
         }
     }

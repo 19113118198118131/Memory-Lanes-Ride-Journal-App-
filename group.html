@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=96" />
+  <link rel="stylesheet" href="style.css?v=105" />
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="assets/logo/favicon.ico" sizes="any">
@@ -40,13 +40,13 @@
       </span>
     </a>
     <nav class="site-nav vibe-nav" aria-label="Main navigation">
-      <a class="nav-link" href="dashboard.html" data-nav="dashboard.html">Logs</a>
+      <a class="nav-link" href="dashboard.html" data-nav="dashboard.html">Ride</a>
       <span class="nav-sep">|</span>
-      <a class="nav-link" href="journal.html" data-nav="journal.html">Moments</a>
+      <a class="nav-link" href="journal.html" data-nav="journal.html">Journal</a>
       <span class="nav-sep">|</span>
-      <a class="nav-link" href="stats.html" data-nav="stats.html">Journeys</a>
+      <a class="nav-link" href="stats.html" data-nav="stats.html">Stats</a>
       <span class="nav-sep">|</span>
-      <a class="nav-link" href="planner.html" data-nav="planner.html">Plan</a>
+      <a class="nav-link" href="planner.html" data-nav="planner.html">Routes</a>
       <span class="nav-sep">|</span>
       <a class="nav-link" href="flow.html" data-nav="flow.html">Flow</a>
     </nav>
@@ -59,7 +59,7 @@
   </header>
 
   <main>
-    <div id="group-loading" class="chart-desc">Loading group ride…</div>
+    <div id="group-loading" class="chart-desc ml-loading-inline" role="status">Loading group ride</div>
     <div id="group-error" class="chart-desc" style="display:none;">
       This group ride isn't available. It may have ended or been removed. Ask the host for a fresh link.
     </div>
@@ -178,7 +178,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="supabaseClient.js"></script>
   <script type="module" src="group.js?v=93"></script>
-  <script type="module" src="icons.js?v=95"></script>
+  <script type="module" src="icons.js?v=105"></script>
   <script src="theme.js?v=90"></script>
 </body>
 </html>

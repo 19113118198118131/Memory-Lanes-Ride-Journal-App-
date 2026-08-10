@@ -27,7 +27,9 @@ struct JournalView: View {
             LazyVStack(alignment: .leading, spacing: Spacing.lg) {
                 header
                 MLSegmentedControl(items: JournalMode.allCases, title: { $0.title }, selection: $mode)
+                    .mlStaggeredReveal(index: 3)
                 content
+                    .mlStaggeredReveal(index: 4)
             }
             .padding(.vertical, Spacing.md)
             .mlScreenPadding()
@@ -86,20 +88,22 @@ struct JournalView: View {
 
     private func timeline(_ entries: [JournalEntry]) -> some View {
         LazyVStack(spacing: Spacing.md) {
-            ForEach(entries) { entry in
+            ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                 JournalMomentCard(entry: entry, compact: false) {
                     onSelectRide(entry.ride)
                 }
+                .mlStaggeredReveal(index: index)
             }
         }
     }
 
     private func gallery(_ entries: [JournalEntry]) -> some View {
         LazyVGrid(columns: galleryColumns, spacing: Spacing.md) {
-            ForEach(entries) { entry in
+            ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                 JournalMomentCard(entry: entry, compact: true) {
                     onSelectRide(entry.ride)
                 }
+                .mlStaggeredReveal(index: index)
             }
         }
     }

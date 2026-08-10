@@ -439,7 +439,7 @@ final class RideDetailViewModel {
         playbackTask = Task { @MainActor in
             var previousTick = Date()
             while !Task.isCancelled, isPlaying {
-                try? await Task.sleep(for: .milliseconds(100))
+                try? await Task.sleep(for: .milliseconds(50))
                 guard !Task.isCancelled else { return }
                 let now = Date()
                 let tickDuration = min(max(now.timeIntervalSince(previousTick), 0), 0.25)

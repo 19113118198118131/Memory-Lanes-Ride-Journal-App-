@@ -1326,7 +1326,7 @@ input:focus, select:focus {
   padding: 0.4rem 0.8rem;
   border: 1px solid var(--color-accent);
   border-radius: 999px;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
   margin-top: 0.4rem;
 }
 
@@ -1398,12 +1398,16 @@ input:focus, select:focus {
   100% { opacity: 1; transform: translateY(0); box-shadow: 0 0 18px rgba(100,255,218,0.15); }
 }
 
-/* Subtle glow on buttons (micro-interaction) */
-button:hover,
-.btn-muted:hover {
-  box-shadow: 0 0 22px rgba(100,255,218,0.25), 0 0 4px rgba(0,123,255,0.25);
-  transform: translateY(-2px) scale(1.035);
-  transition: all 0.25s ease;
+/* A restrained desktop-only lift keeps controls tactile without visual noise. */
+@media (hover: hover) and (pointer: fine) {
+  button:hover,
+  .btn-muted:hover {
+    box-shadow: 0 0 18px rgba(100,255,218,0.20), 0 0 3px rgba(0,123,255,0.20);
+    transform: translateY(-1px) scale(1.01);
+    transition-property: transform, box-shadow, color, background-color, border-color;
+    transition-duration: 0.25s;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
 }
 
 .moment-entry {
@@ -2196,6 +2200,240 @@ header nav a:focus,
 @media (prefers-reduced-motion: reduce) {
   .skill-meter-fill { transition: none; }
   .corner-card:hover { transform: none; }
+}
+
+/* ============================================================
+   DATA, MAP, PRESENCE, AND LOADING REFINEMENT
+   Shared visual feedback for the app's information surfaces.
+   ============================================================ */
+.ml-chart-stage {
+  position: relative;
+  min-height: 260px;
+  padding: 18px 10px 8px;
+  overflow: hidden;
+  border-top: 1px solid var(--ml-app-hairline);
+  background:
+    linear-gradient(180deg, rgba(46, 230, 192, 0.025), transparent 42%),
+    linear-gradient(90deg, transparent 49.8%, rgba(255, 255, 255, 0.025) 50%, transparent 50.2%);
+}
+
+.ml-chart-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--ml-retro-cyan), var(--color-accent), var(--ml-retro-violet));
+  opacity: 0.3;
+  transform: scaleX(0.16);
+  transform-origin: left top;
+  height: 1px;
+}
+
+.ml-chart-stage canvas {
+  width: 100%;
+  max-height: 340px;
+}
+
+body.ios-stats-page .chart-block {
+  overflow: hidden;
+  border-color: var(--ml-glass-border);
+  background: var(--ml-glass-surface);
+  box-shadow: var(--ml-glass-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  backdrop-filter: blur(20px) saturate(130%);
+}
+
+body.ios-stats-page .chart-block > :not(.ml-chart-stage) {
+  margin-inline: 20px;
+}
+
+/* Leaflet adopts the same compact glass control language as native map chrome. */
+body:not(.live-cockpit-page) .leaflet-container {
+  isolation: isolate;
+  border: 1px solid var(--ml-app-hairline);
+  background: var(--ml-app-surface);
+}
+
+body:not(.live-cockpit-page) .leaflet-control-zoom,
+body:not(.live-cockpit-page) .leaflet-bar {
+  overflow: hidden;
+  border: 1px solid var(--ml-glass-border);
+  border-radius: 14px;
+  background: var(--ml-glass-surface-strong);
+  box-shadow: var(--ml-glass-shadow);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  backdrop-filter: blur(16px) saturate(135%);
+}
+
+body:not(.live-cockpit-page) .leaflet-bar a,
+body:not(.live-cockpit-page) .leaflet-bar a:hover {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--ml-app-hairline);
+  background: transparent;
+  color: var(--ml-app-primary);
+  font-size: 21px;
+  line-height: 1;
+  transition: color var(--ml-motion-fast) var(--ml-ease-spring), background-color var(--ml-motion-fast) var(--ml-ease-spring), transform var(--ml-motion-fast) var(--ml-ease-spring);
+}
+
+body:not(.live-cockpit-page) .leaflet-bar a:last-child { border-bottom: 0; }
+body:not(.live-cockpit-page) .leaflet-bar a:hover { color: var(--ml-app-accent); background: var(--ml-app-accent-soft); }
+body:not(.live-cockpit-page) .leaflet-bar a:active { transform: scale(0.92); }
+body:not(.live-cockpit-page) .leaflet-control-attribution {
+  margin: 0 6px 6px 0;
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: rgba(18, 20, 22, 0.74);
+  color: var(--ml-app-secondary);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+body:not(.live-cockpit-page) .leaflet-control-attribution a { color: var(--ml-app-accent); }
+body:not(.live-cockpit-page) .leaflet-popup-content-wrapper,
+body:not(.live-cockpit-page) .leaflet-popup-tip {
+  border: 1px solid var(--ml-glass-border);
+  background: var(--ml-glass-surface-strong);
+  color: var(--ml-app-primary);
+  box-shadow: var(--ml-glass-shadow);
+}
+
+/* RSVP and check-in are explicit. This intentionally does not imply online presence. */
+.group-attendee {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.group-attendee-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: 50%;
+  background: var(--ml-app-surface-raised);
+  color: var(--ml-app-secondary);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.group-attendee.is-checked-in .group-attendee-avatar {
+  border-color: rgba(46, 230, 192, 0.42);
+  background: var(--ml-app-accent-soft);
+  color: var(--ml-app-accent);
+  box-shadow: 0 0 0 4px rgba(46, 230, 192, 0.06);
+}
+
+.group-attendee-copy { min-width: 0; display: grid; gap: 3px; }
+.group-attendee-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-presence-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ml-app-secondary);
+  font-size: 12px;
+  font-weight: 550;
+}
+.group-presence-line i {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--ml-app-tertiary);
+}
+.group-attendee.is-checked-in .group-presence-line i {
+  background: var(--ml-app-accent);
+  box-shadow: 0 0 8px rgba(46, 230, 192, 0.5);
+}
+
+/* Structured skeletons hold layout steady, then dissolve into real content. */
+.ml-page-skeleton,
+.ml-list-skeleton {
+  transition: opacity var(--ml-motion-normal) var(--ml-ease-settle), transform var(--ml-motion-normal) var(--ml-ease-settle);
+}
+.ml-page-skeleton.is-resolved { opacity: 0; transform: translateY(-5px); pointer-events: none; }
+.ml-skeleton-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.ml-skeleton-metrics span,
+.ml-skeleton-chart,
+.ml-skeleton-thumb,
+.ml-skeleton-copy i {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  border: 1px solid var(--ml-app-hairline);
+  background: var(--ml-app-surface);
+}
+.ml-skeleton-metrics span { min-height: 118px; border-radius: var(--ml-app-radius-card); }
+.ml-skeleton-chart { min-height: 300px; border-radius: var(--ml-app-radius-card); }
+.ml-skeleton-metrics span::after,
+.ml-skeleton-chart::after,
+.ml-skeleton-thumb::after,
+.ml-skeleton-copy i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.07) 45%, transparent 70%);
+  transform: translateX(-100%);
+  animation: ml-skeleton-scan 1.5s infinite var(--ml-ease-settle);
+}
+@keyframes ml-skeleton-scan { to { transform: translateX(100%); } }
+
+.ml-list-skeleton { display: grid; gap: 10px; }
+.ml-skeleton-list-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 92px;
+  padding: 10px;
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-card);
+  background: var(--ml-app-surface);
+}
+.ml-skeleton-thumb { width: 72px; height: 72px; border-radius: 8px; }
+.ml-skeleton-copy { display: grid; gap: 10px; }
+.ml-skeleton-copy i { height: 13px; border: 0; border-radius: 6px; }
+.ml-skeleton-copy i:first-child { width: 72%; }
+.ml-skeleton-copy i:last-child { width: 44%; opacity: 0.72; }
+
+.ml-loading-inline::after {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 4px;
+  margin-left: 8px;
+  border-radius: 99px;
+  background: var(--ml-app-accent);
+  opacity: 0.35;
+  animation: ml-loading-breathe 1.2s infinite alternate var(--ml-ease-settle);
+}
+@keyframes ml-loading-breathe { to { width: 34px; opacity: 0.9; } }
+
+@media (max-width: 640px) {
+  .ml-skeleton-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ml-chart-stage { min-height: 240px; padding-inline: 2px; }
+  body.ios-stats-page .chart-block > :not(.ml-chart-stage) { margin-inline: 16px; }
+  .group-attendee { grid-template-columns: 38px minmax(0, 1fr); }
+  .group-attendee > .status-chip { grid-column: 2; justify-self: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ml-skeleton-metrics span::after,
+  .ml-skeleton-chart::after,
+  .ml-skeleton-thumb::after,
+  .ml-skeleton-copy i::after,
+  .ml-loading-inline::after { animation: none; }
 }
 
 /* Ride Coach v28 additions */
@@ -6575,6 +6813,21 @@ body.ios-welcome-page main,
 body.ios-welcome-page > .main-header,
 body.ios-welcome-page > .theme-toggle-corner { display: none; }
 
+body.ios-welcome-page > .collapsible-footer {
+  border-top: 1px solid var(--ml-app-hairline);
+  border-radius: 0;
+  background: rgba(10, 10, 10, 0.94);
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+body.ios-welcome-page > .collapsible-footer #footer-toggle {
+  min-height: 44px;
+  color: var(--ml-app-secondary);
+  font-size: 12px;
+}
+
 body.ios-welcome-page main {
   width: min(100%, 520px);
   min-height: 100svh;
@@ -7177,4 +7430,608 @@ body.ios-account-page { padding-bottom: 48px; }
 @media (prefers-reduced-motion: reduce) {
   .premium-flow-launcher,
   .premium-flow-arrow { transition-duration: 0.01ms; }
+}
+
+/* ============================================================
+   PRODUCT-WIDE PREMIUM FOUNDATION
+   Final shared layer for signed-in web surfaces. Keep this layer
+   semantic and low-specificity so feature pages can still own layout.
+   ============================================================ */
+:root {
+  --ml-space-1: 4px;
+  --ml-space-2: 8px;
+  --ml-space-3: 12px;
+  --ml-space-4: 16px;
+  --ml-space-5: 20px;
+  --ml-space-6: 24px;
+  --ml-space-8: 32px;
+  --ml-control-height: 48px;
+  --ml-app-radius-card: 8px;
+  --ml-app-radius-button: 8px;
+  --ml-app-card-radius: var(--ml-app-radius-card);
+  --ml-app-primary: var(--ml-app-text);
+  --ml-focus-ring: 0 0 0 3px rgba(46, 230, 192, 0.24);
+  --ml-shadow-float: 0 18px 46px rgba(0, 0, 0, 0.34);
+}
+
+html {
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body.ios-app-page,
+body.premium-home-page,
+body.ios-welcome-page {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  line-height: 1.45;
+}
+
+body.ios-app-page :where(h1, h2, h3),
+body.premium-home-page :where(h1, h2, h3),
+body.ios-welcome-page :where(h1, h2, h3) {
+  margin-block-start: 0;
+  color: var(--ml-app-text);
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+body.ios-app-page :where(p, li, small),
+body.premium-home-page :where(p, li, small),
+body.ios-welcome-page :where(p, li, small) { text-wrap: pretty; }
+
+body.ios-app-page :where(strong, time, output, .stat-value, .metric-value),
+body.premium-home-page :where(strong, time, output, .stat-value, .metric-value) {
+  font-variant-numeric: tabular-nums;
+}
+
+body.ios-app-page :where(button, a, input, select, textarea):focus-visible,
+body.premium-home-page :where(button, a, input, select, textarea):focus-visible,
+body.ios-welcome-page :where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--ml-app-accent);
+  outline-offset: 3px;
+  box-shadow: var(--ml-focus-ring);
+}
+
+body.ios-app-page :where(button, [role="button"], input, select),
+body.premium-home-page :where(button, [role="button"], input, select) {
+  min-height: 44px;
+}
+
+body.ios-app-page :where(button, a, [role="button"]),
+body.premium-home-page :where(button, a, [role="button"]) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.ios-app-page :where(button, a, [role="button"]):active,
+body.premium-home-page :where(button, a, [role="button"]):active {
+  transform: scale(0.96);
+}
+
+body.ios-app-page :where(input, select, textarea),
+body.premium-home-page :where(input, select, textarea) {
+  box-sizing: border-box;
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-button);
+  background: var(--ml-app-elevated);
+  color: var(--ml-app-text);
+  font: inherit;
+  transition: border-color 240ms var(--ml-app-spring), box-shadow 240ms var(--ml-app-spring), background-color 240ms var(--ml-app-spring);
+}
+
+body.ios-app-page :where(input, select, textarea):focus,
+body.premium-home-page :where(input, select, textarea):focus {
+  border-color: var(--ml-app-accent);
+  background: var(--ml-app-surface);
+}
+
+/* Compact desktop chrome. Mobile relies on the thumb-friendly bottom bar. */
+body.ios-app-page > .main-header,
+body.premium-home-page > .main-header {
+  box-sizing: border-box;
+  width: min(calc(100% - 48px), 1120px);
+  min-height: 56px;
+  margin: 0 auto;
+  padding: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ml-space-4);
+  border-bottom: 1px solid var(--ml-app-hairline);
+  background: var(--ml-app-bg);
+}
+
+body.ios-app-page > .main-header .brand-row,
+body.premium-home-page > .main-header .brand-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ml-space-2);
+  color: inherit;
+  text-decoration: none;
+}
+
+body.ios-app-page > .main-header .logo-card,
+body.premium-home-page > .main-header .logo-card {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  overflow: hidden;
+  border-radius: var(--ml-app-radius-button);
+}
+
+body.ios-app-page > .main-header .brand-logo,
+body.premium-home-page > .main-header .brand-logo {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+body.ios-app-page > .main-header .site-title,
+body.premium-home-page > .main-header .site-title {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+body.ios-app-page > .main-header .tagline,
+body.premium-home-page > .main-header .tagline { display: none; }
+
+body.ios-app-page > .main-header .site-nav,
+body.premium-home-page > .main-header .site-nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--ml-space-1);
+}
+
+body.ios-app-page > .main-header .nav-sep,
+body.premium-home-page > .main-header .nav-sep { display: none; }
+
+body.ios-app-page > .main-header .nav-link,
+body.premium-home-page > .main-header .nav-link {
+  min-height: 36px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--ml-app-radius-button);
+  color: var(--ml-app-secondary);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 240ms var(--ml-app-spring), background-color 240ms var(--ml-app-spring), transform 240ms var(--ml-app-spring);
+}
+
+body.ios-app-page > .main-header .nav-link:hover,
+body.ios-app-page > .main-header .nav-link[aria-current="page"],
+body.premium-home-page > .main-header .nav-link:hover,
+body.premium-home-page > .main-header .nav-link[aria-current="page"] {
+  color: var(--ml-app-text);
+  background: var(--ml-app-elevated);
+}
+
+body.ios-app-page > header:not(.main-header):not(.account-topbar) {
+  box-sizing: border-box;
+  width: min(calc(100% - 40px), 960px);
+  margin: 0 auto;
+  padding: var(--ml-space-6) 0 var(--ml-space-3);
+  border: 0;
+  background: transparent;
+}
+
+body.ios-app-page > header:not(.main-header):not(.account-topbar) h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 40px);
+  line-height: 1.08;
+}
+
+/* Surface hierarchy: quiet cards, crisp media, no ornamental gradients. */
+body.ios-app-page :where(.card, .stat-card, .best-card, .account-panel, .route-community-card, .planner-card, .insight-card),
+body.premium-home-page :where(.premium-metric-card, .premium-empty-card, .ride-entry) {
+  border-color: var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-card);
+  background-color: var(--ml-app-surface);
+  box-shadow: none;
+}
+
+body.ios-app-page :where(.section-sub, .section-description, .muted, .meta, .hint) {
+  color: var(--ml-app-secondary);
+}
+
+.premium-flow-launcher {
+  margin-bottom: var(--ml-space-8);
+  border-radius: var(--ml-app-radius-card);
+  background: var(--ml-app-surface);
+  box-shadow: none;
+}
+
+.premium-flow-copy strong { color: var(--ml-app-text); }
+.premium-flow-arrow { font-size: 0; }
+.premium-flow-arrow::before {
+  content: "\2192";
+  font-size: 20px;
+}
+
+/* A stable, thumb-first tab bar shared by every signed-in screen. */
+.app-tabbar {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 100;
+  left: 50%;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  width: min(calc(100% - 24px), 560px);
+  min-height: 68px;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  background: rgba(28, 28, 28, 0.9);
+  box-shadow: var(--ml-shadow-float);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  backdrop-filter: blur(22px) saturate(135%);
+}
+
+.app-tabbar a {
+  min-width: 0;
+  min-height: 56px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  border-radius: 18px;
+  color: var(--ml-app-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 240ms var(--ml-app-spring), background-color 240ms var(--ml-app-spring), transform 240ms var(--ml-app-spring);
+}
+
+.app-tabbar a .ml-icon { width: 22px; height: 22px; }
+.app-tabbar a.active,
+.app-tabbar a[aria-current="page"] {
+  color: var(--ml-app-accent);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Loading, empty, and error states share one readable rhythm. */
+body.ios-app-page :where(.empty-state, .loading-state, .error-state),
+body.premium-home-page :where(.premium-empty-card, .loading-state, .error-state) {
+  min-height: 180px;
+  padding: var(--ml-space-8) var(--ml-space-5);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--ml-space-2);
+  border: 1px solid var(--ml-app-hairline);
+  border-radius: var(--ml-app-radius-card);
+  background: var(--ml-app-surface);
+  color: var(--ml-app-secondary);
+  text-align: center;
+}
+
+/* Dense content pages remain scan-friendly instead of becoming card walls. */
+body.ios-stats-page main,
+body.ios-journal-page main,
+body.ios-routes-page main,
+body.ios-group-page main,
+body.ios-invite-page main {
+  box-sizing: border-box;
+  width: min(calc(100% - 40px), 960px);
+  padding-bottom: 112px;
+}
+
+body.ios-stats-page .stats-grid { gap: var(--ml-space-3); }
+body.ios-stats-page .stat-card,
+body.ios-stats-page .best-card { border-radius: var(--ml-app-radius-card); }
+body.ios-journal-page .section { margin-bottom: var(--ml-space-8); }
+body.ios-journal-page :where(.view-toggle, .journal-filter-bar) { border-radius: var(--ml-app-radius-button); }
+
+@media (max-width: 720px) {
+  body.ios-app-page > .main-header,
+  body.premium-home-page > .main-header { display: none; }
+
+  body.ios-app-page > header:not(.main-header):not(.account-topbar) {
+    width: calc(100% - 32px);
+    padding-top: max(20px, env(safe-area-inset-top));
+  }
+
+  body.ios-app-page > header:not(.main-header):not(.account-topbar) .nav-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ml-space-2);
+  }
+
+  body.ios-stats-page main,
+  body.ios-journal-page main,
+  body.ios-routes-page main,
+  body.ios-group-page main,
+  body.ios-invite-page main {
+    width: calc(100% - 32px);
+  }
+
+  .premium-app-topbar h1 { font-size: 38px; }
+  .premium-metric-card strong { font-size: 32px; }
+}
+
+@media (max-width: 380px) {
+  .app-tabbar { width: calc(100% - 16px); }
+  .app-tabbar a { font-size: 10px; }
+  .premium-flow-copy small { font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.ios-app-page *,
+  body.premium-home-page *,
+  body.ios-welcome-page * {
+    scroll-behavior: auto;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
+/* ============================================================
+   MEMORY LANES COCKPIT SYSTEM
+   Shared optical, motion, icon, and Liquid Glass presentation.
+   This layer deliberately owns feel, not feature layout.
+   ============================================================ */
+:root {
+  --ml-retro-cyan: var(--blue-400);
+  --ml-retro-violet: var(--color-moments);
+  --ml-glass-surface: rgba(25, 27, 29, 0.72);
+  --ml-glass-surface-strong: rgba(18, 20, 22, 0.9);
+  --ml-glass-border: rgba(255, 255, 255, 0.14);
+  --ml-glass-highlight: rgba(255, 255, 255, 0.08);
+  --ml-glass-shadow: 0 20px 54px rgba(0, 0, 0, 0.38), 0 1px 0 var(--ml-glass-highlight) inset;
+  --ml-motion-instant: 50ms;
+  --ml-motion-fast: 120ms;
+  --ml-motion-normal: 220ms;
+  --ml-motion-moderate: 320ms;
+  --ml-motion-slow: 440ms;
+  --ml-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ml-ease-settle: cubic-bezier(0.25, 1, 0.5, 1);
+  --ml-icon-sm: 16px;
+  --ml-icon-md: 20px;
+  --ml-icon-lg: 24px;
+}
+
+body.ios-app-page,
+body.premium-home-page,
+body.ios-welcome-page {
+  background-color: var(--ml-app-bg);
+  background-image:
+    linear-gradient(rgba(46, 230, 192, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 198, 255, 0.014) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-attachment: fixed;
+}
+
+/* Optical icon rules: one stroke language, predictable size, no layout drift. */
+.ml-icon {
+  width: var(--ml-icon-md);
+  height: var(--ml-icon-md);
+  overflow: visible;
+  shape-rendering: geometricPrecision;
+  vector-effect: non-scaling-stroke;
+  transition-property: transform, color, opacity;
+  transition-duration: var(--ml-motion-normal);
+  transition-timing-function: var(--ml-ease-spring);
+}
+
+.has-icon {
+  gap: 0.55em;
+}
+
+.ml-icon-button {
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  isolation: isolate;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ml-icon-button[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 20;
+    left: 50%;
+    top: calc(100% + 8px);
+    padding: 6px 9px;
+    transform: translate(-50%, -4px) scale(0.96);
+    border: 1px solid var(--ml-glass-border);
+    border-radius: 6px;
+    background: var(--ml-glass-surface-strong);
+    color: var(--ml-app-text);
+    box-shadow: var(--ml-glass-shadow);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--ml-motion-fast) var(--ml-ease-settle), transform var(--ml-motion-normal) var(--ml-ease-spring);
+  }
+
+  .ml-icon-button[data-tooltip]:hover::after,
+  .ml-icon-button[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  :where(button, a):hover > .ml-icon[data-ml-icon="chevron"],
+  :where(button, a):hover > .ml-icon[data-ml-icon="arrowright"] { transform: translateX(2px); }
+  :where(button, a):hover > .ml-icon[data-ml-icon="plus"] { transform: rotate(90deg); }
+  :where(button, a):hover > .ml-icon[data-ml-icon="settings"] { transform: rotate(22deg); }
+  :where(button, a):hover > .ml-icon[data-ml-icon="play"] { transform: translateX(1px) scale(1.06); }
+}
+
+/* Liquid Glass is reserved for navigation, transient controls, and sheets. */
+body.ios-app-page > .main-header,
+body.premium-home-page > .main-header,
+.app-tabbar,
+:where(dialog, .modal-content, .sheet, .live-control-sheet) {
+  border-color: var(--ml-glass-border);
+  background-color: var(--ml-glass-surface);
+  box-shadow: var(--ml-glass-shadow);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+  backdrop-filter: blur(24px) saturate(145%);
+}
+
+body.ios-app-page > .main-header,
+body.premium-home-page > .main-header {
+  position: sticky;
+  z-index: 80;
+  top: 0;
+  border-bottom: 1px solid var(--ml-glass-border);
+}
+
+.app-tabbar {
+  background-image: linear-gradient(180deg, var(--ml-glass-highlight), transparent 42%);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5), 0 1px 0 var(--ml-glass-highlight) inset;
+}
+
+.app-tabbar a {
+  position: relative;
+  overflow: hidden;
+  transition-property: color, background-color, transform, box-shadow;
+  transition-duration: var(--ml-motion-normal);
+  transition-timing-function: var(--ml-ease-spring);
+}
+
+.app-tabbar a.active,
+.app-tabbar a[aria-current="page"] {
+  color: var(--ml-app-accent);
+  background: linear-gradient(180deg, rgba(46, 230, 192, 0.14), rgba(46, 230, 192, 0.06));
+  box-shadow: 0 0 0 1px rgba(46, 230, 192, 0.12) inset, 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.app-tabbar a.active .ml-icon,
+.app-tabbar a[aria-current="page"] .ml-icon {
+  filter: drop-shadow(0 0 7px rgba(46, 230, 192, 0.36));
+  transform: translateY(-1px);
+}
+
+/* Surface hierarchy stays restrained beneath the glass chrome. */
+body.ios-app-page :where(.card, .stat-card, .best-card, .account-panel, .route-community-card, .planner-card, .insight-card),
+body.premium-home-page :where(.premium-metric-card, .premium-empty-card, .ride-entry, .premium-flow-launcher) {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.026), transparent 52%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.025) inset;
+  transition-property: transform, border-color, background-color, box-shadow;
+  transition-duration: var(--ml-motion-normal);
+  transition-timing-function: var(--ml-ease-spring);
+}
+
+:where(#route-map, #group-map, #live-map, .ride-map, .planner-map, .ride-entry img, .journal-moment-card img, .route-community-card img, video) {
+  outline: 1px solid rgba(255, 255, 255, 0.06);
+  outline-offset: -1px;
+}
+
+/* Tactile controls, explicit properties keep interactions interruptible. */
+body.ios-app-page :where(button, .btn-primary, .btn-muted, .btn-outline, [role="button"]),
+body.premium-home-page :where(button, .btn-primary, .btn-muted, .btn-outline, [role="button"]) {
+  transition-property: transform, color, background-color, border-color, box-shadow, opacity;
+  transition-duration: var(--ml-motion-normal);
+  transition-timing-function: var(--ml-ease-spring);
+}
+
+body.ios-app-page :where(button, .btn-primary, .btn-muted, .btn-outline, [role="button"]):active,
+body.premium-home-page :where(button, .btn-primary, .btn-muted, .btn-outline, [role="button"]):active,
+.app-tabbar a:active {
+  transform: scale(0.96);
+  transition-duration: var(--ml-motion-fast);
+}
+
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--ml-app-accent);
+  outline-offset: 3px;
+  box-shadow: var(--ml-focus-ring);
+}
+
+:where(button, [role="button"]):disabled,
+:where(button, [role="button"])[aria-disabled="true"] {
+  cursor: not-allowed;
+  filter: saturate(0.5);
+  opacity: 0.46;
+}
+
+/* A quiet entry cascade gives spatial continuity without slowing the task. */
+@keyframes ml-content-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+body.ios-app-page main > :where(section, article),
+body.premium-home-page main > :where(section, article) {
+  animation: ml-content-arrive var(--ml-motion-moderate) var(--ml-ease-spring) both;
+}
+
+body.ios-app-page main > :where(section, article):nth-child(2),
+body.premium-home-page main > :where(section, article):nth-child(2) { animation-delay: 35ms; }
+body.ios-app-page main > :where(section, article):nth-child(3),
+body.premium-home-page main > :where(section, article):nth-child(3) { animation-delay: 70ms; }
+body.ios-app-page main > :where(section, article):nth-child(4),
+body.premium-home-page main > :where(section, article):nth-child(4) { animation-delay: 105ms; }
+
+::selection {
+  background: rgba(46, 230, 192, 0.28);
+  color: var(--ml-app-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body.ios-app-page :where(.card, .stat-card, .best-card, .account-panel, .route-community-card, .planner-card, .insight-card):hover,
+  body.premium-home-page :where(.premium-metric-card, .premium-empty-card, .ride-entry, .premium-flow-launcher):hover {
+    transform: translateY(-2px) scale(1.01);
+    border-color: rgba(46, 230, 192, 0.2);
+    box-shadow: 0 16px 32px -22px rgba(0, 0, 0, 0.72), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-tabbar {
+    bottom: max(8px, env(safe-area-inset-bottom));
+    min-height: 66px;
+    border-radius: 22px;
+    -webkit-backdrop-filter: blur(28px) saturate(150%);
+    backdrop-filter: blur(28px) saturate(150%);
+  }
+
+  .app-tabbar a { border-radius: 16px; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  body.ios-app-page > .main-header,
+  body.premium-home-page > .main-header,
+  .app-tabbar,
+  :where(dialog, .modal-content, .sheet, .live-control-sheet) {
+    background-color: var(--ml-app-elevated);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ml-motion-fast: 0.01ms;
+    --ml-motion-normal: 0.01ms;
+    --ml-motion-moderate: 0.01ms;
+    --ml-motion-slow: 0.01ms;
+  }
+
+  body.ios-app-page main > :where(section, article),
+  body.premium-home-page main > :where(section, article) {
+    animation: none;
+  }
+
+  .ml-icon,
+  .app-tabbar a,
+  body.ios-app-page :where(button, [role="button"]),
+  body.premium-home-page :where(button, [role="button"]) {
+    transform: none;
+  }
 }

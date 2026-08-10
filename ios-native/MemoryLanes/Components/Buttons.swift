@@ -19,13 +19,21 @@ struct PrimaryButton: View {
             action()
         } label: {
             HStack(spacing: Spacing.xs) {
-                if isLoading {
-                    ProgressView()
-                        .tint(.mlOnAccent)
-                } else if let systemImage {
-                    Image(systemName: systemImage)
+                if isLoading || systemImage != nil {
+                    ZStack {
+                        if isLoading {
+                            ProgressView()
+                                .tint(.mlOnAccent)
+                                .transition(.scale(scale: 0.25).combined(with: .opacity))
+                        } else if let systemImage {
+                            Image(systemName: systemImage)
+                                .transition(.scale(scale: 0.25).combined(with: .opacity))
+                        }
+                    }
+                    .frame(width: 20, height: 20)
                 }
                 Text(title)
+                    .contentTransition(.opacity)
             }
             .font(MLFont.headline)
             .foregroundStyle(Color.mlOnAccent)
@@ -37,7 +45,7 @@ struct PrimaryButton: View {
         }
         .buttonStyle(MLPressableButtonStyle())
         .disabled(isLoading)
-        .animation(reduceMotion ? nil : Motion.spring, value: isLoading)
+        .animation(reduceMotion ? nil : Motion.response, value: isLoading)
         .accessibilityLabel(title)
         .accessibilityAddTraits(.isButton)
     }

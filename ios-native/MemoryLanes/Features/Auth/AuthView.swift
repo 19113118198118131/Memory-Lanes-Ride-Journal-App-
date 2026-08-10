@@ -2,7 +2,6 @@ import SwiftUI
 
 struct AuthView: View {
     @ObservedObject var authStore: AuthStore
-    let onOpenFlow: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @FocusState private var focusedField: AuthField?
@@ -12,9 +11,8 @@ struct AuthView: View {
     @State private var presentation: AuthPresentation = .welcome
     @State private var revealsPassword = false
 
-    init(authStore: AuthStore, onOpenFlow: @escaping () -> Void = {}) {
+    init(authStore: AuthStore) {
         self.authStore = authStore
-        self.onOpenFlow = onOpenFlow
     }
 
     var body: some View {
@@ -78,36 +76,6 @@ struct AuthView: View {
                     showCredentials(for: .signIn)
                 }
 
-                Button {
-                    Haptics.selection()
-                    onOpenFlow()
-                } label: {
-                    HStack(spacing: Spacing.sm) {
-                        Image(systemName: "waveform.path")
-                            .foregroundStyle(Color.mlAccent)
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text("Try Flow")
-                                .font(MLFont.headline)
-                                .foregroundStyle(Color.mlTextPrimary)
-                            Text("A quiet 60-second reset between rides")
-                                .font(MLFont.caption)
-                                .foregroundStyle(Color.mlTextSecondary)
-                        }
-                        Spacer(minLength: Spacing.xs)
-                        Image(systemName: "chevron.right")
-                            .font(MLFont.callout)
-                            .foregroundStyle(Color.mlTextTertiary)
-                    }
-                    .padding(Spacing.md)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
-                            .stroke(Color.mlAccent.opacity(0.18), lineWidth: Layout.hairline)
-                    }
-                }
-                .buttonStyle(MLPressableButtonStyle())
-                .accessibilityLabel("Try Flow. A quiet 60-second reset between rides")
             }
             .mlStaggeredReveal(index: 2)
         }

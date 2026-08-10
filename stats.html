@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=96" />
+  <link rel="stylesheet" href="style.css?v=105" />
   <style>
     /* Page-scoped styles for the stats view */
     .stats-grid {
@@ -96,13 +96,13 @@
       </span>
     </a>
     <nav class="site-nav vibe-nav" aria-label="Main navigation">
-      <a class="nav-link" href="dashboard.html" data-nav="dashboard.html">Logs</a>
+      <a class="nav-link" href="dashboard.html" data-nav="dashboard.html">Ride</a>
       <span class="nav-sep">|</span>
-      <a class="nav-link" href="journal.html" data-nav="journal.html">Moments</a>
+      <a class="nav-link" href="journal.html" data-nav="journal.html">Journal</a>
       <span class="nav-sep">|</span>
-      <a class="nav-link" href="stats.html" data-nav="stats.html" aria-current="page">Journeys</a>
+      <a class="nav-link" href="stats.html" data-nav="stats.html" aria-current="page">Stats</a>
       <span class="nav-sep">|</span>
-      <a class="nav-link" href="planner.html" data-nav="planner.html">Plan</a>
+      <a class="nav-link" href="planner.html" data-nav="planner.html">Routes</a>
       <span class="nav-sep">|</span>
       <a class="nav-link" href="flow.html" data-nav="flow.html">Flow</a>
     </nav>
@@ -111,7 +111,7 @@
 
   <header>
     <div class="dashboard-header">
-      <h1 data-head-icon="stats">Lifetime Stats</h1>
+      <h1 data-head-icon="stats">Stats</h1>
       <div class="button-group">
         <button id="back-dashboard-btn" class="btn-outline">Dashboard</button>
         <button id="new-ride-btn" class="btn-primary">New Ride</button></div>
@@ -119,6 +119,12 @@
   </header>
 
   <main>
+    <div id="stats-loading" class="ml-page-skeleton" role="status" aria-label="Loading ride statistics">
+      <div class="ml-skeleton-metrics" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="ml-skeleton-chart" aria-hidden="true"></div>
+    </div>
     <div id="stats-empty" style="display:none;">No rides yet. Upload your first GPX and this page comes alive!</div>
 
     <section class="stats-grid" id="totals-grid" style="display:none;">
@@ -131,7 +137,7 @@
     <section class="chart-block" id="month-block" style="display:none;">
       <h3>Rides per Month</h3>
       <p class="chart-desc">Kilometres ridden each month over the last 12 months. Hover a bar for the ride count.</p>
-      <canvas id="monthChart"></canvas>
+      <div class="ml-chart-stage"><canvas id="monthChart"></canvas></div>
     </section>
 
     <section class="chart-block" id="trends-block" style="display:none;">
@@ -139,7 +145,7 @@
       <p class="chart-desc">
         Your Ride Coach technique scores across recent rides. This is the question that matters: am I improving?
       </p>
-      <canvas id="trendsChart" style="max-height:360px;"></canvas>
+      <div class="ml-chart-stage"><canvas id="trendsChart"></canvas></div>
       <div id="trends-status" style="color:#8fa4bd; margin-top:0.8rem;"></div>
       <button id="analyze-past-btn" class="btn-muted" style="display:none; margin-top:0.6rem;">Analyze past rides</button>
     </section>
@@ -165,7 +171,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script type="module" src="stats.js?v=90"></script>
-  <script type="module" src="icons.js?v=95"></script>
+  <script type="module" src="icons.js?v=105"></script>
   <script src="theme.js?v=90"></script>
 </body>
 </html>

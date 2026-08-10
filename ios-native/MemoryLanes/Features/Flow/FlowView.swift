@@ -2,10 +2,11 @@ import SwiftUI
 import WebKit
 
 struct FlowView: View {
+    let rideID: String?
     let onClose: () -> Void
 
     var body: some View {
-        FlowWebView(onClose: onClose)
+        FlowWebView(rideID: rideID, onClose: onClose)
             .background(Color.black)
             .ignoresSafeArea()
             .statusBarHidden(true)
@@ -13,10 +14,11 @@ struct FlowView: View {
 }
 
 private struct FlowWebView: UIViewRepresentable {
+    let rideID: String?
     let onClose: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onClose: onClose)
+        Coordinator(rideID: rideID, onClose: onClose)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -56,16 +58,25 @@ private struct FlowWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         static let bridgeName = "flowBridge"
 
+        private let rideID: String?
         private let onClose: () -> Void
         let resourceSchemeHandler = FlowResourceSchemeHandler()
 
-        init(onClose: @escaping () -> Void) {
+        init(rideID: String?, onClose: @escaping () -> Void) {
+            self.rideID = rideID
             self.onClose = onClose
         }
 
         func loadFlow(in webView: WKWebView) {
             guard Bundle.main.url(forResource: "flow", withExtension: "html") != nil,
-                  let pageURL = URL(string: "\(FlowResourceSchemeHandler.scheme)://app/flow.html") else {
+                  var components = URLComponents(string: "\(FlowResourceSchemeHandler.scheme)://app/flow.html") else {
+                webView.loadHTMLString(Self.missingResourcePage, baseURL: nil)
+                return
+            }
+            if let rideID {
+                components.queryItems = [URLQueryItem(name: "ride", value: rideID)]
+            }
+            guard let pageURL = components.url else {
                 webView.loadHTMLString(Self.missingResourcePage, baseURL: nil)
                 return
             }
@@ -107,6 +118,8 @@ private final class FlowResourceSchemeHandler: NSObject, WKURLSchemeHandler {
         "flow.html",
         "flow.css",
         "flow.js",
+        "style.css",
+        "icons.js",
         "flow-engine.js",
         "flow-storage.js",
         "flow-audio.js",
@@ -172,5 +185,5 @@ private final class FlowResourceSchemeHandler: NSObject, WKURLSchemeHandler {
 }
 
 #Preview {
-    FlowView(onClose: {})
+    FlowView(rideID: nil, onClose: {})
 }

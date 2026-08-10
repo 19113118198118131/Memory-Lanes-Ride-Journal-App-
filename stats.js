@@ -5,9 +5,53 @@
 import supabase from './supabaseClient.js';
 import { analyzeRide, summarizeForStorage } from './riderskills.js?v=90';
 
-const ROUTE_COLORS = ['#64ffda', '#00c6ff', '#8338ec', '#ff6384', '#ffd700', '#21c821', '#ff9500'];
+const rootStyle = getComputedStyle(document.documentElement);
+const themeColor = (token, fallback) => {
+  const probe = document.createElement('span');
+  probe.style.color = `var(${token}, ${fallback})`;
+  probe.hidden = true;
+  document.body.appendChild(probe);
+  const resolved = getComputedStyle(probe).color || fallback;
+  probe.remove();
+  return resolved;
+};
+const withAlpha = (color, alpha) => {
+  const channels = color.match(/[\d.]+/g);
+  return channels?.length >= 3 ? `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${alpha})` : color;
+};
+const CHART_THEME = {
+  accent: themeColor('--color-accent', '#64ffda'),
+  cyan: themeColor('--color-cyan', '#00c6ff'),
+  violet: themeColor('--color-moments', '#8338ec'),
+  danger: themeColor('--color-danger', '#ff6384'),
+  amber: themeColor('--color-warning', '#ffd166'),
+  text: themeColor('--color-text-secondary', '#c5d1e3'),
+  muted: themeColor('--color-text-muted', '#8fa4bd'),
+  grid: themeColor('--border-card', 'rgba(255,255,255,0.1)'),
+  tooltip: themeColor('--ml-glass-surface-strong', 'rgba(18,20,22,0.94)')
+};
+const ROUTE_COLORS = [CHART_THEME.accent, CHART_THEME.cyan, CHART_THEME.violet, CHART_THEME.danger, CHART_THEME.amber, '#21c821', '#ff9500'];
 const MAX_ROUTES_ON_MAP = 100;   // safety cap for very large journals
 const MAX_POINTS_PER_ROUTE = 200; // downsample each route for performance
+
+if (globalThis.Chart) {
+  Chart.defaults.color = CHART_THEME.muted;
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily || 'system-ui';
+  Chart.defaults.plugins.tooltip.backgroundColor = CHART_THEME.tooltip;
+  Chart.defaults.plugins.tooltip.titleColor = CHART_THEME.text;
+  Chart.defaults.plugins.tooltip.bodyColor = CHART_THEME.text;
+  Chart.defaults.plugins.tooltip.borderColor = CHART_THEME.grid;
+  Chart.defaults.plugins.tooltip.borderWidth = 1;
+  Chart.defaults.plugins.tooltip.padding = 12;
+  Chart.defaults.plugins.tooltip.cornerRadius = 10;
+}
+
+function resolveStatsLoading() {
+  const loading = document.getElementById('stats-loading');
+  if (!loading || loading.classList.contains('is-resolved')) return;
+  loading.classList.add('is-resolved');
+  window.setTimeout(() => { loading.hidden = true; }, 240);
+}
 
 function fmtDuration(totalMin) {
   const h = Math.floor(totalMin / 60);
@@ -40,12 +84,14 @@ function fmtDuration(totalMin) {
   }
 
   if (fetchErr) {
+    resolveStatsLoading();
     document.getElementById('stats-empty').style.display = 'block';
     document.getElementById('stats-empty').textContent = 'Could not load your rides. Please try again.';
     return;
   }
 
   if (!rides || !rides.length) {
+    resolveStatsLoading();
     document.getElementById('stats-empty').style.display = 'block';
     return;
   }
@@ -59,6 +105,7 @@ function fmtDuration(totalMin) {
   document.getElementById('total-elevation').textContent = `${totalElev.toFixed(0)} m`;
   document.getElementById('total-time').textContent = fmtDuration(totalMin);
   document.getElementById('totals-grid').style.display = 'grid';
+  resolveStatsLoading();
 
   // ---------- Rides per month (last 12 months) ----------
   const now = new Date();
@@ -81,8 +128,8 @@ function fmtDuration(totalMin) {
   document.getElementById('month-block').style.display = 'block';
   const mctx = document.getElementById('monthChart').getContext('2d');
   const grad = mctx.createLinearGradient(0, 0, 0, 300);
-  grad.addColorStop(0, 'rgba(100,255,218,0.85)');
-  grad.addColorStop(1, 'rgba(0,198,255,0.45)');
+  grad.addColorStop(0, CHART_THEME.accent);
+  grad.addColorStop(1, withAlpha(CHART_THEME.cyan, 0.4));
   new Chart(mctx, {
     type: 'bar',
     data: {
@@ -103,8 +150,8 @@ function fmtDuration(totalMin) {
         }
       },
       scales: {
-        x: { grid: { color: '#223' } },
-        y: { title: { display: true, text: 'km' }, grid: { color: '#334' }, beginAtZero: true }
+        x: { grid: { display: false }, border: { display: false } },
+        y: { title: { display: true, text: 'km', color: CHART_THEME.muted }, grid: { color: CHART_THEME.grid }, border: { display: false }, beginAtZero: true }
       }
     }
   });
@@ -116,11 +163,11 @@ function fmtDuration(totalMin) {
   trendsBlock.style.display = 'block';
 
   const AXES = [
-    ['cornerEntry', 'Corner entry', '#64ffda'],
-    ['exitDrive', 'Exit drive', '#00c6ff'],
-    ['brakingSmoothness', 'Braking feel', '#ff6384'],
-    ['throttleSmoothness', 'Throttle feel', '#ffd166'],
-    ['consistency', 'Consistency', '#8338ec']
+    ['cornerEntry', 'Corner entry', CHART_THEME.accent],
+    ['exitDrive', 'Exit drive', CHART_THEME.cyan],
+    ['brakingSmoothness', 'Braking feel', CHART_THEME.danger],
+    ['throttleSmoothness', 'Throttle feel', CHART_THEME.amber],
+    ['consistency', 'Consistency', CHART_THEME.violet]
   ];
   let trendsChart = null;
 
@@ -162,10 +209,10 @@ function fmtDuration(totalMin) {
       options: {
         responsive: true,
         scales: {
-          y: { min: 0, max: 100, grid: { color: '#334' } },
-          x: { grid: { color: '#223' } }
+          y: { min: 0, max: 100, grid: { color: CHART_THEME.grid }, border: { display: false } },
+          x: { grid: { display: false }, border: { display: false } }
         },
-        plugins: { legend: { labels: { color: '#c5d1e3' } } }
+        plugins: { legend: { position: 'bottom', labels: { color: CHART_THEME.text, usePointStyle: true, pointStyle: 'circle', padding: 18 } } }
       }
     });
     const unscored = rides.filter(r => !r.skills && r.gpx_path).length;

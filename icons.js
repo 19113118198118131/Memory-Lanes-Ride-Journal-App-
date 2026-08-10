@@ -13,6 +13,7 @@ const ML_ICONS = {
   share:       '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/>',
   eyeoff:      '<path d="M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 10 8 10 8a13.2 13.2 0 0 1-1.7 2.7"/><path d="M6.6 6.6A13.5 13.5 0 0 0 2 12s3 8 10 8a9 9 0 0 0 5.4-1.6"/><line x1="2" y1="2" x2="22" y2="22"/>',
   plus:        '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  minus:       '<line x1="5" y1="12" x2="19" y2="12"/>',
   route:       '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
   stats:       '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
   trending:    '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
@@ -22,6 +23,10 @@ const ML_ICONS = {
   gallery:     '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
   book:        '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
   play:        '<polygon points="6 4 20 12 6 20 6 4"/>',
+  pause:       '<line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/>',
+  volume:      '<polygon points="11 5 6 9H2v6h4l5 4V5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
+  settings:    '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 9 19.37a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.08A1.7 1.7 0 0 0 4.63 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.03-1.56V3h4v.08A1.7 1.7 0 0 0 15 4.63a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.03H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/>',
+  wind:        '<path d="M3 8h10a3 3 0 1 0-3-3"/><path d="M3 12h15a3 3 0 1 1-3 3"/><path d="M3 16h7"/>',
   flow:        '<path d="M3 15c4.5-10 8-10 11.5 0s5.5 9 7.5-1"/><path d="M4 19c4-5 7-5 10 0s5 4 7-1" opacity=".5"/>',
   pin:         '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
   sparkle:     '<path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17l-1.9-5.1L4.5 10l5.6-1.4L12 3Z"/>',
@@ -50,7 +55,21 @@ const ML_ICONS = {
 function mlIconSVG(name, extraClass = '') {
   const p = ML_ICONS[name];
   if (!p) return '';
-  return `<svg class="ml-icon ${extraClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+  return `<svg class="ml-icon ${extraClass}" data-ml-icon="${name}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${p}</svg>`;
+}
+
+function enhanceIconControl(el) {
+  const label = el.getAttribute('aria-label') || el.getAttribute('title');
+  const text = Array.from(el.childNodes)
+    .filter(node => node.nodeType === Node.TEXT_NODE)
+    .map(node => node.textContent.trim())
+    .join(' ')
+    .trim();
+
+  if (!text && label) {
+    el.classList.add('ml-icon-button');
+    el.dataset.tooltip = label;
+  }
 }
 
 // Map: element ID -> icon name (button/nav chrome only)
@@ -107,12 +126,14 @@ function iconizeLabel(el, iconName) {
   }
   el.insertAdjacentHTML('afterbegin', mlIconSVG(iconName) + ' ');
   el.classList.add('has-icon');
+  enhanceIconControl(el);
 }
 
 function applyIcons() {
   // Decorative icons placed via data-icon (hero cards, etc.)
   document.querySelectorAll('[data-icon]').forEach(el => {
     if (!el.querySelector('svg')) el.innerHTML = mlIconSVG(el.dataset.icon) + el.innerHTML;
+    enhanceIconControl(el);
   });
   document.querySelectorAll('[data-head-icon]').forEach(el => {
     if (!el.querySelector('svg')) { el.insertAdjacentHTML('afterbegin', mlIconSVG(el.dataset.headIcon) + ' '); el.classList.add('has-icon'); }
@@ -131,6 +152,8 @@ function applyIcons() {
       el.classList.add('has-icon');
     }
   });
+
+  document.querySelectorAll('button:has(.ml-icon), a:has(.ml-icon)').forEach(enhanceIconControl);
 
 }
 

@@ -206,6 +206,8 @@ async function saveMomentsToDB() {
     showAnalyticsBtn.style.display     = 'none';
     downloadSummary.style.display      = 'none';
     exportVideo.style.display          = 'none';
+    const flowReset = document.getElementById('start-flow-btn');
+    if (flowReset) flowReset.style.display = 'none';
     if (rideActions) rideActions.style.display = 'none';
     editControls.style.display         = 'none';
     editHelp.style.display             = 'none';
@@ -221,6 +223,8 @@ async function saveMomentsToDB() {
     analyticsSection.style.display     = 'none';
     downloadSummary.style.display      = 'inline-block';
     exportVideo.style.display          = 'inline-block';
+    const flowUnsaved = document.getElementById('start-flow-btn');
+    if (flowUnsaved) flowUnsaved.style.display = 'none';
     if (rideActions) rideActions.style.display = 'none';
     authSection.style.display          = isLoggedIn ? 'none' : 'block';
     // A ride is loaded and unsaved here; if we're prompting for login it's so
@@ -247,6 +251,8 @@ async function saveMomentsToDB() {
     analyticsSection.style.display     = 'none';
     downloadSummary.style.display      = 'inline-block';
     exportVideo.style.display          = 'inline-block';
+    const flowSaved = document.getElementById('start-flow-btn');
+    if (flowSaved) flowSaved.style.display = 'inline-flex';
     if (rideActions) rideActions.style.display = 'none';
     setTimeout(() => map.invalidateSize(), 200);
     editControls.style.display         = 'flex';
@@ -266,6 +272,8 @@ async function saveMomentsToDB() {
     if (shareShared) shareShared.style.display = 'none';
     const unshareShared = document.getElementById('unshare-ride-btn');
     if (unshareShared) unshareShared.style.display = 'none';
+    const flowShared = document.getElementById('start-flow-btn');
+    if (flowShared) flowShared.style.display = 'none';
     mainRideUI.style.display           = 'block';
     saveForm.style.display             = 'none';
     authSection.style.display          = 'none';
@@ -323,6 +331,13 @@ async function saveMomentsToDB() {
   const uploadInput = document.getElementById('gpx-upload');
   const fileStatus = document.getElementById('file-upload-status');
   const postUploadActions = document.getElementById('post-upload-actions');
+  const startFlowBtn = document.getElementById('start-flow-btn');
+
+  startFlowBtn?.addEventListener('click', () => {
+    const savedRideId = new URLSearchParams(window.location.search).get('ride');
+    if (!savedRideId) return;
+    window.location.href = `flow.html?ride=${encodeURIComponent(savedRideId)}`;
+  });
 
 uploadInput.addEventListener('change', () => {
   const file = uploadInput.files[0];

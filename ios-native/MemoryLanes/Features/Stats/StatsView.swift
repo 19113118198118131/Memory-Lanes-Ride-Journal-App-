@@ -52,14 +52,16 @@ struct StatsView: View {
         switch viewModel.state {
         case .loading:
             loadingContent
+                .mlStaggeredReveal(index: 3)
         case .loaded:
-            totals
+            totals.mlStaggeredReveal(index: 3)
             if RiderCraftFeature.isResearchPreviewEnabled {
                 RiderCraftProgressView(progress: viewModel.riderCraftProgress)
+                    .mlStaggeredReveal(index: 4)
             }
-            monthlyCard
-            personalBests
-            riddenMap
+            monthlyCard.mlStaggeredReveal(index: 5)
+            personalBests.mlStaggeredReveal(index: 6)
+            riddenMap.mlStaggeredReveal(index: 7)
         case .empty:
             EmptyState(
                 systemImage: "chart.bar",

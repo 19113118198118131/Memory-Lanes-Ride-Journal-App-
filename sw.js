@@ -1,6 +1,6 @@
 // Memory Lanes service worker: app-shell caching (stale-while-revalidate).
 // Bump CACHE on each deploy so clients pick up fresh files.
-const CACHE = 'memory-lanes-v99';
+const CACHE = 'memory-lanes-v105';
 const CORE = [
   './',
   './index.html',
@@ -13,11 +13,11 @@ const CORE = [
   './route.html',
   './group.html',
   './flow.html',
-  './style.css?v=96',
-  './flow.css?v=98',
+  './style.css?v=105',
+  './flow.css?v=104',
   './script.js?v=94',
   './insights.js?v=90',
-  './icons.js?v=95',
+  './icons.js?v=105',
   './theme.js?v=90',
   './riderskills.js?v=90',
   './dashboard.js?v=90',
@@ -29,15 +29,7 @@ const CORE = [
   './route.js?v=90',
   './group.js?v=93',
   './ride-live.js?v=90',
-  './flow.js?v=99',
-  './flow-engine.js',
-  './flow-storage.js',
-  './flow-audio.js',
-  './flow-renderer.js',
-  './flow-playcanvas-renderer.js',
-  './vendor/playcanvas/playcanvas.min.mjs',
-  './flow-assets.js',
-  './flow-effects.js',
+  './flow.js?v=104',
   './ai/feature-schema.js?v=90',
   './ai/feature-extractor.js?v=90',
   './ai/recommender.js?v=90',

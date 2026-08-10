@@ -11,7 +11,6 @@ struct RootView: View {
     @StateObject private var authStore = AuthStore()
     @StateObject private var notificationCoordinator = NotificationCoordinator.shared
     @State private var pendingGroupInvite: GroupRideInvite?
-    @State private var showingFlow = false
 
     var body: some View {
         Group {
@@ -35,17 +34,13 @@ struct RootView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Preparing Memory Lanes")
             case .signedOut:
-                AuthView(authStore: authStore, onOpenFlow: { showingFlow = true })
+                AuthView(authStore: authStore)
             case .signedIn:
                 MainTabShell(
                     authStore: authStore,
-                    pendingGroupInvite: $pendingGroupInvite,
-                    onOpenFlow: { showingFlow = true }
+                    pendingGroupInvite: $pendingGroupInvite
                 )
             }
-        }
-        .fullScreenCover(isPresented: $showingFlow) {
-            FlowView(onClose: { showingFlow = false })
         }
         .onOpenURL { url in
             if let invite = GroupRideInvite.parse(url) {
@@ -89,7 +84,6 @@ private struct MainTabShell: View {
     @ObservedObject var authStore: AuthStore
     @Environment(\.scenePhase) private var scenePhase
     @Binding var pendingGroupInvite: GroupRideInvite?
-    let onOpenFlow: () -> Void
     @StateObject private var uploadQueue = PendingRideUploadCoordinator()
     @State private var selectedTab: MainTab = .ride
     @State private var ridePath = NavigationPath()
@@ -139,8 +133,7 @@ private struct MainTabShell: View {
                         showingRecorder = true
                     },
                     onImportRide: { showingImporter = true },
-                    onShowStats: { selectedTab = .stats },
-                    onOpenFlow: onOpenFlow
+                    onShowStats: { selectedTab = .stats }
                 )
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: Ride.self) { ride in
@@ -151,18 +144,6 @@ private struct MainTabShell: View {
                 }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        Button {
-                            Haptics.selection()
-                            onOpenFlow()
-                        } label: {
-                            Image(systemName: "waveform.path")
-                                .font(MLFont.title2)
-                                .foregroundStyle(Color.mlAccent)
-                                .mlHitTarget()
-                        }
-                        .buttonStyle(MLPressableButtonStyle())
-                        .accessibilityLabel("Open Flow")
-
                         Button {
                             showingAccount = true
                         } label: {
@@ -283,6 +264,9 @@ private struct MainTabShell: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task { await uploadQueue.sync() }
+        }
+        .onChange(of: selectedTab) { _, _ in
+            Haptics.selection()
         }
         .mlToast($toast, bottomInset: Layout.floatingTabBarToastInset)
         .fullScreenCover(isPresented: $showingRecorder) {
