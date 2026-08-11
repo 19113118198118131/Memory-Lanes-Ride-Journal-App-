@@ -16,8 +16,11 @@ struct AccountView: View {
     @State private var activityPayload: ActivityPayload?
     @State private var errorMessage: String?
     @State private var confirmingSignOut = false
+    @State private var confirmingAccountDeletion = false
+    @State private var isRequestingAccountDeletion = false
     @State private var showingProfileEditor = false
     private let exportService = AccountDataExportService()
+    private let accountDeletionService = AccountDeletionService()
 
     var body: some View {
         NavigationStack {
@@ -92,6 +95,18 @@ struct AccountView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Rides stored in your account will remain available when you sign in again.")
+        }
+        .confirmationDialog(
+            "Request account deletion?",
+            isPresented: $confirmingAccountDeletion,
+            titleVisibility: .visible
+        ) {
+            Button("Request Deletion", role: .destructive) {
+                Task { await requestAccountDeletion() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This signs you out now and sends your request to Memory Lanes for processing. Export anything you want to keep first.")
         }
     }
 
@@ -276,7 +291,7 @@ struct AccountView: View {
     }
 
     private var dataSection: some View {
-        accountSection(title: "Data & Privacy", footer: "Your export includes rides, routes, journal entries and GPX files.") {
+        accountSection(title: "Data & Privacy", footer: "Your export includes rides, routes, journal entries and GPX files. Deletion requests are processed from your account record.") {
             Button {
                 Task { await exportAccountData() }
             } label: {
@@ -298,6 +313,68 @@ struct AccountView: View {
             }
             .buttonStyle(MLPressableButtonStyle())
             .disabled(isExporting)
+
+            rowDivider
+
+            Link(destination: AccountLinks.privacyPolicy) {
+                accountRow(
+                    title: "Privacy policy",
+                    detail: "How Memory Lanes handles your data",
+                    symbol: "hand.raised.fill",
+                    trailingSymbol: "arrow.up.right"
+                )
+            }
+            .buttonStyle(MLPressableButtonStyle())
+
+            rowDivider
+
+            Link(destination: AccountLinks.termsOfUse) {
+                accountRow(
+                    title: "Terms of use",
+                    detail: "The agreement for using Memory Lanes",
+                    symbol: "doc.text",
+                    trailingSymbol: "arrow.up.right"
+                )
+            }
+            .buttonStyle(MLPressableButtonStyle())
+
+            rowDivider
+
+            Link(destination: AccountLinks.support) {
+                accountRow(
+                    title: "Support",
+                    detail: "Get help or report a beta issue",
+                    symbol: "questionmark.circle",
+                    trailingSymbol: "arrow.up.right"
+                )
+            }
+            .buttonStyle(MLPressableButtonStyle())
+
+            rowDivider
+
+            Button(role: .destructive) {
+                confirmingAccountDeletion = true
+            } label: {
+                accountRow(
+                    title: "Delete account",
+                    detail: isRequestingAccountDeletion ? "Starting deletion request" : "Request permanent account deletion",
+                    symbol: "trash",
+                    trailingSymbol: nil,
+                    trailingText: isRequestingAccountDeletion ? nil : "Delete",
+                    trailingTextTint: .mlDanger,
+                    tint: .mlDanger,
+                    isDestructive: true
+                )
+                .overlay(alignment: .trailing) {
+                    if isRequestingAccountDeletion {
+                        ProgressView()
+                            .tint(.mlDanger)
+                            .padding(.trailing, Spacing.md)
+                    }
+                }
+            }
+            .buttonStyle(MLPressableButtonStyle())
+            .disabled(isRequestingAccountDeletion)
 
             if let errorMessage {
                 rowDivider
@@ -490,6 +567,25 @@ struct AccountView: View {
         }
     }
 
+    @MainActor
+    private func requestAccountDeletion() async {
+        guard !isRequestingAccountDeletion else { return }
+        isRequestingAccountDeletion = true
+        errorMessage = nil
+        defer { isRequestingAccountDeletion = false }
+
+        do {
+            guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+            try await accountDeletionService.requestDeletion(accessToken: token)
+            Haptics.success()
+            dismiss()
+            onSignOut()
+        } catch {
+            Haptics.error()
+            errorMessage = error.localizedDescription
+        }
+    }
+
     private var displayName: String {
         if let profileName = riderProfile?.displayName,
            !profileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -520,6 +616,15 @@ struct AccountView: View {
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
     }
+}
+
+private enum AccountLinks {
+    private static let webBaseURL = URL(string: "https://memory-lanes-ride-journal-app.vercel.app")
+        ?? URL(fileURLWithPath: "/")
+
+    static let privacyPolicy = webBaseURL.appendingPathComponent("privacy.html")
+    static let termsOfUse = webBaseURL.appendingPathComponent("terms.html")
+    static let support = webBaseURL.appendingPathComponent("support.html")
 }
 
 private struct AccountLibrarySummary {

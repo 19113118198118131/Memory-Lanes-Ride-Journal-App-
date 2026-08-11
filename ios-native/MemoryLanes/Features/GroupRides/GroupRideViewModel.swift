@@ -17,6 +17,7 @@ final class GroupRideViewModel {
     private(set) var isPostingAnnouncement = false
     private(set) var didLeaveRide = false
     private(set) var didCloseRide = false
+    private(set) var didBlockHost = false
     var errorMessage: String?
 
     let shareToken: UUID
@@ -172,6 +173,40 @@ final class GroupRideViewModel {
             try await service.leaveGroupRide(shareToken: shareToken)
             await notificationCoordinator.reconcileReminder(for: groupRide.withoutMembership)
             didLeaveRide = true
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func reportGroupRide(reason: CommunityReportReason, detail: String?) async -> Bool {
+        guard !isWorking else { return false }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            try await service.reportGroupRide(
+                shareToken: shareToken,
+                reason: reason,
+                detail: detail
+            )
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func blockHost() async -> Bool {
+        guard let groupRide, !groupRide.isOwner, !isWorking else { return false }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            try await service.blockGroupRideHost(shareToken: shareToken)
+            await notificationCoordinator.reconcileReminder(for: groupRide.withoutMembership)
+            didBlockHost = true
             return true
         } catch {
             errorMessage = error.localizedDescription

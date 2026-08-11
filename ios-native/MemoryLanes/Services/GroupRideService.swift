@@ -9,6 +9,12 @@ protocol GroupRideServing: Sendable {
     func setRSVP(_ rsvp: GroupRideRSVP, shareToken: UUID) async throws -> GroupRide
     func setCheckIn(_ checkedIn: Bool, shareToken: UUID) async throws -> GroupRide
     func postAnnouncement(_ message: String, shareToken: UUID) async throws -> GroupRide
+    func reportGroupRide(
+        shareToken: UUID,
+        reason: CommunityReportReason,
+        detail: String?
+    ) async throws
+    func blockGroupRideHost(shareToken: UUID) async throws
     func leaveGroupRide(shareToken: UUID) async throws
     func setStatus(_ status: GroupRideStatus, shareToken: UUID) async throws -> GroupRide
 }
@@ -117,6 +123,34 @@ struct GroupRideService: GroupRideServing, Sendable {
         return payload.groupRide(shareToken: shareToken)
     }
 
+    func reportGroupRide(
+        shareToken: UUID,
+        reason: CommunityReportReason,
+        detail: String?
+    ) async throws {
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        let reported: Bool = try await client.post(
+            path: "rest/v1/rpc/report_group_ride",
+            body: GroupRideReportPayload(
+                token: shareToken,
+                reason: reason.rawValue,
+                detail: detail?.trimmingCharacters(in: .whitespacesAndNewlines)
+            ),
+            accessToken: token
+        )
+        guard reported else { throw GroupRideServiceError.operationFailed }
+    }
+
+    func blockGroupRideHost(shareToken: UUID) async throws {
+        guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
+        let blocked: Bool = try await client.post(
+            path: "rest/v1/rpc/block_group_ride_host",
+            body: GroupRideTokenPayload(token: shareToken),
+            accessToken: token
+        )
+        guard blocked else { throw GroupRideServiceError.operationFailed }
+    }
+
     func leaveGroupRide(shareToken: UUID) async throws {
         guard let token = await accessToken() else { throw RideServiceError.notAuthenticated }
         let didLeave: Bool = try await client.post(
@@ -181,6 +215,12 @@ private struct GroupRideCheckInPayload: Encodable {
 private struct GroupRideAnnouncementPayload: Encodable {
     let token: UUID
     let message: String
+}
+
+private struct GroupRideReportPayload: Encodable {
+    let token: UUID
+    let reason: String
+    let detail: String?
 }
 
 private struct GroupRideDiscoveryPayload: Encodable {

@@ -68,7 +68,7 @@ Memory Lanes turns a finished ride into a story: the route, the moments, the roa
 - Analytics and Rider Craft are GPS-derived reflection, not professional instruction or safety telemetry.
 - Limit Point Analysis is research-only and must not be used for live riding decisions.
 - Flow is a paced ritual for when parked safely. It is not a medical feature or a breathing sensor.
-- Community controls are intended for small trusted groups until reporting, blocking and moderation controls are complete.
+- Community reporting and host blocking are available in beta. Reports require an operational review process before broader community expansion.
 
 ## Beta Success Criteria
 
@@ -82,7 +82,7 @@ Memory Lanes turns a finished ride into a story: the route, the moments, the roa
 ## Release Sequence
 
 1. Internal TestFlight: recording reliability, offline areas, route guidance, replay and group-ride flows.
-2. Resolve beta blockers from the preflight report and validate physical-device edge cases.
-3. Add account deletion, moderation controls, public support and privacy surfaces.
+2. Apply the beta safety migration, assign report and deletion-request owners, and validate physical-device edge cases.
+3. Publish the public support, privacy and terms pages, then complete App Store Connect privacy answers.
 4. Expand TestFlight only after the safety and privacy review is complete.
 5. Prepare public App Store submission after production coverage, moderation and support operations are live.

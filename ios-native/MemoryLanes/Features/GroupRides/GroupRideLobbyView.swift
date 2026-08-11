@@ -14,6 +14,9 @@ struct GroupRideLobbyView: View {
     @State private var showingRideMesh = false
     @State private var rideMeshSession: RideMeshSession?
     @State private var shouldOpenRequestedRideMesh: Bool
+    @State private var showingSafetyActions = false
+    @State private var showingReportComposer = false
+    @State private var confirmingHostBlock = false
 
     let onStartRoute: (PlannedRoute, GroupRideRecordingContext) -> Void
     let onEnded: () -> Void
@@ -94,6 +97,19 @@ struct GroupRideLobbyView: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showingReportComposer) {
+            GroupRideReportComposer { reason, detail in
+                let reported = await viewModel.reportGroupRide(reason: reason, detail: detail)
+                if reported {
+                    Haptics.success()
+                } else {
+                    Haptics.error()
+                }
+                return reported
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .sheet(item: $pendingStartRide) { groupRide in
             GroupRideStartSheet(groupRide: groupRide) { shareLiveLocation in
                 guard await viewModel.prepareToStartRoute() else {
@@ -164,6 +180,40 @@ struct GroupRideLobbyView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Your RSVP is removed. You can join again later with the invitation while the ride is still open.")
+        }
+        .confirmationDialog(
+            "Community safety",
+            isPresented: $showingSafetyActions,
+            titleVisibility: .visible
+        ) {
+            Button("Report Group Ride", systemImage: "exclamationmark.bubble") {
+                showingReportComposer = true
+            }
+            Button("Block Host", systemImage: "hand.raised", role: .destructive) {
+                confirmingHostBlock = true
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Reports are sent for review. Blocking removes this host's rides from your community list.")
+        }
+        .confirmationDialog(
+            "Block this host?",
+            isPresented: $confirmingHostBlock,
+            titleVisibility: .visible
+        ) {
+            Button("Block Host", role: .destructive) {
+                Task {
+                    if await viewModel.blockHost() {
+                        Haptics.success()
+                        onEnded()
+                    } else {
+                        Haptics.error()
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You will leave this host's group rides and no longer see their community rides.")
         }
         .onDisappear {
             rideMeshSession?.stop()
@@ -859,6 +909,119 @@ struct GroupRideLobbyView: View {
                 .buttonStyle(MLPressableButtonStyle())
                 .disabled(viewModel.isWorking)
             }
+
+            if !groupRide.isOwner {
+                Button {
+                    showingSafetyActions = true
+                } label: {
+                    Label("Safety options", systemImage: "hand.raised")
+                        .font(MLFont.callout)
+                        .foregroundStyle(Color.mlTextSecondary)
+                        .frame(maxWidth: .infinity, minHeight: Layout.minTouchTarget)
+                }
+                .buttonStyle(MLPressableButtonStyle())
+                .disabled(viewModel.isWorking)
+            }
+        }
+    }
+}
+
+private struct GroupRideReportComposer: View {
+    let onSend: (CommunityReportReason, String?) async -> Bool
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var reason: CommunityReportReason = .safety
+    @State private var detail = ""
+    @State private var isSending = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Community safety").mlKicker()
+                        Text("Report this group ride")
+                            .font(MLFont.displaySmall)
+                            .foregroundStyle(Color.mlTextPrimary)
+                        Text("Share only what will help Memory Lanes review the ride. The host is not told who reported it.")
+                            .font(MLFont.callout)
+                            .foregroundStyle(Color.mlTextSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Picker("Reason", selection: $reason) {
+                        ForEach(CommunityReportReason.allCases, id: \.self) { reason in
+                            Text(reason.title).tag(reason)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .font(MLFont.bodyEmphasised)
+                    .tint(.mlAccent)
+
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Details, optional").mlKicker()
+                        TextEditor(text: $detail)
+                            .font(MLFont.body)
+                            .foregroundStyle(Color.mlTextPrimary)
+                            .scrollContentBackground(.hidden)
+                            .padding(Spacing.sm)
+                            .frame(minHeight: 128)
+                            .background(Color.mlSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                                    .stroke(Color.mlHairline, lineWidth: Layout.hairline)
+                            }
+                            .accessibilityLabel(reason.detailPrompt)
+                            .onChange(of: detail) { _, value in
+                                if value.count > 1_000 {
+                                    detail = String(value.prefix(1_000))
+                                }
+                            }
+                        Text("\(detail.count)/1000")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlTextTertiary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+
+                    if let errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.circle.fill")
+                            .font(MLFont.caption)
+                            .foregroundStyle(Color.mlDanger)
+                    }
+
+                    PrimaryButton(title: "Send Report", systemImage: "paperplane.fill", isLoading: isSending) {
+                        Task { await send() }
+                    }
+                    .disabled(isSending)
+                }
+                .padding(.vertical, Spacing.lg)
+                .mlScreenPadding()
+            }
+            .background(Color.mlBackground)
+            .navigationTitle("Report Ride")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isSending)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+        .interactiveDismissDisabled(isSending)
+    }
+
+    @MainActor
+    private func send() async {
+        guard !isSending else { return }
+        isSending = true
+        errorMessage = nil
+        defer { isSending = false }
+        if await onSend(reason, detail.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty) {
+            dismiss()
+        } else {
+            errorMessage = "The report could not be sent. Check your connection and try again."
         }
     }
 }

@@ -1,5 +1,30 @@
 import Foundation
 
+enum CommunityReportReason: String, CaseIterable, Codable, Sendable {
+    case safety
+    case abusive
+    case misleading
+    case other
+
+    var title: String {
+        switch self {
+        case .safety: "Safety concern"
+        case .abusive: "Harassment or abusive behaviour"
+        case .misleading: "Misleading ride information"
+        case .other: "Something else"
+        }
+    }
+
+    var detailPrompt: String {
+        switch self {
+        case .safety: "Tell us what raised a safety concern."
+        case .abusive: "Tell us what happened."
+        case .misleading: "Tell us what was inaccurate."
+        case .other: "Tell us what we should review."
+        }
+    }
+}
+
 enum GroupRideStatus: String, Codable, CaseIterable, Hashable, Sendable {
     case scheduled
     case cancelled

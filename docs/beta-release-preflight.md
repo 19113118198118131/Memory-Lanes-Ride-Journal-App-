@@ -12,20 +12,17 @@ Date: 2026-08-11
 
 ## Blocking Before External TestFlight Or Public Submission
 
-1. **Account deletion is not available in-app.**
-   - Evidence: the native app can sign out, but has no self-service account deletion flow.
-   - Why it matters: App Review Guideline 5.1.1 requires apps that support account creation to initiate deletion within the app.
-   - Resolution: add an Account deletion action, confirmation, backend delete endpoint or Supabase function, and a documented retention policy.
+1. **Apply and operate the account deletion workflow.**
+   - Implementation: Account now has a deletion-request action, confirmation and immediate sign-out. The companion browser account page has the same action.
+   - Remaining release work: apply `supabase-beta-safety-account-deletion.sql`, assign an owner to process the request queue, and confirm the retention and completion policy.
 
-2. **Community safety controls are incomplete.**
-   - Evidence: group rides and announcements exist, but there is no report, block or moderation workflow in the native app.
-   - Why it matters: user-generated or social content requires a reporting mechanism, blocking capability and a way to contact the developer.
-   - Resolution: add report and block flows, moderation handling, terms, escalation process and support contact before inviting untrusted external users.
+2. **Apply and operate the community safety workflow.**
+   - Implementation: non-host group members can report a ride and block its host. The migration stores reports, filters blocked hosts from discovery and removes the blocked rider from that host's memberships.
+   - Remaining release work: apply `supabase-beta-safety-account-deletion.sql`, assign a moderation owner and response target, and test report review with a real beta account.
 
-3. **Public support and privacy URLs are not defined.**
-   - Evidence: no privacy policy, terms or support surface is included in the repository.
-   - Why it matters: App Store Connect requires a privacy policy URL. Support information is required for a credible public release.
-   - Resolution: publish accessible HTTPS Privacy Policy, Terms of Use and Support pages, then enter the URLs in App Store Connect and link them from Account.
+3. **Publish and verify the public trust URLs.**
+   - Implementation: `privacy.html`, `terms.html` and `support.html` are included, linked from Account and added to the PWA shell.
+   - Remaining release work: deploy them to the production HTTPS host, verify the three URLs in a logged-out browser, then enter the privacy and support URLs in App Store Connect.
 
 4. **App Store Connect authentication is not configured locally.**
    - Evidence: `asc auth doctor` finds no config or usable credential profile.

@@ -18,6 +18,7 @@ const elements = {
   groupList: document.getElementById('account-group-list'),
   exportButton: document.getElementById('export-data-btn'),
   exportStatus: document.getElementById('account-export-status'),
+  deleteAccount: document.getElementById('account-delete'),
   signOut: document.getElementById('account-sign-out')
 };
 
@@ -166,6 +167,20 @@ elements.exportButton.addEventListener('click', async () => {
 
 elements.signOut.addEventListener('click', async () => {
   if (!window.confirm('Sign out of Memory Lanes? Your cloud rides will stay in your account.')) return;
+  await supabase.auth.signOut();
+  window.location.href = 'index.html';
+});
+
+elements.deleteAccount.addEventListener('click', async () => {
+  if (!window.confirm('Request permanent account deletion? Export anything you want to keep first. This signs you out now.')) return;
+  elements.deleteAccount.disabled = true;
+  elements.exportStatus.textContent = 'Starting your deletion request…';
+  const { error } = await supabase.rpc('request_account_deletion');
+  if (error) {
+    elements.deleteAccount.disabled = false;
+    elements.exportStatus.textContent = `Deletion request failed: ${error.message}`;
+    return;
+  }
   await supabase.auth.signOut();
   window.location.href = 'index.html';
 });
