@@ -85,6 +85,30 @@ struct PendingRideUploadTests {
         #expect(await store.uploads(for: userID).isEmpty)
     }
 
+    @Test @MainActor func coordinatorSurfacesServerFailuresWithoutCallingThemOffline() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = PendingRideUploadStore(directory: directory)
+        let uploader = StubRecordedRideUploader(serverFailure: true)
+        let coordinator = PendingRideUploadCoordinator(
+            store: store,
+            uploader: uploader,
+            monitorsNetwork: false
+        )
+        let userID = UUID()
+        await coordinator.configure(userID: userID, accessToken: { "token" })
+
+        _ = try await coordinator.submit(
+            title: "Queued ride",
+            result: recordedRide(),
+            plannedRouteID: nil,
+            userID: userID
+        )
+
+        #expect(coordinator.phase == .needsAttention)
+        #expect(coordinator.syncErrorMessage?.contains("needs attention") == true)
+    }
+
     private func recordedRide() -> RecordedRideResult {
         let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
         let points = [
@@ -126,15 +150,25 @@ struct PendingRideUploadTests {
 }
 
 private actor StubRecordedRideUploader: RecordedRideUploading {
-    private var fails: Bool
+    private enum Failure {
+        case none
+        case offline
+        case server
+    }
+
+    private var failure: Failure
     private(set) var attemptCount = 0
 
     init(fails: Bool) {
-        self.fails = fails
+        failure = fails ? .offline : .none
+    }
+
+    init(serverFailure: Bool) {
+        failure = serverFailure ? .server : .none
     }
 
     func setFails(_ value: Bool) {
-        fails = value
+        failure = value ? .offline : .none
     }
 
     func saveRecordedRide(
@@ -145,7 +179,14 @@ private actor StubRecordedRideUploader: RecordedRideUploading {
         accessToken: String
     ) async throws -> Ride {
         attemptCount += 1
-        if fails { throw URLError(.notConnectedToInternet) }
+        switch failure {
+        case .none:
+            break
+        case .offline:
+            throw URLError(.notConnectedToInternet)
+        case .server:
+            throw SupabaseHTTPError.server(status: 400, message: "Storage policy denied upsert")
+        }
         return Ride(
             id: result.id,
             title: title,

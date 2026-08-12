@@ -126,6 +126,10 @@ struct DashboardView: View {
                     if uploadQueue.phase == .syncing {
                         ProgressView()
                             .tint(Color.mlAccent)
+                    } else if uploadQueue.phase == .needsAttention {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(MLFont.headline)
+                            .foregroundStyle(Color.mlWarning)
                     } else {
                         Image(systemName: "icloud.and.arrow.up")
                             .font(MLFont.headline)
@@ -174,9 +178,14 @@ struct DashboardView: View {
     }
 
     private var syncDetail: String {
-        uploadQueue.phase == .syncing
-            ? "Uploading securely to your journal"
-            : "Waiting to sync. Tap to try again."
+        switch uploadQueue.phase {
+        case .syncing:
+            return "Uploading securely to your journal"
+        case .needsAttention:
+            return uploadQueue.syncErrorMessage ?? "This ride needs attention before it can sync."
+        case .idle, .waitingForConnection:
+            return uploadQueue.syncErrorMessage ?? "Waiting to sync. Tap to try again."
+        }
     }
 
     // MARK: List content — every state handled

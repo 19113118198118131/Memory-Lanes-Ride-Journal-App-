@@ -130,6 +130,7 @@ final class PendingRideUploadCoordinator: ObservableObject {
         case idle
         case syncing
         case waitingForConnection
+        case needsAttention
     }
 
     enum SubmissionOutcome: Equatable {
@@ -139,6 +140,7 @@ final class PendingRideUploadCoordinator: ObservableObject {
 
     @Published private(set) var pendingCount = 0
     @Published private(set) var phase: Phase = .idle
+    @Published private(set) var syncErrorMessage: String?
 
     private let store: any PendingRideUploadStoring
     private let uploader: any RecordedRideUploading
@@ -229,10 +231,12 @@ final class PendingRideUploadCoordinator: ObservableObject {
             return
         }
         guard let token = await accessToken?() else {
-            phase = .waitingForConnection
+            syncErrorMessage = "Sign in again to sync this ride. It remains safe on this iPhone."
+            phase = .needsAttention
             return
         }
 
+        syncErrorMessage = nil
         phase = .syncing
         for upload in uploads {
             guard !Task.isCancelled else { break }
@@ -251,7 +255,8 @@ final class PendingRideUploadCoordinator: ObservableObject {
                 break
             } catch {
                 try? await store.markFailed(id: upload.id, errorDescription: error.localizedDescription)
-                phase = .waitingForConnection
+                syncErrorMessage = Self.syncMessage(for: error)
+                phase = Self.isRetryable(error) ? .waitingForConnection : .needsAttention
                 await refresh()
                 return
             }
@@ -269,6 +274,36 @@ final class PendingRideUploadCoordinator: ObservableObject {
         pendingCount = await store.uploads(for: userID).count
         if pendingCount == 0, phase != .syncing {
             phase = .idle
+            syncErrorMessage = nil
         }
+    }
+
+    private static func isRetryable(_ error: Error) -> Bool {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .timedOut,
+                 .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed:
+                return true
+            default:
+                return false
+            }
+        }
+        if let serverError = error as? SupabaseHTTPError,
+           case let .server(status, _) = serverError {
+            return status >= 500
+        }
+        return false
+    }
+
+    private static func syncMessage(for error: Error) -> String {
+        if let urlError = error as? URLError, isRetryable(urlError) {
+            return "Waiting for a reliable connection. This ride is safe on this iPhone."
+        }
+        if let serverError = error as? SupabaseHTTPError,
+           case let .server(status, _) = serverError,
+           status == 401 || status == 403 {
+            return "Sign in again to sync this ride. It remains safe on this iPhone."
+        }
+        return "This ride needs attention before it can sync. It remains safe on this iPhone."
     }
 }
